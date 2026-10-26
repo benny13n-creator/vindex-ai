@@ -50,14 +50,18 @@ await ctx.route("**/*", async route => {
     return odgovori(200, { ok: true });
   }
   if (req.method() === "POST" && url.pathname === "/email-notif/test") {
+    // Isti ugovor kao routers/email_notif.py: interval 1/3/7 samo ako je uključen i sačuvan; bez njega provera dostave.
+    const body = JSON.parse(req.postData() || "{}"), n = body.interval === undefined ? null : body.interval;
+    if (n !== null && ![1, 3, 7].includes(n)) return odgovori(422, { detail: "interval" });
+    if (n !== null && !(profili[t] && profili[t].aktivan && profili[t]["dan_" + n])) return odgovori(409, { detail: "nije uključen" });
     testSlanja++;
-    return odgovori(200, { ok: true, poslato_na: adrese[t] });
+    return odgovori(200, { ok: true, poslato_na: adrese[t], interval: n });
   }
   return odgovori(405, { detail: "not allowed" });
 });
 const page = await ctx.newPage(), greske = [];
 page.on("pageerror", e => greske.push(String(e)));
-await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja");
+await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja/obavestenja");
 await page.waitForFunction(() => document.getElementById("pn-adresa").textContent.includes("b10-a@example.test"));
 proveri("V2 Podešavanja su vidljiva u istoj navigaciji", !await page.locator("#podesavanja-nav").evaluate(el => el.hidden)
   && await page.locator("#podesavanja-pogled").isVisible()
@@ -76,11 +80,33 @@ proveri("Aktivacija nosi prijavljeni token i SAMO podešavanja", s && s.token ==
   === JSON.stringify({ aktivan: true, dan_7: false, dan_3: false, dan_1: true, nedeljni: false }));
 proveri("Po uspešnoj aktivaciji se vidi proba", await page.locator("#pn-test").isVisible());
 proveri("Aktivacija nije automatsko slanje emaila", testSlanja === 0);
+const vrste = () => page.locator("#pn-test-vrsta option").evaluateAll(o => o.map(x => x.value));
+proveri("P0: test nudi samo dostavu i SAČUVANI interval 1", JSON.stringify(await vrste()) === JSON.stringify(["", "dostava", "1"]));
+proveri("P0: bez izbora vrste testa dugme je onemogućeno (ništa se ne pretpostavlja)", await page.locator("#pn-test").isDisabled());
+await page.locator("#pn-test-vrsta").selectOption("1");
 await page.locator("#pn-test").click();
 await page.waitForFunction(() => document.getElementById("pn-poruka").textContent.includes("inboxu"));
-proveri("Test ide samo eksplicitnim klikom jednom nalogu A", testSlanja === 1
-  && zahtevi.filter(x => x.path === "/email-notif/test").every(x => x.token === A));
+const testovi = () => zahtevi.filter(x => x.path === "/email-notif/test");
+proveri("Test ide samo eksplicitnim klikom jednom nalogu A", testSlanja === 1 && testovi().every(x => x.token === A));
+proveri("P0: test nosi izabrani interval 1", JSON.stringify(JSON.parse(testovi()[0].body)) === JSON.stringify({ interval: 1 }));
+proveri("P0: poruka imenuje testirani interval i ne tvrdi zakazivanje", /Sutra ističe rok/.test(await page.locator("#pn-poruka").innerText())
+  && /ne proverava automatsko zakazivanje/.test(await page.locator("#pn-poruka").innerText()));
 proveri("UI ne tvrdi da je inbox isporučen", /Proverite prijem/.test(await page.locator("#pn-poruka").innerText()));
+// Neusačuvana promena čekboksa ne otvara test za taj interval: nude se samo sačuvani intervali.
+await page.locator("#pn-dan-7").check();
+proveri("P0: nesačuvan 7 se ne nudi za test", !(await vrste()).includes("7"));
+await page.locator("#pn-sacuvaj").click();
+await page.waitForFunction(() => [...document.querySelectorAll("#pn-test-vrsta option")].some(o => o.value === "7"));
+proveri("P0: posle čuvanja 7+1 nude se tačno dostava, 7 i 1", JSON.stringify(await vrste()) === JSON.stringify(["", "dostava", "7", "1"]));
+await page.locator("#pn-test-vrsta").selectOption("7");
+await page.locator("#pn-test").click();
+await page.waitForFunction(() => /Za 7 dana/.test(document.getElementById("pn-poruka").textContent));
+proveri("P0: test 7 nosi interval 7", JSON.stringify(JSON.parse(testovi()[1].body)) === JSON.stringify({ interval: 7 }));
+await page.locator("#pn-test-vrsta").selectOption("dostava");
+await page.locator("#pn-test").dblclick();
+await page.waitForFunction(() => /proveru dostave/.test(document.getElementById("pn-poruka").textContent));
+proveri("P0: provera dostave šalje prazno telo, dupli klik = jedan zahtev", testovi().length === 3
+  && JSON.stringify(JSON.parse(testovi()[2].body)) === "{}");
 await page.locator("#pn-deaktiviraj").click();
 await page.waitForFunction(() => document.getElementById("pn-aktivno").textContent.includes("isključeni"));
 proveri("Isključivanje je ciljani DELETE iste korisničke putanje", zahtevi.some(x => x.path === "/email-notif/profil" && x.method === "DELETE" && x.token === A)
@@ -103,7 +129,7 @@ proveri("Posle ponovnog učitavanja nalog B ne vidi adresu A", (await page.locat
 
 pokvarenoCitanje = true;
 await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/predmeti/nov");
-await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja");
+await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja/obavestenja");
 await page.waitForFunction(() => document.getElementById("pn-stanje").textContent.includes("nisu učitana"));
 proveri("GET 503: nema lažnog praznog stanja i nema aktivacije", await page.locator("#pn-sacuvaj").isDisabled()
   && await page.locator("#pn-test").isHidden());

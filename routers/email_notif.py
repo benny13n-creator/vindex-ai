@@ -27,14 +27,14 @@ import logging
 import os
 import smtplib
 import types
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user, _verify_token
 from shared.rate import limiter
@@ -116,7 +116,7 @@ def _smtp_send(to_addr: str, subject: str, html: str) -> None:
         smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
 
 
-def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str = "") -> str:
+def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str = "", test: bool = False) -> str:
     if dana_pre == 1:
         naslov = "⚠️ Sutra ističe rok!"
         boja   = "#ef4444"
@@ -139,9 +139,15 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
     )
 
     unsub = f' <a href="{make_unsub_url(user_id, email)}" style="color:#64748b;">Odjavi se</a>' if user_id and email else ""
+    # P0 (B10): primer intervala nosi oznaku TEST i izjavu da rok nije stvaran; zakazani podsetnik je nema.
+    oznaka_test = (
+        '<div style="background:#facc15;color:#111827;padding:10px 28px;font-size:13px;font-weight:700;">'
+        'TEST — primer obaveštenja. Rok i datum su izmišljeni i nemaju pravno dejstvo.</div>'
+    ) if test else ""
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  {oznaka_test}
   <div style="background:{boja};padding:20px 28px;">
     <div style="font-size:20px;font-weight:700;color:#fff;">{naslov}</div>
     <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Vindex AI — Pravni Operativni Sistem</div>
@@ -168,7 +174,42 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
 </body></html>"""
 
 
+def _naslov_podsetnika(dana_pre: int) -> str:
+    """Jedan izvor naslova za zakazani podsetnik i za njegov TEST primer."""
+    return f"Vindex AI — {'Sutra ističe rok!' if dana_pre == 1 else f'Za {dana_pre} dana — kritični rokovi'}"
+
+
+def _danas_beograd(sada: Optional[datetime] = None) -> date:
+    """Kalendarski dan u Srbiji (CET/CEST po pravilu EU) — bez zavisnosti od tz baze u slim slici.
+    Letnje vreme: od poslednje nedelje marta 01:00 UTC do poslednje nedelje oktobra 01:00 UTC."""
+    sada = (sada or datetime.now(timezone.utc)).astimezone(timezone.utc)
+
+    def _poslednja_nedelja(mesec: int) -> datetime:
+        d = date(sada.year, mesec, 31)
+        d -= timedelta(days=(d.weekday() + 1) % 7)
+        return datetime(d.year, d.month, d.day, 1, tzinfo=timezone.utc)
+
+    letnje = _poslednja_nedelja(3) <= sada < _poslednja_nedelja(10)
+    return (sada + timedelta(hours=2 if letnje else 1)).date()
+
+
 # ─── Models ───────────────────────────────────────────────────────────────────
+
+class EmailTestReq(BaseModel):
+    """P0 (B10): `interval` bira koji podsetnik se prikazuje kao TEST primer. Bez njega se proverava samo
+    dostava (SMTP), bez tvrdnje o bilo kom intervalu. Dozvoljeno isključivo 1, 3 ili 7 (ne bool, ne 3.0)."""
+    model_config = ConfigDict(extra="forbid")
+    interval: Optional[int] = None
+
+    @field_validator("interval", mode="before")
+    @classmethod
+    def _samo_1_3_7(cls, v):
+        if v is None:
+            return v
+        if type(v) is not int or v not in (1, 3, 7):
+            raise ValueError("interval mora biti 1, 3 ili 7")
+        return v
+
 
 class EmailNotifReq(BaseModel):
     aktivan:  bool = True
@@ -245,24 +286,53 @@ async def obrisi_profil(request: Request, user: dict = Depends(get_current_user)
 
 @router.post("/email-notif/test")
 @limiter.limit("3/minute")
-async def test_email(request: Request, user: dict = Depends(get_current_user)):
-    """Šalje test email na adresu na koju idu podsetnici (`profiles.email`, TENFRONTS-M10)."""
-    to_addr = await asyncio.to_thread(_adresa_primaoca, _get_supa(), user["user_id"])
+async def test_email(request: Request, req: Optional[EmailTestReq] = Body(default=None),
+                     user: dict = Depends(get_current_user)):
+    """Šalje TEST email na adresu na koju idu podsetnici (`profiles.email`, TENFRONTS-M10).
+
+    P0 (B10): ranije je uvek slat primer „Za 3 dana“ (hardkodovano), bez obzira na izabrani interval.
+    - bez `interval`: samo provera dostave — poruka ne prikazuje nijedan rok ni interval;
+    - `interval` 1/3/7: primer tačno tog podsetnika (isti naslov i šablon kao zakazani), sa izmišljenim
+      rokom na dan Srbija-danas + interval. Interval mora biti uključen u profilu vlasnika.
+    Nijedno od ovoga ne dokazuje rad zakazivanja (cron)."""
+    interval = req.interval if req else None
+    supa = _get_supa()
+    to_addr = await asyncio.to_thread(_adresa_primaoca, supa, user["user_id"])
     if not to_addr:
         raise HTTPException(status_code=400, detail="Email adresa nije dostupna.")
     if not _SMTP_HOST:
         raise HTTPException(status_code=503, detail="Email server nije konfigurisan.")
 
-    html = _email_html(
-        [{"dogadjaj": "Test rok — Vindex AI", "datum_iso": date.today().isoformat()}],
-        dana_pre=3,
-    )
+    if interval is None:
+        subject = "Vindex AI — TEST: provera dostave email-a"
+        html = (
+            '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+            '<body style="margin:0;padding:24px;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">'
+            '<div style="max-width:560px;margin:0 auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;padding:24px 28px;">'
+            '<div style="font-size:18px;font-weight:700;color:#fff;">TEST — provera dostave</div>'
+            '<p style="color:#cbd5e1;font-size:14px;">Ova poruka proverava samo da email iz Vindex AI stiže na vašu adresu. '
+            'Ne prikazuje nijedan rok ni interval podsetnika.</p></div></body></html>'
+        )
+    else:
+        res = await asyncio.to_thread(
+            lambda: supa.table("korisnik_email_notif").select("*")
+                         .eq("user_id", user["user_id"]).maybe_single().execute()
+        )
+        p = (res.data if res is not None else None) or {}
+        if not (p.get("aktivan") is True and p.get(f"dan_{interval}") is True):
+            raise HTTPException(status_code=409, detail="Izabrani interval nije uključen i sačuvan u podešavanjima.")
+        rok = _danas_beograd() + timedelta(days=interval)
+        subject = "TEST — " + _naslov_podsetnika(interval)
+        html = _email_html(
+            [{"dogadjaj": "PRIMER — izmišljen rok bez pravnog dejstva", "datum_iso": rok.isoformat()}],
+            dana_pre=interval, test=True,
+        )
     try:
-        await asyncio.to_thread(_smtp_send, to_addr, "Vindex AI — Test email notifikacija", html)
+        await asyncio.to_thread(_smtp_send, to_addr, subject, html)
     except Exception as exc:
         logger.error("[EMAIL-NOTIF] test greška: %s", exc)
         raise HTTPException(status_code=502, detail=f"Greška pri slanju: {exc}")
-    return {"ok": True, "poslato_na": to_addr}
+    return {"ok": True, "poslato_na": to_addr, "interval": interval}
 
 
 
@@ -419,7 +489,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                     greske += 1
                     continue
 
-                subject = f"Vindex AI — {'Sutra ističe rok!' if dana_pre == 1 else f'Za {dana_pre} dana — kritični rokovi'}"
+                subject = _naslov_podsetnika(dana_pre)
                 html    = _email_html(rokovi, dana_pre, user_id=uid, email=to_addr)
 
                 try:

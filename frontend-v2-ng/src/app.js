@@ -337,7 +337,8 @@
     if (/^#\/pretraga\/?$/.test(location.hash)) return { pogled: "pretraga" };
     if (/^#\/znanje\/?$/.test(location.hash)) return { pogled: "znanje" };
     if (/^#\/kancelarija\/?$/.test(location.hash)) return { pogled: "kancelarija" };
-    if (/^#\/podesavanja\/?$/.test(location.hash)) return { pogled: "podesavanja" };
+    var mpn = /^#\/podesavanja(?:\/([a-z]{1,20}))?\/?$/.exec(location.hash);
+    if (mpn) return { pogled: "podesavanja", sekcija: mpn[1] || null };
     if (/^#\/danas\/?$/.test(location.hash)) return { pogled: "danas" };
     var mp = /^#\/pripremljeno\/([0-9a-fA-F-]{36})\/?$/.exec(location.hash);
     if (mp) return { pogled: "pripremljeno", id: mp[1] };
@@ -653,7 +654,10 @@
     var r = rutaIzAdrese();
     if (r && r.pogled) {
       if (ruta) { ruta = null; detalj.zatvori(); $("predmet").hidden = true; }
-      if (pogledRada === r.pogled && r.pogled !== "pripremljeno") return;
+      if (pogledRada === r.pogled && r.pogled !== "pripremljeno") {
+        if (r.pogled === "podesavanja") podesavanja.sekcija(r.sekcija);
+        return;
+      }
       if (pogledRada === "pripremljeno" && r.pogled === "pripremljeno") { pripremljenoPogled.otvori(); return; }
       zatvoriPogledRada();
       pogledRada = r.pogled;
@@ -661,7 +665,7 @@
       koren.dataset.pogled = r.pogled;
       var pg = pogledi()[r.pogled];
       $(pg[0]).hidden = false;
-      pg[1].otvori();
+      pg[1].otvori(r.sekcija);
       uskladiNavigaciju();
       return;
     }
@@ -703,7 +707,14 @@
     $("theme-toggle-label").textContent = t === "dark" ? "Svetla tema" : "Tamna tema";
     $("theme-toggle").setAttribute("aria-label", t === "dark" ? "Uključi svetlu temu" : "Uključi tamnu temu");
     try { localStorage.setItem("vx-ng-tema", t); } catch (e) {}
+    document.dispatchEvent(new CustomEvent("vx-tema", { detail: t }));
   }
+  /* P2.1: Podešavanja › Izgled i rad menjaju temu ISTOM funkcijom kao prekidač u gornjoj traci — jedno stanje,
+     dva prikaza; oba slušaju „vx-tema“. */
+  window.VxTema = Object.freeze({
+    postavi: function (t) { if (t === "light" || t === "dark") postaviTemu(t); },
+    trenutna: function () { return koren.dataset.theme === "light" ? "light" : "dark"; },
+  });
 
   /* ── Navigacija i fioke ────────────────────────────────────────────── */
   var uski = window.matchMedia("(max-width: 859px)");

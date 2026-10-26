@@ -785,3 +785,17 @@ a.text-btn { text-decoration: none; }
   .prijava-dugme { right: var(--sp-3); bottom: var(--sp-3); }
   .prijava__forma { padding: var(--sp-4); }
 }
+
+/* P1.1 Podešavanja: na širokom ekranu odeljci su kartice (.tabs), na telefonu jedan izbor (select). */
+.pn-izbor { display: none; margin-bottom: var(--sp-5); max-width: 360px; }
+@media (max-width: 859px) { .pn-sekcije { display: none; } .pn-izbor { display: flex; } }
+.pn-linkovi { margin: 0; padding-left: var(--sp-5); display: grid; gap: var(--sp-2); }
+#podesavanja-pogled a:not(.text-btn):not(.tabs__item) { color: var(--text-1); }
+.pn-clan-radnje { margin-top: var(--sp-2); }
+.pn-clan-radnje .field__input { width: auto; min-width: 9rem; }
+/* Ritam unutar odeljka Podešavanja (postojeći razmaci): tekst, polja i radnje se ne lepe jedni za druge. */
+[data-pn-sekcija] > .field__help + .field__help { margin-top: var(--sp-2); }
+[data-pn-sekcija] > .field, [data-pn-sekcija] > .form__actions, [data-pn-sekcija] > .notice, [data-pn-sekcija] > .people { margin-top: var(--sp-3); }
+[data-pn-sekcija] > .field, #pn-kanc-naziv-forma > .field, #pn-satnica-forma > .field { max-width: 480px; }
+.pn-izbor-teme { margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
+.pn-izbor-teme legend { width: 100%; padding: 0; margin-bottom: var(--sp-2); }

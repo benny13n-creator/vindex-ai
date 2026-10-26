@@ -26,7 +26,7 @@ export async function pokreniFixture(api) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
     // NS005: `/klijenti` i `/interni-stavovi/` su postojeći API ruteri bez `/api` prefiksa.
-    if (url.pathname.startsWith("/api/") || url.pathname === "/klijenti" || url.pathname.startsWith("/klijenti/") || url.pathname.startsWith("/interni-stavovi/") || url.pathname === "/portfolio/dashboard" || url.pathname.startsWith("/billing/")) {
+    if (url.pathname.startsWith("/api/") || url.pathname === "/klijenti" || url.pathname.startsWith("/klijenti/") || url.pathname.startsWith("/interni-stavovi/") || url.pathname === "/portfolio/dashboard" || url.pathname.startsWith("/billing/") || url.pathname.startsWith("/email-notif/")) {
       zahtevi.push({
         metod: req.method, putanja: url.pathname, upit: url.search,
         parametri: Object.fromEntries(url.searchParams), auth: req.headers.authorization || null,
@@ -40,7 +40,7 @@ export async function pokreniFixture(api) {
       }
       return;
     }
-    const rel = normalize(url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname)).replace(/^([\/\\])+/, "");
+    const rel = normalize(url.pathname === "/" || url.pathname === "/app" ? "/index.html" : decodeURIComponent(url.pathname)).replace(/^([\/\\])+/, "");
     if (rel.startsWith("..") || rel.startsWith("node_modules")) { res.writeHead(403).end(); return; }
     try {
       const telo = await readFile(join(KOREN, rel));

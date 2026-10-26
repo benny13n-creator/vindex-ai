@@ -27,6 +27,7 @@ Endpointi:
 from __future__ import annotations
 
 import asyncio
+import types
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -36,6 +37,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared.audit_immutable import log_action
 from shared.seats import SeatService
 
 logger = logging.getLogger("vindex.kancelarija")
@@ -63,19 +65,38 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# P1.5 (Settings sprint): postgrest 2.28.3 `maybe_single().execute()` za 0 redova vraća None, ne objekat sa
+# `.data = None` (NS3-N15). Ovde je svako takvo čitanje bilo `.data` nad None → AttributeError: `/moja` je za
+# svakog ko nije administrator (samostalan advokat, član, pozvan) vraćao 503, poziv novog člana 500, a
+# nepostojeći član 500 umesto 404. `or _NEMA_REDA` vraća nameravanu granu „nema reda“; autorizacija se ne menja.
+_NEMA_REDA = types.SimpleNamespace(data=None)
+
+
+def _najstariji(res):
+    """Pozivi po email adresi / aktivno članstvo po user_id NISU jedinstveni u šemi (018: samo
+    UNIQUE(kancelarija_id, email)) — dve kancelarije mogu pozvati istu adresu. `maybe_single()` za 2+ reda baca
+    APIError, pa je takav korisnik trajno dobijao 503 na /moja i 500 na prihvati/odbij. Bira se najstariji red
+    (isti koji /moja prikazuje i koji se prihvata); novi duplikati se sprečavaju u pozovi/prihvati."""
+    redovi = getattr(res, "data", None) or []
+    if isinstance(redovi, dict):
+        return types.SimpleNamespace(data=redovi)
+    return types.SimpleNamespace(data=redovi[0] if redovi else None)
+
+
 def _get_firma_for_admin(supa, uid: str) -> Optional[dict]:
-    res = supa.table("kancelarije").select("*").eq("admin_uid", uid).maybe_single().execute()
+    res = supa.table("kancelarije").select("*").eq("admin_uid", uid).maybe_single().execute() or _NEMA_REDA
     return res.data if res.data else None
 
 
 def _get_firma_for_member(supa, uid: str, email: str) -> Optional[dict]:
     """Returns kancelarija_clanovi row where user_id matches AND status=ACTIVE."""
-    res = (
+    res = _najstariji(
         supa.table("kancelarija_clanovi")
         .select("*, kancelarije(*)")
         .eq("user_id", uid)
         .eq("status", "ACTIVE")
-        .maybe_single()
+        .order("invited_at")
+        .limit(1)
         .execute()
     )
     return res.data if res.data else None
@@ -162,12 +183,13 @@ async def moja_kancelarija(
             member_row = _get_firma_for_member(supa, uid, email)
             if not member_row:
                 # Check pending invitation by email
-                pending = (
+                pending = _najstariji(
                     supa.table("kancelarija_clanovi")
                     .select("*, kancelarije(*)")
                     .eq("email", email)
                     .eq("status", "INVITED")
-                    .maybe_single()
+                    .order("invited_at")
+                    .limit(1)
                     .execute()
                 )
                 if pending.data:
@@ -259,9 +281,13 @@ async def promeni_naziv(
     def _rename():
         firma = _require_firma_admin(supa, uid)
         supa.table("kancelarije").update({"naziv": req.naziv.strip()}).eq("id", firma["id"]).execute()
-        return {"ok": True, "naziv": req.naziv.strip()}
+        return firma
 
-    return await asyncio.to_thread(_rename)
+    firma = await asyncio.to_thread(_rename)
+    # P1.5: materijalna promena identiteta kancelarije ostavlja nepromenljiv trag (kao ostale izmene kancelarije).
+    await log_action("kancelarija_naziv_promena", user_id=uid, resource_type="kancelarija", resource_id=str(firma["id"]),
+                     metadata={"stari_naziv": firma.get("naziv"), "novi_naziv": req.naziv.strip()})
+    return {"ok": True, "naziv": req.naziv.strip()}
 
 
 @router.get("/api/kancelarija/mesta")
@@ -326,10 +352,26 @@ async def pozovi_clana(
             .eq("kancelarija_id", firma["id"])
             .eq("email", req.email)
             .maybe_single()
-            .execute()
+            .execute() or _NEMA_REDA
         )
 
     existing = await asyncio.to_thread(_find_existing)
+
+    def _zauzet_drugde() -> bool:
+        """P1.5: jedna osoba = najviše jedna kancelarija. Šema to ne garantuje (018: UNIQUE samo po kancelariji),
+        a dupli poziv/članstvo je ranije trajno rušio /moja i prihvatanje (vidi `_najstariji`)."""
+        zauzeti = ("INVITED", "ACTIVE", "PENDING", "SUSPENDED")
+        drugi = (supa.table("kancelarija_clanovi").select("id, kancelarija_id, status")
+                 .eq("email", req.email).in_("status", list(zauzeti)).execute())
+        redovi = drugi.data if isinstance(drugi.data, list) else [drugi.data] if drugi.data else []
+        if any(isinstance(r, dict) and r.get("status") in zauzeti and r.get("kancelarija_id")
+               and r["kancelarija_id"] != firma["id"] for r in redovi):
+            return True
+        prof = supa.table("profiles").select("id").eq("email", req.email).limit(1).execute()
+        for p in (prof.data if isinstance(prof.data, list) else []):
+            if isinstance(p, dict) and p.get("id") and _get_firma_for_admin(supa, p["id"]):
+                return True
+        return False
 
     if existing.data:
         st = existing.data.get("status")
@@ -338,6 +380,10 @@ async def pozovi_clana(
                 status_code=409,
                 detail=f"Korisnik '{req.email}' je već {st} član firme."
             )
+    if await asyncio.to_thread(_zauzet_drugde):
+        raise HTTPException(status_code=409, detail="Ova adresa već pripada drugoj kancelariji ili ima poziv u nju.")
+
+    if existing.data:
         # st == "REMOVED" — re-invite reuses the same row (audit trail keeps
         # the full history: original REMOVED transition stays on record).
         await SeatService.transition(
@@ -383,18 +429,23 @@ async def prihvati_pozivnicu(
     supa  = _get_supa()
 
     def _find():
-        return (
+        return _najstariji(
             supa.table("kancelarija_clanovi")
             .select("*")
             .eq("email", email)
             .eq("status", "INVITED")
-            .maybe_single()
+            .order("invited_at")
+            .limit(1)
             .execute()
         )
 
     pending = await asyncio.to_thread(_find)
     if not pending.data:
         raise HTTPException(status_code=404, detail="Nema čekajuće pozivnice za vaš email.")
+    # P1.5: administrator ili aktivan član druge kancelarije ne može da prihvati još jednu (drugo ACTIVE članstvo
+    # bi trajno srušilo /moja).
+    if await asyncio.to_thread(lambda: _get_firma_for_admin(supa, uid) or _get_firma_for_member(supa, uid, email)):
+        raise HTTPException(status_code=409, detail="Već ste u kancelariji. Napustite je pre prihvatanja novog poziva.")
 
     await SeatService.transition(
         kancelarija_id=pending.data["kancelarija_id"], clan_id=pending.data["id"], clan_email=email,
@@ -417,12 +468,13 @@ async def odbij_pozivnicu(
     supa  = _get_supa()
 
     def _find():
-        return (
+        return _najstariji(
             supa.table("kancelarija_clanovi")
             .select("id, kancelarija_id")
             .eq("email", email)
             .eq("status", "INVITED")
-            .maybe_single()
+            .order("invited_at")
+            .limit(1)
             .execute()
         )
 
@@ -458,7 +510,7 @@ async def suspenduj_clana(
             .eq("id", clan_id)
             .eq("kancelarija_id", firma["id"])
             .maybe_single()
-            .execute()
+            .execute() or _NEMA_REDA
         )
 
     row = await asyncio.to_thread(_find)
@@ -496,7 +548,7 @@ async def reaktiviraj_clana(
             .eq("id", clan_id)
             .eq("kancelarija_id", firma["id"])
             .maybe_single()
-            .execute()
+            .execute() or _NEMA_REDA
         )
 
     row = await asyncio.to_thread(_find)
@@ -539,7 +591,7 @@ async def ukloni_clana(
             .eq("id", clan_id)
             .eq("kancelarija_id", firma["id"])
             .maybe_single()
-            .execute()
+            .execute() or _NEMA_REDA
         )
 
     row = await asyncio.to_thread(_find)
@@ -575,20 +627,25 @@ async def promeni_ulogu(
         firma = _require_firma_admin(supa, uid)
         row = (
             supa.table("kancelarija_clanovi")
-            .select("id, email, status")
+            .select("id, email, status, uloga")
             .eq("id", clan_id)
             .eq("kancelarija_id", firma["id"])
             .maybe_single()
-            .execute()
+            .execute() or _NEMA_REDA
         )
         if not row.data:
             raise HTTPException(status_code=404, detail="Član nije pronađen u vašoj firmi.")
         if row.data.get("status") == "REMOVED":
             raise HTTPException(status_code=400, detail="Ne može se menjati uloga uklonjenog člana.")
-        supa.table("kancelarija_clanovi").update({"uloga": req.uloga}).eq("id", clan_id).execute()
-        return {"ok": True, "uloga": req.uloga}
+        supa.table("kancelarija_clanovi").update({"uloga": req.uloga}).eq("id", clan_id).eq("kancelarija_id", firma["id"]).execute()
+        return firma, row.data
 
-    return await asyncio.to_thread(_change_role)
+    firma, clan = await asyncio.to_thread(_change_role)
+    # P1.5: promena ovlašćenja člana je materijalna promena — trajan zapis ko je, kome i šta promenio.
+    await log_action("kancelarija_uloga_promena", user_id=uid, resource_type="kancelarija_clan", resource_id=str(clan_id),
+                     metadata={"kancelarija_id": str(firma["id"]), "clan_email": clan.get("email"),
+                               "stara_uloga": clan.get("uloga"), "nova_uloga": req.uloga})
+    return {"ok": True, "uloga": req.uloga}
 
 
 @router.delete("/api/kancelarija/napusti")
@@ -609,12 +666,13 @@ async def napusti_kancelariju(
         )
 
     def _find():
-        return (
+        return _najstariji(
             supa.table("kancelarija_clanovi")
             .select("id, kancelarija_id")
             .eq("user_id", uid)
             .eq("status", "ACTIVE")
-            .maybe_single()
+            .order("invited_at")
+            .limit(1)
             .execute()
         )
 

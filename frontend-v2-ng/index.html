@@ -354,10 +354,38 @@
       <section class="matter" id="podesavanja-pogled" hidden aria-labelledby="pn-naslov">
         <div class="matter__head">
           <h1 class="sheet__title matter__title" id="pn-naslov" tabindex="-1">Podešavanja</h1>
-          <p class="matter__ref">Lični podsetnici za potvrđene rokove vaših predmeta.</p>
+          <p class="matter__ref">Lična podešavanja naloga i rada. Server odlučuje šta vaš nalog sme da vidi i menja.</p>
         </div>
+        <!-- P1.1: sekundarna navigacija; odeljak se ovde pojavljuje tek kada ima stvarnu funkciju (puni src/podesavanja.js). -->
+        <nav class="tabs pn-sekcije" id="pn-sekcije" aria-label="Odeljci podešavanja"></nav>
         <div class="matter__body">
-          <section class="matter__section matter__section--first" aria-labelledby="pn-email-naslov">
+          <div class="field pn-izbor">
+            <label class="field__label" for="pn-sekcija-izbor">Odeljak podešavanja</label>
+            <select class="field__input" id="pn-sekcija-izbor"></select>
+          </div>
+          <!-- P2.1 Izgled i rad (src/podesavanja-izgled.js): tema je ista postavka kao prekidač u gornjoj traci. -->
+          <section class="matter__section matter__section--first" id="pn-izgled" data-pn-sekcija="izgled" hidden aria-labelledby="pn-izgled-naslov">
+            <h2 class="matter__h2" id="pn-izgled-naslov">Izgled i rad</h2>
+            <fieldset class="pn-izbor-teme">
+              <legend class="field__label">Tema aplikacije</legend>
+              <label class="field__label"><input type="radio" name="pn-tema" id="pn-tema-dark" value="dark"> Tamna</label>
+              <label class="field__label"><input type="radio" name="pn-tema" id="pn-tema-light" value="light"> Svetla</label>
+            </fieldset>
+            <p class="field__help">Isto kao prekidač teme u gornjoj traci. Tema se pamti na ovom uređaju i ne menja nijedan podatak.</p>
+          </section>
+          <!-- P1.2 Moj nalog (src/podesavanja-nalog.js): samo potvrđeni ugovori — GET /api/me, GET /api/plan/status. -->
+          <section class="matter__section matter__section--first" id="pn-nalog" data-pn-sekcija="nalog" hidden aria-labelledby="pn-nalog-naslov">
+            <h2 class="matter__h2" id="pn-nalog-naslov">Moj nalog</h2>
+            <p class="list-state" id="pn-nalog-stanje" role="status" aria-live="polite" hidden></p>
+            <dl class="facts" id="pn-nalog-podaci" hidden>
+              <dt>Email naloga</dt><dd id="pn-nalog-email"></dd>
+              <dt>Aktivni plan</dt><dd id="pn-nalog-plan"></dd>
+            </dl>
+            <p class="field__help">Lozinka: link za promenu lozinke stiže na email naloga. Pokrećete ga u klasičnom prikazu, u Podešavanjima, dugmetom „Resetuj“. <a href="/app-legacy">Otvori klasični prikaz</a></p>
+            <p class="field__help">Nalog je lični. Podaci kancelarije i njeni članovi su u odeljku Kancelarija.</p>
+            <div class="form__actions"><a class="text-btn text-btn--line" id="pn-nalog-odjava" href="/app" hidden>Odjavi se</a></div>
+          </section>
+          <section class="matter__section matter__section--first" id="pn-obavestenja" data-pn-sekcija="obavestenja" hidden aria-labelledby="pn-email-naslov">
             <h2 class="matter__h2" id="pn-email-naslov">Email podsetnici</h2>
             <p class="field__help">Podsetnici se šalju samo za rokove koje je advokat potvrdio. Email ide na adresu ovog naloga.</p>
             <p class="field__help">Primalac: <strong id="pn-adresa">—</strong></p>
@@ -369,13 +397,155 @@
               <label class="field__label" for="pn-dan-1"><input id="pn-dan-1" type="checkbox" disabled> 1 dan pre roka</label>
               <label class="field__label" for="pn-nedeljni"><input id="pn-nedeljni" type="checkbox" disabled> Nedeljni sažetak</label>
             </div>
+            <div class="field" id="pn-test-polje" hidden>
+              <label class="field__label" for="pn-test-vrsta">Šta testni email proverava</label>
+              <select class="field__input" id="pn-test-vrsta" disabled><option value="">Izaberite…</option></select>
+            </div>
             <div class="form__actions">
               <button class="text-btn text-btn--primary" id="pn-sacuvaj" type="button" disabled>Sačuvaj i aktiviraj</button>
               <button class="text-btn text-btn--line" id="pn-test" type="button" hidden disabled>Pošalji testni email</button>
               <button class="text-btn" id="pn-deaktiviraj" type="button" hidden disabled>Isključi podsetnike</button>
             </div>
-            <p class="field__help">Testni email se šalje samo kada kliknete dugme. Prijem proverite u svom inboxu; uspeh slanja nije potvrda prijema.</p>
+            <p class="field__help">Testni email se šalje samo kada kliknete dugme i označen je kao TEST, sa izmišljenim rokom. Primer intervala nudi samo sačuvane intervale. Prijem proverite u svom inboxu; uspeh slanja nije potvrda prijema, a test ne proverava automatsko zakazivanje.</p>
             <p class="notice" id="pn-poruka" role="status" aria-live="polite" hidden></p>
+            <h3 class="answer__h">SMS i WhatsApp</h3>
+            <p class="field__help" id="pn-sms-napomena">SMS i WhatsApp podsetnici trenutno nisu dostupni: kanal nije podešen za slanje i automatsko slanje je isključeno. Podsetnici za rokove stižu samo emailom.</p>
+          </section>
+          <!-- P1.5 Kancelarija (src/podesavanja-kancelarija.js): GET /api/kancelarija/moja; izmene samo administratoru
+               (server: _require_firma_admin + .eq(kancelarija_id)). Prikaz po ulozi NIJE autorizacija. -->
+          <section class="matter__section matter__section--first" id="pn-kancelarija" data-pn-sekcija="kancelarija" hidden aria-labelledby="pn-kanc-naslov">
+            <h2 class="matter__h2" id="pn-kanc-naslov">Kancelarija</h2>
+            <p class="list-state" id="pn-kanc-stanje" role="status" aria-live="polite" hidden></p>
+            <div id="pn-kanc-podaci" hidden>
+              <dl class="facts">
+                <dt>Naziv kancelarije</dt><dd id="pn-kanc-naziv"></dd>
+                <dt>Vaša uloga</dt><dd id="pn-kanc-uloga"></dd>
+              </dl>
+              <p class="field__help" id="pn-kanc-samo-citanje" hidden>Podacima kancelarije, članovima i ulogama upravlja administrator kancelarije.</p>
+              <form class="form" id="pn-kanc-naziv-forma" hidden novalidate>
+                <div class="field"><label class="field__label" for="pn-kanc-naziv-unos">Promena naziva kancelarije</label>
+                  <input class="field__input" id="pn-kanc-naziv-unos" type="text" minlength="2" maxlength="120" autocomplete="organization"></div>
+                <div class="form__actions"><button class="text-btn text-btn--primary" id="pn-kanc-naziv-sacuvaj" type="submit">Sačuvaj naziv</button></div>
+              </form>
+              <h3 class="answer__h">Članovi</h3>
+              <ul class="people" id="pn-kanc-clanovi" aria-label="Članovi kancelarije"></ul>
+              <form class="form" id="pn-kanc-poziv-forma" hidden novalidate aria-label="Poziv novog člana">
+                <h3 class="answer__h">Poziv novog člana</h3>
+                <div class="field-row">
+                  <div class="field"><label class="field__label" for="pn-kanc-poziv-email">Email adresa</label>
+                    <input class="field__input" id="pn-kanc-poziv-email" type="email" maxlength="255" autocomplete="off" spellcheck="false"></div>
+                  <div class="field"><label class="field__label" for="pn-kanc-poziv-uloga">Uloga</label>
+                    <select class="field__input" id="pn-kanc-poziv-uloga"><option value="saradnik">Saradnik</option><option value="partner">Partner</option><option value="citanje">Samo čitanje</option></select></div>
+                </div>
+                <p class="field__help">Poziv se ne šalje emailom. Pozvani ga vidi kada se prijavi u Vindex sa tom adresom. Poziv zauzima jedno mesto plana.</p>
+                <div class="form__actions"><button class="text-btn text-btn--line" id="pn-kanc-poziv-posalji" type="submit">Dodaj poziv</button></div>
+              </form>
+            </div>
+            <p class="notice" id="pn-kanc-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <!-- P1.6 Finansije i plan (src/podesavanja-finansije.js): GET /api/plan/status, GET/PUT /api/tarife/moja-satnica,
+               GET/POST /api/sef/podesavanja. Cene, plan i AKS tarifa se ovde ne menjaju; fakture se ne šalju. -->
+          <section class="matter__section matter__section--first" id="pn-finansije" data-pn-sekcija="finansije" hidden aria-labelledby="pn-fin-naslov">
+            <h2 class="matter__h2" id="pn-fin-naslov">Finansije i plan</h2>
+            <p class="list-state" id="pn-fin-stanje" role="status" aria-live="polite" hidden></p>
+            <h3 class="answer__h">Plan i potrošnja</h3>
+            <p class="list-state" id="pn-plan-stanje" role="status" aria-live="polite" hidden></p>
+            <dl class="facts" id="pn-plan-podaci" hidden>
+              <dt>Aktivni plan</dt><dd id="pn-plan-naziv"></dd>
+              <dt>Važi do</dt><dd id="pn-plan-istek"></dd>
+              <dt>Preostalo kredita</dt><dd id="pn-plan-krediti"></dd>
+            </dl>
+            <ul class="people" id="pn-plan-potrosnja" aria-label="Potrošnja ovog meseca"></ul>
+            <p class="field__help">Plan i cene se ne menjaju u podešavanjima.</p>
+
+            <h3 class="answer__h">Sopstvena satnica</h3>
+            <form class="form" id="pn-satnica-forma" novalidate>
+              <div class="field"><label class="field__label" for="pn-satnica">Satnica (RSD po satu)</label>
+                <input class="field__input" id="pn-satnica" type="number" inputmode="decimal" min="1" max="1000000" step="1" disabled></div>
+              <p class="field__help" id="pn-satnica-izvor"></p>
+              <p class="field__help">Koristi se za obračun sati u naplati kada klijent nema posebnu satnicu. Zvanična AKS tarifa se ne menja.</p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="pn-satnica-sacuvaj" type="submit" disabled>Sačuvaj satnicu</button></div>
+              <p class="notice" id="pn-satnica-poruka" role="status" aria-live="polite" hidden></p>
+            </form>
+
+            <h3 class="answer__h">SEF — podaci prodavca</h3>
+            <p class="field__help" id="pn-sef-status"></p>
+            <form class="form" id="pn-sef-forma" novalidate>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="pn-sef-pib">PIB</label>
+                  <input class="field__input" id="pn-sef-pib" type="text" inputmode="numeric" maxlength="9" autocomplete="off" disabled></div>
+                <div class="field"><label class="field__label" for="pn-sef-naziv">Naziv prodavca</label>
+                  <input class="field__input" id="pn-sef-naziv" type="text" maxlength="200" autocomplete="organization" disabled></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="pn-sef-adresa">Adresa</label>
+                  <input class="field__input" id="pn-sef-adresa" type="text" maxlength="300" autocomplete="street-address" disabled></div>
+                <div class="field"><label class="field__label" for="pn-sef-mesto">Mesto</label>
+                  <input class="field__input" id="pn-sef-mesto" type="text" maxlength="100" autocomplete="address-level2" disabled></div>
+              </div>
+              <div class="field"><label class="field__label" for="pn-sef-kljuc">SEF API ključ</label>
+                <input class="field__input" id="pn-sef-kljuc" type="password" maxlength="500" autocomplete="new-password" spellcheck="false" disabled></div>
+              <p class="field__help" id="pn-sef-kljuc-pomoc">Ključ se čuva šifrovan i nikad se ne prikazuje. Ostavite polje prazno da zadržite sačuvani ključ.</p>
+              <p class="field__help">Ovde se samo čuvaju podaci za SEF. Fakture se ne šalju iz podešavanja.</p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="pn-sef-sacuvaj" type="submit" disabled>Sačuvaj SEF podatke</button></div>
+              <p class="notice" id="pn-sef-poruka" role="status" aria-live="polite" hidden></p>
+            </form>
+          </section>
+          <!-- P3 Integracije: samo tačno stanje postojećih veza (inventar u SETTINGS_MASTER_SPRINT_STATE.md). Bez kontrola,
+               bez tehničkih webhook putanja, bez ključeva. Ništa se ne povezuje niti šalje iz ovog ekrana. -->
+          <section class="matter__section matter__section--first" id="pn-integracije" data-pn-sekcija="integracije" hidden aria-labelledby="pn-integr-naslov">
+            <h2 class="matter__h2" id="pn-integr-naslov">Integracije</h2>
+            <p class="field__help">Stanje postojećih veza sa drugim servisima. Nijedna veza se ne pokreće iz ovog ekrana.</p>
+            <ul class="people" id="pn-integr-lista" aria-label="Integracije">
+              <li class="people__item" data-integracija="sef"><span class="people__name">SEF — sistem elektronskih faktura</span>
+                <span class="people__meta">Dostupno za podešavanje: podaci prodavca i API ključ su u odeljku <a href="#/podesavanja/finansije">Finansije i plan</a>. Slanje faktura na SEF iz ovog prikaza nije dostupno.</span></li>
+              <li class="people__item" data-integracija="email"><span class="people__name">Email podsetnici za rokove</span>
+                <span class="people__meta">Dostupno: uključivanje i test u odeljku <a href="#/podesavanja/obavestenja">Obaveštenja</a>.</span></li>
+              <li class="people__item" data-integracija="kalendar"><span class="people__name">Google Calendar</span>
+                <span class="people__meta">Nije dostupno: povezivanje naloga nije završeno ni podešeno za upotrebu.</span></li>
+              <li class="people__item" data-integracija="clio"><span class="people__name">Clio i iManage</span>
+                <span class="people__meta">Nije dostupno: ne postoji korisničko povezivanje sa ovim servisima.</span></li>
+              <li class="people__item" data-integracija="webhook"><span class="people__name">Webhook obaveštenja i programski pristup (API)</span>
+                <span class="people__meta">Nije dostupno u ovom prikazu. Webhook-ovi trenutno ne dobijaju događaje iz Vindexa. API ključevi (PRO) ostaju u klasičnom prikazu.</span></li>
+              <li class="people__item" data-integracija="sms"><span class="people__name">SMS i WhatsApp</span>
+                <span class="people__meta">Nije dostupno: kanal nije podešen za slanje.</span></li>
+            </ul>
+          </section>
+          <!-- P1.3 Privatnost i podaci (src/podesavanja-privatnost.js): GET /api/export/complete (ZIP), DELETE /api/gdpr/account. -->
+          <section class="matter__section matter__section--first" id="pn-privatnost" data-pn-sekcija="privatnost" hidden aria-labelledby="pn-privatnost-naslov">
+            <h2 class="matter__h2" id="pn-privatnost-naslov">Privatnost i podaci</h2>
+            <p class="list-state" id="pn-priv-stanje" role="status" aria-live="polite" hidden></p>
+            <h3 class="answer__h" id="pn-izvoz-naslov">Izvoz podataka</h3>
+            <p class="field__help">ZIP sa JSON zapisima vašeg naloga iz osam grupa: predmeti, klijenti, stavke naplate, dokumenti predmeta (podaci i izvučeni tekst, bez originalnih fajlova), beleške, ročišta, hronologija predmeta i komentari.</p>
+            <p class="field__help">Ne sadrži: originalne fajlove dokumenata, podatke profila, tarife, SEF podešavanja, podatke kancelarije ni podešavanja obaveštenja. Ako server ne može da zabeleži izvoz u nepromenljiv dnevnik, izvoz se odbija.</p>
+            <div class="form__actions"><button class="text-btn text-btn--line" id="pn-izvoz" type="button" disabled>Preuzmi ZIP izvoz</button></div>
+            <p class="notice" id="pn-izvoz-poruka" role="status" aria-live="polite" hidden></p>
+            <h3 class="answer__h" id="pn-dokumenti-naslov">Pravni dokumenti</h3>
+            <ul class="pn-linkovi" aria-labelledby="pn-dokumenti-naslov">
+              <li><a href="/privacy" target="_blank" rel="noopener">Politika privatnosti</a></li>
+              <li><a href="/terms" target="_blank" rel="noopener">Uslovi korišćenja</a></li>
+              <li><a href="/dpa" target="_blank" rel="noopener">Ugovor o obradi podataka (DPA)</a></li>
+              <li><a href="/security" target="_blank" rel="noopener">Bezbednost i zaštita podataka</a></li>
+            </ul>
+            <h3 class="answer__h" id="pn-brisanje-naslov">Brisanje naloga</h3>
+            <p class="field__help">Zahtev anonimizuje vaš profil: email i ime se uklanjaju iz profila i email podsetnici se gase. Predmeti, klijenti i dokumenti se ne brišu — advokat je po Zakonu o advokaturi dužan da čuva spise. Ovaj postupak ne gasi prijavu na nalog i ne može se poništiti iz aplikacije.</p>
+            <div class="field">
+              <label class="field__label" for="pn-brisanje-potvrda">Za potvrdu upišite email adresu ovog naloga</label>
+              <input class="field__input" id="pn-brisanje-potvrda" type="email" autocomplete="off" spellcheck="false" maxlength="255" disabled>
+            </div>
+            <div class="form__actions"><button class="text-btn" id="pn-brisanje" type="button" disabled>Anonimizuj moj nalog</button></div>
+            <p class="notice" id="pn-brisanje-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <!-- P1 Pomoć i informacije: samo postojeće javne stranice. -->
+          <section class="matter__section matter__section--first" id="pn-pomoc" data-pn-sekcija="pomoc" hidden aria-labelledby="pn-pomoc-naslov">
+            <h2 class="matter__h2" id="pn-pomoc-naslov">Pomoć i informacije</h2>
+            <ul class="pn-linkovi" aria-labelledby="pn-pomoc-naslov">
+              <li><a href="/status" target="_blank" rel="noopener">Status sistema</a></li>
+              <li><a href="/ai-disclosure" target="_blank" rel="noopener">Kako Vindex koristi veštačku inteligenciju</a></li>
+              <li><a href="/kako-radi" target="_blank" rel="noopener">Kako Vindex radi</a></li>
+              <li><a href="/bezbednosni-list" target="_blank" rel="noopener">Bezbednosni list</a></li>
+            </ul>
+            <p class="field__help">Problem u aplikaciji ili predlog pošaljite dugmetom „Prijavi problem ili pošalji predlog“ u donjem desnom uglu ekrana.</p>
           </section>
         </div>
       </section>
@@ -1041,6 +1211,11 @@
   <script src="src/radna-lista.js"></script>
   <script src="src/pripremljeno.js"></script>
   <script src="src/kancelarija.js"></script>
+  <script src="src/podesavanja-nalog.js"></script>
+  <script src="src/podesavanja-izgled.js"></script>
+  <script src="src/podesavanja-privatnost.js"></script>
+  <script src="src/podesavanja-kancelarija.js"></script>
+  <script src="src/podesavanja-finansije.js"></script>
   <script src="src/podesavanja.js"></script>
   <script src="src/prijava-problema.js"></script>
   <script src="src/danas.js"></script>

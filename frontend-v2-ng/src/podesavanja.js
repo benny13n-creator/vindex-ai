@@ -1,11 +1,61 @@
-/* Vindex V2 NG — B10: lična podešavanja email podsetnika.
+/* Vindex V2 NG — Podešavanja: ljuska odeljaka (P1.1) + B10 email podsetnici (odeljak „Obaveštenja“).
  * Postojeći backend ostaje jedini izvor istine; nema novih rokova ili slanja bez klika.
  * Sesija iz VxSesija, HTTP samo preko VxApi; nema identiteta korisnika u zahtevu.
+ * Ostali odeljci se registruju u `VxPodesavanjaSekcije` (src/podesavanja-*.js, učitani pre ovog fajla);
+ * odeljak bez registrovanog kontrolera se ne prikazuje — nema praznih kartica.
  */
 (function (root) {
   "use strict";
 
+  var REDOSLED = [["nalog", "Moj nalog"], ["izgled", "Izgled i rad"], ["obavestenja", "Obaveštenja"],
+    ["kancelarija", "Kancelarija"], ["finansije", "Finansije i plan"], ["integracije", "Integracije"],
+    ["privatnost", "Privatnost i podaci"], ["pomoc", "Pomoć i informacije"]];
+
   function napravi(o) {
+    var d = root.document, $ = function (id) { return d.getElementById(id); };
+    var registar = root.VxPodesavanjaSekcije || {}, sekcije = { obavestenja: napraviObavestenja(o) };
+    REDOSLED.forEach(function (s) { if (!sekcije[s[0]] && typeof registar[s[0]] === "function" && $("pn-" + s[0])) sekcije[s[0]] = registar[s[0]](o); });
+    var dostupne = REDOSLED.filter(function (s) { return sekcije[s[0]]; });
+    var traka = $("pn-sekcije"), izbor = $("pn-sekcija-izbor"), aktivna = null, otvoren = false;
+    dostupne.forEach(function (s) {
+      var a = d.createElement("a");
+      a.className = "tabs__item"; a.href = "#/podesavanja/" + s[0]; a.dataset.sekcija = s[0]; a.textContent = s[1];
+      traka.appendChild(a);
+      var op = d.createElement("option");
+      op.value = s[0]; op.textContent = s[1];
+      izbor.appendChild(op);
+    });
+    izbor.addEventListener("change", function () { root.location.hash = "#/podesavanja/" + izbor.value; });
+
+    function prikazi(id) {
+      if (!sekcije[id]) {
+        var trazena = id;
+        id = dostupne[0][0];
+        if (trazena) root.history.replaceState(null, "", "#/podesavanja/" + id);
+      }
+      if (aktivna === id) return;
+      if (aktivna) { sekcije[aktivna].zatvori(); $("pn-" + aktivna).hidden = true; }
+      aktivna = id;
+      $("pn-" + id).hidden = false;
+      traka.querySelectorAll(".tabs__item").forEach(function (a) {
+        if (a.dataset.sekcija === id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+      });
+      izbor.value = id;
+      sekcije[id].otvori();
+    }
+    return {
+      otvori: function (sekcija) { otvoren = true; prikazi(sekcija || null); },
+      sekcija: function (sekcija) { if (otvoren) prikazi(sekcija || null); },
+      zatvori: function () {
+        if (aktivna) { sekcije[aktivna].zatvori(); $("pn-" + aktivna).hidden = true; }
+        aktivna = null; otvoren = false;
+      },
+      zaustavi: function () { Object.keys(sekcije).forEach(function (k) { sekcije[k].zaustavi(); }); aktivna = null; otvoren = false; },
+      sekcije: function () { return dostupne.map(function (s) { return s[0]; }); },
+    };
+  }
+
+  function napraviObavestenja(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); };
     var sesija = o.sesija, api = o.api, redniBroj = 0, citanje = null, zauzeto = false, profil = null;
 
@@ -23,7 +73,9 @@
       });
       $("pn-sacuvaj").disabled = !dostupno || !profil.smtp_ok || !profil.email;
       $("pn-test").hidden = !profil || !profil.aktivan;
-      $("pn-test").disabled = !dostupno || !profil.smtp_ok || !profil.email;
+      $("pn-test-polje").hidden = !profil || !profil.aktivan;
+      $("pn-test-vrsta").disabled = !dostupno || !profil.smtp_ok || !profil.email;
+      $("pn-test").disabled = !dostupno || !profil.smtp_ok || !profil.email || !$("pn-test-vrsta").value;
       $("pn-deaktiviraj").hidden = !profil || !profil.aktivan;
       $("pn-deaktiviraj").disabled = !dostupno;
     }
@@ -37,9 +89,27 @@
       $("pn-adresa").textContent = "—";
       $("pn-aktivno").textContent = "";
       ["pn-dan-7", "pn-dan-3", "pn-dan-1", "pn-nedeljni"].forEach(function (id) { $(id).checked = false; });
+      popuniVrsteTesta();
       poruka("pn-stanje", "", "");
       poruka("pn-poruka", "", "");
       osveziKontrole();
+    }
+
+    /* P0: test bira korisnik — provera dostave ili primer jednog SAČUVANOG intervala; ništa se ne pretpostavlja. */
+    var VRSTE_TESTA = [["dostava", "Samo provera dostave (bez roka)"], ["7", "Primer podsetnika: 7 dana pre roka"],
+      ["3", "Primer podsetnika: 3 dana pre roka"], ["1", "Primer podsetnika: 1 dan pre roka (sutra)"]];
+    function popuniVrsteTesta() {
+      var s = $("pn-test-vrsta");
+      while (s.options.length > 1) s.remove(1);
+      s.value = "";
+      if (!profil || !profil.aktivan) return;
+      VRSTE_TESTA.forEach(function (v) {
+        if (v[0] !== "dostava" && profil["dan_" + v[0]] !== true) return;
+        var o = d.createElement("option");
+        o.value = v[0];
+        o.textContent = v[1];
+        s.appendChild(o);
+      });
     }
 
     function validanProfil(p) {
@@ -79,6 +149,7 @@
       $("pn-dan-3").checked = profil.dan_3;
       $("pn-dan-1").checked = profil.dan_1;
       $("pn-nedeljni").checked = profil.nedeljni !== false;
+      popuniVrsteTesta();
       poruka("pn-stanje", !profil.smtp_ok ? "Email server nije konfigurisan. Aktivacija nije dostupna." :
         !profil.email ? "Nalog nema potvrđenu adresu za prijem podsetnika." : "", !profil.smtp_ok || !profil.email ? "greska" : "");
       if (porukaPosle) poruka("pn-poruka", porukaPosle, "uspeh");
@@ -114,11 +185,14 @@
         return;
       }
       if (putanja === "/email-notif/test") {
-        var istaAdresa = r.podaci.poslato_na === profil.email;
-        poruka("pn-poruka", istaAdresa
-          ? "Server je prihvatio testno slanje na prikazanu adresu. Proverite prijem u inboxu i Spam folderu."
-          : "Server je prihvatio zahtev, ali primalac nije potvrđen. Proverite nalog pre ponavljanja.",
-          istaAdresa ? "uspeh" : "greska");
+        var trazeno = telo && telo.interval ? telo.interval : null;
+        var potvrdjeno = r.podaci.poslato_na === profil.email && (r.podaci.interval === undefined ? null : r.podaci.interval) === trazeno;
+        var sta = trazeno === null ? "proveru dostave"
+          : "TEST primer podsetnika " + (trazeno === 1 ? "„Sutra ističe rok“" : "„Za " + trazeno + " dana“");
+        poruka("pn-poruka", potvrdjeno
+          ? "Server je prihvatio " + sta + " na prikazanu adresu. Proverite prijem u inboxu i Spam folderu. Ovo ne proverava automatsko zakazivanje."
+          : "Server je prihvatio zahtev, ali primalac ili vrsta testa nisu potvrđeni. Proverite nalog pre ponavljanja.",
+          potvrdjeno ? "uspeh" : "greska");
         osveziKontrole();
         return;
       }
@@ -133,9 +207,12 @@
       }, "POST", "Email podsetnici su sačuvani.");
     });
     $("pn-test").addEventListener("click", function () {
-      if (!profil || !profil.aktivan || !profil.smtp_ok || !profil.email || zauzeto) return;
-      izvrsi("/email-notif/test", {}, "POST", "");
+      var vrsta = $("pn-test-vrsta").value;
+      if (!profil || !profil.aktivan || !profil.smtp_ok || !profil.email || zauzeto || !vrsta) return;
+      if (vrsta !== "dostava" && profil["dan_" + vrsta] !== true) return;
+      izvrsi("/email-notif/test", vrsta === "dostava" ? {} : { interval: Number(vrsta) }, "POST", "");
     });
+    $("pn-test-vrsta").addEventListener("change", osveziKontrole);
     $("pn-deaktiviraj").addEventListener("click", function () {
       if (!profil || !profil.aktivan || zauzeto) return;
       izvrsi("/email-notif/profil", null, "DELETE", "Email podsetnici su isključeni.");
