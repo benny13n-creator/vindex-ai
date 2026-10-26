@@ -369,12 +369,16 @@
               <label class="field__label" for="pn-dan-1"><input id="pn-dan-1" type="checkbox" disabled> 1 dan pre roka</label>
               <label class="field__label" for="pn-nedeljni"><input id="pn-nedeljni" type="checkbox" disabled> Nedeljni sažetak</label>
             </div>
+            <div class="field" id="pn-test-polje" hidden>
+              <label class="field__label" for="pn-test-vrsta">Šta testni email proverava</label>
+              <select class="field__input" id="pn-test-vrsta" disabled><option value="">Izaberite…</option></select>
+            </div>
             <div class="form__actions">
               <button class="text-btn text-btn--primary" id="pn-sacuvaj" type="button" disabled>Sačuvaj i aktiviraj</button>
               <button class="text-btn text-btn--line" id="pn-test" type="button" hidden disabled>Pošalji testni email</button>
               <button class="text-btn" id="pn-deaktiviraj" type="button" hidden disabled>Isključi podsetnike</button>
             </div>
-            <p class="field__help">Testni email se šalje samo kada kliknete dugme. Prijem proverite u svom inboxu; uspeh slanja nije potvrda prijema.</p>
+            <p class="field__help">Testni email se šalje samo kada kliknete dugme i označen je kao TEST, sa izmišljenim rokom. Primer intervala nudi samo sačuvane intervale. Prijem proverite u svom inboxu; uspeh slanja nije potvrda prijema, a test ne proverava automatsko zakazivanje.</p>
             <p class="notice" id="pn-poruka" role="status" aria-live="polite" hidden></p>
           </section>
         </div>

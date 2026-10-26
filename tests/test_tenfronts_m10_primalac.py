@@ -115,7 +115,8 @@ def test_probni_email_ne_nosi_podatke_predmeta(monkeypatch):
     k, poslato = _klijent(monkeypatch, PROFILI)
     k.post("/email-notif/test")
     html = poslato[0][2]
-    assert "Test rok" in html
+    # P0 (B10): bez intervala probni email je samo provera dostave — označen TEST, bez ijednog roka.
+    assert "TEST" in html and "Rok / Dogadjaj" not in html
 
 
 def test_zakazani_podsetnik_i_dalje_ide_na_profiles_email():
