@@ -36,8 +36,17 @@ class _Upit:
         self.f.append(lambda r: r.get(k) != v)
         return self
 
-    def order(self, *a, **k): return self
-    def limit(self, *a, **k): return self
+    def in_(self, k, vs):
+        self.f.append(lambda r: r.get(k) in set(vs))
+        return self
+
+    def order(self, kol, *a, **k):
+        self.redosled = kol
+        return self
+
+    def limit(self, n, *a, **k):
+        self.granica = n
+        return self
 
     def maybe_single(self):
         self.jedan = True
@@ -64,12 +73,18 @@ class _Upit:
             self.b.izmene.append((self.t, dict(self.izmena)))
             return types.SimpleNamespace(data=self._redovi())
         redovi = [dict(r) for r in self._redovi()]
+        if getattr(self, "redosled", None):
+            redovi.sort(key=lambda r: str(r.get(self.redosled) or ""))
+        if getattr(self, "granica", None):
+            redovi = redovi[:self.granica]
         if "kancelarije(*)" in self.kol:
             for r in redovi:
                 r["kancelarije"] = next((k for k in self.b.t["kancelarije"] if k["id"] == r["kancelarija_id"]), None)
         if self.jedan:
             if not redovi:
                 return None                      # postgrest 2.28.3 — NIJE objekat sa .data = None
+            if len(redovi) > 1:                  # postgrest 2.28.3: više redova → APIError (nezavisni pregled, nalaz 1)
+                raise RuntimeError('{"code":"406","message":"Cannot coerce the result to a single JSON object"}')
             return types.SimpleNamespace(data=redovi[0])
         return types.SimpleNamespace(data=redovi)
 
@@ -85,6 +100,7 @@ class _Baza:
                 {"id": "c-2", "kancelarija_id": "k-1", "email": EMAIL[POZVAN], "uloga": "partner", "status": "INVITED", "user_id": None},
                 {"id": "c-tudji", "kancelarija_id": "k-2", "email": "tudji@example.invalid", "uloga": "saradnik", "status": "ACTIVE", "user_id": "u-x"},
             ],
+            "profiles": [{"id": uid, "email": e} for uid, e in EMAIL.items()],
         }
 
     def ubaci(self, tabela, red):
@@ -239,3 +255,58 @@ def test_prihvati_bez_poziva_je_404_ne_500(okruzenje):
 def test_nove_akcije_su_registrovane_za_nepromenljiv_dnevnik():
     from shared.audit_immutable import AUDITABLE_ACTIONS
     assert {"kancelarija_naziv_promena", "kancelarija_uloga_promena"} <= set(AUDITABLE_ACTIONS)
+
+
+# ─── Nezavisni pregled, nalaz 1: ista osoba u dve kancelarije ─────────────────
+
+def test_druga_kancelarija_ne_moze_da_pozove_vec_pozvanu_adresu(okruzenje):
+    """POZVAN ima poziv u k-1; administrator k-2 ga ne može pozvati (dupli poziv je rušio /moja)."""
+    r = okruzenje.kao(DRUGI_ADMIN).post("/api/kancelarija/pozovi", json={"email": EMAIL[POZVAN], "uloga": "saradnik"})
+    assert r.status_code == 409 and okruzenje.prelazi == []
+
+
+def test_ne_poziva_se_clan_ni_administrator_druge_kancelarije(okruzenje):
+    k = okruzenje.kao(DRUGI_ADMIN)
+    assert k.post("/api/kancelarija/pozovi", json={"email": EMAIL[CLAN], "uloga": "saradnik"}).status_code == 409
+    assert k.post("/api/kancelarija/pozovi", json={"email": EMAIL[ADMIN], "uloga": "saradnik"}).status_code == 409
+    assert okruzenje.prelazi == []
+
+
+def _dupli_pozivi(okruzenje):
+    okruzenje.baza.t["kancelarija_clanovi"].append({"id": "c-3", "kancelarija_id": "k-2", "email": EMAIL[POZVAN], "uloga": "citanje",
+                                                    "status": "INVITED", "user_id": None, "invited_at": "2026-10-02"})
+    next(c for c in okruzenje.baza.t["kancelarija_clanovi"] if c["id"] == "c-2")["invited_at"] = "2026-10-01"
+
+
+def test_zateceni_dupli_pozivi_ne_rusi_moja_prihvati_odbij(okruzenje):
+    _dupli_pozivi(okruzenje)
+    k = okruzenje.kao(POZVAN)
+    d = k.get("/api/kancelarija/moja")
+    assert d.status_code == 200 and d.json()["status"] == "pending_invite" and d.json()["invite_id"] == "c-2"   # najstariji
+    r = k.post("/api/kancelarija/prihvati")
+    assert r.status_code == 200 and r.json()["kancelarija_id"] == "k-1"
+    assert okruzenje.prelazi[-1]["clan_id"] == "c-2"
+
+
+def test_zateceni_dupli_pozivi_odbij_radi(okruzenje):
+    _dupli_pozivi(okruzenje)
+    r = okruzenje.kao(POZVAN).post("/api/kancelarija/odbij")
+    assert r.status_code == 200 and okruzenje.prelazi[-1]["clan_id"] == "c-2"
+
+
+def test_zatecena_dva_aktivna_clanstva_ne_rusi_moja(okruzenje):
+    okruzenje.baza.t["kancelarija_clanovi"].append({"id": "c-4", "kancelarija_id": "k-2", "email": EMAIL[CLAN], "uloga": "partner",
+                                                    "status": "ACTIVE", "user_id": CLAN, "invited_at": "2026-10-05"})
+    next(c for c in okruzenje.baza.t["kancelarija_clanovi"] if c["id"] == "c-1")["invited_at"] = "2026-09-01"
+    d = okruzenje.kao(CLAN).get("/api/kancelarija/moja")
+    assert d.status_code == 200 and d.json()["firma"]["id"] == "k-1"
+
+
+def test_aktivan_clan_ili_administrator_ne_prihvata_drugi_poziv(okruzenje):
+    okruzenje.baza.t["kancelarija_clanovi"].append({"id": "c-5", "kancelarija_id": "k-2", "email": EMAIL[CLAN], "uloga": "citanje",
+                                                    "status": "INVITED", "user_id": None, "invited_at": "2026-10-06"})
+    assert okruzenje.kao(CLAN).post("/api/kancelarija/prihvati").status_code == 409
+    okruzenje.baza.t["kancelarija_clanovi"].append({"id": "c-6", "kancelarija_id": "k-2", "email": EMAIL[ADMIN], "uloga": "citanje",
+                                                    "status": "INVITED", "user_id": None, "invited_at": "2026-10-06"})
+    assert okruzenje.kao(ADMIN).post("/api/kancelarija/prihvati").status_code == 409
+    assert okruzenje.prelazi == []
