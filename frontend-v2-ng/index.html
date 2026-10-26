@@ -401,6 +401,38 @@
             <h3 class="answer__h">SMS i WhatsApp</h3>
             <p class="field__help" id="pn-sms-napomena">SMS i WhatsApp podsetnici trenutno nisu dostupni: kanal nije podešen za slanje i automatsko slanje je isključeno. Podsetnici za rokove stižu samo emailom.</p>
           </section>
+          <!-- P1.5 Kancelarija (src/podesavanja-kancelarija.js): GET /api/kancelarija/moja; izmene samo administratoru
+               (server: _require_firma_admin + .eq(kancelarija_id)). Prikaz po ulozi NIJE autorizacija. -->
+          <section class="matter__section matter__section--first" id="pn-kancelarija" data-pn-sekcija="kancelarija" hidden aria-labelledby="pn-kanc-naslov">
+            <h2 class="matter__h2" id="pn-kanc-naslov">Kancelarija</h2>
+            <p class="list-state" id="pn-kanc-stanje" role="status" aria-live="polite" hidden></p>
+            <div id="pn-kanc-podaci" hidden>
+              <dl class="facts">
+                <dt>Naziv kancelarije</dt><dd id="pn-kanc-naziv"></dd>
+                <dt>Vaša uloga</dt><dd id="pn-kanc-uloga"></dd>
+              </dl>
+              <p class="field__help" id="pn-kanc-samo-citanje" hidden>Podacima kancelarije, članovima i ulogama upravlja administrator kancelarije.</p>
+              <form class="form" id="pn-kanc-naziv-forma" hidden novalidate>
+                <div class="field"><label class="field__label" for="pn-kanc-naziv-unos">Promena naziva kancelarije</label>
+                  <input class="field__input" id="pn-kanc-naziv-unos" type="text" minlength="2" maxlength="120" autocomplete="organization"></div>
+                <div class="form__actions"><button class="text-btn text-btn--primary" id="pn-kanc-naziv-sacuvaj" type="submit">Sačuvaj naziv</button></div>
+              </form>
+              <h3 class="answer__h">Članovi</h3>
+              <ul class="people" id="pn-kanc-clanovi" aria-label="Članovi kancelarije"></ul>
+              <form class="form" id="pn-kanc-poziv-forma" hidden novalidate aria-label="Poziv novog člana">
+                <h3 class="answer__h">Poziv novog člana</h3>
+                <div class="field-row">
+                  <div class="field"><label class="field__label" for="pn-kanc-poziv-email">Email adresa</label>
+                    <input class="field__input" id="pn-kanc-poziv-email" type="email" maxlength="255" autocomplete="off" spellcheck="false"></div>
+                  <div class="field"><label class="field__label" for="pn-kanc-poziv-uloga">Uloga</label>
+                    <select class="field__input" id="pn-kanc-poziv-uloga"><option value="saradnik">Saradnik</option><option value="partner">Partner</option><option value="citanje">Samo čitanje</option></select></div>
+                </div>
+                <p class="field__help">Poziv se ne šalje emailom. Pozvani ga vidi kada se prijavi u Vindex sa tom adresom. Poziv zauzima jedno mesto plana.</p>
+                <div class="form__actions"><button class="text-btn text-btn--line" id="pn-kanc-poziv-posalji" type="submit">Dodaj poziv</button></div>
+              </form>
+            </div>
+            <p class="notice" id="pn-kanc-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
           <!-- P1.3 Privatnost i podaci (src/podesavanja-privatnost.js): GET /api/export/complete (ZIP), DELETE /api/gdpr/account. -->
           <section class="matter__section matter__section--first" id="pn-privatnost" data-pn-sekcija="privatnost" hidden aria-labelledby="pn-privatnost-naslov">
             <h2 class="matter__h2" id="pn-privatnost-naslov">Privatnost i podaci</h2>
@@ -1103,6 +1135,7 @@
   <script src="src/kancelarija.js"></script>
   <script src="src/podesavanja-nalog.js"></script>
   <script src="src/podesavanja-privatnost.js"></script>
+  <script src="src/podesavanja-kancelarija.js"></script>
   <script src="src/podesavanja.js"></script>
   <script src="src/prijava-problema.js"></script>
   <script src="src/danas.js"></script>

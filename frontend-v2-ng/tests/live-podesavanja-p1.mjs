@@ -99,6 +99,122 @@ if (deo("obavestenja")) {
   await ctx.close();
 }
 
+// ═══ P1.5 Kancelarija ══════════════════════════════════════════════════════
+if (deo("kancelarija")) {
+  const clan = (page, id) => page.locator('#pn-kanc-clanovi [data-clan="' + id + '"]');
+  // Samostalan advokat
+  let { ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/kancelarija");
+  await page.waitForFunction(() => /Niste član/.test(document.getElementById("pn-kanc-stanje").textContent));
+  proveri("Kancelarija (solo): „niste član“, bez kontrola i bez localStorage podataka firme", await page.locator("#pn-kanc-podaci").isHidden());
+  await ctx.close();
+
+  // Član (saradnik): samo čitanje
+  ({ ctx, page } = await otvori(KORISNICI.C, LIVE + "#/podesavanja/kancelarija"));
+  await page.evaluate(() => localStorage.setItem("vindex_firma", JSON.stringify({ naziv: "LOKALNA V1 FIRMA", pib: "123" })));
+  await page.reload();
+  await page.waitForFunction(() => !document.getElementById("pn-kanc-podaci").hidden);
+  proveri("Kancelarija (član): naziv sa servera, uloga Saradnik, bez admin kontrola", (await tekst(page, "#pn-kanc-naziv")) === s.firma.naziv
+    && (await tekst(page, "#pn-kanc-uloga")) === "Saradnik" && await page.locator("#pn-kanc-naziv-forma").isHidden()
+    && await page.locator("#pn-kanc-poziv-forma").isHidden() && (await page.locator(".pn-clan-radnje").count()) === 0
+    && await page.locator("#pn-kanc-samo-citanje").isVisible());
+  proveri("Kancelarija: V1 localStorage firma se ne prikazuje kao podatak kancelarije", !(await tekst(page, "#pn-kancelarija")).includes("LOKALNA V1 FIRMA"));
+  // Član ručno šalje admin radnju (zaobilazi UI): server odbija, ništa se ne menja.
+  const pre = JSON.stringify(s.clanovi);
+  const rez = await page.evaluate(([t]) => window.VxApi.send("/api/kancelarija/uloga/clan-d", { metod: "PUT", telo: { uloga: "citanje" }, token: t }), [KORISNICI.C.token]);
+  proveri("Kancelarija: član koji zaobiđe UI dobija 403 sa servera i ništa se ne menja", rez.ok === false && rez.status === 403 && JSON.stringify(s.clanovi) === pre);
+  await ctx.close();
+
+  // Administrator
+  ({ ctx, page } = await otvori(KORISNICI.B, LIVE + "#/podesavanja/kancelarija"));
+  await page.waitForFunction(() => !document.getElementById("pn-kanc-podaci").hidden);
+  proveri("Kancelarija (admin): uloga Administrator, forme naziva i poziva, radnje po članu", (await tekst(page, "#pn-kanc-uloga")) === "Administrator"
+    && await page.locator("#pn-kanc-naziv-forma").isVisible() && await page.locator("#pn-kanc-poziv-forma").isVisible()
+    && (await page.locator(".pn-clan-radnje").count()) === 3);
+  proveri("Kancelarija: radnje po stanju člana (aktivan → Suspenduj, suspendovan → Reaktiviraj, pozvan → Povuci poziv)",
+    await clan(page, "clan-c").getByRole("button", { name: "Suspenduj" }).count() === 1
+    && await clan(page, "clan-e").getByRole("button", { name: "Reaktiviraj" }).count() === 1
+    && await clan(page, "clan-d").getByRole("button", { name: "Povuci poziv" }).count() === 1);
+  proveri("Kancelarija: „Promeni ulogu“ je onemogućeno dok se uloga ne izabere", await clan(page, "clan-c").getByRole("button", { name: "Promeni ulogu" }).isDisabled());
+
+  let n = s.zahtevi.length;
+  await page.locator("#pn-kanc-naziv-unos").fill("  Nova Kancelarija  ");
+  await page.locator("#pn-kanc-naziv-sacuvaj").dblclick();
+  await page.waitForFunction(() => /Naziv kancelarije je sačuvan/.test(document.getElementById("pn-kanc-poruka").textContent));
+  const nz = odZahteva(n).filter(z => z.putanja === "/api/kancelarija/naziv");
+  proveri("Kancelarija: naziv — jedan PUT (dupli klik), tačno telo, prikaz osvežen sa servera", nz.length === 1 && nz[0].metod === "PUT"
+    && JSON.parse(nz[0].telo).naziv === "Nova Kancelarija" && (await tekst(page, "#pn-kanc-naziv")) === "Nova Kancelarija");
+
+  n = s.zahtevi.length;
+  await clan(page, "clan-c").locator("select").selectOption("partner");
+  await clan(page, "clan-c").getByRole("button", { name: "Promeni ulogu" }).click();
+  await page.waitForFunction(() => /Uloga za/.test(document.getElementById("pn-kanc-poruka").textContent));
+  proveri("Kancelarija: promena uloge — PUT /uloga/clan-c {uloga:partner}, bez vlasnika u telu", odZahteva(n).some(z => z.putanja === "/api/kancelarija/uloga/clan-c"
+    && z.metod === "PUT" && z.telo === JSON.stringify({ uloga: "partner" })) && s.clanovi.find(c => c.id === "clan-c").uloga === "partner");
+  proveri("Kancelarija: admin uloga se ne nudi", !(await clan(page, "clan-c").locator("select option").evaluateAll(o => o.map(x => x.value))).includes("admin"));
+
+  await clan(page, "clan-c").getByRole("button", { name: "Suspenduj" }).click();
+  await page.waitForFunction(() => /suspendovan\./.test(document.getElementById("pn-kanc-poruka").textContent));
+  proveri("Kancelarija: suspenzija menja stanje i nudi reaktivaciju", s.clanovi.find(c => c.id === "clan-c").status === "SUSPENDED"
+    && await clan(page, "clan-c").getByRole("button", { name: "Reaktiviraj" }).count() === 1);
+
+  n = s.zahtevi.length;
+  await clan(page, "clan-e").getByRole("button", { name: "Ukloni iz kancelarije" }).click();
+  proveri("Kancelarija: uklanjanje traži drugi klik (prvi samo traži potvrdu, ništa ne šalje)", odZahteva(n).filter(z => z.metod === "DELETE").length === 0
+    && await clan(page, "clan-e").getByRole("button", { name: "Potvrdi uklanjanje" }).count() === 1);
+  await clan(page, "clan-e").getByRole("button", { name: "Potvrdi uklanjanje" }).click();
+  await page.waitForFunction(() => !document.querySelector('#pn-kanc-clanovi [data-clan="clan-e"]'));
+  proveri("Kancelarija: potvrđeno uklanjanje = jedan DELETE /ukloni/clan-e", odZahteva(n).filter(z => z.metod === "DELETE" && z.putanja === "/api/kancelarija/ukloni/clan-e").length === 1);
+
+  n = s.zahtevi.length;
+  await page.locator("#pn-kanc-poziv-email").fill("Novi.Clan@Example.test");
+  await page.locator("#pn-kanc-poziv-uloga").selectOption("citanje");
+  await page.locator("#pn-kanc-poziv-posalji").click();
+  await page.waitForFunction(() => /Email se ne šalje/.test(document.getElementById("pn-kanc-poruka").textContent));
+  proveri("Kancelarija: poziv — POST /pozovi {email, uloga}, jasno da email nije poslat", odZahteva(n).some(z => z.putanja === "/api/kancelarija/pozovi"
+    && JSON.stringify(JSON.parse(z.telo)) === JSON.stringify({ email: "novi.clan@example.test", uloga: "citanje" })) && s.poslatiEmailovi === 0);
+  await page.locator("#pn-kanc-poziv-email").fill("novi.clan@example.test");
+  await page.locator("#pn-kanc-poziv-posalji").click();
+  await page.waitForFunction(() => /već član/.test(document.getElementById("pn-kanc-poruka").textContent));
+  proveri("Kancelarija: ponovljen poziv → 409 → jasna poruka, bez duplikata", s.clanovi.filter(c => c.email === "novi.clan@example.test").length === 1);
+
+  // Neizvestan ishod i greška upisa
+  s.pada["PUT /api/kancelarija/naziv"] = 502;
+  await page.locator("#pn-kanc-naziv-unos").fill("Treći naziv");
+  await page.locator("#pn-kanc-naziv-sacuvaj").click();
+  await page.waitForFunction(() => /Ishod nije poznat/.test(document.getElementById("pn-kanc-poruka").textContent));
+  proveri("Kancelarija: 5xx pri upisu → „ishod nije poznat“, prikaz iz servera (bez lažnog uspeha)", (await tekst(page, "#pn-kanc-naziv")) === "Nova Kancelarija");
+  delete s.pada["PUT /api/kancelarija/naziv"];
+  // clan-c je sada suspendovan: prinudna 404 na reaktivaciji modeluje člana koji više nije u ovoj kancelariji.
+  s.pada["POST /api/kancelarija/reaktiviraj/clan-c"] = 404;
+  await clan(page, "clan-c").getByRole("button", { name: "Reaktiviraj" }).click();
+  await page.waitForFunction(() => /nije pronađen/.test(document.getElementById("pn-kanc-poruka").textContent));
+  proveri("Kancelarija: 404 (član nije u vašoj kancelariji) → poruka, lista osvežena", s.clanovi.find(c => c.id === "clan-c").status === "SUSPENDED");
+  delete s.pada["POST /api/kancelarija/reaktiviraj/clan-c"];
+
+  // Promena naloga B → C dok je ekran otvoren
+  n = s.zahtevi.length;
+  const odmah = await page.evaluate(([kl, v]) => { localStorage.setItem(kl, v); window.dispatchEvent(new Event("focus"));
+    return { tekst: document.getElementById("pn-kancelarija").innerText, radnje: document.querySelectorAll(".pn-clan-radnje").length }; }, [KLJUC, sesija(KORISNICI.C)]);
+  // C je u ovom scenariju suspendovan (gore), pa server za njega više ne vraća kancelariju.
+  await page.waitForFunction(() => /Niste član/.test(document.getElementById("pn-kanc-stanje").textContent));
+  proveri("Kancelarija: promena naloga admin→suspendovan član odmah uklanja admin kontrole i podatke kancelarije", odmah.radnje === 0
+    && !odmah.tekst.includes("Nova Kancelarija") && await page.locator("#pn-kanc-podaci").isHidden()
+    && odZahteva(n).every(z => z.token === KORISNICI.C.token));
+  await ctx.close();
+
+  s.pada["GET /api/kancelarija/moja"] = 503;
+  ({ ctx, page } = await otvori(KORISNICI.B, LIVE + "#/podesavanja/kancelarija"));
+  await page.waitForFunction(() => /nisu učitani/.test(document.getElementById("pn-kanc-stanje").textContent));
+  proveri("Kancelarija: 503 čitanja nije „nema kancelarije“", await page.locator("#pn-kanc-podaci").isHidden());
+  delete s.pada["GET /api/kancelarija/moja"];
+  await ctx.close();
+
+  ({ ctx, page } = await otvori(KORISNICI.B, LIVE + "#/podesavanja/kancelarija", { sirina: 375, visina: 812 }));
+  await page.waitForFunction(() => !document.getElementById("pn-kanc-podaci").hidden);
+  proveri("Kancelarija (telefon): nema vodoravnog pomeranja", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  await ctx.close();
+}
+
 // ═══ P1.3 Privatnost i podaci + Pomoć ══════════════════════════════════════
 if (deo("privatnost")) {
   let { ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/privatnost");

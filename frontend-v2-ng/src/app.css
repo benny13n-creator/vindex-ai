@@ -791,3 +791,5 @@ a.text-btn { text-decoration: none; }
 @media (max-width: 859px) { .pn-sekcije { display: none; } .pn-izbor { display: flex; } }
 .pn-linkovi { margin: 0; padding-left: var(--sp-5); display: grid; gap: var(--sp-2); }
 .pn-linkovi a { color: var(--text-1); }
+.pn-clan-radnje { margin-top: var(--sp-2); }
+.pn-clan-radnje .field__input { width: auto; min-width: 9rem; }
