@@ -433,6 +433,54 @@
             </div>
             <p class="notice" id="pn-kanc-poruka" role="status" aria-live="polite" hidden></p>
           </section>
+          <!-- P1.6 Finansije i plan (src/podesavanja-finansije.js): GET /api/plan/status, GET/PUT /api/tarife/moja-satnica,
+               GET/POST /api/sef/podesavanja. Cene, plan i AKS tarifa se ovde ne menjaju; fakture se ne šalju. -->
+          <section class="matter__section matter__section--first" id="pn-finansije" data-pn-sekcija="finansije" hidden aria-labelledby="pn-fin-naslov">
+            <h2 class="matter__h2" id="pn-fin-naslov">Finansije i plan</h2>
+            <p class="list-state" id="pn-fin-stanje" role="status" aria-live="polite" hidden></p>
+            <h3 class="answer__h">Plan i potrošnja</h3>
+            <p class="list-state" id="pn-plan-stanje" role="status" aria-live="polite" hidden></p>
+            <dl class="facts" id="pn-plan-podaci" hidden>
+              <dt>Aktivni plan</dt><dd id="pn-plan-naziv"></dd>
+              <dt>Važi do</dt><dd id="pn-plan-istek"></dd>
+              <dt>Preostalo kredita</dt><dd id="pn-plan-krediti"></dd>
+            </dl>
+            <ul class="people" id="pn-plan-potrosnja" aria-label="Potrošnja ovog meseca"></ul>
+            <p class="field__help">Plan i cene se ne menjaju u podešavanjima.</p>
+
+            <h3 class="answer__h">Sopstvena satnica</h3>
+            <form class="form" id="pn-satnica-forma" novalidate>
+              <div class="field"><label class="field__label" for="pn-satnica">Satnica (RSD po satu)</label>
+                <input class="field__input" id="pn-satnica" type="number" inputmode="decimal" min="1" max="1000000" step="1" disabled></div>
+              <p class="field__help" id="pn-satnica-izvor"></p>
+              <p class="field__help">Koristi se za obračun sati u naplati kada klijent nema posebnu satnicu. Zvanična AKS tarifa se ne menja.</p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="pn-satnica-sacuvaj" type="submit" disabled>Sačuvaj satnicu</button></div>
+              <p class="notice" id="pn-satnica-poruka" role="status" aria-live="polite" hidden></p>
+            </form>
+
+            <h3 class="answer__h">SEF — podaci prodavca</h3>
+            <p class="field__help" id="pn-sef-status"></p>
+            <form class="form" id="pn-sef-forma" novalidate>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="pn-sef-pib">PIB</label>
+                  <input class="field__input" id="pn-sef-pib" type="text" inputmode="numeric" maxlength="9" autocomplete="off" disabled></div>
+                <div class="field"><label class="field__label" for="pn-sef-naziv">Naziv prodavca</label>
+                  <input class="field__input" id="pn-sef-naziv" type="text" maxlength="200" autocomplete="organization" disabled></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="pn-sef-adresa">Adresa</label>
+                  <input class="field__input" id="pn-sef-adresa" type="text" maxlength="300" autocomplete="street-address" disabled></div>
+                <div class="field"><label class="field__label" for="pn-sef-mesto">Mesto</label>
+                  <input class="field__input" id="pn-sef-mesto" type="text" maxlength="100" autocomplete="address-level2" disabled></div>
+              </div>
+              <div class="field"><label class="field__label" for="pn-sef-kljuc">SEF API ključ</label>
+                <input class="field__input" id="pn-sef-kljuc" type="password" maxlength="500" autocomplete="new-password" spellcheck="false" disabled></div>
+              <p class="field__help" id="pn-sef-kljuc-pomoc">Ključ se čuva šifrovan i nikad se ne prikazuje. Ostavite polje prazno da zadržite sačuvani ključ.</p>
+              <p class="field__help">Ovde se samo čuvaju podaci za SEF. Fakture se ne šalju iz podešavanja.</p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="pn-sef-sacuvaj" type="submit" disabled>Sačuvaj SEF podatke</button></div>
+              <p class="notice" id="pn-sef-poruka" role="status" aria-live="polite" hidden></p>
+            </form>
+          </section>
           <!-- P1.3 Privatnost i podaci (src/podesavanja-privatnost.js): GET /api/export/complete (ZIP), DELETE /api/gdpr/account. -->
           <section class="matter__section matter__section--first" id="pn-privatnost" data-pn-sekcija="privatnost" hidden aria-labelledby="pn-privatnost-naslov">
             <h2 class="matter__h2" id="pn-privatnost-naslov">Privatnost i podaci</h2>
@@ -1136,6 +1184,7 @@
   <script src="src/podesavanja-nalog.js"></script>
   <script src="src/podesavanja-privatnost.js"></script>
   <script src="src/podesavanja-kancelarija.js"></script>
+  <script src="src/podesavanja-finansije.js"></script>
   <script src="src/podesavanja.js"></script>
   <script src="src/prijava-problema.js"></script>
   <script src="src/danas.js"></script>

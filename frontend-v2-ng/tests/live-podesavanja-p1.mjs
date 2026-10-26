@@ -215,6 +215,85 @@ if (deo("kancelarija")) {
   await ctx.close();
 }
 
+// ═══ P1.6 Finansije i plan ═════════════════════════════════════════════════
+if (deo("finansije")) {
+  const SEF_KLJUC = "TAJNI-SEF-KLJUC-1234567890-QWER";
+  let { ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/finansije");
+  await page.waitForFunction(() => !document.getElementById("pn-plan-podaci").hidden && !document.getElementById("pn-satnica").disabled);
+  proveri("Finansije: plan, rok i krediti iz /api/plan/status", (await tekst(page, "#pn-plan-naziv")) === "Solo" && (await tekst(page, "#pn-plan-istek")) === "31.01.2027."
+    && (await tekst(page, "#pn-plan-krediti")) === "87");
+  proveri("Finansije: potrošnja sa ograničenjima", /AI pravno pitanje/.test(await tekst(page, "#pn-plan-potrosnja")) && /13 korišćenja · 13 kredita · ograničenje: 50 dnevno, 300 mesečno/.test(await tekst(page, "#pn-plan-potrosnja")));
+  proveri("Finansije: nema kontrole za promenu plana ili cene", (await page.locator("#pn-finansije button").evaluateAll(b => b.map(x => x.textContent))).every(t => !/plan|nadogr|upgrade|cen/i.test(t)));
+  proveri("Finansije: podrazumevana satnica je jasno označena", /podrazumevanih 7\.500 RSD/.test(await tekst(page, "#pn-satnica-izvor")) && (await page.locator("#pn-satnica").inputValue()) === "");
+
+  await page.locator("#pn-satnica").fill("0");
+  await page.locator("#pn-satnica-sacuvaj").click();
+  proveri("Finansije: satnica 0 odbijena lokalno, ništa poslato", /veću od 0/.test(await tekst(page, "#pn-satnica-poruka")) && !s.zahtevi.some(z => z.metod === "PUT" && z.putanja === "/api/tarife/moja-satnica"));
+  let n = s.zahtevi.length;
+  await page.locator("#pn-satnica").fill("9000");
+  await page.locator("#pn-satnica-sacuvaj").dblclick();
+  await page.waitForFunction(() => /sačuvana/.test(document.getElementById("pn-satnica-poruka").textContent));
+  const put = odZahteva(n).filter(z => z.metod === "PUT");
+  proveri("Finansije: satnica — jedan PUT (dupli klik), telo {tarifa_po_satu:9000}, prikaz iz servera", put.length === 1 && put[0].telo === JSON.stringify({ tarifa_po_satu: 9000 })
+    && s.satnica[KORISNICI.A.token] === 9000 && /Vaša satnica: 9\.000 RSD/.test(await tekst(page, "#pn-satnica-izvor")));
+  s.pada["PUT /api/tarife/moja-satnica"] = 503;
+  await page.locator("#pn-satnica").fill("12000");
+  await page.locator("#pn-satnica-sacuvaj").click();
+  await page.waitForFunction(() => /Ishod nije poznat/.test(document.getElementById("pn-satnica-poruka").textContent));
+  proveri("Finansije: 5xx satnice → ishod nepoznat, prikazana vrednost sa servera", (await page.locator("#pn-satnica").inputValue()) === "9000");
+  delete s.pada["PUT /api/tarife/moja-satnica"];
+
+  proveri("SEF: nije podešen → jasan status", /SEF nije podešen/.test(await tekst(page, "#pn-sef-status")));
+  await page.locator("#pn-sef-pib").fill("12345678");
+  await page.locator("#pn-sef-naziv").fill("Advokat A");
+  await page.locator("#pn-sef-sacuvaj").click();
+  proveri("SEF: PIB od 8 cifara odbijen lokalno", /9 cifara/.test(await tekst(page, "#pn-sef-poruka")));
+  await page.locator("#pn-sef-pib").fill("123456789");
+  await page.locator("#pn-sef-sacuvaj").click();
+  proveri("SEF: prvo čuvanje bez ključa odbijeno lokalno", /potreban je SEF API ključ/.test(await tekst(page, "#pn-sef-poruka")) && !s.zahtevi.some(z => z.metod === "POST" && z.putanja === "/api/sef/podesavanja"));
+  n = s.zahtevi.length;
+  await page.locator("#pn-sef-adresa").fill("Ulica 1");
+  await page.locator("#pn-sef-mesto").fill("Novi Sad");
+  await page.locator("#pn-sef-kljuc").fill(SEF_KLJUC);
+  await page.locator("#pn-sef-sacuvaj").click();
+  await page.waitForFunction(() => /SEF podaci su sačuvani/.test(document.getElementById("pn-sef-poruka").textContent));
+  const post = odZahteva(n).filter(z => z.metod === "POST" && z.putanja === "/api/sef/podesavanja");
+  proveri("SEF: čuvanje šalje ključ samo u POST telu, polje se odmah prazni", post.length === 1 && JSON.parse(post[0].telo).api_key === SEF_KLJUC
+    && (await page.locator("#pn-sef-kljuc").inputValue()) === "");
+  const body = await page.locator("body").innerText(), html = await page.content();
+  proveri("SEF: ključ se nigde ne prikazuje; status nosi samo poslednja 4 znaka", !body.includes(SEF_KLJUC) && !html.includes(SEF_KLJUC)
+    && /Sačuvan ključ: \*\*\*QWER\./.test(await tekst(page, "#pn-sef-status")) && !body.includes(SEF_KLJUC.slice(0, 6)));
+  proveri("SEF: ključ nije u localStorage/sessionStorage", await page.evaluate(k => !JSON.stringify(Object.assign({}, localStorage, sessionStorage)).includes(k), SEF_KLJUC));
+  n = s.zahtevi.length;
+  await page.locator("#pn-sef-naziv").fill("Advokat A d.o.o.");
+  await page.locator("#pn-sef-sacuvaj").click();
+  await page.waitForFunction(() => /SEF podaci su sačuvani/.test(document.getElementById("pn-sef-poruka").textContent) && document.getElementById("pn-sef-naziv").value === "Advokat A d.o.o.");
+  proveri("SEF: izmena bez novog ključa ne šalje api_key i zadržava sačuvani", !("api_key" in JSON.parse(odZahteva(n).find(z => z.metod === "POST").telo))
+    && s.sef[KORISNICI.A.token].api_key === SEF_KLJUC);
+  proveri("Finansije: nijedan zahtev ka slanju faktura", !s.zahtevi.some(z => /\/sef\/posalji|\/faktur/.test(z.putanja)));
+
+  // Promena naloga A→B: SEF podaci A nestaju odmah
+  const odmah = await page.evaluate(([kl, v]) => { localStorage.setItem(kl, v); window.dispatchEvent(new Event("focus"));
+    return [document.getElementById("pn-sef-naziv").value, document.getElementById("pn-sef-status").textContent, document.getElementById("pn-satnica").value]; }, [KLJUC, sesija(KORISNICI.B)]);
+  await page.waitForFunction(() => /SEF nije podešen/.test(document.getElementById("pn-sef-status").textContent));
+  proveri("Finansije: promena naloga A→B odmah briše SEF i satnicu A", odmah.every(v => v === "") && (await page.locator("#pn-sef-naziv").inputValue()) === ""
+    && (await tekst(page, "#pn-plan-naziv")) === "Kancelarija");
+  await ctx.close();
+
+  s.pada["GET /api/sef/podesavanja"] = 503;
+  ({ ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/finansije"));
+  await page.waitForFunction(() => /SEF nije učitan/.test(document.getElementById("pn-sef-poruka").textContent));
+  proveri("SEF: 503 čitanja nije „nije podešen“, forma zaključana", !/SEF nije podešen/.test(await tekst(page, "#pn-sef-status")) && await page.locator("#pn-sef-sacuvaj").isDisabled()
+    && !(await page.locator("#pn-satnica").isDisabled()));
+  delete s.pada["GET /api/sef/podesavanja"];
+  await ctx.close();
+
+  ({ ctx, page } = await otvori(null, LIVE + "#/podesavanja/finansije"));
+  await page.waitForFunction(() => /Prijavite se/.test(document.getElementById("pn-fin-stanje").textContent));
+  proveri("Finansije: neprijavljen → sve zaključano, bez zahteva", await page.locator("#pn-satnica-sacuvaj").isDisabled() && await page.locator("#pn-sef-sacuvaj").isDisabled());
+  await ctx.close();
+}
+
 // ═══ P1.3 Privatnost i podaci + Pomoć ══════════════════════════════════════
 if (deo("privatnost")) {
   let { ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/privatnost");
