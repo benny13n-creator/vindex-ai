@@ -312,6 +312,12 @@ if (deo("finansije")) {
   delete s.pada["GET /api/sef/podesavanja"];
   await ctx.close();
 
+  s.sef[KORISNICI.C.token] = { seller_pib: "987654321", seller_naziv: "C", seller_adresa: "", seller_mesto: "", api_key: "enc_v1:ostecen", neispravan: true };
+  ({ ctx, page } = await otvori(KORISNICI.C, LIVE + "#/podesavanja/finansije"));
+  await page.waitForFunction(() => document.getElementById("pn-sef-status").textContent.length > 0);
+  proveri("SEF: neupotrebljiv sačuvan ključ se ne prikazuje kao „podešen“", /nije upotrebljiv/.test(await tekst(page, "#pn-sef-status")));
+  await ctx.close();
+
   ({ ctx, page } = await otvori(null, LIVE + "#/podesavanja/finansije"));
   await page.waitForFunction(() => /Prijavite se/.test(document.getElementById("pn-fin-stanje").textContent));
   proveri("Finansije: neprijavljen → sve zaključano, bez zahteva", await page.locator("#pn-satnica-sacuvaj").isDisabled() && await page.locator("#pn-sef-sacuvaj").isDisabled());

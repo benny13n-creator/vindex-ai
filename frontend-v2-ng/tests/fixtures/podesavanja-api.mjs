@@ -170,7 +170,8 @@ export function podesavanjaRuta(s) {
     if (p === "/api/sef/podesavanja" && m === "GET") {
       const r = s.sef[t];
       json(res, 200, r ? { konfigurisano: true, podaci: { seller_pib: r.seller_pib, seller_naziv: r.seller_naziv, seller_adresa: r.seller_adresa,
-        seller_mesto: r.seller_mesto, api_key_preview: "***" + r.api_key.slice(-4), updated_at: "2026-10-26T10:00:00+00:00" } } : { konfigurisano: false, podaci: null });
+        seller_mesto: r.seller_mesto, api_key_preview: r.neispravan ? "***" : "***" + r.api_key.slice(-4), kljuc_citljiv: !r.neispravan,
+        updated_at: "2026-10-26T10:00:00+00:00" } } : { konfigurisano: false, podaci: null });
       return true;
     }
     if (p === "/api/sef/podesavanja" && m === "POST") {

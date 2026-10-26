@@ -83,7 +83,9 @@
       $("pn-sef-adresa").value = p ? tekst(p.seller_adresa) : "";
       $("pn-sef-mesto").value = p ? tekst(p.seller_mesto) : "";
       $("pn-sef-kljuc").value = "";
-      $("pn-sef-status").textContent = p ? "SEF je podešen. Sačuvan ključ: " + tekst(p.api_key_preview) + "." : "SEF nije podešen. Za prvo čuvanje potreban je API ključ.";
+      $("pn-sef-status").textContent = !p ? "SEF nije podešen. Za prvo čuvanje potreban je API ključ."
+        : p.kljuc_citljiv === false ? "Podaci prodavca su sačuvani, ali sačuvani API ključ nije upotrebljiv. Unesite ključ ponovo."
+        : "SEF je podešen. Sačuvan ključ: " + tekst(p.api_key_preview) + ".";
     }
 
     async function ucitaj() {

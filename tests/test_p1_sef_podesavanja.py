@@ -119,3 +119,13 @@ def test_greska_upisa_ne_vraca_sirov_izuzetak(klijent):
 def test_neispravan_pib_odbijen(klijent, pib):
     k, baza = klijent
     assert k.post("/api/sef/podesavanja", json={**TELO, "seller_pib": pib, "api_key": KLJUC}).status_code == 422 and baza.red is None
+
+
+def test_nedesifrovan_kljuc_nije_prikazan_kao_upotrebljiv(klijent, monkeypatch):
+    import routers.sef as sef
+    k, baza = klijent
+    baza.red = {"seller_pib": "123456789", "seller_naziv": "A", "seller_adresa": "", "seller_mesto": "",
+                "api_key": "enc_v1:OSTECENO-abcd"}
+    monkeypatch.setattr(sef, "decrypt_field", lambda v: (_ for _ in ()).throw(ValueError("los kljuc")))
+    d = k.get("/api/sef/podesavanja").json()["podaci"]
+    assert d["kljuc_citljiv"] is False and d["api_key_preview"] == "***" and "abcd" not in str(d)

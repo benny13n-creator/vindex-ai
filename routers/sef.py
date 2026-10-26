@@ -247,11 +247,14 @@ async def get_sef_podesavanja(
         if not r.data:
             return {"konfigurisano": False, "podaci": None}
         d = r.data
-        raw_key = d.get("api_key", "")
+        raw_key = d.get("api_key", "") or ""
+        kljuc_citljiv = True
         try:
             plain_key = decrypt_field(raw_key) if raw_key.startswith("enc_v1:") else raw_key
         except Exception:
-            plain_key = raw_key
+            # P1.6 (nezavisni pregled): ranije je pregled pokazivao poslednja 4 znaka ŠIFRATA, a ekran „podešen“,
+            # iako ključ nije upotrebljiv. Sada: bez znakova i sa izričitom oznakom.
+            plain_key, kljuc_citljiv = "", False
         return {
             "konfigurisano":  True,
             "podaci": {
@@ -260,6 +263,7 @@ async def get_sef_podesavanja(
                 "seller_adresa": d.get("seller_adresa", ""),
                 "seller_mesto":  d.get("seller_mesto", ""),
                 "api_key_preview": _mask_key(plain_key),
+                "kljuc_citljiv": kljuc_citljiv,
                 "updated_at":    d.get("updated_at"),
             },
         }
