@@ -288,8 +288,12 @@ class IntakeWorker:
             # i confidence=0, review queue dobija jasan razlog, posao se
             # ipak završava normalno — advokat vidi "OCR nije uspeo" odmah,
             # ne posle 5 pokušaja i nekoliko minuta eksponencijalnog backoff-a.
+            # N1 (2026-10-26): `ocr_used` je ono što je ekstraktor STVARNO uradio. Ranije je ovde stajalo True, pa je
+            # nepročitan sken (OCR nije uspeo ili ga nema) posle pregleda u V2 pisao „tekst pročitan OCR-om“, a
+            # metrika upotrebe OCR-a (shared/intake_accuracy.py) brojala neuspeh kao upotrebu (B3: nikad
+            # ocr_used=True bez stvarnog OCR-a).
             document_id = await intake_documents.create_document(
-                job_id, "other", 0.0, "heuristic", ocr_confidence=0.0, ocr_used=True,
+                job_id, "other", 0.0, "heuristic", ocr_confidence=0.0, ocr_used=bool(ocr_used),
             )
             await intake_documents.create_review_queue_entry(job_id, document_id, "ocr_failed", [])
             # Program Intake Sprint 002: raise_on_error=True -- ovo je
