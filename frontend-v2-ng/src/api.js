@@ -131,7 +131,9 @@
    * Odvojeno od `get` NAMERNO: čitanje bez posledice, pisanje sa posledicom.
    * Iste granice kao `get` (isti izvor, `/api/...`, bez kolačića, bez
    * preusmeravanja, bez ispisa), plus:
-   *  • POST/PATCH; DELETE dozvoljen samo za /email-notif/profil (B10 deaktivacija);
+   *  • POST/PATCH; PUT i DELETE samo za tačno navedene putanje (`dozvoljenPut`, `dozvoljenDelete`):
+   *    B10 deaktivacija, zahtev za brisanje naloga (P1.3), naziv/uloga/uklanjanje u kancelariji (P1.5),
+   *    sopstvena satnica (P1.6);
    *  • telo ne sme nositi vlasnika (`user_id`, `owner_id`, `tenant_id`…) —
    *    pripadnost određuje server iz tokena;
    *  • NIKAD se ne ponavlja;
@@ -142,7 +144,13 @@
    * Kodovi pored onih iz `get`: BAD_REQUEST 400 · CONFLICT 409 ·
    * TOO_LARGE 413 · UNSUPPORTED_MEDIA 415 · VALIDATION_ERROR 422 ·
    * OUTCOME_UNKNOWN (mreža/prekid posle slanja). */
-  var METODI_PISANJA = { POST: 1, PATCH: 1, DELETE: 1 };
+  var METODI_PISANJA = { POST: 1, PATCH: 1, PUT: 1, DELETE: 1 };
+  function dozvoljenPut(p) {
+    return p === "/api/kancelarija/naziv" || p === "/api/tarife/moja-satnica" || /^\/api\/kancelarija\/uloga\/[A-Za-z0-9-]{1,64}$/.test(p);
+  }
+  function dozvoljenDelete(p) {
+    return p === "/email-notif/profil" || p === "/api/gdpr/account" || /^\/api\/kancelarija\/ukloni\/[A-Za-z0-9-]{1,64}$/.test(p);
+  }
   var ZABRANJENA_POLJA = { user_id: 1, userid: 1, uid: 1, owner_id: 1, tenant_id: 1, vlasnik_id: 1 };
 
   function kodPisanja(s) {
@@ -189,14 +197,14 @@
   }
 
   /**
-   * POST/PATCH /api/... sa tokenom tekuće sesije.
+   * POST/PATCH/PUT/DELETE /api/... sa tokenom tekuće sesije.
    * @param {string} putanja
-   * @param {{metod?: "POST"|"PATCH"|"DELETE", telo?: Object|FormData, token?: string, signal?: AbortSignal, oblik?: function(*):boolean}} opcije
+   * @param {{metod?: "POST"|"PATCH"|"PUT"|"DELETE", telo?: Object|FormData, token?: string, signal?: AbortSignal, oblik?: function(*):boolean}} opcije
    */
   async function send(putanja, opcije) {
     opcije = opcije || {};
     var metod = String(opcije.metod || "POST").toUpperCase();
-    if (!METODI_PISANJA[metod] || (metod === "DELETE" && putanja !== "/email-notif/profil")) {
+    if (!METODI_PISANJA[metod] || (metod === "DELETE" && !dozvoljenDelete(putanja)) || (metod === "PUT" && !dozvoljenPut(putanja))) {
       return greska("CONFIG_ERROR", "Metod nije dozvoljen.", 0);
     }
     var adresa;
@@ -262,11 +270,11 @@
   }
 
   /**
-   * POST koji vraća FAJL (npr. .docx nacrta). Iste granice kao `send` (isti izvor,
-   * dozvoljene putanje, bez vlasnika u telu, bez ponavljanja, token obavezan); uspeh
+   * POST (ili GET, P1.3 izvoz podataka) koji vraća FAJL (npr. .docx nacrta, .zip izvoza). Iste granice kao
+   * `send` (isti izvor, dozvoljene putanje, bez vlasnika u telu, bez ponavljanja, token obavezan); uspeh
    * je samo 2xx sa očekivanim tipom sadržaja — sve ostalo je strukturisan neuspeh.
    * @param {string} putanja
-   * @param {{telo: Object, token: string, signal?: AbortSignal, tip: string}} opcije  tip = očekivani MIME
+   * @param {{telo?: Object, token: string, signal?: AbortSignal, tip: string, metod?: "POST"|"GET"}} opcije  tip = očekivani MIME
    * @returns {Promise<{ok:true, status, blob, ime}|{ok:false, status, greska}>}
    */
   async function preuzmi(putanja, opcije) {
@@ -278,12 +286,16 @@
     if (zabranjeno) return greska("CONFIG_ERROR", "polje „" + zabranjeno + "“ nije dozvoljeno: pripadnost podataka određuje server", 0);
     if (typeof opcije.token !== "string" || !opcije.token) return greska("AUTH_REQUIRED", "Niste prijavljeni.", 0);
     if (typeof opcije.tip !== "string" || !opcije.tip) return greska("CONFIG_ERROR", "Očekivani tip fajla nije naveden.", 0);
+    var metod = opcije.metod === "GET" ? "GET" : opcije.metod === undefined || opcije.metod === "POST" ? "POST" : null;
+    if (!metod) return greska("CONFIG_ERROR", "Metod nije dozvoljen.", 0);
     if (opcije.signal && opcije.signal.aborted) return greska("ABORTED", "Zahtev je otkazan.", 0);
+    var zaglavlja = { Accept: opcije.tip, Authorization: "Bearer " + opcije.token };
+    if (metod === "POST") zaglavlja["Content-Type"] = "application/json";
     var odgovor;
     try {
       odgovor = await root.fetch(adresa, {
-        method: "POST", headers: { Accept: opcije.tip, "Content-Type": "application/json", Authorization: "Bearer " + opcije.token },
-        body: JSON.stringify(opcije.telo || {}), signal: opcije.signal, credentials: "omit", cache: "no-store", redirect: "error",
+        method: metod, headers: zaglavlja, body: metod === "POST" ? JSON.stringify(opcije.telo || {}) : undefined,
+        signal: opcije.signal, credentials: "omit", cache: "no-store", redirect: "error",
       });
     } catch (e) {
       if ((opcije.signal && opcije.signal.aborted) || (e && e.name === "AbortError")) return greska("ABORTED", "Zahtev je otkazan.", 0);

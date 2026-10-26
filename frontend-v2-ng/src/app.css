@@ -789,3 +789,5 @@ a.text-btn { text-decoration: none; }
 /* P1.1 Podešavanja: na širokom ekranu odeljci su kartice (.tabs), na telefonu jedan izbor (select). */
 .pn-izbor { display: none; margin-bottom: var(--sp-5); max-width: 360px; }
 @media (max-width: 859px) { .pn-sekcije { display: none; } .pn-izbor { display: flex; } }
+.pn-linkovi { margin: 0; padding-left: var(--sp-5); display: grid; gap: var(--sp-2); }
+.pn-linkovi a { color: var(--text-1); }

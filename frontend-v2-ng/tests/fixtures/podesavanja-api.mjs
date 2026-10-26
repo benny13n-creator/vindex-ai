@@ -9,6 +9,7 @@
 //   GET/PUT /api/tarife/moja-satnica      routers/tarife.py:107/127
 //   GET/POST /api/sef/podesavanja         routers/sef.py:224/264
 //   GET  /api/export/complete             routers/data_export.py:125 (ZIP)
+//   DELETE /api/gdpr/account              routers/gdpr.py:202 (anonimizacija; ovde samo brojač, nikad stvarno brisanje)
 import { json } from "./api-fixture.mjs";
 
 export const KLJUC = "sb-czsxymueizfqrbbgqqob-auth-token";
@@ -43,6 +44,7 @@ export function podesavanjaMock() {
       { id: "clan-e", email: "suspendovan@example.test", uloga: "citanje", status: "SUSPENDED", user_id: "korisnik-E", joined_at: "2026-09-03T10:00:00+00:00", suspended_at: "2026-10-01T10:00:00+00:00" },
     ],
     poslatiEmailovi: 0,
+    anonimizovani: [],            // id-jevi naloga nad kojima je mock izvršio DELETE /api/gdpr/account
   };
 }
 
@@ -65,7 +67,7 @@ export function podesavanjaRuta(s) {
   return async (req, url, res) => {
     const p = url.pathname, m = req.method;
     const nase = p === "/api/me" || p === "/api/plan/status" || p.startsWith("/email-notif/") || p.startsWith("/api/kancelarija/")
-      || p === "/api/tarife/moja-satnica" || p === "/api/sef/podesavanja" || p === "/api/export/complete";
+      || p === "/api/tarife/moja-satnica" || p === "/api/sef/podesavanja" || p === "/api/export/complete" || p === "/api/gdpr/account";
     if (!nase) return false;
     const k = korisnik(req);
     const b = await telo(req);
@@ -184,6 +186,13 @@ export function podesavanjaRuta(s) {
     if (p === "/api/export/complete" && m === "GET") {
       res.writeHead(200, { "Content-Type": "application/zip", "Content-Disposition": 'attachment; filename="vindex-export-2026-10-26T10-00-00.zip"', "Cache-Control": "no-store" });
       res.end(Buffer.from("PK\u0003\u0004fixture-" + k.id));
+      return true;
+    }
+    // ── Brisanje (anonimizacija) naloga — routers/gdpr.py:202 ──
+    if (p === "/api/gdpr/account" && m === "DELETE") {
+      s.anonimizovani.push(k.id);
+      json(res, 200, { ok: true, poruka: "Vaš korisnički nalog je anonimizovan — email i ime uklonjeni su iz profila.",
+        napomena: "Predmeti, klijenti i dokumenti nisu anonimizovani ovim postupkom i zadržavaju se u skladu sa zakonskom obavezom advokata da čuva spise predmeta (Zakon o advokaturi)." });
       return true;
     }
     json(res, 405, { detail: "Method Not Allowed" });

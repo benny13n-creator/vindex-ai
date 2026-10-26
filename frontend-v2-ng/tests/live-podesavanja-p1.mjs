@@ -87,6 +87,68 @@ if (deo("nalog")) {
   await ctx.close();
 }
 
+// ═══ P1.3 Privatnost i podaci + Pomoć ══════════════════════════════════════
+if (deo("privatnost")) {
+  let { ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/privatnost");
+  await page.waitForFunction(() => !document.getElementById("pn-izvoz").disabled);
+  proveri("Privatnost: opis izvoza navodi tačno šta izvoz sadrži i šta ne", /osam grupa/.test(await tekst(page, "#pn-privatnost")) && /Ne sadrži: originalne fajlove/.test(await tekst(page, "#pn-privatnost"))
+    && !/svi (vaši )?podaci/i.test(await tekst(page, "#pn-privatnost")));
+  proveri("Privatnost: linkovi ka postojećim pravnim stranicama", JSON.stringify(await page.locator("#pn-privatnost .pn-linkovi a").evaluateAll(a => a.map(x => x.getAttribute("href"))))
+    === JSON.stringify(["/privacy", "/terms", "/dpa", "/security"]));
+  let n = s.zahtevi.length;
+  const [preuzimanje] = await Promise.all([page.waitForEvent("download"), page.locator("#pn-izvoz").dblclick()]);
+  await page.waitForFunction(() => /preuzet/.test(document.getElementById("pn-izvoz-poruka").textContent));
+  const izvozi = odZahteva(n).filter(z => z.putanja === "/api/export/complete");
+  proveri("Privatnost: izvoz je GET sa tokenom A, dupli klik = jedan zahtev, ime iz servera", izvozi.length === 1 && izvozi[0].metod === "GET" && izvozi[0].token === KORISNICI.A.token
+    && preuzimanje.suggestedFilename() === "vindex-export-2026-10-26T10-00-00.zip");
+  s.pada["GET /api/export/complete"] = 503;
+  await page.locator("#pn-izvoz").click();
+  await page.waitForFunction(() => /nije napravljen/.test(document.getElementById("pn-izvoz-poruka").textContent));
+  proveri("Privatnost: 503 izvoza (dnevnik nije dokazan) → bez fajla, jasna greška", true);
+  delete s.pada["GET /api/export/complete"];
+
+  proveri("Brisanje: dugme je onemogućeno bez potvrde", await page.locator("#pn-brisanje").isDisabled());
+  await page.locator("#pn-brisanje-potvrda").fill(KORISNICI.B.email);
+  proveri("Brisanje: tuđa adresa ne otključava brisanje", await page.locator("#pn-brisanje").isDisabled());
+  await page.locator("#pn-brisanje-potvrda").fill(KORISNICI.A.email.toUpperCase() + " ");
+  proveri("Brisanje: tačna adresa naloga (bez obzira na velika slova/razmak) otključava", await page.locator("#pn-brisanje").isEnabled());
+  s.pada["DELETE /api/gdpr/account"] = 403;
+  await page.locator("#pn-brisanje").click();
+  await page.waitForFunction(() => /ne može obrisati/.test(document.getElementById("pn-brisanje-poruka").textContent));
+  proveri("Brisanje: 403 → „ništa nije promenjeno“, bez lažnog uspeha", s.anonimizovani.length === 0 && /Ništa nije promenjeno/.test(await tekst(page, "#pn-brisanje-poruka")));
+  s.pada["DELETE /api/gdpr/account"] = 502;
+  await page.locator("#pn-brisanje").click();
+  await page.waitForFunction(() => /nije potvrdio ishod/.test(document.getElementById("pn-brisanje-poruka").textContent));
+  proveri("Brisanje: 5xx → ishod nepoznat, ne „uspeh“ ni „nije izvršeno“", true);
+  delete s.pada["DELETE /api/gdpr/account"];
+  n = s.zahtevi.length;
+  await page.locator("#pn-brisanje").dblclick();
+  await page.waitForFunction(() => /anonimizovan/.test(document.getElementById("pn-brisanje-poruka").textContent));
+  proveri("Brisanje: jedan DELETE sa tokenom A, poruka i napomena servera, zatim zaključano",
+    odZahteva(n).filter(z => z.putanja === "/api/gdpr/account").length === 1 && JSON.stringify(s.anonimizovani) === JSON.stringify([KORISNICI.A.id])
+    && /Zakon o advokaturi/.test(await tekst(page, "#pn-brisanje-poruka")) && await page.locator("#pn-brisanje").isDisabled());
+  await ctx.close();
+
+  ({ ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/privatnost"));
+  await page.waitForFunction(() => !document.getElementById("pn-izvoz").disabled);
+  await page.locator("#pn-brisanje-potvrda").fill(KORISNICI.A.email);
+  await promeniNalog(page, KORISNICI.B);
+  await page.waitForFunction(() => document.getElementById("pn-brisanje-potvrda").value === "" && !document.getElementById("pn-izvoz").disabled);
+  await page.locator("#pn-brisanje-potvrda").fill(KORISNICI.A.email);
+  proveri("Brisanje: posle promene naloga potvrda se briše, a adresa A ne otključava nalog B", await page.locator("#pn-brisanje").isDisabled());
+  await ctx.close();
+
+  ({ ctx, page } = await otvori(null, LIVE + "#/podesavanja/privatnost"));
+  await page.waitForFunction(() => /Prijavite se/.test(document.getElementById("pn-priv-stanje").textContent));
+  proveri("Privatnost: neprijavljen → izvoz i brisanje onemogućeni", await page.locator("#pn-izvoz").isDisabled() && await page.locator("#pn-brisanje").isDisabled());
+  await page.goto(LIVE + "#/podesavanja/pomoc");
+  await page.waitForFunction(() => !document.getElementById("pn-pomoc").hidden);
+  proveri("Pomoć: samo postojeće javne stranice", JSON.stringify(await page.locator("#pn-pomoc a").evaluateAll(a => a.map(x => x.getAttribute("href"))))
+    === JSON.stringify(["/status", "/ai-disclosure", "/kako-radi", "/bezbednosni-list"]));
+  await ctx.close();
+  proveri("Privatnost: jedina anonimizacija je ona izričito potvrđena u testu", JSON.stringify(s.anonimizovani) === JSON.stringify([KORISNICI.A.id]));
+}
+
 proveri("P1: nema grešaka skripte", greske.length === 0);
 proveri("P1: nijedan zahtev van loopback-a", spolja.length === 0);
 proveri("P1: nijedan stvaran email nije poslat (mock brojač)", s.poslatiEmailovi === 0);
