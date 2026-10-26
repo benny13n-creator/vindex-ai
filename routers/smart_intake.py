@@ -131,8 +131,8 @@ _POTPIS_SADRZAJA = {
 _PORUKA_SADRZAJ = {
     ".pdf": "Fajl nije PDF dokument — njegov sadržaj je u drugom formatu, bez obzira na ekstenziju. "
             "Sačuvajte ili izvezite dokument kao PDF, pa pokušajte ponovo.",
-    ".docx": "Fajl nije Word (DOCX) dokument — njegov sadržaj je u drugom formatu, bez obzira na ekstenziju. "
-             "Sačuvajte dokument kao DOCX ili PDF, pa pokušajte ponovo.",
+    ".docx": "Fajl nije Word (DOCX) dokument — njegov sadržaj je u drugom formatu, bez obzira na ekstenziju, ili je dokument "
+             "zaštićen lozinkom. Sačuvajte dokument kao DOCX bez lozinke ili kao PDF, pa pokušajte ponovo.",
 }
 
 

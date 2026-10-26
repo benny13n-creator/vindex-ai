@@ -24,7 +24,7 @@
   function napravi(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); };
     var sesija = o.sesija, api = o.api, naUspeh = o.naUspeh || function () {}, ishodCoi = o.ishodCoi;
-    var gen = 0, radi = false, predlog = null, klijent = null, coi = null, kPretraga = null, tajmerPretrage = null, sumnja = false;
+    var gen = 0, radi = false, predlog = null, klijent = null, coi = null, kPretraga = null, tajmerPretrage = null, sumnja = null;
 
     var prijem = root.VxPrijemPredmeta.napravi({ sesija: sesija, api: api, prefiks: "nd",
       naOtvoren: function (id) { var a = $("nd-otvori-predmet"); a.href = o.adresaPredmeta(id, "pregled"); $("nd-otvoren").hidden = false;
@@ -95,7 +95,7 @@
       var ime = imeKlijenta();
       $("npo-klijent-izbor").textContent = klijent ? "Izabran klijent iz kartoteke: " + klijent.ime : (ime ? "Nov klijent: " + ime : "Klijent nije izabran.");
       var coiOk = !!coi && coi.ime === ime && (coi.i.nastavak === "slobodno" || (coi.i.nastavak === "potvrda" && $("npo-coi-potvrda").checked));
-      $("npo-otvori").disabled = radi || sumnja || !predlog || tekst($("npo-naziv").value).length < 2 || !ime || !coiOk;
+      $("npo-otvori").disabled = radi || sumnja === tekst($("npo-naziv").value).slice(0, 200) || !predlog || tekst($("npo-naziv").value).length < 2 || !ime || !coiOk;
     }
 
     async function pretrazi() {
@@ -197,26 +197,28 @@
      * pre slanja. Tačno jedan nov predmet = otvoren je; nijedan = nije; inače se otvaranje zaključava (bez duplikata). */
     async function razresiIshod(moja, naziv, pre) {
       poruka("ucitavanje", "Odgovor servera nije stigao. Proveravam da li je predmet otvoren…");
+      await new Promise(function (ok) { setTimeout(ok, 2500); });   // upis koji je još u toku dobija vreme da se vidi
+      if (moja !== gen) return;
       var posle = pre ? await istoimeni(naziv) : null;
       if (moja !== gen) return;
       radi = false;
       var novi = pre && posle ? posle.filter(function (id) { return pre.indexOf(id) < 0; }) : null;
       if (novi && novi.length === 1) { uskladi(); poruka("uspeh", "Veza je bila prekinuta, ali predmet JE otvoren (provereno u listi predmeta)."); naUspeh(novi[0]); return; }
       if (novi && novi.length === 0) { uskladi(); poruka("greska", "Predmet NIJE otvoren (provereno u listi predmeta). Možete pokušati ponovo."); return; }
-      sumnja = true; uskladi();
-      poruka("nepoznato", "Ishod nije poznat i nije mogao da se proveri — predmet je možda otvoren. Otvaranje je zaključano da ne bi nastao duplikat; proverite listu predmeta.");
+      sumnja = naziv; uskladi();                          // zaključano za OVAJ naziv; drugi naziv je svesno drugi predmet
+      poruka("nepoznato", "Ishod nije poznat i nije mogao da se proveri — predmet je možda otvoren. Otvaranje pod ovim nazivom je zaključano da ne bi nastao duplikat; proverite listu predmeta.");
     }
 
     $("npo-opis-forma").addEventListener("submit", function (e) { e.preventDefault(); predlozi(); });
     $("npo-predlog").addEventListener("submit", function (e) { e.preventDefault(); otvori(); });
     $("npo-proveri").addEventListener("click", proveriCoi);
     $("npo-coi-potvrda").addEventListener("change", uskladi);
-    $("npo-naziv").addEventListener("input", function () { sumnja = false; uskladi(); });
+    $("npo-naziv").addEventListener("input", uskladi);
     ["npo-ime", "npo-prezime"].forEach(function (id) { $(id).addEventListener("input", function () { klijent = null; uskladi(); }); });
     $("npo-klijent-pretraga").addEventListener("input", function () { clearTimeout(tajmerPretrage); tajmerPretrage = setTimeout(pretrazi, 250); });
 
     function ocisti() {
-      gen++; radi = false; predlog = null; klijent = null; coi = null; sumnja = false;
+      gen++; radi = false; predlog = null; klijent = null; coi = null; sumnja = null;
       if (kPretraga) { kPretraga.abort(); kPretraga = null; }
       $("npo-opis-forma").reset(); $("npo-predlog").reset(); $("npo-predlog").hidden = true; $("npo-klijenti").replaceChildren();
       prikaziCoi(null); poruka(null); $("nd-otvoren").hidden = true;

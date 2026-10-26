@@ -162,6 +162,11 @@
       p.greske = 0;
       p.podaci = r.podaci;
       if (p.otvara) usvojiIliOslobodi(p);
+      else if (p.usvojen && prikacivanje(p.podaci.job) !== "U_TOKU") {
+        p.usvojen = false;
+        var mu = PORUKE_USVOJENOG[prikacivanje(p.podaci.job)];
+        if (mu) javi(p, mu[0], mu[1]);
+      }
       var st = tekst(p.podaci.job.status);
       if (ZAVRSNA[st] && prikacivanje(p.podaci.job) !== "U_TOKU") { prikazi(p, null); return; }
       prikazi(p, null);
@@ -331,12 +336,16 @@
     async function prikaci(p, b) {
       if (p.radi || !zivi(p)) return;
       var moja = gen, pid = trenutni.id;
-      if (!pid && trenutni.otvara) return;                      // drugi dokument čeka da prvi otvori predmet
+      /* N1: dok jedan dokument otvara predmet (ili je ishod tog otvaranja nepoznat), drugi ne sme da otvori još jedan. */
+      if (!pid && trenutni.otvara && trenutni.otvara !== p.id) {
+        javi(p, "nepoznato", "Predmet se upravo otvara iz drugog dokumenta ove sesije. Ovaj dokument prikačite kad taj predmet bude potvrđen.");
+        return;
+      }
       var telo = { predmet_id: pid };
       if (!pid) {
         var strana = $("pd-klijent-strana") ? tekst($("pd-klijent-strana").value) : "";
         telo = strana === "plaintiff" || strana === "defendant" ? { klijent_strana: strana } : {};
-        trenutni.otvara = true;
+        trenutni.otvara = p.id;                                 // vlasnik otvaranja: samo ovaj posao sme da ga ponovi
       }
       zakljucaj(p, b, true); javi(p, "ucitavanje", pid ? "Prikačivanje dokumenta predmetu…" : "Otvaranje predmeta iz dokumenta…");
       p.od = Date.now();                                        // praćenje stanja posle prikačivanja ima svoj rok
@@ -354,10 +363,12 @@
       if (r.ok && r.podaci && r.podaci.ok !== true) {
         var n = r.podaci, dup = Array.isArray(n.dokumenti) && n.dokumenti.some(function (q) { return q && q.razlog === "duplikat_u_drugom_predmetu"; });
         p.bezTeksta = bezTeksta(n);
+        var deloviBezTeksta = Array.isArray(n.dokumenti) && n.dokumenti.some(function (q) { return q && q.razlog === "prazan_tekst"; });
         javi(p, "greska", n.predmet_id && n.predmet_id !== pid ? "Ovaj dokument se prikačuje drugom vašem predmetu i to prikačivanje nije završeno; ovde nije prikačen."
           : p.bezTeksta ? PORUKA_BEZ_TEKSTA
           : n.prikacivanje === "DELIMICNO" ? "Prikačivanje nije završeno: prikačeno je " + n.dokumenata_povezano + " od " + n.dokumenata_ukupno
-            + " delova dokumenta. Ponovite prikačivanje za ostatak — već prikačeni delovi neće biti duplirani."
+            + " delova dokumenta. " + (deloviBezTeksta ? "Delovi iz kojih nije izdvojen tekst neće biti prikačeni ni ponovnim pokušajem; ostale ponovite — već prikačeni delovi neće biti duplirani."
+              : "Ponovite prikačivanje za ostatak — već prikačeni delovi neće biti duplirani.")
           : dup ? "Dokument NIJE prikačen: isti sadržaj već postoji u drugom vašem predmetu."
           : "Dokument NIJE prikačen. Ponovite prikačivanje — ništa neće biti duplirano.");
         prati(p);
@@ -406,20 +417,26 @@
     /* N1: ponovno čitanje posla posle nepoznatog ishoda otvaranja predmeta iz dokumenta. Server beleži predmet u posao
      * pre dokumenata, pa `job.predmet_id` znači: predmet JE otvoren — taj predmet se usvaja kao predmet ove sesije
      * (inače bi ga UI prikazao kao „drugi vaš predmet“, a sledeći dokument bi otvorio još jedan). Posao bez predmeta,
-     * a u konačnom stanju, znači da otvaranje nije počelo: zaključavanje se skida. */
+     * a u konačnom stanju, NE dokazuje da zahtev nije još u redu na serveru — zato se blokada NE skida: samo ovaj posao
+     * sme da ponovi otvaranje (server ga atomski zauzima; zakasneli prvi zahtev tada ne otvara drugi predmet). */
+    var PORUKE_USVOJENOG = {
+      PRIKACENO: ["uspeh", "Veza je bila prekinuta, ali predmet JE otvoren iz ovog dokumenta i dokument je prikačen (provereno ponovnim čitanjem)."],
+      U_TOKU: ["nepoznato", "Veza je bila prekinuta: predmet JE otvoren iz ovog dokumenta, a prikačivanje je u toku. Stanje se ponovo proverava."],
+      NEPOTPUNO: ["greska", "Veza je bila prekinuta: predmet JE otvoren iz ovog dokumenta, ali dokument još nije potvrđen u njemu. Ponovite prikačivanje — ništa neće biti duplirano."]
+    };
     function usvojiIliOslobodi(p) {
       var j = p.podaci.job, pid = tekst(j.predmet_id);
       if (!trenutni || trenutni.id || !trenutni.nov) { p.otvara = false; return; }
       if (ispravanId(pid)) {
-        p.otvara = false; trenutni.otvara = false; trenutni.id = pid;
-        javi(p, prikacivanje(j) === "PRIKACENO" ? "uspeh" : "greska", prikacivanje(j) === "PRIKACENO"
-          ? "Veza je bila prekinuta, ali predmet JE otvoren iz ovog dokumenta i dokument je prikačen (provereno ponovnim čitanjem)."
-          : "Veza je bila prekinuta: predmet JE otvoren iz ovog dokumenta, ali dokument još nije potvrđen u njemu. Ponovite prikačivanje — ništa neće biti duplirano.");
+        p.otvara = false; p.usvojen = true; trenutni.otvara = false; trenutni.id = pid;
+        var m = PORUKE_USVOJENOG[prikacivanje(j)] || PORUKE_USVOJENOG.NEPOTPUNO;
+        javi(p, m[0], m[1]);
         naOtvoren(pid, "");
         poslovi.forEach(function (q) { if (q !== p && q.podaci) prikazi(q, null); });
         return;
       }
-      if (ZAVRSNA[tekst(j.status)] && prikacivanje(j) === "NIJE_PRIKACENO") { p.otvara = false; trenutni.otvara = false; }
+      if (ZAVRSNA[tekst(j.status)] && prikacivanje(j) === "NIJE_PRIKACENO")
+        javi(p, "nepoznato", "Prema ponovnom čitanju predmet još nije otvoren. Ponovite otvaranje OVIM dokumentom — ako je prethodni pokušaj ipak stigao do servera, drugi predmet neće biti otvoren.");
     }
     function bezTeksta(n) {
       return Array.isArray(n.dokumenti) && n.dokumenti.length > 0 && n.dokumenti.every(function (q) { return q && q.razlog === "prazan_tekst"; });
