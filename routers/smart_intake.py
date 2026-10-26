@@ -122,6 +122,18 @@ _UPLOAD_TIME_BUDGET_S = 90.0
 # unhandled by the extractor, a separately tracked, pre-existing bug this
 # mission does not touch).
 _ALLOWED_UPLOAD_SUFFIXES = {".pdf", ".docx", ".txt", ".jpg", ".jpeg", ".png"}
+# N1: sadržaj mora odgovarati ekstenziji i za PDF/DOCX (slike: format_slike_po_sadrzaju). Proverava se samo potpis —
+# ništa se ne dekodira; oštećen, ali ispravno označen fajl i dalje ide workeru, koji neuspeh prikazuje.
+_POTPIS_SADRZAJA = {
+    ".pdf": lambda raw: b"%PDF-" in raw[:1024],
+    ".docx": lambda raw: raw[:4] == b"PK\x03\x04",
+}
+_PORUKA_SADRZAJ = {
+    ".pdf": "Fajl nije PDF dokument — njegov sadržaj je u drugom formatu, bez obzira na ekstenziju. "
+            "Sačuvajte ili izvezite dokument kao PDF, pa pokušajte ponovo.",
+    ".docx": "Fajl nije Word (DOCX) dokument — njegov sadržaj je u drugom formatu, bez obzira na ekstenziju. "
+             "Sačuvajte dokument kao DOCX ili PDF, pa pokušajte ponovo.",
+}
 
 
 async def _require_founder(user: dict = Depends(get_current_user)) -> dict:
@@ -194,6 +206,12 @@ async def upload_intake_documents(
         # NS3-B: fotografija po SADRŽAJU (JPEG/PNG), ne po ekstenziji -- odbijena odmah, bez čuvanja i bez posla.
         if suffix in IMAGE_SUFFIXES and format_slike_po_sadrzaju(raw[:8]) is None:
             results.append({"filename": f.filename, "ok": False, "greska": PORUKA_NIJE_JPEG_PNG})
+            continue
+        # N1 (2026-10-26): isto pravilo za PDF i DOCX. Ranije je npr. tekst pod imenom „ugovor.docx“ bio primljen,
+        # šifrovan i sačuvan, pa ga je worker ponavljao kao prolaznu grešku do konačnog „failed“ (minutima).
+        # PDF zaglavlje sme biti u prvih 1024 bajta (isto kao čitači PDF-a); DOCX je ZIP paket.
+        if suffix in _POTPIS_SADRZAJA and not _POTPIS_SADRZAJA[suffix](raw):
+            results.append({"filename": f.filename, "ok": False, "greska": _PORUKA_SADRZAJ[suffix]})
             continue
 
         content_sha256 = hashlib.sha256(raw).hexdigest()

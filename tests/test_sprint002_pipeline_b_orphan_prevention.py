@@ -40,7 +40,8 @@ def _fake_request():
     return StarletteRequest(scope=scope)
 
 
-def _upload_file(filename: str, content: bytes = b"fake bytes for test") -> UploadFile:
+def _upload_file(filename: str, content: bytes = b"%PDF-1.4 fake bytes for test") -> UploadFile:
+    # N1: otpremanje proverava potpis sadržaja (.pdf mora početi kao PDF); predmet ovih testova je skladište/red, ne format.
     return UploadFile(filename=filename, file=io.BytesIO(content), headers=Headers({"content-type": "application/octet-stream"}))
 
 

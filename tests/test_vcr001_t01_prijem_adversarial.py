@@ -25,12 +25,8 @@ def test_png_pod_imenom_pdf_nije_lazno_zavrsen(solo):
     Image.new("RGB", (64, 64), "white").save(buf, format="PNG")
     r = _otpremi(k, buf.getvalue(), ime="presuda.pdf")
     assert r.status_code == 202, r.text
-    jid = r.json()["rezultati"][0]["job_id"]
-    for _ in range(6):                                             # worker sa retry-jem do konačnog stanja
-        _radnik()
-    posao = next(j for j in b.tabele["intake_jobs"] if j["id"] == jid)
-    assert posao["status"] != "completed", posao                  # nikad lažno „obrađeno“
-    stanje = k.get(f"/api/smart-intake/jobs/{jid}", headers=A).json()
-    assert stanje["job"]["status"] != "completed"
-    fin = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={}, headers=A)
-    assert fin.status_code == 409 and b.tabele["predmet_dokumenti"] == []
+    # N1 (2026-10-26): ranije primljen pa „nikad lažno završen“ posle retry-ja; sada odbijen ODMAH po sadržaju
+    # (isto pravilo kao za slike) — nema posla, nema čuvanja, pa ni ničega što bi moglo biti prikačeno.
+    x = r.json()["rezultati"][0]
+    assert x["ok"] is False and "nije PDF" in x["greska"] and "job_id" not in x
+    assert b.tabele["intake_jobs"] == [] and b.tabele["predmet_dokumenti"] == []
