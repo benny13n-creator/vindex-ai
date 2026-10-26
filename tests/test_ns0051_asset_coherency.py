@@ -69,10 +69,15 @@ def _pokreni(okruzenje, putanje):
     return json.loads(linija[-1][2:])
 
 
+# Settings Master Sprint P1.3/Pomoć: linkovi ka postojećim javnim STRANICAMA (navigacija, ne asseti) — tačan spisak,
+# ne prefiks, da svaki novi lokalni asset i dalje mora da nosi build token.
+_JAVNE_STRANICE = {"/privacy", "/terms", "/dpa", "/security", "/status", "/ai-disclosure", "/kako-radi", "/bezbednosni-list"}
+
+
 def _reference(html):
-    """Sve src/href vrednosti osim sidara, /app* navigacije i spoljnih adresa."""
+    """Sve src/href vrednosti osim sidara, /app* navigacije, javnih stranica sajta i spoljnih adresa."""
     return [v for v in re.findall(r'\b(?:href|src)="([^"]*)"', html)
-            if not v.startswith(("#", "/app", "http:", "https:", "mailto:"))]
+            if not v.startswith(("#", "/app", "http:", "https:", "mailto:")) and v not in _JAVNE_STRANICE]
 
 
 def _izvorne_reference():
