@@ -797,3 +797,5 @@ a.text-btn { text-decoration: none; }
 [data-pn-sekcija] > .field__help + .field__help { margin-top: var(--sp-2); }
 [data-pn-sekcija] > .field, [data-pn-sekcija] > .form__actions, [data-pn-sekcija] > .notice, [data-pn-sekcija] > .people { margin-top: var(--sp-3); }
 [data-pn-sekcija] > .field, #pn-kanc-naziv-forma > .field, #pn-satnica-forma > .field { max-width: 480px; }
+.pn-izbor-teme { margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
+.pn-izbor-teme legend { width: 100%; padding: 0; margin-bottom: var(--sp-2); }

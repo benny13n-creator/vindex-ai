@@ -707,7 +707,14 @@
     $("theme-toggle-label").textContent = t === "dark" ? "Svetla tema" : "Tamna tema";
     $("theme-toggle").setAttribute("aria-label", t === "dark" ? "Uključi svetlu temu" : "Uključi tamnu temu");
     try { localStorage.setItem("vx-ng-tema", t); } catch (e) {}
+    document.dispatchEvent(new CustomEvent("vx-tema", { detail: t }));
   }
+  /* P2.1: Podešavanja › Izgled i rad menjaju temu ISTOM funkcijom kao prekidač u gornjoj traci — jedno stanje,
+     dva prikaza; oba slušaju „vx-tema“. */
+  window.VxTema = Object.freeze({
+    postavi: function (t) { if (t === "light" || t === "dark") postaviTemu(t); },
+    trenutna: function () { return koren.dataset.theme === "light" ? "light" : "dark"; },
+  });
 
   /* ── Navigacija i fioke ────────────────────────────────────────────── */
   var uski = window.matchMedia("(max-width: 859px)");

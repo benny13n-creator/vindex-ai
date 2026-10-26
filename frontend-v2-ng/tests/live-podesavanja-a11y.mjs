@@ -8,7 +8,7 @@ import { podesavanjaRuta, podesavanjaMock, KORISNICI, sesija, KLJUC } from "./fi
 
 let pada = 0;
 function proveri(naziv, uslov, detalj = "") { console.log((uslov ? "PASS" : "FAIL") + "  " + naziv + (uslov || !detalj ? "" : "  → " + detalj)); if (!uslov) pada++; }
-const SEKCIJE = (process.env.PN_SEKCIJE || "nalog,obavestenja,kancelarija,finansije,privatnost,pomoc").split(",");
+const SEKCIJE = (process.env.PN_SEKCIJE || "nalog,izgled,obavestenja,kancelarija,finansije,privatnost,pomoc").split(",");
 const s = podesavanjaMock();
 s.profilEmail[KORISNICI.B.token] = { aktivan: true, dan_7: true, dan_3: false, dan_1: true, nedeljni: true };
 const f = await pokreniFixture(kombinuj(predmetiRuta(Object.fromEntries(Object.values(KORISNICI).map(k => [k.token, { id: k.id, predmeti: napraviPredmete(k.id, 1) }]))), podesavanjaRuta(s)));

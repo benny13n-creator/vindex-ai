@@ -363,6 +363,16 @@
             <label class="field__label" for="pn-sekcija-izbor">Odeljak podešavanja</label>
             <select class="field__input" id="pn-sekcija-izbor"></select>
           </div>
+          <!-- P2.1 Izgled i rad (src/podesavanja-izgled.js): tema je ista postavka kao prekidač u gornjoj traci. -->
+          <section class="matter__section matter__section--first" id="pn-izgled" data-pn-sekcija="izgled" hidden aria-labelledby="pn-izgled-naslov">
+            <h2 class="matter__h2" id="pn-izgled-naslov">Izgled i rad</h2>
+            <fieldset class="pn-izbor-teme">
+              <legend class="field__label">Tema aplikacije</legend>
+              <label class="field__label"><input type="radio" name="pn-tema" id="pn-tema-dark" value="dark"> Tamna</label>
+              <label class="field__label"><input type="radio" name="pn-tema" id="pn-tema-light" value="light"> Svetla</label>
+            </fieldset>
+            <p class="field__help">Isto kao prekidač teme u gornjoj traci. Tema se pamti na ovom uređaju i ne menja nijedan podatak.</p>
+          </section>
           <!-- P1.2 Moj nalog (src/podesavanja-nalog.js): samo potvrđeni ugovori — GET /api/me, GET /api/plan/status. -->
           <section class="matter__section matter__section--first" id="pn-nalog" data-pn-sekcija="nalog" hidden aria-labelledby="pn-nalog-naslov">
             <h2 class="matter__h2" id="pn-nalog-naslov">Moj nalog</h2>
@@ -1182,6 +1192,7 @@
   <script src="src/pripremljeno.js"></script>
   <script src="src/kancelarija.js"></script>
   <script src="src/podesavanja-nalog.js"></script>
+  <script src="src/podesavanja-izgled.js"></script>
   <script src="src/podesavanja-privatnost.js"></script>
   <script src="src/podesavanja-kancelarija.js"></script>
   <script src="src/podesavanja-finansije.js"></script>
