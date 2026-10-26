@@ -202,6 +202,12 @@ if (deo("kancelarija")) {
     && odZahteva(n).every(z => z.token === KORISNICI.C.token));
   await ctx.close();
 
+  ({ ctx, page } = await otvori(null, LIVE + "#/podesavanja/kancelarija"));
+  await page.waitForFunction(() => /Prijavite se/.test(document.getElementById("pn-kanc-stanje").textContent));
+  proveri("Kancelarija: neprijavljen → bez podataka i bez zahteva", await page.locator("#pn-kanc-podaci").isHidden()
+    && !s.zahtevi.some(z => z.token === null && z.putanja.startsWith("/api/kancelarija/")));
+  await ctx.close();
+
   s.pada["GET /api/kancelarija/moja"] = 503;
   ({ ctx, page } = await otvori(KORISNICI.B, LIVE + "#/podesavanja/kancelarija"));
   await page.waitForFunction(() => /nisu učitani/.test(document.getElementById("pn-kanc-stanje").textContent));

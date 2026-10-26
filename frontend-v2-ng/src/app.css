@@ -793,3 +793,7 @@ a.text-btn { text-decoration: none; }
 .pn-linkovi a { color: var(--text-1); }
 .pn-clan-radnje { margin-top: var(--sp-2); }
 .pn-clan-radnje .field__input { width: auto; min-width: 9rem; }
+/* Ritam unutar odeljka Podešavanja (postojeći razmaci): tekst, polja i radnje se ne lepe jedni za druge. */
+[data-pn-sekcija] > .field__help + .field__help { margin-top: var(--sp-2); }
+[data-pn-sekcija] > .field, [data-pn-sekcija] > .form__actions, [data-pn-sekcija] > .notice, [data-pn-sekcija] > .people { margin-top: var(--sp-3); }
+[data-pn-sekcija] > .field, #pn-kanc-naziv-forma > .field, #pn-satnica-forma > .field { max-width: 480px; }
