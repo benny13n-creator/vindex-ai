@@ -99,8 +99,8 @@ def test_odlozeno_rociste_sa_novim_datumom_dobija_svoj_podsetnik():
     assert [(r["datum_roka"], r["dana_pre"]) for r in sveza.log] == [(_za_3_dana(), 3)]   # odloženo: bez rezervacije
 
 
-# V3-L1 (drugo slanje istog dana ne dopunjuje već podsetnut predmet/datum/prag) je UGOVOR at-most-once po ključu, ne
-# skrivena greška — dokaz i obrazloženje: tests/test_g2_podsetnici_raspored.py::test_DE_* (G2).
+# V3-L1 (drugo slanje istog dana ne dopunjuje već podsetnut predmet/datum/prag) je POZNATO OGRANIČENJE — odluka
+# osnivača (ispravka traži migraciju); ponašanje je izmereno u tests/test_g2_podsetnici_raspored.py::test_DE_* (G2).
 
 
 # ── stvaran lanac odluka (shared/rok_potvrda + audit_immutable u bazi u memoriji) ───────────────────────────────

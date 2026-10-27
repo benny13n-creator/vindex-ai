@@ -54,8 +54,8 @@ def test_C_oba_dogadjaja_izvrsiva_pre_slanja_jedan_grupisan_podsetnik():
 
 
 def test_DE_drugo_slanje_istog_dana_ne_dopunjuje_vec_podsetnut_predmet():
-    """POZNATO OGRANIČENJE — odluka osnivača (V3-L1; runbook docs/release/VINDEX_NS3_N04_EMAIL_PODSETNICI_RUNBOOK.md:55
-    „DOKAZANO, ODLOŽENO“): posle podsetnika za predmet/datum/prag, drugo slanje ISTOG dana ništa ne šalje za taj predmet —
+    """POZNATO OGRANIČENJE — odluka osnivača (V3-L1; ledger docs/v2-execution/BOJAN_N2_N9_STATE.md, G2. Runbook
+    docs/release/VINDEX_NS3_N04_EMAIL_PODSETNICI_RUNBOOK.md:55 opisuje raniju varijantu po KORISNIKU, ispravljenu u N4): posle podsetnika za predmet/datum/prag, drugo slanje ISTOG dana ništa ne šalje za taj predmet —
     ni ponovo (at-most-once, B10), ni dopunu sa događajem potvrđenim u međuvremenu (ključ nema identitet događaja; ispravka
     traži migraciju). Pri jednom zakazanom slanju dnevno ne događa se; događa se pri ručnom ponovnom pokretanju istog dana
     ili ako se uključi i `/api/cron/daily`. Test drži sadašnje ponašanje vidljivim — promena ključa ga mora svesno menjati."""
