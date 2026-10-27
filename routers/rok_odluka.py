@@ -46,7 +46,7 @@ from pydantic import BaseModel, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
-from shared.rok_ispravka import upisi_ispravljen_rok
+from shared.rok_ispravka import napomena_ispravke, postojeca_ispravka, upisi_ispravljen_rok
 from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
     STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_ODBIJEN, STANJE_POTVRDJEN,
@@ -298,6 +298,17 @@ async def potvrdi(
         raise HTTPException(
             status_code=409,
             detail="Rok je već odbijen. Potvrda posle odbijanja nije moguća iz ovog prozora — osvežite stranicu.")
+    # G3: predlog koji je advokat već ispravio (a odbijanje predloga nije uspelo) ne sme da postane DRUGA obaveza.
+    try:
+        _ispravka = await asyncio.to_thread(postojeca_ispravka, supa, uid=uid, predlog=red, rok_id=rok_id)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] provera ispravke pre potvrde nije uspela rok=%s: %s", rok_id, exc)
+        raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+    if _ispravka:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Ovaj predlog je već ispravljen — važi ispravljen rok {_ispravka}. Potvrda predloga bi napravila "
+                   "drugu obavezu; odbijte predlog. Ništa nije zabeleženo.")
     # NS2B-C F1: ponovljena potvrda VEC potvrdjenog roka ne upisuje nov red (lanac ne raste
     # bez promene stanja). Jedini izuzetak je N03-FD6: posle uklanjanja dokumenta iz predmeta
     # nova potvrda JESTE nova cinjenica (advokat je ponovo pregledao) i gasi upozorenje — tada
@@ -424,6 +435,19 @@ async def ispravi(
             raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
         if stanje_roka(rok_id, _pre) != STANJE_NEPOTVRDJEN:
             raise HTTPException(status_code=409, detail="Ispravlja se samo nepotvrđen predlog; ovaj rok je već potvrđen ili odbijen. Ništa nije zabeleženo.")
+        # G3: već postoji potvrđena ispravka ovog predloga (odbijanje predloga ranije nije uspelo) — nov rok se ne
+        # pravi; dovršava se odbijanje predloga.
+        try:
+            _ispravka = await asyncio.to_thread(postojeca_ispravka, supa, uid=uid, predlog=red, rok_id=rok_id)
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] provera ranije ispravke nije uspela rok=%s: %s", rok_id, exc)
+            raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+        if _ispravka:
+            odbijen = await odbij_rok(rok_id, uid, napomena=f"Ispravljen — tačan rok je {_ispravka}")
+            raise HTTPException(
+                status_code=409,
+                detail=f"Ovaj predlog je već ispravljen — važi ispravljen rok {_ispravka}; nov rok nije napravljen. "
+                       + ("Predlog je sada odbijen." if odbijen else "Predlog i dalje NIJE odbijen — odbijte ga."))
         try:
             izvor_r = await asyncio.to_thread(
                 lambda: supa.table("predmet_hronologija").select("dokument_id, dokument_naziv")
@@ -442,7 +466,7 @@ async def ispravi(
             nov_id = None
         if not nov_id:
             raise HTTPException(status_code=503, detail="Ispravljen rok nije upisan. Predlog je ostao nepromenjen.")
-        if not await potvrdi_rok(nov_id, uid, napomena=f"Ispravka predloga roka {rok_id}"):
+        if not await potvrdi_rok(nov_id, uid, napomena=napomena_ispravke(rok_id)):
             raise HTTPException(status_code=503, detail="Ispravljen rok je upisan, ali NIJE potvrđen — vidi se kao nov predlog uz stari. Potvrdite ga ručno.")
         odbijen = await odbij_rok(rok_id, uid, napomena=f"Ispravljen — tačan rok je {nov_id}")
         await _javi_odluku(uid, red, nov_id, "potvrda")

@@ -88,3 +88,46 @@ def test_istovremena_ispravka_istog_roka_drugi_dobija_409(lanac):
     finally:
         ro._ISPRAVKA_U_TOKU.discard(("uid-A", "rok-ai"))
     assert r.status_code == 409 and len(b.tabele["predmet_hronologija"]) == 1 and _stanje(k, "rok-ai") == "UNCONFIRMED"
+
+
+# ── revizija G3: odbijanje predloga padne POSLE potvrđene ispravke → predlog ostaje NEPOTVRĐEN; ni druga ispravka ni
+#    potvrda tog predloga ne smeju da naprave DRUGU potvrđenu obavezu ──
+
+def _potvrdjeni(k, b):
+    from shared.rok_potvrda import odluke
+    ids = [x["id"] for x in b.tabele["predmet_hronologija"]]
+    return sorted(i for i, s in odluke(ids, True).items() if s == "CONFIRMED")
+
+
+def _ispravka_bez_odbijanja(k, b):
+    _predlog(b)
+    b.lanac_puca = "rok_odbijen"
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(12)}, headers=A)
+    b.lanac_puca = None
+    assert r.status_code == 200 and r.json()["stari_odbijen"] is False and _stanje(k, "rok-ai") == "UNCONFIRMED"
+    return r.json()["rok_id"]
+
+
+def test_druga_ispravka_posle_neodbijenog_predloga_ne_pravi_drugu_obavezu_i_dovrsava_odbijanje(lanac):
+    k, b = lanac
+    prvi = _ispravka_bez_odbijanja(k, b)
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(14)}, headers=A)
+    assert r.status_code == 409, r.text
+    assert prvi in r.json()["detail"]
+    assert _potvrdjeni(k, b) == [prvi] and _stanje(k, "rok-ai") == "REJECTED"       # odbijanje je dovršeno
+    assert not [x for x in b.tabele["predmet_hronologija"] if x["datum_iso"] == _d(14)]
+
+
+def test_potvrda_vec_ispravljenog_predloga_409(lanac):
+    k, b = lanac
+    prvi = _ispravka_bez_odbijanja(k, b)
+    r = k.post("/api/rokovi/rok-ai/potvrdi", json={}, headers=A)
+    assert r.status_code == 409, r.text
+    assert _potvrdjeni(k, b) == [prvi] and _stanje(k, "rok-ai") == "UNCONFIRMED"
+
+
+def test_potvrda_predloga_bez_ispravke_i_dalje_radi(lanac):
+    k, b = lanac
+    _predlog(b)
+    assert k.post("/api/rokovi/rok-ai/potvrdi", json={}, headers=A).status_code == 200
+    assert _stanje(k, "rok-ai") == "CONFIRMED"

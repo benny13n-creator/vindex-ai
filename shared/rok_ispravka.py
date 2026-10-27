@@ -35,3 +35,25 @@ def upisi_ispravljen_rok(supa, *, uid: str, predlog: dict, izvor: dict, opis: st
         **_rokovi_domen.oznake(vrsta=_rokovi_domen.VRSTA_ROK, supa=supa),
     }).execute()
     return (nov_r.data or [{}])[0].get("id")
+
+
+def napomena_ispravke(rok_id: str) -> str:
+    """Napomena potvrde ispravljenog roka u audit lancu — jedina veza ispravke i predloga (bez nove kolone)."""
+    return f"Ispravka predloga roka {rok_id}"
+
+
+def postojeca_ispravka(supa, *, uid: str, predlog: dict, rok_id: str) -> Optional[str]:
+    """Id POTVRĐENE ispravke ovog predloga, ili None. G3: ako odbijanje predloga padne posle potvrđene ispravke,
+    predlog ostaje nepotvrđen — bez ove provere druga ispravka ili potvrda predloga pravila je DRUGU potvrđenu obavezu.
+    Pad čitanja ide pozivaocu (fail-closed: ništa se ne upisuje)."""
+    from shared.rok_potvrda import AKCIJA_POTVRDA, procitaj_lanac
+    kandidati = (supa.table("predmet_hronologija").select("id")
+                 .eq("user_id", uid).eq("predmet_id", predlog.get("predmet_id")).eq("akter", AKTER_ISPRAVKE).execute())
+    ids = [r.get("id") for r in (kandidati.data or []) if r.get("id")]
+    if not ids:
+        return None
+    trazena = napomena_ispravke(rok_id)
+    for red in procitaj_lanac(ids, "action, resource_id, metadata, seq"):
+        if red.get("action") == AKCIJA_POTVRDA and ((red.get("metadata") or {}).get("napomena") == trazena):
+            return str(red.get("resource_id"))
+    return None
