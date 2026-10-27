@@ -5,11 +5,16 @@ model + Pinecone): opšte pitanje i pitanje sa činjenicama su BLOKIRANI bez odg
 su uslovi ispunjeni iako nisu (raniji zatvor od šest meseci; otpust pre sedam godina). Zato uslove i raspon računa kod,
 ne model.
 
-Izvor je LOKALNI tekst zakona (data/laws/pdfs/krivicni_zakonik.pdf, UTF-8) — citati u ovom modulu su doslovni:
-  čl. 55a: „Za krivično delo učinjeno sa umišljajem, za koje je propisana kazna zatvora, sud će izreći kaznu iznad
-           polovine raspona propisane kazne, pod sledećim uslovima: 1) ako je učinilac ranije dva puta osuđen za krivična
-           dela učinjena sa umišljajem na zatvor od najmanje jednu godinu; 2) ako od dana otpuštanja učinioca sa
-           izdržavanja izrečene kazne do izvršenja novog krivičnog dela nije proteklo pet godina.“
+Izvori (doslovni citati):
+  čl. 55a VAŽEĆI tekst — prečišćen tekst KZ na pravno-informacioni-sistem.rs (Sl. glasnik RS 85/2005 … 94/2024, 63/2026),
+           proveren 27.10.2026; izmena iz zakona 63/2026 (objavljen 10.07.2026) primenjuje se od 18.07.2026 (napomena
+           izdavača i čl. 5 tog zakona). Izmena: „polazeći od najmanje mere te kazne“, ranije osude „za ista ili istovrsna“
+           dela i st. 2 (ranija osuda = pravnosnažna presuda domaćeg ili stranog suda). → CITAT_55A
+  čl. 55a tekst DO 17.07.2026 — lokalni tekst zakona (data/laws/pdfs/krivicni_zakonik.pdf, zaključno sa 94/2024) →
+           CITAT_55A_DO_63_2026. Baza zakona Vindex (Pinecone) još ima taj stari tekst.
+  čl. 5: na učinioca se primenjuje zakon iz vremena izvršenja; ako je zakon posle izmenjen — zakon najblaži za učinioca.
+  VKS Kzz 602/2022 od 14.06.2022 (vrh.sud.rs, proveren 27.10.2026): polovina = minimum + (maksimum − minimum)/2;
+           raspon 3–12 g. → 7 g. 6 m.; kazna 7 g. 7 m. ocenjena kao pravilna. Odluka NIJE u bazi sudske prakse Vindex.
   čl. 45 st. 1: zatvor ne može biti kraći od trideset dana niti duži od dvadeset godina;
   čl. 45 st. 2: izriče se na pune godine i mesece, a do šest meseci i na dane.
 
@@ -30,13 +35,32 @@ from typing import Optional
 
 DA, NE, NEPOZNATO = "DA", "NE", "NEPOZNATO"
 
-CITAT_55A = ("Za krivično delo učinjeno sa umišljajem, za koje je propisana kazna zatvora, sud će izreći kaznu iznad polovine "
-             "raspona propisane kazne, pod sledećim uslovima: 1) ako je učinilac ranije dva puta osuđen za krivična dela učinjena "
-             "sa umišljajem na zatvor od najmanje jednu godinu; 2) ako od dana otpuštanja učinioca sa izdržavanja izrečene kazne "
-             "do izvršenja novog krivičnog dela nije proteklo pet godina.")
+CITAT_55A = ("(1) Za krivično delo učinjeno sa umišljajem, za koje je propisana kazna zatvora, sud će izreći kaznu iznad "
+             "polovine raspona propisane kazne polazeći od najmanje mere te kazne, pod sledećim uslovima: 1) ako je učinilac "
+             "ranije dva puta osuđen za ista ili istovrsna krivična dela učinjena sa umišljajem na zatvor od najmanje jednu "
+             "godinu; 2) ako od dana otpuštanja učinioca sa izdržavanja izrečene kazne do izvršenja novog krivičnog dela nije "
+             "proteklo pet godina. (2) Pod ranijom osudom podrazumeva se osuda za krivično delo koja je utvrđena pravnosnažnom "
+             "presudom domaćeg suda, odnosno suda strane države.")
+IZVOR_55A = ("Krivični zakonik, prečišćen tekst (Sl. glasnik RS 85/2005 … 94/2024, 63/2026) — pravno-informacioni-sistem.rs; "
+             "ovaj tekst čl. 55a primenjuje se od 18.07.2026 (izmena 63/2026)")
+CITAT_55A_DO_63_2026 = ("Za krivično delo učinjeno sa umišljajem, za koje je propisana kazna zatvora, sud će izreći kaznu iznad "
+                        "polovine raspona propisane kazne, pod sledećim uslovima: 1) ako je učinilac ranije dva puta osuđen za "
+                        "krivična dela učinjena sa umišljajem na zatvor od najmanje jednu godinu; 2) ako od dana otpuštanja "
+                        "učinioca sa izdržavanja izrečene kazne do izvršenja novog krivičnog dela nije proteklo pet godina.")
+POCETAK_PRIMENE_63_2026 = date(2026, 7, 18)
 OPSTI_MINIMUM_DANA = 30          # čl. 45 st. 1
-_NAPOMENA_POLOVINA = ("Način računanja: „polovina raspona“ je ovde sredina između propisanog minimuma i maksimuma (minimum + "
-                      "(maksimum − minimum) / 2) — čl. 55a ne navodi formulu, to je tumačenje, a stav sudske prakse o tome nije u bazi.")
+_NAPOMENA_POLOVINA = ("Način računanja: polovina raspona = minimum + (maksimum − minimum) / 2. Važeći tekst čl. 55a to izričito "
+                      "određuje („polazeći od najmanje mere te kazne“, od 18.07.2026); isto pravilo primenio je Vrhovni kasacioni "
+                      "sud u presudi Kzz 602/2022 od 14.06.2022 (raspon 3–12 godina: polovina 7 godina i 6 meseci, kazna od 7 "
+                      "godina i 7 meseci ocenjena kao pravilna; tekst presude proveren na vrh.sud.rs — nije u bazi sudske prakse "
+                      "Vindex).")
+_NAPOMENA_BAZA = ("Napomena o izvoru: baza zakona Vindex sadrži tekst Krivičnog zakonika zaključno sa izmenom 94/2024 — izmena "
+                  "63/2026 (čl. 55a) još nije u bazi. Navedeni citat čl. 55a je važeći tekst; ako se u ostatku odgovora pojavi "
+                  "stariji tekst, važi ovaj.")
+_NAPOMENA_VREME = ("Vremensko važenje (čl. 5 KZ): na delo izvršeno pre 18.07.2026 u vreme izvršenja primenjivao se tekst bez uslova "
+                   "„ista ili istovrsna“ dela; ako je zakon posle izmenjen, primenjuje se zakon najblaži za učinioca (čl. 5 st. 2). "
+                   "Kad ranija dela nisu ista ili istovrsna, blaži je važeći tekst (čl. 55a se ne primenjuje); koji je zakon "
+                   "blaži kad postoji osuda stranog suda, procenjuje sud.")
 _NAPOMENA_NAJNIZA = "Najniža kazna važi ako se kazna ne ublažava (vidi otvoreno pitanje)."
 OPSTI_MAKSIMUM_MESECI = 20 * 12  # čl. 45 st. 1
 _DANA_U_MESECU = 30              # samo kad raspon sadrži dane — navodi se u rezultatu
@@ -87,7 +111,8 @@ def format_trajanje(dana: int, genitiv: bool = False) -> str:
 def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional[int], propisan_max_dana: Optional[int],
               ranije_osude: Optional[list[RanijaOsuda]], broj_ranijih_osuda: Optional[int] = None,
               proteklo_od_otpusta_meseci: Optional[float] = None, otpust: Optional[date] = None,
-              novo_delo: Optional[date] = None, min_iz_opsteg_minimuma: bool = False) -> Rezultat:
+              novo_delo: Optional[date] = None, min_iz_opsteg_minimuma: bool = False,
+              istovrsna: Optional[bool] = None) -> Rezultat:
     uslovi: list[Uslov] = []
     nedostaje: list[str] = []
     napomene: list[str] = []
@@ -157,6 +182,20 @@ def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional
         uslovi.append(Uslov("2) od otpuštanja sa izdržavanja kazne do novog dela nije proteklo pet godina", NEPOZNATO,
                             "nije naveden datum ili vreme otpuštanja sa izdržavanja kazne"))
         nedostaje.append("datum otpuštanja sa izdržavanja kazne i datum izvršenja novog dela")
+
+    # Uslov 1b (važeći tekst, 63/2026): ranija dela ISTA ili ISTOVRSNA kao novo. KZ istovrsnost ne definiše — sistem je
+    # ne procenjuje; DA/NE samo kad je u pitanju izričito navedeno (noćni sprint S3).
+    if istovrsna is True:
+        uslovi.append(Uslov("1b) ranija dela su ista ili istovrsna kao novo delo", DA, "navedeno u pitanju"))
+    elif istovrsna is False:
+        uslovi.append(Uslov("1b) ranija dela su ista ili istovrsna kao novo delo", NE,
+                            "navedeno je da ranija dela nisu ista ni istovrsna kao novo"))
+    else:
+        uslovi.append(Uslov("1b) ranija dela su ista ili istovrsna kao novo delo", NEPOZNATO,
+                            "nije navedeno; Krivični zakonik ne definiše istovrsnost — ocenjuje je sud"))
+        nedostaje.append("da li su ranija krivična dela ista ili istovrsna kao novo delo")
+    if novo_delo is None or novo_delo < POCETAK_PRIMENE_63_2026:
+        napomene.append(_NAPOMENA_VREME)
 
     stanja = [u.stanje for u in uslovi]
     primenjuje = NE if NE in stanja else (DA if all(s == DA for s in stanja) else NEPOZNATO)
@@ -339,7 +378,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     q = _norm(pitanje)
     out: dict = {"novo_delo_umisljaj": None, "propisan_min_dana": None, "propisan_max_dana": None, "ranije_osude": None,
                  "broj_ranijih_osuda": None, "proteklo_od_otpusta_meseci": None, "otpust": None, "novo_delo": None,
-                 "min_iz_opsteg_minimuma": False}
+                 "min_iz_opsteg_minimuma": False, "istovrsna": None}
     napomene: list[str] = []
     broj, m_osude = _broj_osuda(q)
     sidro = re.search(_SIDRO_NOVOG, q[m_osude.end():]) if m_osude else re.search(_SIDRO_NOVOG, q)
@@ -360,6 +399,29 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     # krivica novog dela
     if novo:
         out["novo_delo_umisljaj"] = _krivica(novo)
+
+    # S3 (63/2026): istovrsnost ranijih dela — samo izričit navod; oba smera ili negacija nejasna → None
+    _da = re.search(r"(?<!ne)(?<!nisu )(?<!nije )\bistovrsn\w*|\b(?:ista|isto)\s+(?:takv\w*\s+)?(?:krivicn\w*\s+)?del\w*", q)
+    _ne = re.search(r"\b(?:nisu|nije|ni)\s+(?:bil[aio]\s+)?(?:ista|isto|istovrsn\w*)|\bneistovrsn\w*|"
+                    r"\brazlicit\w*\s+(?:vrst\w*\s+)?(?:krivicn\w*\s+)?del|\bdrug\w*\s+vrst\w*\s+(?:krivicn\w*\s+)?del", q)
+    if _da and not _ne:
+        out["istovrsna"] = True
+    elif _ne and not re.search(r"(?<!ne)\bistovrsn\w*", re.sub(r"\b(?:nisu|nije|ni)\s+(?:bil[aio]\s+)?istovrsn\w*", " ", q)):
+        out["istovrsna"] = False
+    if out["istovrsna"] is None and m_osude and novo:
+        # „Ista“ krivična dela: isti naziv dela u osudi i u novom delu („za krađe“ … „izvršio krađu“). Odrednica ispred
+        # novog dela („tešku krađu“) ili bilo šta nejasno → bez zaključka (istovrsnost ostaje sudu).
+        _ne_naziv = r"(?:umisljaj|nehat|krivicn|del[aoiu]?\b|ist|po\b|zatvor|kazn)"
+        _r = re.search(r"\bza\s+([a-z]{4,})", q[m_osude.start():granica] if granica is not None else "")
+        _n = re.search(r"\b(?:izvrsi\w*|ucini\w*|pocini\w*)\s+(?:je\s+)?(?:sa\s+umisljajem\s+|iz\s+nehata\s+)?([a-z]{4,})", novo)
+        if _r and _n and not re.match(_ne_naziv, _r.group(1)) and not re.match(_ne_naziv, _n.group(1)) \
+                and _r.group(1)[:5] == _n.group(1)[:5]:
+            out["istovrsna"] = True
+            napomene.append(f"Ranija i novo delo nose isti naziv („{_r.group(1)}“ / „{_n.group(1)}“) — uzeto kao ista "
+                            "krivična dela; ako to nije tačno, uslov ostaje na oceni suda.")
+    if re.search(r"stran\w*\s+(?:sud|drzav)|inostran\w*|u\s+inostranstvu", q):
+        napomene.append("Pitanje pominje osudu stranog suda — po važećem tekstu (st. 2) i ona je ranija osuda; za delo pre "
+                        "18.07.2026 koji je zakon blaži procenjuje sud (čl. 5 st. 2).")
 
     druga_osoba = bool(re.search(_DRUGA_OSOBA, q))
     uslovno = bool(re.search(r"uslovn\w*", q))
@@ -523,7 +585,8 @@ def blok(pitanje: str) -> Optional[tuple[str, Rezultat]]:
     redovi = ["--- PRORAČUN: VIŠESTRUKI POVRAT (KZ čl. 55a — računa sistem, ne AI)"]
     for n in _nepostojeci_clanovi_kz(pitanje):
         redovi.append(f"Član {n} ne postoji u Krivičnom zakoniku (proveren lokalni tekst); višestruki povrat uređuje čl. 55a.")
-    redovi.append(f"Izvor (proveren tekst Krivičnog zakonika, čl. 55a): „{CITAT_55A}“")
+    redovi.append(f"Izvor ({IZVOR_55A}): „{CITAT_55A}“")
+    redovi.append(_NAPOMENA_BAZA)
     bez_cinjenica = all(v in (None, False) for v in cinjenice.values())
     if not bez_cinjenica:
         redovi.append(_prepoznato(cinjenice))

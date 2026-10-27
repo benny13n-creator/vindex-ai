@@ -8,6 +8,9 @@ from shared import visestruki_povrat as V
 NOVO = "Sada je sa umišljajem izvršio krađu, propisan je zatvor od jedne do osam godina. 55a?"
 
 
+
+ISTO = " Ranija dela su istovrsna sa novim delom."          # S3: uslov „ista ili istovrsna“ (63/2026)
+
 def _ishod(q):
     return V.izracunaj(**V.iz_pitanja(q)).primenjuje_se
 
@@ -55,7 +58,8 @@ def test_jednoznacan_slucaj_i_dalje_DA():
     q = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa izdržavanja "
          "kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je propisan zatvor od jedne "
          "do osam godina. U kom rasponu sud mora da izrekne kaznu?")
-    assert _ishod(q) == V.DA
+    assert _ishod(q + ISTO) == V.DA
+    assert _ishod(q) == V.NEPOZNATO              # 63/2026: bez navoda o istovrsnosti uslov je nepoznat
 
 
 def test_datum_dela_uz_glagol_izvrsenja_i_dalje_racuna():
@@ -93,7 +97,8 @@ def test_protivrecna_krivica_posle_recenice_osude_nije_DA(q):
     "do osam godina. U kom rasponu sud mora da izrekne kaznu?",
 ])
 def test_jednoznacan_slucaj_ostaje_DA(q):
-    assert _ishod(q) == V.DA
+    assert _ishod(q + ISTO) == V.DA
+    assert _ishod(q) == V.NEPOZNATO              # 63/2026: bez navoda o istovrsnosti uslov je nepoznat
 
 
 @pytest.mark.parametrize("q", [

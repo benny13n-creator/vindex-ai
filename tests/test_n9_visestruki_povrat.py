@@ -19,8 +19,13 @@ def _clan(oznaka):
     return re.sub(r"\s+", " ", m.group(1)).strip() if m else ""
 
 
+# S3 (63/2026): važeći tekst čl. 55a traži „ista ili istovrsna“ ranija dela — bez izričitog navoda uslov je NEPOZNAT.
+ISTO = " Ranija dela su istovrsna sa novim delom."
+
+
 def test_citat_55a_je_doslovno_lokalni_tekst():
-    assert V.CITAT_55A in _clan("55a")   # telo člana nosi i naslov sledećeg („Ublažavanje kazne“)
+    # lokalni tekst zakona je zaključno sa 94/2024 → u njemu je tekst čl. 55a DO izmene 63/2026
+    assert V.CITAT_55A_DO_63_2026 in _clan("55a")   # telo člana nosi i naslov sledećeg („Ublažavanje kazne“)
     assert "ne može biti kraća od trideset dana niti duža od dvadeset godina" in _clan(45)
     assert "izriče se na pune godine i mesece, a do šest meseci i na dane" in _clan(45)
     assert "osuđeni se smatra neosuđivanim" in _clan(97)
@@ -29,7 +34,8 @@ def test_citat_55a_je_doslovno_lokalni_tekst():
 
 def _sve_da(mn, mx):
     return izracunaj(novo_delo_umisljaj=True, propisan_min_dana=mn, propisan_max_dana=mx,
-                     ranije_osude=[RanijaOsuda(True, 24), RanijaOsuda(True, 12)], proteklo_od_otpusta_meseci=24)
+                     ranije_osude=[RanijaOsuda(True, 24), RanijaOsuda(True, 12)], proteklo_od_otpusta_meseci=24,
+                     istovrsna=True)
 
 
 @pytest.mark.parametrize("mn,mx,polovina,najniza", [
@@ -47,7 +53,7 @@ def test_raspon_iznad_polovine(mn, mx, polovina, najniza):
 
 def test_bez_propisanog_minimuma_vazi_opsti_minimum_30_dana():
     r = izracunaj(**{**iz_pitanja("Ranije je dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpušten je pre "
-                                  "dve godine, a sada je sa umišljajem učinio delo za koje je propisan zatvor do tri godine.")})
+                                  "dve godine, a sada je sa umišljajem učinio delo za koje je propisan zatvor do tri godine." + ISTO)})
     assert r.primenjuje_se == DA and r.raspon["propisano_od_dana"] == 30
     assert r.raspon["polovina_raspona_dana"] == 30 + (3 * GOD - 30) / 2
     assert any("opšti minimum" in n for n in r.napomene) and any("30 dana" in n for n in r.napomene)
@@ -96,7 +102,7 @@ def test_novo_delo_iz_nehata_iskljucuje_55a():
 
 V2 = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa izdržavanja kazne je "
       "otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je propisan zatvor od jedne do osam godina. "
-      "U kom rasponu sud mora da izrekne kaznu?")
+      "U kom rasponu sud mora da izrekne kaznu?" + ISTO)
 V5 = ("Okrivljeni je dva puta osuđen na zatvor od po šest meseci za umišljajna dela i otpušten je pre dve godine. Sada je sa "
       "umišljajem učinio delo za koje je propisan zatvor od šest meseci do pet godina. Da li se primenjuje višestruki povrat?")
 V6 = ("Okrivljeni je dva puta osuđen na zatvor od po tri godine za umišljajna dela, otpušten je pre sedam godina, a sada je "
@@ -223,7 +229,8 @@ def _ishod(q):
 
 
 @pytest.mark.parametrize("q,ocekivano", [
-    (P + NOVO, DA),
+    (P + NOVO + ISTO, DA),
+    (P + NOVO, NEPOZNATO),                     # S3: istovrsnost nije navedena
     (P + "a sada je bez umišljaja učinio delo za koje je propisan zatvor od jedne do osam godina.", NE),
     (P + "a sada je učinio delo koje nije umišljajno, propisan zatvor od jedne do osam godina.", NE),
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za neumišljajna dela, otpušten je pre tri godine, " + NOVO, NE),
@@ -238,7 +245,7 @@ def _ishod(q):
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpust je predložen 01.01.2018, a otpušten je "
      "10.10.2020. Novo delo sa umišljajem učinio je 05.05.2024, propisan zatvor od jedne do osam godina.", NEPOZNATO),
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpušten je pre više od pet godina, " + NOVO, NE),
-    ("Okrivljeni je dva puta osuđen na zatvor od po godinu dana za umišljajna dela, otpušten je pre godinu dana, " + NOVO, DA),
+    ("Okrivljeni je dva puta osuđen na zatvor od po godinu dana za umišljajna dela, otpušten je pre godinu dana, " + NOVO + ISTO, DA),
     ("Okrivljeni je dva puta osuđen na zatvor od po pola godine za umišljajna dela, otpušten je pre tri godine, " + NOVO, NE),
 ])
 def test_revizija_parser_ne_pogadja(q, ocekivano):
@@ -293,7 +300,7 @@ def test_revizija_bez_laznog_nepostojeceg_clana_i_tekst_bloka():
     t, _ = blok("Kako se po članu 54 i 55a KZ odmerava kazna povratniku?")
     assert "ne postoji" not in t
     t2, _ = blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpušten je pre dve godine, "
-                 "a sada je sa umišljajem učinio delo za koje je propisan zatvor do tri godine.")
+                 "a sada je sa umišljajem učinio delo za koje je propisan zatvor do tri godine." + ISTO)
     assert "Propisana kazna: 30 dana do 3 godine" in t2 and "više od 1 godine, 6 meseci i 15 dana" in t2
     t3, _ = blok(P + "a sada je iz nehata učinio delo za koje je propisan zatvor od jedne do osam godina.")
     assert "NE primenjuje" in t3 and "čl. 55 (povrat)" not in t3                  # čl. 55 traži umišljajno novo delo
@@ -346,19 +353,21 @@ def test_mutacije_godina_uz_osudu_nije_broj_osuda():
     assert c["broj_ranijih_osuda"] is None
 
 
-def test_v4_nacin_racunanja_polovine_je_oznacen_kao_tumacenje():
-    """V4: zakon kaže samo „iznad polovine raspona propisane kazne“; sredina min–max je tumačenje i to se kaže."""
+def test_v4_nacin_racunanja_polovine_ima_izvor():
+    """V4 → S3: ranije je sredina min–max bila tumačenje bez izvora. Sada: važeći tekst („polazeći od najmanje mere te
+    kazne“, 63/2026) i VKS Kzz 602/2022 — oba se navode, uz oznaku da presuda nije u bazi Vindex."""
     tekst, r = V.blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa "
                       "izdržavanja kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je "
-                      "propisan zatvor od jedne do osam godina. U kom rasponu sud mora da izrekne kaznu?")
+                      "propisan zatvor od jedne do osam godina. U kom rasponu sud mora da izrekne kaznu?" + ISTO)
     assert "više od 4 godine i 6 meseci, najviše 8 godina" in tekst and "4 godine i 7 meseci" in tekst
-    assert "to je tumačenje" in tekst and "ne ublažava" in tekst
+    assert "polazeći od najmanje mere te kazne" in tekst and "Kzz 602/2022" in tekst and "nije u bazi" in tekst
+    assert "ne ublažava" in tekst
     nepoznato, _ = V.blok("Šta je višestruki povrat ako je za delo propisan zatvor od jedne do osam godina?")
-    assert ("Ako se uslovi utvrde" in nepoznato) == ("to je tumačenje" in nepoznato)
+    assert ("Ako se uslovi utvrde" in nepoznato) == ("Način računanja" in nepoznato)
     assert "Najniža kazna važi" not in nepoznato   # u toj grani najniža kazna se i ne navodi
     nije, _ = V.blok("Okrivljeni je dva puta osuđen na zatvor od po tri godine za umišljajna dela, otpušten je pre sedam godina, "
                      "a sada je učinio umišljajno delo sa propisanim zatvorom od dve do deset godina. Da li se primenjuje član 55a KZ?")
-    assert "to je tumačenje" not in nije        # bez raspona nema ni napomene o računanju
+    assert "Način računanja" not in nije        # bez raspona nema ni napomene o računanju
 
 
 def test_g5_primer_vks_kzz_602_2022():
@@ -367,6 +376,6 @@ def test_g5_primer_vks_kzz_602_2022():
     čl. 55a. Polovina raspona = (max − min) / 2 + min."""
     tekst, r = V.blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa "
                       "izdržavanja kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio delo za koje je "
-                      "propisan zatvor od tri do dvanaest godina. U kom rasponu sud mora da izrekne kaznu?")
+                      "propisan zatvor od tri do dvanaest godina. U kom rasponu sud mora da izrekne kaznu?" + ISTO)
     assert "više od 7 godina i 6 meseci, najviše 12 godina" in tekst
     assert "najniža takva kazna" in tekst and "7 godina i 7 meseci" in tekst
