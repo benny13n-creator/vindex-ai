@@ -3365,17 +3365,47 @@ def _praksa_clanovi(t: str) -> set:
 _PRAKSA_NEGACIJA_RE = re.compile(r"\b(?:ne|nije|nisu|nismo|nema|nemaju|nece|niti|nikad|nikada|nijedan|nijedna|nijedno)\b")
 
 
+# Revizija V4: smer se meri na KLAUZULI (zarez, „a ne“, „nego“, „već“) — „teče od saznanja, a ne od nastanka“ nije negiran
+# stav o saznanju; „ne samo … već i“ nije negacija; prefiks „ne-“ uz isti koren („nedopuštena“/„dopuštena“) je suprotan smer.
+_PRAKSA_KLAUZULA_RE = re.compile(r"[,;:]\s*|\s+(?=(?:a\s+ne|nego|vec)\b)")
+_PRAKSA_NE_SAMO_RE = re.compile(r"\bne\s+samo\b")
+
+
+def _praksa_norm(t: str) -> str:
+    return _normalizuj((t or "").lower().translate(_CIR_LAT_N8))
+
+
 def _praksa_negirano(t: str) -> bool:
-    return bool(_PRAKSA_NEGACIJA_RE.search(_normalizuj((t or "").lower().translate(_CIR_LAT_N8))))
+    return bool(_PRAKSA_NEGACIJA_RE.search(_PRAKSA_NE_SAMO_RE.sub(" ", _praksa_norm(t))))
+
+
+def _praksa_prefiks_ne(a: str, b: str) -> bool:
+    """Reč sa „ne-“ u jednom tekstu, a ista reč bez njega u drugom („nezakonit“ / „zakonit“)."""
+    ra, rb = set(re.findall(r"[a-z]+", _praksa_norm(a))), set(re.findall(r"[a-z]+", _praksa_norm(b)))
+
+    def _jedan_smer(x, y):
+        return any(w.startswith("ne") and len(w) >= 7 and w not in y and any(v[:6] == w[2:8] for v in y if len(v) >= 5)
+                   for w in x)
+    return _jedan_smer(ra, rb) or _jedan_smer(rb, ra)
 
 
 def _praksa_smer_se_slaze(stav: str, sazetak: str) -> bool:
     tokeni = _praksa_tokeni(stav)
-    recenice = [r for r in re.split(r"(?<=[.;!?])\s+", sazetak or "") if r.strip()]
+    recenice = [r for r in re.split(r"(?<=[.;!?])\s+", _praksa_norm(sazetak)) if r.strip()]
     if not tokeni or not recenice:
         return True
-    najbliza = max(recenice, key=lambda r: len(tokeni & _praksa_tokeni(r)))
-    return _praksa_negirano(stav) == _praksa_negirano(najbliza)
+    recenica = max(recenice, key=lambda r: len(tokeni & _praksa_tokeni(r)))
+    klauzule = [k for k in _PRAKSA_KLAUZULA_RE.split(recenica) if k.strip()] or [recenica]
+    najbliza = max(klauzule, key=lambda k: len(tokeni & _praksa_tokeni(k)))
+    if _praksa_negirano(stav) != _praksa_negirano(najbliza) or _praksa_prefiks_ne(stav, najbliza):
+        return False
+    if not _praksa_negirano(stav):
+        # „teče od saznanja, a ne od nastanka“ → stav „teče od nastanka“: reč samo iz ISKLJUČENE (negirane) klauzule
+        neg = set().union(*[_praksa_tokeni(k) for k in klauzule if _praksa_negirano(k)])
+        poz = set().union(*[_praksa_tokeni(k) for k in klauzule if not _praksa_negirano(k)])
+        if tokeni & (neg - poz):
+            return False
+    return True
 
 
 def _sazeci_iz_konteksta(praksa_context: str) -> dict:

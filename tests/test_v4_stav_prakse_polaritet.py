@@ -64,3 +64,36 @@ def test_polaritet_cirilica():
                          "Послодавац не може да откаже уговор о раду запосленој за време трудноће")
     data = {"sudska_praksa": [_stav("Rev2 1234/2020", "Poslodavac može da otkaže ugovor o radu zaposlenoj za vreme trudnoće.")]}
     assert main._proveri_stavove_prakse(data, k)["sudska_praksa"] == []
+
+
+# ── revizija V4: smer se meri na KLAUZULI sažetka, ne na celoj rečenici; i negacija u prefiksu („nedopuštena“) ──
+
+def _kontekst(sazetak):
+    return f"SUDSKA PRAKSA:\n1. Vrhovni sud, Rev 77/2021, 01.01.2021\n   Sažetak: {sazetak}\n"
+
+
+def _ostaje_uz(sazetak, princip):
+    data = {"sudska_praksa": [_stav("Rev 77/2021", princip)]}
+    return bool(main._proveri_stavove_prakse(data, _kontekst(sazetak))["sudska_praksa"])
+
+
+@pytest.mark.parametrize("sazetak,princip", [
+    ("Rok zastarelosti potraživanja naknade štete teče od dana saznanja za štetu, a ne od dana nastanka štete.",
+     "Rok zastarelosti potraživanja naknade štete teče od dana saznanja za štetu."),
+    ("Poslodavac odgovara za štetu koju zaposleni pretrpi na radu ne samo kada je kriv, već i po principu objektivne odgovornosti.",
+     "Poslodavac odgovara za štetu koju zaposleni pretrpi na radu po principu objektivne odgovornosti."),
+])
+def test_kontrastna_negacija_ne_uklanja_podrzan_stav(sazetak, princip):
+    assert _ostaje_uz(sazetak, princip)
+
+
+@pytest.mark.parametrize("sazetak,princip", [
+    ("Rok zastarelosti potraživanja naknade štete teče od dana saznanja za štetu, a ne od dana nastanka štete.",
+     "Rok zastarelosti potraživanja naknade štete teče od dana nastanka štete."),
+    ("Revizija je nedopuštena kada vrednost predmeta spora ne prelazi propisani iznos.",
+     "Revizija je dopuštena kada vrednost predmeta spora prelazi propisani iznos."),
+    ("Otkaz ugovora o radu dat zaposlenoj za vreme trudnoće je nezakonit.",
+     "Otkaz ugovora o radu dat zaposlenoj za vreme trudnoće je zakonit."),
+])
+def test_obrnut_smer_u_klauzuli_ili_prefiksu_se_uklanja(sazetak, princip):
+    assert not _ostaje_uz(sazetak, princip)

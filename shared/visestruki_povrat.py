@@ -36,8 +36,8 @@ CITAT_55A = ("Za krivično delo učinjeno sa umišljajem, za koje je propisana k
              "do izvršenja novog krivičnog dela nije proteklo pet godina.")
 OPSTI_MINIMUM_DANA = 30          # čl. 45 st. 1
 _NAPOMENA_POLOVINA = ("Način računanja: „polovina raspona“ je ovde sredina između propisanog minimuma i maksimuma (minimum + "
-                      "(maksimum − minimum) / 2) — čl. 55a ne navodi formulu, to je tumačenje, a stav sudske prakse o tome nije u bazi. "
-                      "Najniža kazna važi ako se kazna ne ublažava (vidi otvoreno pitanje).")
+                      "(maksimum − minimum) / 2) — čl. 55a ne navodi formulu, to je tumačenje, a stav sudske prakse o tome nije u bazi.")
+_NAPOMENA_NAJNIZA = "Najniža kazna važi ako se kazna ne ublažava (vidi otvoreno pitanje)."
 OPSTI_MAKSIMUM_MESECI = 20 * 12  # čl. 45 st. 1
 _DANA_U_MESECU = 30              # samo kad raspon sadrži dane — navodi se u rezultatu
 
@@ -481,7 +481,8 @@ def blok(pitanje: str) -> Optional[tuple[str, Rezultat]]:
             pravilo = ("čl. 45 st. 2: preko šest meseci kazna se izriče na pune godine i mesece" if rs["polovina_raspona_dana"] >= 180
                        else "čl. 45 st. 2: do šest meseci kazna se izriče i na dane")
             redovi.append(f"Propisana kazna: {_kazna_txt(rs['propisano_od_dana'])} do {format_trajanje(rs['propisano_do_dana'])} zatvora. "
-                          f"Polovina raspona: {format_trajanje(int(rs['polovina_raspona_dana']))}.")
+                          f"Polovina raspona (sredina minimuma i maksimuma — vidi način računanja): "
+                          f"{format_trajanje(int(rs['polovina_raspona_dana']))}.")
             redovi.append(f"Zakonski okvir po čl. 55a: više od {format_trajanje(int(rs['polovina_raspona_dana']), genitiv=True)}, najviše "
                           f"{format_trajanje(rs['najvisa_dana'])} zatvora; najniža takva kazna ({pravilo}): "
                           f"{format_trajanje(rs['najniza_dozvoljena_dana'])}.")
@@ -502,6 +503,8 @@ def blok(pitanje: str) -> Optional[tuple[str, Rezultat]]:
     if any(x.startswith(("Zakonski okvir po čl. 55a", "Ako se uslovi utvrde")) for x in redovi):
         # V4: zakon kaže samo „iznad polovine raspona propisane kazne“ — način računanja je tumačenje, ne tekst zakona
         redovi.append(_NAPOMENA_POLOVINA)
+    if any(x.startswith("Zakonski okvir po čl. 55a") for x in redovi):
+        redovi.append(_NAPOMENA_NAJNIZA)
     redovi += r.napomene
     redovi.append("Ovo je zakonski okvir, NE predviđanje kazne: konkretnu kaznu u tom okviru odmerava sud prema svim okolnostima (čl. 54).")
     redovi.append("Proverite i da li je neka ranija osuda brisana rehabilitacijom — tada se osuđeni smatra neosuđivanim (čl. 97 st. 1).")

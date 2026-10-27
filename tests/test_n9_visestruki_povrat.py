@@ -355,6 +355,7 @@ def test_v4_nacin_racunanja_polovine_je_oznacen_kao_tumacenje():
     assert "to je tumačenje" in tekst and "ne ublažava" in tekst
     nepoznato, _ = V.blok("Šta je višestruki povrat ako je za delo propisan zatvor od jedne do osam godina?")
     assert ("Ako se uslovi utvrde" in nepoznato) == ("to je tumačenje" in nepoznato)
+    assert "Najniža kazna važi" not in nepoznato   # u toj grani najniža kazna se i ne navodi
     nije, _ = V.blok("Okrivljeni je dva puta osuđen na zatvor od po tri godine za umišljajna dela, otpušten je pre sedam godina, "
                      "a sada je učinio umišljajno delo sa propisanim zatvorom od dve do deset godina. Da li se primenjuje član 55a KZ?")
     assert "to je tumačenje" not in nije        # bez raspona nema ni napomene o računanju

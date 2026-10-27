@@ -83,7 +83,8 @@ def test_isti_dogadjaj_ponovljen_ne_salje_dvaput():
 
 
 def test_odlozeno_rociste_sa_novim_datumom_dobija_svoj_podsetnik():
-    """Pomeren datum je nov ključ: stari (otkazan/odložen) se ne šalje, nov se šalje u svom pragu."""
+    """Pomeren datum je nov ključ (nov se šalje u svom pragu), a odloženo ročište na starom datumu se ne šalje —
+    i kad za stari datum još NIŠTA nije rezervisano (meri filter statusa, ne rezervaciju)."""
     b = _baza(rocista=[_roc("h1", _sutra())])
     b.tabele["korisnik_email_notif"][0]["dan_3"] = True
     assert len(_pokreni(b)[1]) == 1                                      # sutra: poslato
@@ -91,6 +92,11 @@ def test_odlozeno_rociste_sa_novim_datumom_dobija_svoj_podsetnik():
     rez, poslati = _pokreni(b)
     assert len(poslati) == 1 and "Za 3 dana" in poslati[0][1], rez
     assert sorted((r["datum_roka"], r["dana_pre"]) for r in b.log) == sorted([(_sutra(), 1), (_za_3_dana(), 3)])
+    sveza = _baza(rocista=[_roc("h1", _sutra(), status="odlozeno"), _roc("h1b", _za_3_dana())])
+    sveza.tabele["korisnik_email_notif"][0]["dan_3"] = True
+    _, poslati = _pokreni(sveza)
+    assert len(poslati) == 1 and "Za 3 dana" in poslati[0][1]
+    assert [(r["datum_roka"], r["dana_pre"]) for r in sveza.log] == [(_za_3_dana(), 3)]   # odloženo: bez rezervacije
 
 
 @pytest.mark.xfail(strict=True, reason="V3-L1 (poznato ograničenje): ključ rezervacije nema identitet događaja — "
@@ -138,6 +144,8 @@ def test_lanac_odbijen_ne_salje(lanac):
 
 
 def test_lanac_dvostruka_potvrda_ne_salje_dvaput(lanac):
+    """Meri ISHOD: druga potvrda ne obara rutu, a podsetnik ostaje jedan. (Podsetnik je jedan email po predmetu,
+    datumu i pragu, pa duplu potvrdu sama po sebi ovde ne može da otkrije — nju meri test_faza65 `odluke`.)"""
     k, b = lanac
     _predlog(b, dana=1)
     prva = k.post("/api/rokovi/rok-ai/potvrdi", json={}, headers=A)
