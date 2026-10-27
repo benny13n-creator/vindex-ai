@@ -73,7 +73,7 @@ def test_migracija_samo_dodaje_istorija_netaknuta_i_ponovljiva(baza):
         assert prava == {"SELECT", "INSERT", "UPDATE"}
         prava_p = {r[0] for r in c.execute("SELECT privilege_type FROM information_schema.role_table_grants WHERE "
                                            "table_name='email_podsetnik_pokretanje' AND grantee='service_role'")}
-        assert prava_p == {"SELECT", "INSERT", "UPDATE"}
+        assert prava_p == {"SELECT", "INSERT"}
         assert c.execute("SELECT relrowsecurity FROM pg_class WHERE relname='email_podsetnik_dogadjaj'").fetchone()[0]
 
 

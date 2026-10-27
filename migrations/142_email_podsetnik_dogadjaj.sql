@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.email_podsetnik_dogadjaj (
                                  CHECK (stanje IN ('rezervisano', 'poslato', 'neuspeh', 'odbijeno', 'nepoznato')),
     pokusaja         SMALLINT    NOT NULL DEFAULT 1 CHECK (pokusaja >= 1),
     greska           TEXT,
+    prijavljeno_at   TIMESTAMPTZ,      -- nepoznat/zaglavljen ishod uračunat u brojače dnevnog slanja (jednom)
     rezervisano_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     azurirano_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT email_podsetnik_dogadjaj_kljuc UNIQUE (user_id, tip, dogadjaj_id, datum_dogadjaja, svrha)
@@ -50,12 +51,11 @@ GRANT SELECT, INSERT, UPDATE ON public.email_podsetnik_dogadjaj TO service_role;
 -- redovni prag odmah SAMO ako je današnje dnevno slanje već prošlo; inače ga ostavlja dnevnom slanju.
 CREATE TABLE IF NOT EXISTS public.email_podsetnik_pokretanje (
     dan            DATE        PRIMARY KEY,
-    pokrenuto_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    zavrseno_at    TIMESTAMPTZ          -- kraj dnevnog slanja; ishodi posle njega su „između slanja“
+    pokrenuto_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE public.email_podsetnik_pokretanje ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT, UPDATE ON public.email_podsetnik_pokretanje TO service_role;
+GRANT SELECT, INSERT ON public.email_podsetnik_pokretanje TO service_role;
 
 -- [ROLLBACK] (tek POSLE vraćanja koda na verziju bez ovih tabela; gubi se samo istorija novih rezervacija):
 -- DROP TABLE IF EXISTS public.email_podsetnik_pokretanje;

@@ -403,14 +403,56 @@ def test_brisanje_predmeta_cisti_i_rezervacije_podsetnika():
     assert "email_podsetnik_dogadjaj" in TABELE_BEZ_FK and "email_notif_log" in TABELE_BEZ_FK
 
 
-def test_rev_f2d_prethodno_slanje_racuna_se_od_KRAJA_ne_od_pocetka():
-    """Ishod upisan TOKOM dnevnog slanja (posle početka, pre kraja) prijavilo je to slanje — sutra se ne broji ponovo."""
-    b = _baza([_rok("r1", _d(1)), _rok("r2", _d(4))], pragovi=(1, 3))
-    _cron(b, _t(DAN, 8), potvrdjeni=("r1", "r2"), smtp=_Smtp(puca=TimeoutError("posle DATA")))
-    b.log[0]["azurirano_at"] = "2026-11-02T08:01:00+00:00"                     # sat je tekao tokom slanja
-    b.tabele["email_podsetnik_pokretanje"][0]["zavrseno_at"] = "2026-11-02T08:02:00+00:00"
-    rez, _ = _cron(b, _t(DAN + timedelta(days=1), 8), potvrdjeni=("r1", "r2"))
-    assert rez["zaostalo_nepoznato"] == 0, rez
+def _nepoznat_iz_hitne(b, sat, minut=0, dan=DAN):
+    b.tabele["predmet_hronologija"].append(_rok("r1", _d(0, dan)))
+    rez, _ = _hitno(b, _t(dan, sat, minut), potvrdjeni=("r1",), smtp=_Smtp(puca=ConnectionResetError("posle DATA")))
+    assert rez["neisporuceno"] == 1 and _svrhe(b) == [("r1", "kasni", "nepoznato")]
+
+
+def test_rev_n1_nepoznat_ishod_upisan_tokom_dnevnog_slanja_se_prijavljuje_sledeci_put():
+    b = _baza(pragovi=(1,))
+    assert _cron(b, _t(DAN, 13))[0]["zaostalo_nepoznato"] == 0
+    _nepoznat_iz_hitne(b, 13, 5)                                              # „tokom“ slanja
+    assert _cron(b, _t(DAN + timedelta(days=1), 13))[0]["zaostalo_nepoznato"] == 1
+    assert _cron(b, _t(DAN + timedelta(days=2), 13))[0]["zaostalo_nepoznato"] == 0
+
+
+def test_rev_n2_sveza_zaglavljena_rezervacija_se_prijavljuje_kad_ostari():
+    b = _baza([_rok("r1", _d(3))], pragovi=(1,))
+    b.log.append({"id": "x", "user_id": UID, "predmet_id": PID, "tip": "rok", "dogadjaj_id": "r1", "datum_dogadjaja": _d(3),
+                  "svrha": "kasni", "stanje": "rezervisano", "pokusaja": 1, "rezervisano_at": "2026-11-02T12:50:00+00:00"})
+    assert _cron(b, _t(DAN, 13), potvrdjeni=("r1",))[0]["zaostalo_nepoznato"] == 0    # 10 min: možda u toku
+    assert _cron(b, _t(DAN + timedelta(days=1), 13), potvrdjeni=("r1",))[0]["zaostalo_nepoznato"] == 1
+    assert _cron(b, _t(DAN + timedelta(days=2), 13), potvrdjeni=("r1",))[0]["zaostalo_nepoznato"] == 0
+
+
+@pytest.mark.parametrize("izmena", [
+    lambda b: b.tabele["predmeti"][0].update(status="arhiviran"),
+    lambda b: b.tabele["korisnik_email_notif"][0].update(aktivan=False),
+    lambda b: b.tabele["korisnik_email_notif"][0].update(dan_1=False, dan_3=False, dan_7=False),
+])
+def test_rev_n3_prijava_ne_zavisi_od_toga_da_li_se_korisnik_obradjuje(izmena):
+    b = _baza(pragovi=(1,))
+    b.tabele["korisnik_email_notif"].append({"user_id": "u-x", "aktivan": True, "dan_1": True})   # ima aktivnih profila
+    _nepoznat_iz_hitne(b, 10)
+    izmena(b)
+    rez, _ = _cron(b, _t(DAN + timedelta(days=1), 13))
+    assert rez["zaostalo_nepoznato"] == 1 and rez["neisporuceno"] == 1, rez
+
+
+def test_rev_n3b_prijava_i_bez_ijednog_aktivnog_profila():
+    b = _baza(pragovi=(1,))
+    _nepoznat_iz_hitne(b, 10)
+    b.tabele["korisnik_email_notif"][0]["aktivan"] = False
+    rez, _ = _cron(b, _t(DAN + timedelta(days=1), 13))
+    assert rez["napomena"] == "Nema aktivnih profila" and rez["neisporuceno"] == 1, rez
+
+
+def test_rev_n4_prvo_slanje_posle_propustenih_dana_i_dalje_prijavljuje():
+    b = _baza(pragovi=(1,))
+    _nepoznat_iz_hitne(b, 6)                                                  # bez ijednog dnevnog slanja pre
+    rez, _ = _cron(b, _t(DAN + timedelta(days=3), 13))                        # dva propuštena dana
+    assert rez["zaostalo_nepoznato"] == 1, rez
 
 
 def test_rev_f3b_stvarna_vremena_potvrda_iz_lanca():
@@ -427,3 +469,19 @@ def test_rev_f3b_stvarna_vremena_potvrda_iz_lanca():
     lanac = [{"action": rok_potvrda.AKCIJA_POTVRDA, "resource_id": "r2", "seq": 1, "created_at": "2026-11-02T09:30:00+00:00"}]
     with patch.object(rok_potvrda, "procitaj_lanac", lambda *a, **k: lanac):
         assert len(_cron(b, _t(DAN, 11), potvrdjeni=("r2",))[1]) == 1
+
+
+def test_rev_pad_provere_nepoznatih_ishoda_je_greska_a_slanje_ide():
+    b = _baza([_rok("r1", _d(1))])
+    tabela = b.table
+    pozivi = {"n": 0}
+
+    def _table(ime):
+        if ime == "email_podsetnik_dogadjaj":
+            pozivi["n"] += 1
+            if pozivi["n"] == 1:
+                raise RuntimeError("timeout")
+        return tabela(ime)
+    b.table = _table
+    rez, poslati = _cron(b, _t(DAN, 8), potvrdjeni=("r1",))
+    assert rez["greske"] == 1 and len(poslati) == 1, rez

@@ -221,7 +221,8 @@ def test_7e_pad_dnevnika_slanja_preskace_samo_tog_korisnika_bez_rezervacije(tabe
     def _table(ime):
         if ime == tabela_dnevnika:
             pozivi["n"] += 1
-            if pozivi["n"] == 1:                       # samo PRVO čitanje dnevnika (prvi korisnik) pada
+            # nova tabela: 1. poziv je globalna prijava nepoznatih ishoda, 2. je čitanje za prvog korisnika
+            if pozivi["n"] == (2 if tabela_dnevnika == "email_podsetnik_dogadjaj" else 1):
                 raise RuntimeError(f"{tabela_dnevnika} timeout")
         return tabela(ime)
     b.table = _table

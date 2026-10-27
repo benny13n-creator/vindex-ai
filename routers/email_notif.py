@@ -684,10 +684,14 @@ def _rezervisi(supa, uid: str, ev: dict, svrha: str, postojeci: dict) -> tuple:
     return ("da", nov_id)
 
 
-def _zabelezi_ishod(supa, ids: list, stanje: str, greska: Optional[str] = None) -> bool:
+def _zabelezi_ishod(supa, ids: list, stanje: str, greska: Optional[str] = None, prijavljeno: bool = False) -> bool:
+    """`prijavljeno=True`: ishod je već uračunat u brojače OVOG dnevnog slanja (ne prijavljuje se ponovo)."""
+    sada = _sada().isoformat()
+    polja = {"stanje": stanje, "greska": (greska or None) and str(greska)[:200], "azurirano_at": sada}
+    if prijavljeno:
+        polja["prijavljeno_at"] = sada
     try:
-        (supa.table(_TABELA_DOGADJAJA)
-         .update({"stanje": stanje, "greska": (greska or None) and str(greska)[:200], "azurirano_at": _sada().isoformat()})
+        (supa.table(_TABELA_DOGADJAJA).update(polja)
          .in_("id", ids).eq("stanje", "rezervisano").execute())
         return True
     except Exception as exc:
@@ -700,26 +704,31 @@ def _novi_brojaci() -> dict:
     return {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0, "kasni": 0, "zaostalo_nepoznato": 0}
 
 
-def _zaostali_ishodi(postojeci: dict, od: Optional[datetime], do: datetime) -> int:
-    """Ishodi koje NIJE prijavilo dnevno slanje (hitna provera ili prekinut proces) od prethodnog dnevnog slanja:
-    `nepoznato`, i `rezervisano` starije od 15 min (proces prekinut posred slanja). Ne ponavljaju se (D4), ali posao
-    ne sme da bude zelen dok ih niko nije video (revizija S2-F, F2)."""
-    if od is None:
-        return 0
-    n = 0
-    for red in postojeci.values():
-        if red.get("stanje") == "nepoznato":
-            t = _kao_trenutak(red.get("azurirano_at"))
-            n += bool(t and od < t <= do)
-        elif red.get("stanje") == "rezervisano":
-            t = _kao_trenutak(red.get("rezervisano_at"))
-            n += bool(t and od < t <= do - timedelta(minutes=15))
-    return n
+def _prijavi_neprijavljene(supa, sada: datetime) -> int:
+    """Nepoznati ishodi koje još NIJEDNO dnevno slanje nije prijavilo — iz hitne provere, ili `rezervisano` starije od
+    15 min (proces prekinut posred slanja) — za SVE korisnike (i odjavljene, i sa arhiviranim predmetom). Broje se u
+    `neisporuceno` tačno jednom, pa se označe (`prijavljeno_at`). Ne ponavljaju se (D4), ali posao ne sme da bude zelen
+    dok ih niko nije video (revizija S2-F, F2 / N1–N4). Pad upisa oznake → prijava se ponavlja (crveno, nikad zeleno)."""
+    r = (supa.table(_TABELA_DOGADJAJA).select("id, stanje, rezervisano_at")
+         .is_("prijavljeno_at", "null").in_("stanje", ["nepoznato", "rezervisano"]).execute())
+    ids = []
+    for x in (r.data or []):
+        if x.get("stanje") == "rezervisano":
+            t = _kao_trenutak(x.get("rezervisano_at"))
+            if t is not None and t > sada - timedelta(minutes=15):
+                continue                                    # možda je slanje upravo u toku — sledeće slanje ga vidi
+        ids.append(x["id"])
+    if ids:
+        try:
+            (supa.table(_TABELA_DOGADJAJA).update({"prijavljeno_at": sada.isoformat()})
+             .in_("id", ids).is_("prijavljeno_at", "null").execute())
+        except Exception as exc:
+            logger.warning("[EMAIL-CRON] oznaka prijave nepoznatih ishoda nije upisana: %s", type(exc).__name__)
+    return len(ids)
 
 
 def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: datetime, n: dict,
-                      samo_hitno: bool = False, dnevno_proslo: bool = True,
-                      prethodno_slanje: Optional[datetime] = None, sada: Optional[datetime] = None) -> None:
+                      samo_hitno: bool = False, dnevno_proslo: bool = True) -> None:
     uid = profil["user_id"]
     pragovi = [p for p in _PRAGOVI if profil.get(f"dan_{p}")]
     if not pragovi:
@@ -735,8 +744,7 @@ def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: da
     do = danas + timedelta(days=max(pragovi))
     try:
         dogadjaji, nesigurni = _dogadjaji(supa, uid, aktivni, danas, do)
-        # 7 dana unazad: nepoznat ishod za događaj koji je u međuvremenu prošao mora i dalje da se prijavi (F2).
-        postojeci = _postojece_rezervacije(supa, uid, danas - timedelta(days=7))
+        postojeci = _postojece_rezervacije(supa, uid, danas)
         stari = _stari_dnevnik(supa, uid, danas)
         potvrde = _vremena_potvrda([e["id"] for e in dogadjaji if e["tip"] == "rok"
                                     and any((str(e["predmet_id"]), e["datum"].isoformat(), p) in stari for p in _PRAGOVI)])
@@ -748,10 +756,6 @@ def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: da
         return
     if nesigurni:
         n["greske"] += 1
-    if not samo_hitno and sada is not None:
-        z = _zaostali_ishodi(postojeci, prethodno_slanje, sada)
-        n["neisporuceno"] += z
-        n["zaostalo_nepoznato"] += z
 
     def vec_poslato(ev, svrha):
         red = postojeci.get((ev["tip"], ev["id"], ev["datum"].isoformat(), svrha))
@@ -819,7 +823,7 @@ def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: da
             # Ishod NEPOZNAT (npr. veza pukla posle predaje sadržaja): ne ponavlja se, ne tvrdi se uspeh.
             logger.error("[EMAIL-CRON] NEISPORUČENO (ishod nepoznat, bez ponavljanja) uid=%.8s svrha=%s: %s",
                          uid, svrha, type(exc).__name__)
-            _zabelezi_ishod(supa, ids, "nepoznato", type(exc).__name__)
+            _zabelezi_ishod(supa, ids, "nepoznato", type(exc).__name__, prijavljeno=not samo_hitno)
             n["neisporuceno"] += 1
             continue
         n["poslato"] += 1
@@ -854,23 +858,13 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 return {**n, "greske": 1, "napomena": "Migracija 142 nije primenjena — podsetnici nisu poslati"}
             if not _je_dup(exc):
                 logger.warning("[EMAIL-CRON] oznaka dnevnog slanja nije upisana: %s", type(exc).__name__)
-        # Kraj prethodnog dnevnog slanja (ranijeg dana): ishodi posle njega koje dnevno slanje nije videlo se prijavljuju.
-        prethodno = None
         try:
-            for m in (supa.table(_TABELA_POKRETANJA).select("dan, pokrenuto_at, zavrseno_at").execute().data or []):
-                # Završeno slanje (i ranije današnje, ručno ponovljeno); nezavršeno samo ranijeg dana — nikad ovo, u toku.
-                if m.get("zavrseno_at"):
-                    t = _kao_trenutak(m.get("zavrseno_at"))
-                elif str(m.get("dan"))[:10] < danas.isoformat():
-                    t = _kao_trenutak(m.get("pokrenuto_at"))
-                else:
-                    t = None
-                if t and t <= sada and (prethodno is None or t > prethodno):
-                    prethodno = t
+            z = _prijavi_neprijavljene(supa, sada)
+            n["neisporuceno"] += z
+            n["zaostalo_nepoznato"] += z
         except Exception as exc:
-            logger.warning("[EMAIL-CRON] prethodno dnevno slanje nije pročitano: %s", type(exc).__name__)
-        if prethodno is None:
-            prethodno = sada - timedelta(days=1)
+            logger.error("[EMAIL-CRON] nepoznati ishodi nisu provereni: %s", type(exc).__name__)
+            n["greske"] += 1
 
         profili_r = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute()
         profili = profili_r.data or []
@@ -880,12 +874,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         emails_r = supa.table("profiles").select("id, email").execute()
         email_map = {str(p["id"]): p.get("email", "") for p in (emails_r.data or [])}
         for profil in profili:
-            _obradi_korisnika(supa, profil, email_map.get(profil["user_id"], ""), danas, sada_bg, n,
-                              prethodno_slanje=prethodno, sada=sada)
-        try:
-            supa.table(_TABELA_POKRETANJA).update({"zavrseno_at": _sada().isoformat()}).eq("dan", danas.isoformat()).execute()
-        except Exception as exc:
-            logger.warning("[EMAIL-CRON] kraj dnevnog slanja nije upisan: %s", type(exc).__name__)
+            _obradi_korisnika(supa, profil, email_map.get(profil["user_id"], ""), danas, sada_bg, n)
         return n
 
     return await asyncio.to_thread(_run)

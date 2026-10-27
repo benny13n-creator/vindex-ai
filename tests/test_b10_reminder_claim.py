@@ -95,6 +95,10 @@ class _Upit:
     def update(self, polja):
         return _Izmena(self._b, self._t, polja)
 
+    def is_(self, kol, v):
+        assert v == "null"
+        return _Upit([r for r in self._r if r.get(kol) is None], self._t, self._b)
+
     @property
     def not_(self):
         return _Ne(self._r, self._t, self._b)
@@ -125,6 +129,11 @@ class _Izmena:
     def in_(self, kol, vs):
         vs = set(vs)
         self._f.append(lambda r: r.get(kol) in vs)
+        return self
+
+    def is_(self, kol, v):
+        assert v == "null"
+        self._f.append(lambda r: r.get(kol) is None)
         return self
 
     def execute(self):
