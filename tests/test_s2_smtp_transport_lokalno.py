@@ -164,7 +164,7 @@ def test_smtp_prihvata_poslato_i_poruka_ide_samo_vlasniku(cert):
         rez = _pokreni_stvarno(b, s)
     finally:
         s.zatvori()
-    assert rez == {"poslato": 1, "greske": 0, "preskoceno": 0, "neisporuceno": 0, "kasni": 0}
+    assert rez == {"poslato": 1, "greske": 0, "preskoceno": 0, "neisporuceno": 0, "kasni": 0, "zaostalo_nepoznato": 0}
     assert len(s.primljeno) == 1 and s.primljeno[0]["za"] == [b10.MAIL]
     import email
     poruka = email.message_from_bytes(s.primljeno[0]["telo"])

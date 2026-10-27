@@ -500,7 +500,7 @@ def _dogadjaji(supa, uid: str, aktivni: set, od: date, do: date):
                 .select("id, izvor, dogadjaj, datum_iso, predmet_id, created_at")
                 .eq("user_id", uid).in_("vaznost", _ACTIONABLE_VAZNOST)
                 .gte("datum_iso", od.isoformat()).lte("datum_iso", do.isoformat()).execute())
-    rocista_r = (supa.table("rocista").select("id, predmet_id, sud, sudnica, datum, vreme, status, created_at")
+    rocista_r = (supa.table("rocista").select("id, predmet_id, sud, sudnica, datum, vreme, status, created_at, updated_at")
                  .eq("user_id", uid).gte("datum", od.isoformat()).lte("datum", do.isoformat()).execute())
     rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in aktivni]
     nesigurni: set = set()
@@ -528,7 +528,8 @@ def _dogadjaji(supa, uid: str, aktivni: set, od: date, do: date):
 
 
 def _postojece_rezervacije(supa, uid: str, od: date) -> dict:
-    r = (supa.table(_TABELA_DOGADJAJA).select("id, tip, dogadjaj_id, datum_dogadjaja, svrha, stanje, pokusaja")
+    r = (supa.table(_TABELA_DOGADJAJA).select("id, tip, dogadjaj_id, datum_dogadjaja, svrha, stanje, pokusaja, "
+                                              "rezervisano_at, azurirano_at")
          .eq("user_id", uid).gte("datum_dogadjaja", od.isoformat()).execute())
     return {(x.get("tip"), str(x.get("dogadjaj_id")), str(x.get("datum_dogadjaja"))[:10], x.get("svrha")): x
             for x in (r.data or [])}
@@ -542,19 +543,16 @@ def _stari_dnevnik(supa, uid: str, od: date) -> dict:
 
 
 def _vremena_potvrda(rok_ids: list) -> dict:
-    """Poslednja potvrda po roku (vreme iz lanca). Pad → prazno (stari red se tada smatra pokrivajućim)."""
+    """Poslednja potvrda po roku (vreme iz lanca). Pad DIŽE izuzetak — ranije je prazan rezultat značio „pokriveno“
+    i rok potvrđen posle starog slanja je tiho izostajao (revizija S2-F, F3)."""
     if not rok_ids:
         return {}
-    try:
-        from shared.rok_potvrda import AKCIJA_POTVRDA, procitaj_lanac
-        out = {}
-        for red in procitaj_lanac(rok_ids, "action, resource_id, seq, created_at"):
-            if red.get("action") == AKCIJA_POTVRDA:
-                out[str(red.get("resource_id"))] = red.get("created_at")
-        return out
-    except Exception as exc:
-        logger.warning("[EMAIL-CRON] vremena potvrda nisu pročitana: %s", type(exc).__name__)
-        return {}
+    from shared.rok_potvrda import AKCIJA_POTVRDA, procitaj_lanac
+    out = {}
+    for red in procitaj_lanac(rok_ids, "action, resource_id, seq, created_at"):
+        if red.get("action") == AKCIJA_POTVRDA:
+            out[str(red.get("resource_id"))] = red.get("created_at")
+    return out
 
 
 def _pokriva_stari_red(ev: dict, prag: int, stari: dict, potvrde: dict) -> bool:
@@ -565,6 +563,13 @@ def _pokriva_stari_red(ev: dict, prag: int, stari: dict, potvrde: dict) -> bool:
         return False
     poslato_at = _kao_trenutak(stari[kljuc])
     od = _kao_trenutak(ev["red"].get("created_at"))
+    if ev["tip"] == "rociste":
+        # Pomeranje i vraćanje (otkazano → zakazano) menjaju red na mestu: `created_at` ostaje star, a ročište na ovom
+        # datumu/u ovom stanju postoji tek od `updated_at` (revizija S2-F, F1). Kozmetička izmena posle starog slanja
+        # daje najviše jedan suvišan podsetnik — bolje nego tiho izgubljen.
+        izm = _kao_trenutak(ev["red"].get("updated_at"))
+        if od and izm:
+            od = max(od, izm)
     if ev["tip"] == "rok":
         p = _kao_trenutak(potvrde.get(ev["id"]))
         od = max(od, p) if (od and p) else None
@@ -583,7 +588,9 @@ def _svrha(ev: dict, danas: date, sada_bg: datetime, pragovi: list, vec_poslato,
         # Hitna provera ne preteče dnevno slanje: današnji prag šalje odmah samo ako je dnevno slanje već prošlo.
         return f"prag_{d}" if (dnevno_proslo or not samo_hitno) else None
     najkasniji = min(pragovi)
-    if d < najkasniji and not vec_poslato(ev, f"prag_{najkasniji}") and not vec_poslato(ev, "kasni"):
+    # Već poslat prag bliži od (ili jednak) najkasnijem uključenom pokriva događaj i posle promene pragova (F4).
+    if d < najkasniji and not vec_poslato(ev, "kasni") \
+            and not any(vec_poslato(ev, f"prag_{m}") for m in _PRAGOVI if m <= najkasniji):
         return "kasni"
     return None
 
@@ -690,11 +697,29 @@ def _zabelezi_ishod(supa, ids: list, stanje: str, greska: Optional[str] = None) 
 
 
 def _novi_brojaci() -> dict:
-    return {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0, "kasni": 0}
+    return {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0, "kasni": 0, "zaostalo_nepoznato": 0}
+
+
+def _zaostali_ishodi(postojeci: dict, od: Optional[datetime], do: datetime) -> int:
+    """Ishodi koje NIJE prijavilo dnevno slanje (hitna provera ili prekinut proces) od prethodnog dnevnog slanja:
+    `nepoznato`, i `rezervisano` starije od 15 min (proces prekinut posred slanja). Ne ponavljaju se (D4), ali posao
+    ne sme da bude zelen dok ih niko nije video (revizija S2-F, F2)."""
+    if od is None:
+        return 0
+    n = 0
+    for red in postojeci.values():
+        if red.get("stanje") == "nepoznato":
+            t = _kao_trenutak(red.get("azurirano_at"))
+            n += bool(t and od < t <= do)
+        elif red.get("stanje") == "rezervisano":
+            t = _kao_trenutak(red.get("rezervisano_at"))
+            n += bool(t and od < t <= do - timedelta(minutes=15))
+    return n
 
 
 def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: datetime, n: dict,
-                      samo_hitno: bool = False, dnevno_proslo: bool = True) -> None:
+                      samo_hitno: bool = False, dnevno_proslo: bool = True,
+                      prethodno_slanje: Optional[datetime] = None, sada: Optional[datetime] = None) -> None:
     uid = profil["user_id"]
     pragovi = [p for p in _PRAGOVI if profil.get(f"dan_{p}")]
     if not pragovi:
@@ -710,8 +735,11 @@ def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: da
     do = danas + timedelta(days=max(pragovi))
     try:
         dogadjaji, nesigurni = _dogadjaji(supa, uid, aktivni, danas, do)
-        postojeci = _postojece_rezervacije(supa, uid, danas)
+        # 7 dana unazad: nepoznat ishod za događaj koji je u međuvremenu prošao mora i dalje da se prijavi (F2).
+        postojeci = _postojece_rezervacije(supa, uid, danas - timedelta(days=7))
         stari = _stari_dnevnik(supa, uid, danas)
+        potvrde = _vremena_potvrda([e["id"] for e in dogadjaji if e["tip"] == "rok"
+                                    and any((str(e["predmet_id"]), e["datum"].isoformat(), p) in stari for p in _PRAGOVI)])
     except Exception as exc:
         # Nijedan događaj ovog korisnika se ne rezerviše dok svi izvori nisu pročitani (S2-E F1) → ponovno slanje šalje sve.
         logger.error("[EMAIL-CRON] izvori nisu pročitani, korisnik preskočen bez rezervacije uid=%.8s: %s",
@@ -720,8 +748,10 @@ def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: da
         return
     if nesigurni:
         n["greske"] += 1
-    potvrde = _vremena_potvrda([e["id"] for e in dogadjaji if e["tip"] == "rok"
-                                and any((str(e["predmet_id"]), e["datum"].isoformat(), p) in stari for p in _PRAGOVI)])
+    if not samo_hitno and sada is not None:
+        z = _zaostali_ishodi(postojeci, prethodno_slanje, sada)
+        n["neisporuceno"] += z
+        n["zaostalo_nepoznato"] += z
 
     def vec_poslato(ev, svrha):
         red = postojeci.get((ev["tip"], ev["id"], ev["datum"].isoformat(), svrha))
@@ -824,6 +854,23 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 return {**n, "greske": 1, "napomena": "Migracija 142 nije primenjena — podsetnici nisu poslati"}
             if not _je_dup(exc):
                 logger.warning("[EMAIL-CRON] oznaka dnevnog slanja nije upisana: %s", type(exc).__name__)
+        # Kraj prethodnog dnevnog slanja (ranijeg dana): ishodi posle njega koje dnevno slanje nije videlo se prijavljuju.
+        prethodno = None
+        try:
+            for m in (supa.table(_TABELA_POKRETANJA).select("dan, pokrenuto_at, zavrseno_at").execute().data or []):
+                # Završeno slanje (i ranije današnje, ručno ponovljeno); nezavršeno samo ranijeg dana — nikad ovo, u toku.
+                if m.get("zavrseno_at"):
+                    t = _kao_trenutak(m.get("zavrseno_at"))
+                elif str(m.get("dan"))[:10] < danas.isoformat():
+                    t = _kao_trenutak(m.get("pokrenuto_at"))
+                else:
+                    t = None
+                if t and t <= sada and (prethodno is None or t > prethodno):
+                    prethodno = t
+        except Exception as exc:
+            logger.warning("[EMAIL-CRON] prethodno dnevno slanje nije pročitano: %s", type(exc).__name__)
+        if prethodno is None:
+            prethodno = sada - timedelta(days=1)
 
         profili_r = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute()
         profili = profili_r.data or []
@@ -833,7 +880,12 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         emails_r = supa.table("profiles").select("id, email").execute()
         email_map = {str(p["id"]): p.get("email", "") for p in (emails_r.data or [])}
         for profil in profili:
-            _obradi_korisnika(supa, profil, email_map.get(profil["user_id"], ""), danas, sada_bg, n)
+            _obradi_korisnika(supa, profil, email_map.get(profil["user_id"], ""), danas, sada_bg, n,
+                              prethodno_slanje=prethodno, sada=sada)
+        try:
+            supa.table(_TABELA_POKRETANJA).update({"zavrseno_at": _sada().isoformat()}).eq("dan", danas.isoformat()).execute()
+        except Exception as exc:
+            logger.warning("[EMAIL-CRON] kraj dnevnog slanja nije upisan: %s", type(exc).__name__)
         return n
 
     return await asyncio.to_thread(_run)

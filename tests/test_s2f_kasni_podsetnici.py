@@ -330,3 +330,100 @@ def test_potvrdjen_informativan_rok_nije_operativna_obaveza():
     assert _cron(b, _t(DAN, 8), potvrdjeni=("r1",))[1] == [] and b.log == []
     b = _baza([dict(_rok("r1", _d(0)), vaznost="informativan")])
     assert _hitno(b, _t(DAN, 8), potvrdjeni=("r1",))[1] == []
+
+
+# ── nezavisna revizija S2-F: F1–F4 ───────────────────────────────────────────────────────────────────────────
+
+def test_rev_f1_pomereno_ili_vraceno_rociste_nije_pokriveno_starim_redom():
+    """Stari red (08:00) za predmet/datum; ročište upisano davno, ali POMERENO na taj datum (updated_at 15:00) → nije
+    bilo u starom emailu → dobija podsetnik."""
+    b = _baza(rocista=[dict(_roc("h1", _d(9)), created_at="2026-10-01T10:00:00+00:00",
+                            updated_at="2026-10-01T10:00:00+00:00")], pragovi=(1,))
+    _stari(b, PID, _d(1), 1, "2026-11-02T08:00:00+00:00")                      # stari kod: drugo ročište predmeta
+    assert _cron(b, _t(DAN, 8, 30))[1] == []                                  # dnevno slanje prošlo
+    b.tabele["rocista"][0].update(datum=_d(1), updated_at="2026-11-02T15:00:00+00:00")   # pomereno na sutra
+    _, poslati = _hitno(b, _t(DAN, 15, 5))
+    assert len(poslati) == 1 and poslati[0][1] == "Vindex AI — Sutra: ročište"
+
+
+def test_rev_f2_nepoznat_ishod_hitne_provere_crveni_sledece_dnevno_slanje_jednom():
+    b = _baza(pragovi=(1,))
+    _cron(b, _t(DAN, 8))                                                      # dnevno slanje (kraj ~08:00)
+    b.tabele["predmet_hronologija"].append(_rok("r1", _d(0)))
+    rez, _ = _hitno(b, _t(DAN, 10), potvrdjeni=("r1",), smtp=_Smtp(puca=ConnectionResetError("posle DATA")))
+    assert rez["neisporuceno"] == 1 and _svrhe(b) == [("r1", "kasni", "nepoznato")]
+    rez, poslati = _cron(b, _t(DAN + timedelta(days=1), 8), potvrdjeni=("r1",))
+    assert poslati == [] and rez["neisporuceno"] == 1 and rez["zaostalo_nepoznato"] == 1, rez   # posao CRVEN
+    rez, _ = _cron(b, _t(DAN + timedelta(days=2), 8), potvrdjeni=("r1",))
+    assert rez["zaostalo_nepoznato"] == 0                                    # ne prijavljuje se dvaput
+
+
+def test_rev_f2b_zaglavljena_rezervacija_prekinutog_procesa_se_prijavljuje():
+    b = _baza([_rok("r1", _d(2))], pragovi=(1,))
+    _cron(b, _t(DAN, 8))
+    b.log.append({"id": "x", "user_id": UID, "predmet_id": PID, "tip": "rok", "dogadjaj_id": "r1",
+                  "datum_dogadjaja": _d(2), "svrha": "kasni", "stanje": "rezervisano", "pokusaja": 1,
+                  "rezervisano_at": "2026-11-02T10:00:00+00:00", "azurirano_at": "2026-11-02T10:00:00+00:00"})
+    rez, _ = _cron(b, _t(DAN + timedelta(days=1), 8), potvrdjeni=("r1",))
+    assert rez["zaostalo_nepoznato"] == 1 and rez["neisporuceno"] >= 1, rez
+
+
+def test_rev_f2c_sopstveni_nepoznat_ishod_dnevnog_slanja_se_ne_broji_ponovo_sutra():
+    b = _baza([_rok("r1", _d(1)), _rok("r2", _d(4))], pragovi=(1, 3))
+    rez, _ = _cron(b, _t(DAN, 8), potvrdjeni=("r1", "r2"), smtp=_Smtp(puca=TimeoutError("posle DATA")))
+    assert rez["neisporuceno"] == 1
+    rez, _ = _cron(b, _t(DAN + timedelta(days=1), 8), potvrdjeni=("r1", "r2"))
+    assert rez["zaostalo_nepoznato"] == 0, rez
+
+
+def test_rev_f3_pad_citanja_vremena_potvrda_preskace_korisnika_bez_rezervacije():
+    import routers.email_notif as en
+    b = _baza([dict(_rok("r2", _d(1)), created_at="2026-11-02T09:00:00+00:00")])
+    _stari(b, PID, _d(1), 1, "2026-11-02T08:05:00+00:00")
+
+    def _pada(ids):
+        raise RuntimeError("audit_immutable nedostupna")
+    with patch.object(en, "_vremena_potvrda", _pada):
+        rez, poslati = _cron(b, _t(DAN, 10), potvrdjeni=("r2",))
+    assert poslati == [] and rez["greske"] == 1 and b.log == []
+    with patch.object(en, "_vremena_potvrda", lambda ids: {"r2": "2026-11-02T09:30:00+00:00"}):
+        assert len(_cron(b, _t(DAN, 11), potvrdjeni=("r2",))[1]) == 1         # oporavak: šalje
+
+
+def test_rev_f4_promena_pragova_posle_poslatog_bliskog_praga_bez_dodatnog():
+    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    assert len(_cron(b, _t(DAN, 8), potvrdjeni=("r1",))[1]) == 1              # prag 1 poslat
+    b.tabele["korisnik_email_notif"][0].update(dan_1=False, dan_3=True)
+    assert _cron(b, _t(DAN + timedelta(days=1), 8), potvrdjeni=("r1",))[1] == []
+    assert _svrhe(b) == [("r1", "prag_1", "poslato")]
+
+
+def test_brisanje_predmeta_cisti_i_rezervacije_podsetnika():
+    from shared.predmet_deletion import TABELE_BEZ_FK
+    assert "email_podsetnik_dogadjaj" in TABELE_BEZ_FK and "email_notif_log" in TABELE_BEZ_FK
+
+
+def test_rev_f2d_prethodno_slanje_racuna_se_od_KRAJA_ne_od_pocetka():
+    """Ishod upisan TOKOM dnevnog slanja (posle početka, pre kraja) prijavilo je to slanje — sutra se ne broji ponovo."""
+    b = _baza([_rok("r1", _d(1)), _rok("r2", _d(4))], pragovi=(1, 3))
+    _cron(b, _t(DAN, 8), potvrdjeni=("r1", "r2"), smtp=_Smtp(puca=TimeoutError("posle DATA")))
+    b.log[0]["azurirano_at"] = "2026-11-02T08:01:00+00:00"                     # sat je tekao tokom slanja
+    b.tabele["email_podsetnik_pokretanje"][0]["zavrseno_at"] = "2026-11-02T08:02:00+00:00"
+    rez, _ = _cron(b, _t(DAN + timedelta(days=1), 8), potvrdjeni=("r1", "r2"))
+    assert rez["zaostalo_nepoznato"] == 0, rez
+
+
+def test_rev_f3b_stvarna_vremena_potvrda_iz_lanca():
+    """Bez zamene `_vremena_potvrda`: vreme potvrde iz lanca (posle starog slanja) → šalje; pad lanca → preskok + greska."""
+    from shared import rok_potvrda
+    b = _baza([dict(_rok("r2", _d(1)), created_at="2026-10-20T09:00:00+00:00")])
+    _stari(b, PID, _d(1), 1, "2026-11-02T08:05:00+00:00")
+
+    def _pada(*a, **k):
+        raise RuntimeError("audit_immutable nedostupna")
+    with patch.object(rok_potvrda, "procitaj_lanac", _pada):
+        rez, poslati = _cron(b, _t(DAN, 10), potvrdjeni=("r2",))
+    assert poslati == [] and rez["greske"] == 1 and b.log == []
+    lanac = [{"action": rok_potvrda.AKCIJA_POTVRDA, "resource_id": "r2", "seq": 1, "created_at": "2026-11-02T09:30:00+00:00"}]
+    with patch.object(rok_potvrda, "procitaj_lanac", lambda *a, **k: lanac):
+        assert len(_cron(b, _t(DAN, 11), potvrdjeni=("r2",))[1]) == 1

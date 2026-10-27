@@ -6,6 +6,9 @@
 -- REDOSLED: ova migracija PRE koda koji je koristi. Stari kod nad novom šemom: radi kao do sada (nove tabele ne
 -- čita). Nov kod nad starom šemom: dnevno slanje vraća greska i NE šalje ništa (posao crven) — ništa se ne gubi
 -- trajno osim podsetnika tog dana.
+-- VRAĆANJE KODA: nov kod NE piše `email_notif_log`, pa stari kod vraćen ISTOG dana ponovo šalje podsetnike koje je
+-- nov kod tog dana već poslao (najviše jedan duplikat po predmetu/datumu/pragu). Vraćati kod POSLE dnevnog slanja
+-- ili sledećeg dana pre njega. Tabele ostaju (stari kod ih ignoriše); DROP tek ako se odustaje od 142.
 --
 -- Ključ: (user_id, tip, dogadjaj_id, datum_dogadjaja, svrha)
 --   tip             'rok' (predmet_hronologija.id) | 'rociste' (rocista.id)
@@ -47,11 +50,12 @@ GRANT SELECT, INSERT, UPDATE ON public.email_podsetnik_dogadjaj TO service_role;
 -- redovni prag odmah SAMO ako je današnje dnevno slanje već prošlo; inače ga ostavlja dnevnom slanju.
 CREATE TABLE IF NOT EXISTS public.email_podsetnik_pokretanje (
     dan            DATE        PRIMARY KEY,
-    pokrenuto_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    pokrenuto_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    zavrseno_at    TIMESTAMPTZ          -- kraj dnevnog slanja; ishodi posle njega su „između slanja“
 );
 
 ALTER TABLE public.email_podsetnik_pokretanje ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT ON public.email_podsetnik_pokretanje TO service_role;
+GRANT SELECT, INSERT, UPDATE ON public.email_podsetnik_pokretanje TO service_role;
 
 -- [ROLLBACK] (tek POSLE vraćanja koda na verziju bez ovih tabela; gubi se samo istorija novih rezervacija):
 -- DROP TABLE IF EXISTS public.email_podsetnik_pokretanje;
