@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from tests import test_b10_reminder_claim as b10
-from tests.test_g2_podsetnici_raspored import _baza, _dan, _na_dan
+from tests.test_g2_podsetnici_raspored import _baza, _dan, _na_dan, u_vreme
 from tests.test_n4_podsetnici import P2, PID, UID, _roc, _rok
 
 
@@ -58,33 +58,46 @@ def test_3_rociste_i_rok_istog_predmeta_i_datuma_oba_u_istom_emailu():
     assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0]) and "Osnovni sud" in _telo(poslati[0])
 
 
-# ── 4, 5: V3-L1 i G — izmereno ponašanje (ograničenje ugovora, ne prolaz) ─────────────────────────────────────
+# ── 4, 5: V3-L1 i G — ISPRAVLJENO (migracija 142, odluke D2/D3) ──────────────────────────────────────────────
 
-def test_4_kasni_drugi_dogadjaj_istog_dana_ne_dopunjuje_ali_ulazi_u_sledeci_prag():
-    """V3-L1: drugo slanje ISTOG dana ne šalje rok potvrđen posle prvog (ključ nema identitet događaja → migracija).
-    Pri jednom slanju dnevno ulazi u sledeći uključen prag; ako sledećeg praga nema, email izostaje (slučaj 5)."""
+def test_4_kasni_drugi_dogadjaj_istog_dana_dobija_svoj_podsetnik_a_prvi_se_ne_ponavlja():
+    """V3-L1: ranije drugo slanje ISTOG dana nije slalo rok potvrđen posle prvog (ključ bez identiteta događaja)."""
     b = _baza([_rok("r1", _dan(7))], [_roc("h1", _dan(7))], pragovi=(1, 3, 7))
     assert len(_na_dan(0, b)[1]) == 1                                       # prag 7: samo ročište
-    assert _na_dan(0, b, potvrdjeni=("r1",))[1] == []                       # isti dan, rok potvrđen → ništa
-    _, poslati = _na_dan(4, b, potvrdjeni=("r1",))                          # prag 3
-    assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0])
+    _, poslati = _na_dan(0, b, potvrdjeni=("r1",))                          # isti dan, rok potvrđen
+    assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0]) and "Osnovni sud" not in _telo(poslati[0])
+    _, poslati = _na_dan(4, b, potvrdjeni=("r1",))                          # prag 3: oba, svaki svojim ključem
+    assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0]) and "Osnovni sud" in _telo(poslati[0])
 
 
-def test_5_dogadjaj_izvrsiv_posle_poslednjeg_praga_nema_email():
-    """G: rok za sutra potvrđen posle današnjeg slanja, i ročište zakazano za danas, nemaju više nijedno slanje.
-    Ispravka traži novu politiku slanja (odluka osnivača) — ovde se samo meri."""
+def test_5_dogadjaj_izvrsiv_posle_poslednjeg_praga_dobija_jedan_dodatni_podsetnik():
+    """G: rok za sutra potvrđen posle današnjeg slanja i ročište za sutra zakazano posle njega. Ranije: nikad email.
+    Sada sutrašnje dnevno slanje (09:00 Beograd) šalje JEDAN dodatni podsetnik: rok „ističe DANAS“, ročište u 10:00
+    još predstoji."""
     b = _baza()
     assert _na_dan(0, b)[1] == []
     b.tabele["predmet_hronologija"].append(_rok("r1", _dan(1)))
     b.tabele["rocista"].append(_roc("h1", _dan(1)))
-    assert _na_dan(1, b, potvrdjeni=("r1",))[1] == [] and b.log == []
+    _, poslati = _na_dan(1, b, potvrdjeni=("r1",))
+    assert len(poslati) == 1 and poslati[0][1] == "Vindex AI — Podsetnik: rok i ročište uskoro"
+    assert "ističe DANAS" in _telo(poslati[0]) and "u 10:00 — DANAS" in _telo(poslati[0])
+    assert sorted((r["dogadjaj_id"], r["svrha"]) for r in b.log) == [("h1", "kasni"), ("r1", "kasni")]
+    assert _na_dan(1, b, potvrdjeni=("r1",))[1] == []
 
 
-def test_5b_propusteno_dnevno_slanje_gubi_taj_prag():
-    """G (raspored): ako slanje za dan izostane (cron nije pokrenut), prag 1 za sutrašnji događaj se ne nadoknađuje."""
+def test_5b_propusteno_dnevno_slanje_nadoknadjuje_najkasniji_prag():
+    """Dnevno slanje za dan 1 (prag 1 ročišta za dan 2) izostalo: dan 2 šalje dodatni podsetnik (ročište u 10:00,
+    slanje u 09:00 Beograd). Ranije: izgubljeno."""
     b = _baza(rocista=[_roc("h1", _dan(2))])
-    # dan 1 (prag 1) — slanje se nije dogodilo
-    assert _na_dan(2, b)[1] == [] and b.log == []
+    _, poslati = _na_dan(2, b)
+    assert len(poslati) == 1 and "DANAS" in _telo(poslati[0])
+    assert [(r["svrha"], r["stanje"]) for r in b.log] == [("kasni", "poslato")]
+
+
+def test_5c_propusten_srednji_prag_ne_salje_dodatni_jer_najkasniji_jos_stize():
+    b = _baza(rocista=[_roc("h1", _dan(3))], pragovi=(1, 3))
+    assert _na_dan(1, b)[1] == []                                            # prag 3 (dan 0) izostao; dan 1: 2 dana pre
+    assert len(_na_dan(2, b)[1]) == 1 and [r["svrha"] for r in b.log] == ["prag_1"]
 
 
 # ── 6: prekinut proces ─────────────────────────────────────────────────────────────────────────────────────────
@@ -109,7 +122,7 @@ def test_6b_smtp_pada_posle_rezervacije_neisporuceno_bez_ponavljanja():
     def _pada(*a):
         raise TimeoutError("SMTP timeout posle DATA")
     import asyncio
-    with patch.object(en, "date", _Dan), patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), \
+    with u_vreme(_Dan.today()), patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), \
          patch.object(en, "_get_supa", return_value=b), patch.object(en, "_smtp_send", _pada), \
          patch.object(en, "_potvrdjeni_ids", lambda ids: set(ids)):
         rez = asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
@@ -174,14 +187,14 @@ def test_7c_pad_lanca_potvrda_je_greska_predmet_sa_rokom_ceka_ostali_idu():
     limiter.reset()
     _Dan.pomak = 0
     poslati = []
-    with patch.object(rok_potvrda, "procitaj_lanac", _lanac_pada), patch.object(en, "date", _Dan),          patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), patch.object(en, "_get_supa", return_value=b),          patch.object(en, "_smtp_send", lambda to, s, h: poslati.append((to, s, h))),          patch.object(en, "_potvrdjeni_ids", stvarna):
+    with patch.object(rok_potvrda, "procitaj_lanac", _lanac_pada), u_vreme(_Dan.today()),          patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), patch.object(en, "_get_supa", return_value=b),          patch.object(en, "_smtp_send", lambda to, s, h: poslati.append((to, s, h))),          patch.object(en, "_potvrdjeni_ids", stvarna):
         rez = asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
     assert rez["greske"] == 1, rez
     assert len(poslati) == 1 and "Rok za žalbu" not in _telo(poslati[0]) and "možda nije potpun" in _telo(poslati[0])
-    assert [r["predmet_id"] for r in b.log] == [P2]
+    assert [r["dogadjaj_id"] for r in b.log] == ["h2"]
     _, poslati = _na_dan(0, b, potvrdjeni=("r1",))                         # lanac ponovo dostupan
     assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0]) and "Osnovni sud" in _telo(poslati[0])
-    assert sorted(r["predmet_id"] for r in b.log) == sorted([P2, PID])
+    assert sorted(r["dogadjaj_id"] for r in b.log) == ["h1", "h2", "r1"]
 
 
 def test_7d_lanac_potvrda_procitan_nepotvrdjen_rok_i_dalje_ne_salje_bez_greske():
@@ -196,22 +209,27 @@ def test_7d_lanac_potvrda_procitan_nepotvrdjen_rok_i_dalje_ne_salje_bez_greske()
     assert poslati == [] and rez["greske"] == 0 and b.log == []
 
 
-def test_7e_pad_dnevnika_slanja_ne_obara_druge_korisnike():
+@pytest.mark.parametrize("tabela_dnevnika", ["email_podsetnik_dogadjaj", "email_notif_log"])
+def test_7e_pad_dnevnika_slanja_preskace_samo_tog_korisnika_bez_rezervacije(tabela_dnevnika):
+    """Bez pročitanih ranijih rezervacija (nove ili stare tabele) ne zna se šta je već poslato ni da li je dodatni
+    podsetnik potreban → korisnik se preskače BEZ rezervacije (greska); drugi korisnik ide; ponovno slanje šalje sve."""
     b = _baza([_rok("r1", _dan(1))])
     _drugi_korisnik(b, rokovi=[_rok("r9", _dan(1))])
     tabela = b.table
     pozivi = {"n": 0}
 
     def _table(ime):
-        if ime == "email_notif_log":
+        if ime == tabela_dnevnika:
             pozivi["n"] += 1
             if pozivi["n"] == 1:                       # samo PRVO čitanje dnevnika (prvi korisnik) pada
-                raise RuntimeError("email_notif_log timeout")
+                raise RuntimeError(f"{tabela_dnevnika} timeout")
         return tabela(ime)
     b.table = _table
     rez, poslati = _na_dan(0, b, potvrdjeni=("r1", "r9"))
-    assert sorted(p[0] for p in poslati) == ["drugi@example.invalid", b10.MAIL], rez
-    assert len(b.log) == 2                                                   # rezervacija je i dalje obavezna
+    assert [p[0] for p in poslati] == ["drugi@example.invalid"] and rez["greske"] == 1, rez
+    assert [r["user_id"] for r in b.log] == ["u-2"]
+    _, poslati = _na_dan(0, b, potvrdjeni=("r1", "r9"))
+    assert [p[0] for p in poslati] == [b10.MAIL]
 
 
 def test_7f_pad_rezervnog_upita_aktivnih_predmeta_ne_obara_druge_korisnike():
@@ -249,7 +267,7 @@ def test_8b_pomereno_rociste_dobija_podsetnik_za_novi_datum_a_ne_za_stari():
     b.tabele["rocista"][0]["datum"] = _dan(5)
     _, poslati = _na_dan(2, b)                    # dan 2: stari datum bi bio prag 1, novi datum je prag 3
     assert len(poslati) == 1 and _dan(5) in _telo(poslati[0]) and _dan(3) not in _telo(poslati[0])
-    assert sorted((r["datum_roka"], r["dana_pre"]) for r in b.log) == [(_dan(3), 3), (_dan(5), 3)]
+    assert sorted((r["datum_dogadjaja"], r["svrha"]) for r in b.log) == [(_dan(3), "prag_3"), (_dan(5), "prag_3")]
 
 
 def test_8c_ispravljen_rok_salje_tacan_datum():
@@ -276,14 +294,15 @@ def test_9b_delimicno_preklapanje_ne_gasi_drugi_predmet():
     upisi = b.upisi
 
     def _upisi(tabela, rows):
-        if tabela == "email_notif_log" and not b.log:
-            b.log.append({"user_id": UID, "predmet_id": PID, "datum_roka": _dan(1), "dana_pre": 1})   # tuđi proces
+        if tabela == "email_podsetnik_dogadjaj" and not b.log:
+            b.log.append({"user_id": UID, "predmet_id": PID, "tip": "rok", "dogadjaj_id": "r1", "datum_dogadjaja": _dan(1),
+                          "svrha": "prag_1", "stanje": "rezervisano", "pokusaja": 1})                  # tuđi proces
         return upisi(tabela, rows)
     b.upisi = _upisi
     rez, poslati = _na_dan(0, b, potvrdjeni=("r1", "r2"))
-    assert len(poslati) == 1 and rez["poslato"] == 1
+    assert len(poslati) == 1 and rez["poslato"] == 1 and rez["preskoceno"] == 1
     assert "Rok drugog predmeta" in _telo(poslati[0]) and "Rok za žalbu" not in _telo(poslati[0])   # P1 šalje drugi
-    assert sorted(r["predmet_id"] for r in b.log) == [PID, P2]
+    assert sorted(r["dogadjaj_id"] for r in b.log) == ["r1", "r2"]
 
 
 def test_9c_pad_rezervacije_jednog_predmeta_ne_salje_njega_drugi_ide():
@@ -292,7 +311,7 @@ def test_9c_pad_rezervacije_jednog_predmeta_ne_salje_njega_drugi_ide():
     upisi = b.upisi
 
     def _upisi(tabela, rows):
-        if tabela == "email_notif_log" and any(r["predmet_id"] == PID for r in rows):
+        if tabela == "email_podsetnik_dogadjaj" and any(r["predmet_id"] == PID for r in rows):
             raise RuntimeError("connection reset by peer")
         return upisi(tabela, rows)
     b.upisi = _upisi
@@ -313,7 +332,8 @@ def test_10_isti_datumi_razliciti_korisnici_bez_mesanja():
     assert set(po_adresi) == {b10.MAIL, "drugi@example.invalid"}
     assert "Rok korisnika B" not in po_adresi[b10.MAIL] and "Sud korisnika B" not in po_adresi[b10.MAIL]
     assert "Rok korisnika A" not in po_adresi["drugi@example.invalid"]
-    assert sorted((r["user_id"], r["predmet_id"]) for r in b.log) == [("u-1", PID), ("u-2", "p-9")]
+    assert sorted((r["user_id"], r["predmet_id"], r["dogadjaj_id"]) for r in b.log) == \
+        [("u-1", PID, "h1"), ("u-1", PID, "r1"), ("u-2", "p-9", "h9"), ("u-2", "p-9", "r9")]
 
 
 def test_10b_tudja_potvrda_ne_otvara_rok_drugog_korisnika():
@@ -369,7 +389,10 @@ def test_s2d_iskljucen_profil_ili_prag_ne_salje():
     b = _baza([_rok("r1", _dan(1))])
     b.tabele["korisnik_email_notif"][0]["aktivan"] = False
     assert _na_dan(0, b, potvrdjeni=("r1",))[1] == []
-    b = _baza([_rok("r1", _dan(1))], pragovi=(3, 7))                          # dan_1 isključen
+    b = _baza(pragovi=())                                                    # svi pragovi isključeni
+    b.tabele["predmet_hronologija"].append(_rok("r1", _dan(1)))
+    assert _na_dan(0, b, potvrdjeni=("r1",))[1] == [] and b.log == []
+    b = _baza([_rok("r1", _dan(4))], pragovi=(3, 7))                          # dan_1 isključen, prag 3 još stiže
     assert _na_dan(0, b, potvrdjeni=("r1",))[1] == [] and b.log == []
     b = _baza([_rok("r1", _dan(1))])
     b.tabele["korisnik_email_notif"].clear()                                 # korisnik bez profila

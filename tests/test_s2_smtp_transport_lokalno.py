@@ -15,7 +15,7 @@ from unittest.mock import patch
 import pytest
 
 from tests import test_b10_reminder_claim as b10
-from tests.test_g2_podsetnici_raspored import _Dan, _baza, _dan
+from tests.test_g2_podsetnici_raspored import _Dan, _baza, _dan, u_vreme
 from tests.test_n4_podsetnici import _rok
 
 
@@ -107,6 +107,9 @@ class LokalniSmtp:
                     if self.posle_data == "prekid":
                         veza.close()
                         return
+                    if self.posle_data == "554":
+                        salji("554 5.7.1 Poruka odbijena")
+                        continue
                     if self.posle_data == "421":
                         salji("421 4.4.2 Timeout — veza se zatvara")
                         veza.close()
@@ -132,7 +135,7 @@ def _pokreni_stvarno(b, server):
     from shared.rate import limiter
     limiter.reset()
     _Dan.pomak = 0
-    with patch.object(en, "date", _Dan), patch.object(en, "_get_supa", return_value=b), \
+    with u_vreme(_Dan.today()), patch.object(en, "_get_supa", return_value=b), \
          patch.object(en, "_SMTP_HOST", "127.0.0.1"), patch.object(en, "_SMTP_PORT", server.port), \
          patch.object(en, "_SMTP_USER", "test-korisnik"), patch.object(en, "_SMTP_PASS", "test-lozinka"), \
          patch.object(en, "_FROM_ADDR", "podsetnik@example.invalid"), \
@@ -161,7 +164,7 @@ def test_smtp_prihvata_poslato_i_poruka_ide_samo_vlasniku(cert):
         rez = _pokreni_stvarno(b, s)
     finally:
         s.zatvori()
-    assert rez == {"poslato": 1, "greske": 0, "preskoceno": 0, "neisporuceno": 0}
+    assert rez == {"poslato": 1, "greske": 0, "preskoceno": 0, "neisporuceno": 0, "kasni": 0}
     assert len(s.primljeno) == 1 and s.primljeno[0]["za"] == [b10.MAIL]
     import email
     poruka = email.message_from_bytes(s.primljeno[0]["telo"])
@@ -169,45 +172,112 @@ def test_smtp_prihvata_poslato_i_poruka_ide_samo_vlasniku(cert):
     assert poruka["To"] == b10.MAIL and "Rok za žalbu" in html and _dan(1) in html
 
 
-def test_odbijen_primalac_jednog_korisnika_ne_gasi_drugog(cert):
+def test_odbijen_primalac_jednog_korisnika_ne_gasi_drugog_i_ponavlja_se_ograniceno(cert):
+    """RCPT 550 je odbijanje PRE sadržaja: poruka sigurno nije predata (D4) → `neuspeh`, greska, ponavlja se najviše
+    _MAX_POKUSAJA puta; drugi korisnik dobija svoju poruku."""
+    import routers.email_notif as en
     s = LokalniSmtp(*cert, odbij_rcpt={"nepostoji@example.invalid"})
     try:
         b = _dva_korisnika()
         rez = _pokreni_stvarno(b, s)
+        assert rez["poslato"] == 1 and rez["greske"] == 1 and rez["neisporuceno"] == 0, rez
+        assert [m["za"] for m in s.primljeno] == [[b10.MAIL]]
+        drugi = next(r for r in b.log if r["user_id"] == "u-2")
+        assert (drugi["stanje"], drugi["pokusaja"]) == ("neuspeh", 1)
+        for _ in range(5):                                                  # ponovljena slanja istog dana
+            _pokreni_stvarno(b, s)
     finally:
         s.zatvori()
-    assert rez["poslato"] == 1 and rez["neisporuceno"] == 1, rez
-    assert [m["za"] for m in s.primljeno] == [[b10.MAIL]]
-    assert sorted(r["user_id"] for r in b.log) == ["u-1", "u-2"]          # obe rezervacije: nema ponavljanja
+    assert (drugi["stanje"], drugi["pokusaja"]) == ("neuspeh", en._MAX_POKUSAJA)   # ograničeno, ne beskonačno
+    assert [m["za"] for m in s.primljeno] == [[b10.MAIL]]                   # prvi korisnik nije dobio duplikat
 
 
-def test_pad_prijave_na_smtp_je_neisporuceno_a_ne_poslato(cert):
+def test_pad_prijave_na_smtp_nije_predato_pa_ponovno_slanje_isporucuje_jednom(cert):
+    """F6: pogrešna lozinka (535) je ranije trošila rezervaciju kao „neisporuceno“ — podsetnik tog dana izgubljen."""
     s = LokalniSmtp(*cert, auth_pada=True)
-    try:
-        rez = _pokreni_stvarno(_baza([_rok("r1", _dan(1))]), s)
-    finally:
-        s.zatvori()
-    assert rez["poslato"] == 0 and rez["neisporuceno"] == 1 and s.primljeno == []
-
-
-@pytest.mark.parametrize("posle", ["421", "prekid"])
-def test_dvosmislen_odgovor_posle_data_nije_poslato_i_ne_ponavlja_se(cert, posle):
-    """Server je primio celu poruku, ali nije potvrdio (421 ili prekinuta veza): ishod je NEPOZNAT — poruka je
-    možda isporučena. Broji se `neisporuceno`, rezervacija ostaje, ponovni prolaz ne šalje (nema duplikata)."""
-    s = LokalniSmtp(*cert, posle_data=posle)
     b = _baza([_rok("r1", _dan(1))])
     try:
         rez = _pokreni_stvarno(b, s)
-        assert rez["poslato"] == 0 and rez["neisporuceno"] == 1, rez
+        assert rez["poslato"] == 0 and rez["greske"] == 1 and rez["neisporuceno"] == 0 and s.primljeno == []
+        assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)]
+        s.auth_pada = False                                                  # lozinka ispravljena
+        rez2 = _pokreni_stvarno(b, s)
+        rez3 = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez2["poslato"] == 1 and rez3["poslato"] == 0 and len(s.primljeno) == 1
+    assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("poslato", 2)]
+
+
+def test_421_posle_sadrzaja_je_izricito_neprihvatanje_i_ponavlja_se(cert):
+    """Server je ODGOVORIO 421 na kraj sadržaja: poruku nije prihvatio (RFC 5321) → `neuspeh`, ponavlja se."""
+    s = LokalniSmtp(*cert, posle_data="421")
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        rez = _pokreni_stvarno(b, s)
+        assert rez["greske"] == 1 and rez["neisporuceno"] == 0 and s.primljeno == []
         s.posle_data = "ok"
         rez2 = _pokreni_stvarno(b, s)
     finally:
         s.zatvori()
-    assert rez2["poslato"] == 0 and s.primljeno == [] and len(b.log) == 1
+    assert rez2["poslato"] == 1 and len(s.primljeno) == 1
 
 
-def test_server_nedostupan_je_neisporuceno(cert):
+def test_prekid_veze_posle_sadrzaja_je_nepoznat_ishod_i_ne_ponavlja_se(cert):
+    """Veza pukla posle predaje sadržaja, bez odgovora: poruka je MOŽDA isporučena → `nepoznato`, bez ponavljanja."""
+    s = LokalniSmtp(*cert, posle_data="prekid")
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        rez = _pokreni_stvarno(b, s)
+        assert rez["poslato"] == 0 and rez["neisporuceno"] == 1 and rez["greske"] == 0, rez
+        s.posle_data = "ok"
+        rez2 = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez2["poslato"] == 0 and s.primljeno == [] and [r["stanje"] for r in b.log] == ["nepoznato"]
+
+
+def test_554_posle_sadrzaja_je_trajno_odbijeno_bez_ponavljanja(cert):
+    s = LokalniSmtp(*cert, posle_data="554")
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        rez = _pokreni_stvarno(b, s)
+        s.posle_data = "ok"
+        rez2 = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez["greske"] == 1 and rez["poslato"] == 0 and rez2["poslato"] == 0 and s.primljeno == []
+    assert [r["stanje"] for r in b.log] == ["odbijeno"]
+
+
+def test_server_nedostupan_nije_predato_ponavlja_se(cert):
     s = LokalniSmtp(*cert)
     s.zatvori()                                                              # port više ne prima veze
-    rez = _pokreni_stvarno(_baza([_rok("r1", _dan(1))]), s)
-    assert rez["poslato"] == 0 and rez["neisporuceno"] == 1
+    b = _baza([_rok("r1", _dan(1))])
+    rez = _pokreni_stvarno(b, s)
+    assert rez["poslato"] == 0 and rez["greske"] == 1 and rez["neisporuceno"] == 0
+    assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)]
+    s2 = LokalniSmtp(*cert)
+    try:
+        b2 = b
+        import routers.email_notif as en
+        rez2 = _pokreni_stvarno(b2, s2)
+    finally:
+        s2.zatvori()
+    assert rez2["poslato"] == 1 and len(s2.primljeno) == 1
+
+
+def test_smtp_prihvatio_a_zapis_ishoda_pao_ne_ponavlja_se(cert):
+    """Provajder je prihvatio (250), ali upis `poslato` nije uspeo: red ostaje `rezervisano` (nepoznat zapis) →
+    greska je vidljiva, ponovno slanje NE šalje duplikat."""
+    s = LokalniSmtp(*cert)
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        b.update_puca = True
+        rez = _pokreni_stvarno(b, s)
+        b.update_puca = False
+        rez2 = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez["poslato"] == 1 and rez["greske"] == 1 and rez2["poslato"] == 0 and len(s.primljeno) == 1
+    assert [r["stanje"] for r in b.log] == ["rezervisano"]

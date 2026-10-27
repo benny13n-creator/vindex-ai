@@ -77,6 +77,24 @@ class _Upit:
     def limit(self, n):
         return _Upit(self._r[:n], self._t, self._b)
 
+    def gte(self, kol, v):
+        return _Upit([r for r in self._r if r.get(kol) is not None and str(r.get(kol)) >= str(v)], self._t, self._b)
+
+    def lte(self, kol, v):
+        return _Upit([r for r in self._r if r.get(kol) is not None and str(r.get(kol)) <= str(v)], self._t, self._b)
+
+    def order(self, *a, **k):
+        return self
+
+    def maybe_single(self):
+        """Kao supabase `maybe_single()`: `data` je prvi red ili None."""
+        jedan = _Upit(self._r[:1], self._t, self._b)
+        jedan.execute = lambda: type("R", (), {"data": (self._r[0] if self._r else None)})()
+        return jedan
+
+    def update(self, polja):
+        return _Izmena(self._b, self._t, polja)
+
     @property
     def not_(self):
         return _Ne(self._r, self._t, self._b)
@@ -93,6 +111,36 @@ class _Upit:
         return r
 
 
+class _Izmena:
+    """`update(...).eq(...).in_(...).execute()` — menja SAMO redove koji odgovaraju svim filterima i vraća ih (kao
+    PostgREST `return=representation`). Uslovno ažuriranje bez poklapanja vraća prazno."""
+
+    def __init__(self, baza, tabela, polja):
+        self._b, self._t, self._polja, self._f = baza, tabela, dict(polja), []
+
+    def eq(self, kol, v):
+        self._f.append(lambda r: r.get(kol) == v)
+        return self
+
+    def in_(self, kol, vs):
+        vs = set(vs)
+        self._f.append(lambda r: r.get(kol) in vs)
+        return self
+
+    def execute(self):
+        if self._t == FakeBaza.TABELA and self._b.update_puca:
+            raise RuntimeError("connection reset by peer")
+        pogodjeni = [r for r in self._b.tabele.get(self._t, []) if all(f(r) for f in self._f)]
+        for r in pogodjeni:
+            r.update(self._polja)
+
+        class R:
+            pass
+        rez = R()
+        rez.data = [dict(r) for r in pogodjeni]
+        return rez
+
+
 class _Ne:
     def __init__(self, redovi, tabela, baza):
         self._r, self._t, self._b = redovi, tabela, baza
@@ -102,13 +150,21 @@ class _Ne:
 
 
 class FakeBaza:
-    """Simulira SAMO ono što je bitno: UNIQUE nad email_notif_log."""
+    """Simulira SAMO ono što je bitno: UNIQUE rezervacije podsetnika.
 
-    KLJUC = ("user_id", "predmet_id", "datum_roka", "dana_pre")
+    S2 (migracija 142): rezervacija je po DOGAĐAJU u `email_podsetnik_dogadjaj` — `self.log` su njeni redovi
+    (user_id, predmet_id, tip, dogadjaj_id, datum_dogadjaja, svrha, stanje, pokusaja). Stari `email_notif_log`
+    (021) je `self.stari_log`: dnevni podsetnici ga više ne pišu, samo čitaju (red koji je upisao stari kod)."""
+
+    TABELA = "email_podsetnik_dogadjaj"
+    KLJUC = ("user_id", "tip", "dogadjaj_id", "datum_dogadjaja", "svrha")
+    STARI_KLJUC = ("user_id", "predmet_id", "datum_roka", "dana_pre")
 
     def __init__(self, rokovi, aktivan=True, dan_1=True, arhiviran=False):
         self.log: list[dict] = []
-        self.insert_puca = False           # simulira pad upisa (ne UNIQUE)
+        self.stari_log: list[dict] = []
+        self.insert_puca = False           # simulira pad upisa rezervacije (ne UNIQUE)
+        self.update_puca = False           # simulira pad zapisa ishoda slanja
         # Modeluje STVARNU trku: oba procesa procitaju log PRE nego sto je
         # ijedan upisao, pa oba prodju `dup` provjeru. Tek UNIQUE ih razdvaja.
         # Bez ovoga drugi SEKVENCIJALNI prolaz zaustavi `dup` i rezervacija se
@@ -121,26 +177,30 @@ class FakeBaza:
             "predmeti": [{"id": PID, "user_id": UID,
                           "status": "arhiviran" if arhiviran else "aktivan"}],
             "predmet_hronologija": rokovi,
-            "email_notif_log": self.log,
+            FakeBaza.TABELA: self.log,
+            "email_notif_log": self.stari_log,
+            "email_podsetnik_pokretanje": [],
         }
 
     def upisi(self, tabela, rows):
-        if tabela != "email_notif_log":
+        kljuc = {FakeBaza.TABELA: self.KLJUC, "email_notif_log": self.STARI_KLJUC,
+                 "email_podsetnik_pokretanje": ("dan",)}.get(tabela)
+        if kljuc is None:
             self.tabele.setdefault(tabela, []).extend(rows)
             return
-        if self.insert_puca:
+        if tabela == FakeBaza.TABELA and self.insert_puca:
             raise RuntimeError("connection reset by peer")
-        postojeci = {tuple(str(r.get(k)) for k in self.KLJUC) for r in self.log}
+        cilj = self.tabele.setdefault(tabela, [])
+        postojeci = {tuple(str(r.get(k)) for k in kljuc) for r in cilj}
         for row in rows:
-            if tuple(str(row.get(k)) for k in self.KLJUC) in postojeci:
-                raise RuntimeError(
-                    '{"code":"23505","message":"duplicate key value violates '
-                    'unique constraint \\"email_notif_log_user_id_predmet_id_key\\""}')
-        self.log.extend(rows)
+            if tuple(str(row.get(k)) for k in kljuc) in postojeci:
+                raise RuntimeError('{"code":"23505","message":"duplicate key value violates unique constraint '
+                                   + tabela + '_kljuc"}')
+        cilj.extend(dict(r) for r in rows)
 
     def table(self, ime):
         redovi = self.tabele.get(ime, [])
-        if ime == "email_notif_log" and self.sakrij_log_od_select:
+        if ime == FakeBaza.TABELA and self.sakrij_log_od_select:
             redovi = []          # `dup` provera vidi prazno; UNIQUE i dalje vazi
         return _Upit(redovi, ime, self)
 
@@ -282,17 +342,17 @@ def test_rezervacija_ide_PRE_slanja():
     put = os.path.join(os.path.dirname(__file__), "..", "routers", "email_notif.py")
     with open(put, encoding="utf-8") as fh:
         s = fh.read()
-    i = s.index("async def posalji_podsetnike")
+    i = s.index("def _obradi_korisnika")
     telo = s[i:s.index("# ─── Weekly Digest", i)]
-    assert telo.index("claim_rows") < telo.index("_smtp_send(to_addr"), \
-        "upis u log je opet POSLE slanja — prozor duplikata je vraćen"
+    assert telo.index("_rezervisi(supa") < telo.index("_smtp_send(to_addr"), \
+        "rezervacija je opet POSLE slanja — prozor duplikata je vraćen"
 
 
 def test_upis_u_log_nije_u_except_pass():
     put = os.path.join(os.path.dirname(__file__), "..", "routers", "email_notif.py")
     with open(put, encoding="utf-8") as fh:
         s = fh.read()
-    i = s.index("async def posalji_podsetnike")
+    i = s.index("def _obradi_korisnika")
     telo = s[i:s.index("# ─── Weekly Digest", i)]
     assert "except Exception:\n                            pass" not in telo, \
         "pad upisa u log se opet tiho guta"

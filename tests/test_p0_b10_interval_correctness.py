@@ -185,11 +185,17 @@ DANAS = date(2026, 10, 26)
 def _zamrzni_dan(dan):
     import routers.email_notif as en
 
+    import contextlib
+    from tests.test_g2_podsetnici_raspored import u_vreme
+
     class _D(date):
         @classmethod
         def today(cls):
             return dan
-    return patch.object(en, "date", _D)
+    s = contextlib.ExitStack()
+    s.enter_context(patch.object(en, "date", _D))
+    s.enter_context(u_vreme(dan))        # S2: dnevno slanje čita `_sada`
+    return s
 
 
 def _baza(dani, danas=DANAS):
@@ -217,8 +223,15 @@ def _cron(baza, danas=DANAS, smtp_puca=False):
 @pytest.mark.parametrize("n", INTERVALI)
 def test_zakazivanje_samo_ukljuceni_interval(n):
     rez, poslati = _cron(_baza({f"dan_{n}": True}))
-    assert rez["poslato"] == 1, rez
-    (to, subj, html), = poslati
+    kasni = [p for p in poslati if p[1].endswith("uskoro")]
+    regularni = [p for p in poslati if not p[1].endswith("uskoro")]
+    # S2 (D2): rokovi BLIŽI od jedinog uključenog praga, za koje taj prag nikad nije poslat, dobijaju JEDAN dodatni
+    # podsetnik (zaseban email) — redovni šablon praga n i dalje nosi samo svoj rok.
+    blizi = [m for m in INTERVALI if m < n]
+    assert len(kasni) == (1 if blizi else 0) and rez["poslato"] == 1 + len(kasni), rez
+    if blizi:
+        assert all(f"Rok R{m}" in kasni[0][2] for m in blizi) and f"Rok R{n}" not in kasni[0][2]
+    (to, subj, html), = regularni
     naslov, zaglavlje, datum = OCEKIVANO[n]
     assert subj == naslov.removeprefix("TEST — ") and zaglavlje in html and datum in html
     assert f"Rok R{n}" in html
@@ -236,7 +249,7 @@ def test_zakazivanje_sva_tri_bez_prelivanja_i_bez_duplog_pokusaja():
     for n in INTERVALI:
         h = po_naslovu[OCEKIVANO[n][0].removeprefix("TEST — ")]
         assert f"Rok R{n}" in h and all(f"Rok R{m}" not in h for m in INTERVALI if m != n)
-    assert sorted(r["dana_pre"] for r in baza.log) == [1, 3, 7]
+    assert sorted(r["svrha"] for r in baza.log) == ["prag_1", "prag_3", "prag_7"]
     rez2, poslati2 = _cron(baza)
     assert poslati2 == [] and rez2["poslato"] == 0 and len(baza.log) == 3
 
@@ -274,7 +287,8 @@ def test_zakazivanje_predmet_u_brisanju_ne_salje():
 def test_zakazivanje_neizvestan_smtp_bez_ponavljanja():
     baza = _baza({"dan_7": True})
     rez, poslati = _cron(baza, smtp_puca=True)
-    assert rez["neisporuceno"] == 1 and len(baza.log) == 1
+    # redovni (R7) + dodatni (R1, R3 — prag 7 im nikad nije poslat): oba ishoda nepoznata, 3 rezervacije
+    assert rez["neisporuceno"] == 2 and len(baza.log) == 3 and {r["stanje"] for r in baza.log} == {"nepoznato"}
     rez2, poslati2 = _cron(baza)
     assert poslati2 == [] and rez2["poslato"] == 0
 
@@ -282,7 +296,8 @@ def test_zakazivanje_neizvestan_smtp_bez_ponavljanja():
 def test_zakazivanje_prelazak_godine():
     danas = date(2026, 12, 28)
     rez, poslati = _cron(_baza({"dan_7": True}, danas), danas)
-    assert rez["poslato"] == 1 and "2027-01-04" in poslati[0][2]
+    regularni = [p for p in poslati if not p[1].endswith("uskoro")]
+    assert len(regularni) == 1 and "2027-01-04" in regularni[0][2]
 
 
 def test_obican_korisnik_ne_pokrece_zakazivanje(monkeypatch):

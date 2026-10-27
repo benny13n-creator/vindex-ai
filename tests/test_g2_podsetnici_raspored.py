@@ -6,7 +6,7 @@ N4 „već poslato“ po predmetu): JEDAN grupisan podsetnik po predmetu, datumu
 tada izvršivim događajima tog predmeta i datuma. Raspored u produkciji: jedno zakazano slanje dnevno
 (`.github/workflows/email-cron.yml`, 08:00 UTC); `/api/cron/daily` nije zakazan (cron_runs: 5 ručnih pokretanja,
 sva 2026-07-24). NIJEDAN test ne šalje pravi email."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -29,12 +29,19 @@ class _Dan(date):
         return DAN0 + timedelta(days=cls.pomak)
 
 
+def u_vreme(dan, sat=8, minut=0):
+    """S2: dnevno slanje čita sat (`_sada`, UTC), ne `date.today()`. Podrazumevano 08:00 UTC = zakazano slanje."""
+    import routers.email_notif as en
+    t = datetime(dan.year, dan.month, dan.day, sat, minut, tzinfo=timezone.utc)
+    return patch.object(en, "_sada", lambda: t)
+
+
 def _na_dan(n, b, potvrdjeni=()):
     import routers.email_notif as en
     from shared.rate import limiter
     limiter.reset()                                                        # ruta: 10/min; test simulira dane, ne minute
     _Dan.pomak = n
-    with patch.object(en, "date", _Dan):
+    with patch.object(en, "date", _Dan), u_vreme(_Dan.today()):
         return _pokreni(b, potvrdjeni=potvrdjeni)
 
 
@@ -53,17 +60,18 @@ def test_C_oba_dogadjaja_izvrsiva_pre_slanja_jedan_grupisan_podsetnik():
     assert "Rok za žalbu" in poslati[0][2] and "Osnovni sud u Beogradu" in poslati[0][2]
 
 
-def test_DE_drugo_slanje_istog_dana_ne_dopunjuje_vec_podsetnut_predmet():
-    """POZNATO OGRANIČENJE — odluka osnivača (V3-L1; ledger docs/v2-execution/BOJAN_N2_N9_STATE.md, G2. Runbook
-    docs/release/VINDEX_NS3_N04_EMAIL_PODSETNICI_RUNBOOK.md:55 opisuje raniju varijantu po KORISNIKU, ispravljenu u N4): posle podsetnika za predmet/datum/prag, drugo slanje ISTOG dana ništa ne šalje za taj predmet —
-    ni ponovo (at-most-once, B10), ni dopunu sa događajem potvrđenim u međuvremenu (ključ nema identitet događaja; ispravka
-    traži migraciju). Pri jednom zakazanom slanju dnevno ne događa se; događa se pri ručnom ponovnom pokretanju istog dana
-    ili ako se uključi i `/api/cron/daily`. Test drži sadašnje ponašanje vidljivim — promena ključa ga mora svesno menjati."""
+def test_DE_drugo_slanje_istog_dana_dopunjuje_samo_novi_dogadjaj():
+    """V3-L1 ISPRAVLJENO (migracija 142, odluka D3): ključ je DOGAĐAJ. Ranije: posle podsetnika za predmet/datum/prag,
+    rok potvrđen u međuvremenu istog predmeta i datuma se istog dana nije slao (ključ bez identiteta događaja).
+    Sada drugo slanje šalje SAMO nov rok; ročište se ne ponavlja."""
     b = _baza([_rok("r1", _dan(1))], [_roc("h1", _dan(1))])
     assert len(_na_dan(0, b, potvrdjeni=())[1]) == 1                      # 1. slanje: samo ročište
     rez, poslati = _na_dan(0, b, potvrdjeni=("r1",))                      # rok potvrđen posle → 2. slanje istog dana
-    assert poslati == [] and rez["poslato"] == 0
-    assert [(r["predmet_id"], r["datum_roka"], r["dana_pre"]) for r in b.log] == [(PID, _dan(1), 1)]
+    assert len(poslati) == 1 and rez["poslato"] == 1
+    assert "Rok za žalbu" in poslati[0][2] and "Osnovni sud u Beogradu" not in poslati[0][2]
+    assert sorted((r["dogadjaj_id"], r["datum_dogadjaja"], r["svrha"]) for r in b.log) == \
+        [("h1", _dan(1), "prag_1"), ("r1", _dan(1), "prag_1")]
+    assert _na_dan(0, b, potvrdjeni=("r1",))[1] == []                     # treće slanje: ništa
 
 
 def test_F_sledeci_prag_obuhvata_dogadjaj_potvrdjen_posle_ranijeg_praga():
@@ -77,14 +85,17 @@ def test_F_sledeci_prag_obuhvata_dogadjaj_potvrdjen_posle_ranijeg_praga():
     assert len(poslati) == 1 and "Rok za žalbu" in poslati[0][2] and "Osnovni sud u Beogradu" in poslati[0][2]
 
 
-def test_G_dogadjaj_izvrsiv_tek_posle_poslednjeg_praga_ne_dobija_email():
-    """RASPORED (ne ključ): rok za sutra potvrđen POSLE današnjeg slanja nema više nijedan prag — sutrašnje slanje
-    gleda sutra+1/3/7. Isto važi i bez ikakvog ranijeg podsetnika. Advokat ga vidi na „Danas“, ali email ne dobija."""
+def test_G_dogadjaj_izvrsiv_tek_posle_poslednjeg_praga_dobija_dodatni_podsetnik():
+    """G ISPRAVLJENO (odluka D2): rok za sutra potvrđen POSLE današnjeg slanja više nema redovni prag. Ranije: nikad
+    email. Sada sledeće dnevno slanje šalje JEDAN dodatni podsetnik („ističe DANAS“ — rok bez vremena ističe na kraju
+    dana); hitna provera posle same potvrde ga šalje odmah (test_s2f_*)."""
     b = _baza()
     assert _na_dan(0, b)[1] == []                                          # ništa dospelo u trenutku slanja
     b.tabele["predmet_hronologija"].append(_rok("r1", _dan(1)))           # potvrđen posle 08:00
-    assert _na_dan(1, b, potvrdjeni=("r1",))[1] == []
-    assert b.log == []
+    _, poslati = _na_dan(1, b, potvrdjeni=("r1",))
+    assert len(poslati) == 1 and "Rok za žalbu" in poslati[0][2] and "ističe DANAS" in poslati[0][2]
+    assert [(r["dogadjaj_id"], r["svrha"], r["stanje"]) for r in b.log] == [("r1", "kasni", "poslato")]
+    assert _na_dan(1, b, potvrdjeni=("r1",))[1] == []                     # jednom po događaju
 
 
 def test_H_otkazano_rociste_pre_praga_ne_salje():
@@ -99,7 +110,7 @@ def test_svaki_ukljucen_prag_tacno_jednom(pragovi, ocekivano):
     for n in range(8):
         emailovi += len(_na_dan(n, b)[1])
         emailovi += len(_na_dan(n, b)[1])                                  # i ručno ponovljeno slanje istog dana
-    assert [r["dana_pre"] for r in b.log] == [p for p in ocekivano if p in pragovi]
+    assert [r["svrha"] for r in b.log] == [f"prag_{p}" for p in ocekivano if p in pragovi]
     assert emailovi == len(ocekivano)                                      # i poslatih emailova tačno toliko
 
 

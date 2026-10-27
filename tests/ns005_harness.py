@@ -352,7 +352,10 @@ class Baza:
         self.dnevnik = []
         self.greske = {}
         # Jedinstvenost koju baza sprovodi (migracija 134: PRIMARY KEY (user_id, idempotency_key)).
-        self.jedinstveno = {"v2_mutation_idempotency": ("user_id", "idempotency_key")}
+        self.jedinstveno = {"v2_mutation_idempotency": ("user_id", "idempotency_key"),
+                            # migracija 142: rezervacija podsetnika po događaju + oznaka dnevnog slanja
+                            "email_podsetnik_dogadjaj": ("user_id", "tip", "dogadjaj_id", "datum_dogadjaja", "svrha"),
+                            "email_podsetnik_pokretanje": ("dan",)}
         # RPC implementacije po imenu (npr. intake red u tests/ns005_intake_fake.py); bez nje rpc vraća [].
         self.rpc_impl = {}
         # NS4 zavrsno zatvaranje: migracije 139/140 (ishod predmeta, ponovni upis nacrta) -- Python verzije za

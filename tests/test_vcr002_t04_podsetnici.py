@@ -61,7 +61,7 @@ def test_dva_potvrdjena_roka_istog_dana_u_istom_predmetu_jedan_email_sa_oba(monk
             rez = asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
     assert len(poslati) == 1 and rez["poslato"] == 1, (rez, poslati)                  # podsetnik NIJE tiho preskočen
     assert sorted(sadrzaj[0]) == ["Rok za odgovor na tužbu", "Rok za žalbu"]          # oba roka u istom emailu
-    assert len(baza.log) == 1                                                        # jedna rezervacija po (predmet, datum, dan)
+    assert sorted(r["dogadjaj_id"] for r in baza.log) == ["r1", "r2"]                # S2: rezervacija po DOGAĐAJU
 
 
 def test_rokovi_dva_predmeta_istog_dana_dve_rezervacije_jedan_email(monkeypatch):

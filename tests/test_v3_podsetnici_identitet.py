@@ -39,7 +39,7 @@ def test_rociste_i_rok_istog_predmeta_istog_dana_idu_u_isti_podsetnik():
     assert rez["poslato"] == 1 and len(poslati) == 1
     assert poslati[0][1] == "Vindex AI — Sutra: rok i ročište"
     assert "Rok za žalbu" in _telo(poslati) and "Ročište — Osnovni sud u Beogradu" in _telo(poslati)
-    assert [r["predmet_id"] for r in b.log] == [PID]
+    assert sorted((r["predmet_id"], r["tip"], r["dogadjaj_id"]) for r in b.log) == [(PID, "rociste", "h1"), (PID, "rok", "r1")]
 
 
 def test_dva_rocista_istog_predmeta_istog_dana_oba_u_podsetniku():
@@ -72,7 +72,7 @@ def test_vise_korisnika_ne_gase_jedan_drugog():
     assert sorted(p[0] for p in poslati) == ["drugi@example.invalid", b10.MAIL]
     prvi = next(p for p in poslati if p[0] == b10.MAIL)
     assert "TUDJI sud" not in prvi[2]                                   # ročište drugog korisnika ne ulazi
-    assert sorted(r["user_id"] for r in b.log) == sorted([UID, "u-2"])
+    assert sorted((r["user_id"], r["dogadjaj_id"]) for r in b.log) == [(UID, "r1"), ("u-2", "h9"), ("u-2", "r9")]
 
 
 def test_isti_dogadjaj_ponovljen_ne_salje_dvaput():
@@ -91,16 +91,17 @@ def test_odlozeno_rociste_sa_novim_datumom_dobija_svoj_podsetnik():
     b.tabele["rocista"] = [_roc("h1", _sutra(), status="odlozeno"), _roc("h1b", _za_3_dana())]
     rez, poslati = _pokreni(b)
     assert len(poslati) == 1 and "Za 3 dana" in poslati[0][1], rez
-    assert sorted((r["datum_roka"], r["dana_pre"]) for r in b.log) == sorted([(_sutra(), 1), (_za_3_dana(), 3)])
+    assert sorted((r["dogadjaj_id"], r["datum_dogadjaja"], r["svrha"]) for r in b.log) == \
+        sorted([("h1", _sutra(), "prag_1"), ("h1b", _za_3_dana(), "prag_3")])
     sveza = _baza(rocista=[_roc("h1", _sutra(), status="odlozeno"), _roc("h1b", _za_3_dana())])
     sveza.tabele["korisnik_email_notif"][0]["dan_3"] = True
     _, poslati = _pokreni(sveza)
     assert len(poslati) == 1 and "Za 3 dana" in poslati[0][1]
-    assert [(r["datum_roka"], r["dana_pre"]) for r in sveza.log] == [(_za_3_dana(), 3)]   # odloženo: bez rezervacije
+    assert [(r["datum_dogadjaja"], r["svrha"]) for r in sveza.log] == [(_za_3_dana(), "prag_3")]   # odloženo: bez rezervacije
 
 
-# V3-L1 (drugo slanje istog dana ne dopunjuje već podsetnut predmet/datum/prag) je POZNATO OGRANIČENJE — odluka
-# osnivača (ispravka traži migraciju); ponašanje je izmereno u tests/test_g2_podsetnici_raspored.py::test_DE_* (G2).
+# V3-L1 (drugo slanje istog dana nije dopunjavalo već podsetnut predmet/datum/prag) je ISPRAVLJENO migracijom 142
+# (rezervacija po događaju) — tests/test_g2_podsetnici_raspored.py::test_DE_*.
 
 
 # ── stvaran lanac odluka (shared/rok_potvrda + audit_immutable u bazi u memoriji) ───────────────────────────────
@@ -113,6 +114,7 @@ def _cron(b):
         b.tabele["korisnik_email_notif"].append({"user_id": "uid-A", "aktivan": True, "dan_1": True, "dan_3": False, "dan_7": False})
         b.tabele.setdefault("profiles", []).append({"id": "uid-A", "email": "advokat@example.invalid"})
         b.tabele.setdefault("email_notif_log", [])
+        b.tabele.setdefault("email_podsetnik_dogadjaj", [])
         b.tabele.setdefault("rocista", [])
     with patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), patch.object(en, "_get_supa", return_value=b), \
          patch.object(en, "_smtp_send", lambda to, subj, html: poslati.append((to, subj, html))):
@@ -158,5 +160,5 @@ def test_lanac_ispravka_salje_ispravljen_datum_a_ne_predlog(lanac):
     b.tabele.setdefault("rocista", [])
     _, poslati = _cron(b)
     assert len(poslati) == 1 and "Sutra" in poslati[0][1]                          # samo ispravljen (sutra)
-    assert [(x["datum_roka"], x["dana_pre"]) for x in b.tabele["email_notif_log"]] == [
-        ((date.today() + timedelta(days=1)).isoformat(), 1)]                       # odbijen predlog (za 3 dana): ništa
+    assert [(x["datum_dogadjaja"], x["svrha"]) for x in b.tabele["email_podsetnik_dogadjaj"]] == [
+        ((date.today() + timedelta(days=1)).isoformat(), "prag_1")]                # odbijen predlog (za 3 dana): ništa

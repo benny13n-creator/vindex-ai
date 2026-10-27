@@ -41,7 +41,7 @@ import uuid
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
@@ -252,6 +252,16 @@ def _bez_upisa(rok_id: str, red: dict, stanje: str) -> dict:
             "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
 
 
+def _hitni_podsetnici(uid: str) -> None:
+    """S2 (D2): posle advokatove radnje proveri da li događaju treba podsetnik koji ne sme da čeka dnevno slanje.
+    Pozadinski zadatak POSLE odgovora — radnja je već sačuvana i ne čeka SMTP; greška se samo beleži."""
+    try:
+        from routers.email_notif import proveri_hitne_podsetnike
+        proveri_hitne_podsetnike(uid)
+    except Exception as exc:
+        logger.error("[PODSETNIK] hitna provera nije pokrenuta uid=%.8s: %s", uid, type(exc).__name__)
+
+
 @router.post("/api/rokovi/{rok_id}/potvrdi")
 @limiter.limit("60/minute")
 async def potvrdi(
@@ -259,6 +269,7 @@ async def potvrdi(
     request: Request,
     body: OdlukaReq = OdlukaReq(),
     user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     """Advokat preuzima odgovornost za TACNO ovaj rok.
 
@@ -331,6 +342,8 @@ async def potvrdi(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo — rok ostaje nepotvrđen.")
     await _javi_odluku(uid, red, rok_id, "potvrda")
+    if background_tasks is not None:
+        background_tasks.add_task(_hitni_podsetnici, uid)
 
     return await _odgovor_posle_odluke(rok_id, red)
 
@@ -457,6 +470,7 @@ async def ispravi(
     body: IspravkaReq,
     request: Request,
     user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     try:
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", body.datum_iso):
@@ -485,7 +499,10 @@ async def ispravi(
             raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
         if stanje_roka(rok_id, _pre) == STANJE_ODBIJEN:
             # S1: predlog je odbijen U OKVIRU ispravke, a potvrda ispravke nije uspela — ponovna ispravka je dovršava.
-            return await _dovrsi_ispravku(supa, uid, red, rok_id, novi_datum, body.dogadjaj)
+            odgovor = await _dovrsi_ispravku(supa, uid, red, rok_id, novi_datum, body.dogadjaj)
+            if background_tasks is not None:
+                background_tasks.add_task(_hitni_podsetnici, uid)
+            return odgovor
         if stanje_roka(rok_id, _pre) != STANJE_NEPOTVRDJEN:
             raise HTTPException(status_code=409, detail="Ispravlja se samo nepotvrđen predlog; ovaj rok je već potvrđen ili odbijen. Ništa nije zabeleženo.")
         # G3: već postoji potvrđena ispravka ovog predloga (odbijanje predloga ranije nije uspelo) — nov rok se ne
@@ -531,5 +548,7 @@ async def ispravi(
         await _javi_odluku(uid, red, nov_id, "potvrda")
     finally:
         _ISPRAVKA_U_TOKU.discard(kljuc)
+    if background_tasks is not None:
+        background_tasks.add_task(_hitni_podsetnici, uid)
     return {"ok": True, "rok_id": nov_id, "ispravljen_rok_id": rok_id, "datum_iso": novi_datum.isoformat(),
             "stanje_odluke": STANJE_POTVRDJEN, "stari_odbijen": bool(odbijen)}

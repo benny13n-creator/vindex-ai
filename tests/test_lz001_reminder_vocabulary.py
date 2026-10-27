@@ -70,72 +70,17 @@ def anyio_backend():
 
 
 def _make_supa(rok_vaznost: str, target_iso: str):
-    """Supabase mock: one active email profile (dan_7 enabled), one profile
-    with a real email, and one predmet_hronologija row with the given
-    vaznost value on the target date -- the exact shape a real AI-extracted
-    deadline produces."""
-    supa = MagicMock()
-    inserted_log_rows = []
-
-    def _table(name):
-        t = MagicMock()
-        if name == "korisnik_email_notif":
-            t.select.return_value.eq.return_value.execute.return_value.data = [
-                {"user_id": "uid-001", "aktivan": True, "dan_7": True, "dan_3": False, "dan_1": False}
-            ]
-        elif name == "profiles":
-            t.select.return_value.execute.return_value.data = [
-                {"id": "uid-001", "email": "advokat@vindex.rs"}
-            ]
-        elif name == "predmeti":
-            # Operation Living System (Wave 3, archived-case leak fix): the cron now
-            # fetches the user's active predmet_ids first -- "pred-001" (the case the
-            # mocked deadline row belongs to) must be reported active for these tests
-            # to still exercise the vaznost-vocabulary logic they're actually testing.
-            t.select.return_value.eq.return_value.not_.in_.return_value.execute.return_value.data = [
-                {"id": "pred-001"}
-            ]
-        elif name == "email_notif_log":
-            # duplicate-check: nothing sent yet
-            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
-            def _insert(row):
-                inserted_log_rows.append(row)
-                i = MagicMock()
-                i.execute.return_value = MagicMock()
-                return i
-            t.insert.side_effect = _insert
-        elif name == "predmet_hronologija":
-            sel = MagicMock()
-            def _eq_uid(col, val):
-                assert col == "user_id"
-                return sel
-            sel.eq.side_effect = _eq_uid
-            def _in_vaznost(col, values):
-                assert col == "vaznost"
-                sel._matched = rok_vaznost in values
-                return sel
-            sel.in_.side_effect = _in_vaznost
-            def _eq_datum(col, val):
-                assert col == "datum_iso"
-                result = MagicMock()
-                if getattr(sel, "_matched", False) and val == target_iso:
-                    result.execute.return_value.data = [
-                        {"id": "rok-lz001", "izvor": "HUMAN_DIRECT", "dogadjaj": "Rok za žalbu", "datum_iso": target_iso, "predmet_id": "pred-001"}
-                    ]
-                else:
-                    result.execute.return_value.data = []
-                return result
-            sel.eq.side_effect = _eq_uid
-            # allow chaining .eq(...).in_(...).eq(...)
-            outer = MagicMock()
-            outer.select.return_value.eq.return_value = sel
-            sel.in_ = MagicMock(side_effect=_in_vaznost)
-            sel.eq = MagicMock(side_effect=_eq_datum)
-            return outer
-        return t
-
-    supa.table.side_effect = _table
-    return supa, inserted_log_rows
+    """Baza u memoriji (tests/test_b10_reminder_claim.FakeBaza): jedan aktivan email profil (samo dan_7), profil sa
+    adresom, jedan aktivan predmet i JEDAN red predmet_hronologija sa datom `vaznost` na ciljnom datumu — tačno oblik
+    AI-ekstrahovanog roka. S2: ranije MagicMock koji je oponašao oblik starog upita (`.eq(datum)`); FakeBaza stvarno
+    filtrira `vaznost`, pa je i tvrdnja za `informativan` merena, ne prazna."""
+    from tests import test_b10_reminder_claim as b10
+    b = b10.FakeBaza([{"id": "rok-lz001", "izvor": "HUMAN_DIRECT", "dogadjaj": "Rok za žalbu", "datum_iso": target_iso,
+                       "predmet_id": "pred-001", "user_id": "uid-001", "vaznost": rok_vaznost}])
+    b.tabele["korisnik_email_notif"] = [{"user_id": "uid-001", "aktivan": True, "dan_7": True, "dan_3": False, "dan_1": False}]
+    b.tabele["profiles"] = [{"id": "uid-001", "email": "advokat@vindex.rs"}]
+    b.tabele["predmeti"] = [{"id": "pred-001", "user_id": "uid-001", "status": "aktivan"}]
+    return b, b.log
 
 
 @pytest.mark.anyio

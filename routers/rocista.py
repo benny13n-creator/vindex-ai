@@ -18,7 +18,7 @@ from typing import Optional
 
 from datetime import date as _date
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from security.html_sanitize import sanitize_user_input
@@ -127,12 +127,23 @@ class RocistePatchReq(BaseModel):
         return sanitize_user_input(v)
 
 
+def _hitni_podsetnici(uid: str) -> None:
+    """S2 (D2): posle advokatove radnje proveri da li događaju treba podsetnik koji ne sme da čeka dnevno slanje.
+    Pozadinski zadatak POSLE odgovora — radnja je već sačuvana i ne čeka SMTP; greška se samo beleži."""
+    try:
+        from routers.email_notif import proveri_hitne_podsetnike
+        proveri_hitne_podsetnike(uid)
+    except Exception as exc:
+        logger.error("[PODSETNIK] hitna provera nije pokrenuta uid=%.8s: %s", uid, type(exc).__name__)
+
+
 @router.post("/api/rocista")
 @limiter.limit("30/minute")
 async def kreiraj_rociste(
     body: RocisteReq,
     request: Request,
     user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     uid  = user["user_id"]
     supa = _get_supa()
@@ -222,6 +233,8 @@ async def kreiraj_rociste(
     except Exception as _e:
         logger.warning("[ROCISTE] ROCISTE_ZAKAZANO durable event upis greška (non-fatal) predmet=%s: %s", body.predmet_id, _e)
 
+    if background_tasks is not None:
+        background_tasks.add_task(_hitni_podsetnici, uid)
     return {"rociste": row, "ok": True}
 
 
@@ -275,6 +288,7 @@ async def izmeni_rociste(
     body: RocistePatchReq,
     request: Request,
     user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     uid  = user["user_id"]
     supa = _get_supa()
@@ -365,6 +379,8 @@ async def izmeni_rociste(
         except Exception as _e:
             logger.warning("[ROCISTE] ROCISTE_ZAKAZANO (update) durable event upis greška (non-fatal) rociste=%s: %s", rociste_id, _e)
 
+    if background_tasks is not None:
+        background_tasks.add_task(_hitni_podsetnici, uid)
     return {"rociste": row, "ok": True}
 
 
