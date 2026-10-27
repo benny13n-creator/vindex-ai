@@ -359,3 +359,14 @@ def test_v4_nacin_racunanja_polovine_je_oznacen_kao_tumacenje():
     nije, _ = V.blok("Okrivljeni je dva puta osuđen na zatvor od po tri godine za umišljajna dela, otpušten je pre sedam godina, "
                      "a sada je učinio umišljajno delo sa propisanim zatvorom od dve do deset godina. Da li se primenjuje član 55a KZ?")
     assert "to je tumačenje" not in nije        # bez raspona nema ni napomene o računanju
+
+
+def test_g5_primer_vks_kzz_602_2022():
+    """G5: primarni izvor (vrh.sud.rs, VKS Kzz 602/2022 od 14.06.2022, provereno 2026-10-27; NIJE u bazi Vindexa):
+    raspon 3–12 godina → kazna „duža od sedam godina i šest meseci“; izrečenih 7 godina i 7 meseci = pravilna primena
+    čl. 55a. Polovina raspona = (max − min) / 2 + min."""
+    tekst, r = V.blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa "
+                      "izdržavanja kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio delo za koje je "
+                      "propisan zatvor od tri do dvanaest godina. U kom rasponu sud mora da izrekne kaznu?")
+    assert "više od 7 godina i 6 meseci, najviše 12 godina" in tekst
+    assert "najniža takva kazna" in tekst and "7 godina i 7 meseci" in tekst
