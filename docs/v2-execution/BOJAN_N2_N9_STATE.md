@@ -223,3 +223,15 @@ Otvoreno (odluka osnivača / migracija): **G** — događaj izvršiv posle posle
 
 Testovi: `test_s2_podsetnici_pouzdanost.py` (matrica 10 slučajeva + ovlašćenje), `test_s2_smtp_transport_lokalno.py` (stvaran `_smtp_send` → lokalni SMTP 127.0.0.1, STARTTLS/AUTH, 550/535/421/prekid), `test_s2e_tok_podsetnika.py` (stvarne rute). Fokusirano 3.335 passed / 0 failed; V2 frontend testovi 484/0. Isporuka u sanduče NIJE proverena (nema odobrenog test primaoca).
 
+
+
+## Sector 2 FINAL — odluke osnivača D1–D6 (2026-10-27) — `SECTOR_2_TECHNICALLY_VERIFIED` / `LIVE_EMAIL_DELIVERY_NOT_VERIFIED`
+
+Commitovi: `47b9ff16` (migracija 142), `778d9083` (implementacija), `f7364998` (V2 tekst), `194bb77f` (revizija F1–F5), `4acfe2da` (revizija N1–N4). Puna svita `4acfe2da`: 12.739 passed / 14 failed = skup osnove; N3 browser E2E 24/24. **Migracija 142 NIJE primenjena na produkciju; redosled: 142 PRE koda.**
+
+- D3/V3-L1: `email_podsetnik_dogadjaj` UNIQUE(user_id, tip, dogadjaj_id, datum_dogadjaja, svrha) — rezervacija po događaju i pojavi; `email_notif_log` netaknut (čita se samo kao istorija: pokriva događaj izvršiv pre starog slanja; ročište po max(created_at, updated_at)).
+- D2/G: `kasni` kad nijedan uključen prag više ne stiže, a nijedan prag ≤ najkasnijem uključenom nije poslat; hitna provera kao pozadinski zadatak posle potvrde/ispravke roka i zakazivanja/izmene ročišta; današnji prag odmah samo ako je dnevno slanje već prošlo (`email_podsetnik_pokretanje`); rok bez vremena DANAS „ističe DANAS“, ročište danas samo pre svog vremena, bez vremena se ne šalje; dan po Europe/Belgrade (DST).
+- D4/F6: `neuspeh` (veza/TLS/prijava/RCPT/4xx) ponavlja se najviše 3×, uslovnim UPDATE-om, uz ponovnu proveru svih uslova; `odbijeno` (5xx) konačno; `nepoznato` (prekid posle sadržaja) bez ponavljanja.
+- D6: nepoznati/zaglavljeni ishodi (i iz hitne provere) prijavljuju se sledećem dnevnom slanju tačno jednom (`prijavljeno_at`) → posao crven.
+- Revizija (2 kruga): F1 pomereno ročište tiho pokriveno starim redom; F2/N1–N4 nepoznat ishod hitne provere nije stizao do brojača; F3 pad čitanja vremena potvrda tiho; F4 duplikat posle promene pragova; F5 vraćanje koda isti dan = jedan duplikat (dokumentovano). Sve ispravljeno osim F5 (dokumentovano) i N6 (najviše jedan suvišan podsetnik po kozmetički izmenjenom ročištu u danima prelaza).
+- Testovi: `test_s2f_kasni_podsetnici.py`, `test_s2_migracija_142_postgres.py` (PostgreSQL 17.9, privremen klaster), `test_s2e_tok_podsetnika.py` (stvarne rute + lokalni SMTP), `test_s2_smtp_transport_lokalno.py`, ažurirani B10/G2/P0/V3/VCR002/LZ001 (stari dnevnik → rezervacija po događaju).
