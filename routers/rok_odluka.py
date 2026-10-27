@@ -46,6 +46,7 @@ from pydantic import BaseModel, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
+from shared.rok_ispravka import upisi_ispravljen_rok
 from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
     STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_ODBIJEN, STANJE_POTVRDJEN,
@@ -381,7 +382,6 @@ async def odbij(
 # Samo NEPOTVRĐEN predlog se ispravlja ovde; dva istovremena zahteva za isti rok → drugi dobija 409.
 
 _ISPRAVKA_U_TOKU: set = set()
-_AKTER_ISPRAVKE = "Advokat (ispravka predloga)"
 
 
 class IspravkaReq(BaseModel):
@@ -432,25 +432,11 @@ async def ispravi(
         except Exception:
             izvor = {}
         opis = (body.dogadjaj or "").strip() or red.get("dogadjaj") or "Rok"
-        # Ponovni pokušaj posle delimičnog neuspeha ne pravi DRUGI nov rok: postojeća ispravka (isti predmet, opis,
-        # datum, akter ispravke) se koristi ponovo.
+        # Upis je u shared/rok_ispravka.py (ova ruta samo čita hronologiju — FAZA 6.5); ponovni pokušaj posle
+        # delimičnog neuspeha koristi postojeću ispravku umesto da napravi drugi nov rok.
         try:
-            post_r = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("id")
-                .eq("user_id", uid).eq("predmet_id", red.get("predmet_id")).eq("datum_iso", novi_datum.isoformat())
-                .eq("akter", _AKTER_ISPRAVKE).eq("dogadjaj", opis[:500]).limit(1).execute())
-            postojeci = (post_r.data or [{}])[0].get("id") if post_r and post_r.data else None
-        except Exception:
-            postojeci = None
-        try:
-            nov_r = None if postojeci else await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
-                "predmet_id": red.get("predmet_id"), "user_id": uid, "dogadjaj": opis[:500],
-                "datum": novi_datum.isoformat(), "datum_iso": novi_datum.isoformat(),
-                "vaznost": red.get("vaznost") or _rokovi_domen.normalizuj_vaznost("bitan"),
-                "akter": _AKTER_ISPRAVKE, "izvor": _rokovi_domen.IZVOR_HUMAN_DIRECT,
-                "dokument_id": izvor.get("dokument_id"), "dokument_naziv": izvor.get("dokument_naziv"),
-                **_rokovi_domen.oznake(vrsta=_rokovi_domen.VRSTA_ROK, supa=supa),
-            }).execute())
-            nov_id = postojeci or (nov_r.data or [{}])[0].get("id")
+            nov_id = await asyncio.to_thread(upisi_ispravljen_rok, supa, uid=uid, predlog=red, izvor=izvor,
+                                             opis=opis, datum=novi_datum)
         except Exception as exc:
             logger.error("[ROK_ODLUKA] ispravka: nov rok nije upisan rok=%s: %s", rok_id, exc)
             nov_id = None

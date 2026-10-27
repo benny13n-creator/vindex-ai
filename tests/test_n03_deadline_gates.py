@@ -1260,7 +1260,7 @@ def _pdf_hronologija(k, monkeypatch):
     import routers.export as ex
     uhvaceno = {}
 
-    def _gen(predmet, dokumenti, beleske, hronologija):
+    def _gen(predmet, dokumenti, beleske, hronologija, rocista=None):   # N6: peti argument = ročišta predmeta
         uhvaceno["h"] = hronologija
         return b"%PDF-1.4 test"
     monkeypatch.setattr(ex, "_generiši_pdf", _gen)

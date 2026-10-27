@@ -101,6 +101,9 @@ SEMA = {
         # Migracija 127 (posle merenja iznad): `izvor`. Kanonski čitalac
         # shared/rokovi.py::_KOLONE ga bira u produkciji od Wave 3 (2026-09-20).
         "izvor",
+        # Migracija 129 (primenjena u produkciji): `vrsta`, `stanje`. Mesečni izveštaj ih bira od N6 iza sonde
+        # shared/rokovi.py::_sema_ima_129 (rokovi u „sledećih 14 dana“ = samo `vrsta='rok'`).
+        "vrsta", "stanje",
     },
 }
 
