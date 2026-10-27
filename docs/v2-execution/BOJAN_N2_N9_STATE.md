@@ -190,3 +190,20 @@ Ništa nije pushovano, spojeno ni pušteno; nijedna migracija; jedini upis u pro
 | G5 izvori / 55a | ZUS: zvaničan tekst „Sl. glasnik RS“ 10/2023 (vss.sud.rs), stvarna nadležnost čl. 24 (osnovni) i čl. 27 (privredni); kasnije izmene UNKNOWN; nije u korpusu. 55a: VKS **Kzz 602/2022** (vrh.sud.rs, 14.06.2022) — polovina = (max−min)/2+min, „iznad“ strogo, 3–12 g. → >7g6m, 7g7m pravilno; rok od otpusta sa POSLEDNJE izrečene kazne. Nije u bazi. M8/I1 rangiranje nepromenjeno (bez uporednog dokaza). | `21fa0540` (test) | VERIFIED_NO_CHANGE |
 | G6 regresija | Pre-129 grana mesečnog izveštaja nije bila merena; ček/menica uklonjeni s razlogom (zakoni nisu u korpusu); 668/341 pokretanje = preklop sa zaustavljenom svitom (INFERRED). | `7e7a15ba` | VERIFIED_FIXED |
 | G7 zatvaranje | Nezavisna revizija: 0 blokera, 5 manjih. Svita `7e7a15ba`: 12.538 passed / **14 failed = skup osnove A**. | tekst testova | READY |
+
+## Sector 1 — Git integrity & adversarial code review (2026-10-27) — `READY_FOR_CONTROLLED_PR_PREPARATION`
+
+Topologija (PROVEN, GitHub API): PR #58 je OTVOREN draft, base `main` = `11475df8` (= origin/main), head `71593846`; 8 commitova N0/N1 NISU u main. N2–N9 grana sadrži 26 + 22 commita iznad `71593846`, bez merge commitova. Preporuka: stacked PR sa bazom `feature/bojan-n0-n1-intake-closure`; PR #58 ima 1 pad `pytest (Python 3.13)` (`test_website_v2_remediacija::test_nova_adresa_se_upisuje_jednom_uz_jedno_obavestenje`) koji lokalno prolazi 5/5 (fajl nije menjan) — ponoviti CI pre spajanja.
+
+Diff `71593846..HEAD`: svi fajlovi u Bojanovom obimu (prijem, ročišta, rokovi/podsetnici, naplata, izveštaji, pravno rezonovanje, izolacija testova, testovi, dokumentacija); 0 migracija, 0 tajni, 0 CI/zavisnosti; uklonjeni filteri `user_id` zamenjeni ekvivalentnim/strožim.
+
+Tri nezavisna recenzenta (C1–C2, C3–C4, C5–C7) + tri kruga revizije ispravki. PROVEN i ispravljeno (22 commita `47ee739a`…`4eb2c480`):
+- C3 HIGH: delimičan neuspeh ispravke roka → dve potvrđene obaveze. Sada: id ispravke unapred → odbijanje predloga (napomena nosi id) → upis → potvrda; nastavak dovršava samo tu ispravku (isti predmet, akter, datum); nema ponovne upotrebe tuđeg reda.
+- C5 HIGH (55a): pogrešan DA/NE iz „pre N“ od danas, datuma suđenja, krivice novog dela, zagrade, brisane/maloletničke osude, vremena suđenja — sve → NEPOZNATO; jednoznačni slučajevi i dalje DA/NE (baterije 22 + 27 ulaza bez pogrešnog DA/NE).
+- C5 HIGH: „Rev.“/„str.“ lomili rečenicu → neoznačen/neuklonjen navod odluke; broj odluke po obrascu.
+- C5 MEDIUM: krivična/upravna/pitanja o odluci rutirana na ZPP; isti broj odluke iz dva suda; rubrika čl. 51/55.
+- C2: otkazana/odložena ročišta kao predlozi; „Vrati na zakazano“ ostavljao dva aktivna ročišta (sada 409 ako postoji kasnije/kasnije upisano ročište — lažno 409 je izabrana bezbednija strana).
+- C3/C4: pad čitanja ročišta gasio podsetnike za rokove; dvosmislen upis stavke naplate → druga stavka (sada provera po id-u stavke).
+Puna svita `4eb2c480`: 12.634 passed / 14 failed = skup osnove `71593846`; živi tok V2/V5/V6/M8/R2 ispravan, Supabase zatvoren.
+
+Poznata ograničenja (ne blokiraju PR pregled): heuristike (55a parser, rutiranje, parser ročišta) imaju izmerene promašaje u BEZBEDNOM smeru (NEPOZNATO / bez predloga / 409); 3/18 građanskih pitanja sa „uhapšen/osumnjičen“ bez sidra ne idu na ZPP; ćirilično 55a pitanje → NEPOZNATO; COI samo u pregledaču (od ranije); zaštite od trke u jednom procesu (`/health` workers=1); status fakture menja se pre audita (LOW); posle pada čitanja ročišta rezervacija može da ugasi ročište tog predmeta pri ponovnom slanju istog dana.
