@@ -238,3 +238,11 @@ def test_S1E_opsta_skracenica_na_kraju_recenice_i_lista_ne_spajaju_recenice():
     out = main._proveri_stavove_prakse({"pravni_zakljucak": proza, "sudska_praksa": [st]}, _h4_ctx())
     assert out["sudska_praksa"] == [] and out["pravni_zakljucak"] == "Sud primenjuje pravila o naknadi štete, kamati itd."
     assert main._recenice_sa_razmacima("Prvo. 3. Treće.")[0::2] == ["Prvo.", "3.", "Treće."]
+
+
+def test_3k_skracenice_sredine_recenice_ne_lome_navod():
+    """3. krug revizije: „…, tj. da rok teče …“ i „(Sl. glasnik RS …)“ su lomili rečenicu, pa je ostajao fragment."""
+    assert main._recenice_sa_razmacima("Sud je zauzeo stav, tj. da rok teče od dostave. Dalje.")[0::2] == [
+        "Sud je zauzeo stav, tj. da rok teče od dostave.", "Dalje."]
+    assert main._recenice_sa_razmacima("Rok je propisan Zakonom (Sl. glasnik RS, br. 72/2011). Dalje.")[0::2] == [
+        "Rok je propisan Zakonom (Sl. glasnik RS, br. 72/2011).", "Dalje."]

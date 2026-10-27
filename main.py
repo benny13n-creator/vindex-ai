@@ -3483,9 +3483,10 @@ def _proveri_stavove_prakse(data, praksa_context: str):
 # S1-C5 (revizija H4): „Rev. 5/2020“, „str. 3“, „čl. 187“ — deljenje rečenica posle tačke je presecalo navod odluke, a
 # tačno poređenje teksta nije prepoznavalo „Rev. 5/2020“ kao „Rev 5/2020“. Rečenica se ne prekida posle poznate skraćenice
 # citata; broj odluke se traži obrascem (delovi broja uz tačku/razmak/crtu između, granice sa obe strane).
-# Samo oznake vrste odluke i citata („Rev.“, „str.“, „čl.“) — ne opšte skraćenice koje završavaju rečenicu („itd.“, „god.“)
+# Oznake vrste odluke i citata („Rev.“, „str.“, „čl.“) i skraćenice SREDINE rečenice („tj.“, „npr.“, „Sl. glasnik“) — ne
+# one koje obično završavaju rečenicu („itd.“, „god.“)
 _PRAKSA_SKRACENICE = {"rev", "gz", "gz1", "kzz", "kz", "kz1", "kz2", "uz", "iuz", "iu", "uzp", "pzz", "prev", "pz",
-                      "str", "br", "cl", "st", "tac", "kp"}
+                      "str", "br", "cl", "st", "tac", "kp", "tj", "npr", "sl", "dr"}
 
 
 def _recenice_sa_razmacima(tekst: str) -> list:
