@@ -3486,7 +3486,7 @@ def _proveri_stavove_prakse(data, praksa_context: str):
 # Oznake vrste odluke i citata („Rev.“, „str.“, „čl.“) i skraćenice SREDINE rečenice („tj.“, „npr.“, „Sl. glasnik“) — ne
 # one koje obično završavaju rečenicu („itd.“, „god.“)
 _PRAKSA_SKRACENICE = {"rev", "gz", "gz1", "kzz", "kz", "kz1", "kz2", "uz", "iuz", "iu", "uzp", "pzz", "prev", "pz",
-                      "str", "br", "cl", "st", "tac", "kp", "tj", "npr", "sl", "dr"}
+                      "str", "br", "cl", "st", "tac", "kp", "tj", "npr"}   # „Sl.“ samo ispred „glasnik“; „i dr.“/„i sl.“ završavaju
 
 
 def _recenice_sa_razmacima(tekst: str) -> list:
@@ -3497,7 +3497,8 @@ def _recenice_sa_razmacima(tekst: str) -> list:
     for i in range(1, len(delovi) - 1, 2):
         razmak, dalje = delovi[i], delovi[i + 1]
         poslednja = re.search(r"([^\W\d_]+)\.$", out[-1])
-        if poslednja and _normalizuj(poslednja.group(1).translate(_CIR_LAT_N8)) in _PRAKSA_SKRACENICE:
+        _sk = _normalizuj(poslednja.group(1).translate(_CIR_LAT_N8)) if poslednja else ""
+        if _sk in _PRAKSA_SKRACENICE or (_sk == "sl" and re.match(r"glasnik", _normalizuj(dalje))):
             out[-1] = out[-1] + razmak + dalje
         else:
             out += [razmak, dalje]

@@ -246,3 +246,9 @@ def test_3k_skracenice_sredine_recenice_ne_lome_navod():
         "Sud je zauzeo stav, tj. da rok teče od dostave.", "Dalje."]
     assert main._recenice_sa_razmacima("Rok je propisan Zakonom (Sl. glasnik RS, br. 72/2011). Dalje.")[0::2] == [
         "Rok je propisan Zakonom (Sl. glasnik RS, br. 72/2011).", "Dalje."]
+
+
+def test_4k_i_dr_i_sl_zavrsavaju_recenicu():
+    assert main._recenice_sa_razmacima("U odlukama Rev 9/2019 i dr. Rok je tri godine.")[0::2] == [
+        "U odlukama Rev 9/2019 i dr.", "Rok je tri godine."]
+    assert main._recenice_sa_razmacima("Zakup, posluga i sl. Prema Rev 9/2019 X.")[0::2] == ["Zakup, posluga i sl.", "Prema Rev 9/2019 X."]

@@ -122,3 +122,23 @@ def test_3k_delo_posle_otpusta_izmedju_otpusta_i_sidra():
     q = (OSUDE + " Otpušten je pre šest godina. Krađu je izvršio pre četiri godine. Sada mu se sudi za to delo izvršeno sa "
          "umišljajem, propisan je zatvor od jedne do osam godina. 55a?")
     assert _uslov(q, 3) == V.NEPOZNATO and _ishod(q) != V.NE
+
+
+def test_4k_vreme_sudjenja_nije_vreme_dela():
+    q = (OSUDE + " Otpušten je pre šest godina. Sada mu se sudi za umišljajnu krađu, propisan je zatvor od jedne do osam "
+         "godina. 55a?")
+    assert _uslov(q, 3) == V.NEPOZNATO and _ishod(q) == V.NEPOZNATO
+
+
+def test_4k_otpust_i_delo_u_istoj_recenici():
+    q = (OSUDE + " Otpušten je pre šest godina, a krađu je izvršio 2022. godine. Sada mu se sudi za to delo izvršeno sa "
+         "umišljajem, propisan je zatvor od jedne do osam godina. 55a?")
+    assert _uslov(q, 3) == V.NEPOZNATO and _ishod(q) != V.NE
+
+
+def test_4k_recenica_o_novom_delu_nije_krivica_ranijih():
+    for q in (OSUDE.replace(" za umišljajna dela", "") + " Otpušten je pre dve godine. Tih dana je sa umišljajem izvršio krađu. "
+              "Sada mu se sudi, propisan je zatvor od jedne do osam godina i delo je umišljajno. 55a?",
+              OSUDE.replace(" za umišljajna dela", "") + " Otpušten je pre dve godine. Prethodno je planirao krađu, koju je "
+              "izvršio sa umišljajem. Sada mu se sudi, propisan je zatvor od jedne do osam godina. 55a?"):
+        assert _uslov(q, 2) == V.NEPOZNATO and _ishod(q) != V.DA

@@ -278,6 +278,7 @@ def test_uklanjanje_prakse_ne_brise_zakonske_recenice():
     "Koji sud je nadležan za poresku utaju kojom je budžetu naneta šteta?",
     "Koji sud je nadležan za suđenje osumnjičenom za pranje novca, gde je šteta veća od milion?",
     "Koji sud je nadležan za privatnu tužbu za uvredu protiv okrivljenog?",
+    "Koji sud je nadležan za tužbu kao privatni tužilac za uvredu?",
 ])
 def test_s1_nije_gradjanska_nadleznost(q):
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
@@ -295,6 +296,9 @@ def test_s1_nije_gradjanska_nadleznost(q):
     "Kom sudu podnosim tužbu protiv poreskog savetnika zbog pogrešnog saveta?",
     "Koji sud je nadležan ako je tuženi direktor osumnjičen u drugom postupku?",
     "Koji sud je mesno nadležan za tužbu radi duga ako poslovna sposobnost tuženog nije sporna?",
+    "Koji sud je nadležan za zahtev za štetu zbog neosnovanog pritvora?",
+    "Koji sud je nadležan za regresni zahtev osiguravača zbog štete koju je okrivljeni prouzrokovao?",
+    "Koji sud je nadležan kada tražim štetu od osumnjičenog koji mi je razbio auto?",
 ])
 def test_s1_gradjanska_nadleznost_i_dalje(q):
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti

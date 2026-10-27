@@ -326,9 +326,11 @@ def _novo_delo_ima_svoje_vreme(novo: str) -> bool:
     if not novo:
         return False
     # revizija S1: rečenica/klauza o otpustu iza sidra („…, a otpušten je pre tri godine“) nije vreme novog dela
-    n = re.sub(r"otpust\w*[^.;]*", " ", novo)
+    n = re.sub(r"otpust\w*[^.;,]*", " ", novo)
     return bool(re.search(r"\bpre\s+(?:vise\s+od\s+)?" + _DUR, n) or re.search(_DATUM, n) or re.search(_GODINA, n)
-                or re.search(r"pre\s+otpust|prosl\w*\s+godin|ove\s+godine|\blane\b|tokom\s+izdrzavanj|na\s+izdrzavanju|"
+                # „sada mu se sudi“ / „tereti se“ je vreme SUĐENJA, ne dela (4. krug revizije)
+                or re.search(r"\bsud\w*\s+(?:mu|joj|im)\s+se\b|\b(?:mu|joj|im)\s+se\s+sudi|sudjenj\w*|optuz\w*|tereti\s+se|"
+                             r"pre\s+otpust|prosl\w*\s+godin|ove\s+godine|\blane\b|tokom\s+izdrzavanj|na\s+izdrzavanju|"
                              r"dok\s+je\s+(?:jos\s+)?(?:bio|bila)\s+u\s+zatvor", n))
 
 
@@ -383,7 +385,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         _ostalo = q[:_poc] + " " + (q[_kraj:granica] if granica is not None and granica > _kraj else
                                     ("" if granica is not None else q[_kraj:]))
         _sa_krivicom = [s for s in re.split(r"[.;?!](?:\s|$)", _ostalo) if re.search(r"umisljaj\w*|nehat\w*", s)]
-        _o_ranijim = [s for s in _sa_krivicom if re.search(r"\b(?:oba|obe|ranij\w*|tih|tim|te\s+osud\w*|prethodn\w*|osudj\w*)\b", s)]
+        _o_ranijim = [s for s in _sa_krivicom if re.search(r"\b(?:oba|obe|ranij\w*|te\s+osud\w*|osudj\w*)\b", s)]
         _drugo = [s for s in _sa_krivicom if s not in _o_ranijim]
         _k_ranije = _krivica(" ".join(_o_ranijim)) if _o_ranijim else None
         if kriv is None:
@@ -440,7 +442,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
             mp = (re.search(r"otpust\w*[^.,;]{0,40}?\bpre\s+(vise\s+od\s+)?(" + _DUR + ")", q)
                   or re.search(r"\bpre\s+(vise\s+od\s+)?(" + _DUR + r")\s+(?:je\s+)?(?:bio\s+)?otpust", q))
             # bez sidra novog dela — tekst posle rečenice o otpustu („Prošle godine je izvršio …“)
-            _posle = q[q.find(recenica_otpusta) + len(recenica_otpusta):] if recenica_otpusta else ""
+            _posle = q[mo_poz.start():] if mo_poz else ""          # 4. krug: i ostatak rečenice o otpustu („…, a krađu je izvršio 2022.“)
             # 3. krug revizije: ceo tekst posle rečenice o otpustu („Otpušten je pre 6 g. Krađu je izvršio pre 4 g. Sada …“)
             if mp and _dur_dana(mp.group(2)) is not None and not _novo_delo_ima_svoje_vreme(novo + " " + _posle):
                 meseci = _dur_dana(mp.group(2)) / _DANA_U_MESECU

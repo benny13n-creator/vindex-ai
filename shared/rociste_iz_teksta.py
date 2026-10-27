@@ -155,8 +155,9 @@ _PRIDEV_ZAKAZAN = re.compile(r"zakazan\w*$", re.IGNORECASE)
 # 3. krug revizije: cela reč („Novom Sadu“, „novembra“, „Novaković“ nisu „novo“) i samo na POČETKU nove klauze
 # („…, nastavak zakazan“, „… i novo ročište zakazano“, „…; sledeće ročište zakazano“) — „Otkazuje se sledeće ročište
 # zakazano za …“ opisuje staro ročište.
-_NOVO_PRE = re.compile(r"(?:[,;]|\b(?:a|i)\b)\s*(?:(?:\w+\s+){0,2})?(?:novo|nova|novi|novog|sledec\w*|sledeć\w*|naredn\w*|"
-                       r"nastavak|nastavka)\b[^,;]{0,30}$", re.IGNORECASE)
+_NOVO_PRE = re.compile(r"(?:[,;:(—–]|\s-\s|\b(?:a|i|pa|te|dok)\b|zbog\s+(?:čega|cega)\s+je)\s*(?:(?:\w+\s+){0,2})?"
+                       r"(?:novo|nova|novi|novog|novim|sledec\w*|sledeć\w*|naredn\w*|nastavak|nastavka|nastavl\w*)\b[^,;]{0,30}$",
+                       re.IGNORECASE)
 
 
 def _opisno_zakazano(recenica: str, z) -> bool:
