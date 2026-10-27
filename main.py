@@ -3301,14 +3301,20 @@ def _json_ka_tekst(data: dict, tip: str, potvrda: dict | None = None) -> str:
             header_parts = [p for p in [sud, broj, datum] if p]
             header = f"{idx}. " + ", ".join(header_parts) if header_parts else f"{idx}. —"
             parts.append(header)
+            izvorni  = (item.get("izvorni_sazetak") or "").strip()
+            if izvorni:
+                # G4: stav suda = doslovan sažetak iz baze; formulacija modela je samo AI sažetak (provera je leksička)
+                parts.append(f"   Iz sažetka odluke (doslovno, baza Vindex): „{izvorni}“")
             if princip:
-                parts.append(f"   Pravni princip: {princip}")
+                parts.append(f"   Pravni princip (AI sažetak — nije potvrđen kao stav suda; proverite u odluci): {princip}"
+                             if izvorni else f"   Pravni princip: {princip}")
+            ai = " (AI)" if izvorni else ""     # G4: uz doslovan sažetak sve ostalo je izričito AI tekst
             if primena:
-                parts.append(f"   Primena: {primena}")
+                parts.append(f"   Primena{ai}: {primena}")
             if razlika:
-                parts.append(f"   Razlika: {razlika}")
+                parts.append(f"   Razlika{ai}: {razlika}")
             if sazetak:
-                parts.append(f"   {sazetak}")
+                parts.append(f"   AI: {sazetak}" if izvorni else f"   {sazetak}")
             parts.append("")
 
     parts += [
@@ -3450,9 +3456,11 @@ def _proveri_stavove_prakse(data, praksa_context: str):
         pripisan = str(st.get("pravni_princip") or st.get("stav") or "")
         if podrzano and pripisan and not _praksa_smer_se_slaze(pripisan, sazetak):
             podrzano = False
-        (ostaje if podrzano else uklonjeni).append(st)
+        # G4: zadržana odluka nosi DOSLOVAN sažetak iz izvora — prikaz ne sme da predstavi AI parafrazu kao stav suda
+        (ostaje if podrzano else uklonjeni).append(dict(st, izvorni_sazetak=re.sub(r"\s+", " ", sazetak or "").strip()[:400])
+                                                   if podrzano else st)
     if not uklonjeni:
-        return data
+        return dict(data, sudska_praksa=ostaje)
     logger.warning("[N8_PRAKSA] uklonjeni nepodržani stavovi: %s", [u.get("broj_odluke") for u in uklonjeni][:3])
     data["sudska_praksa"] = []
     ociscen = _ukloni_neproverenu_praksu(dict(data, sudska_praksa=uklonjeni))
