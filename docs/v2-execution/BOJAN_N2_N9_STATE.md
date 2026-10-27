@@ -207,3 +207,19 @@ Tri nezavisna recenzenta (C1–C2, C3–C4, C5–C7) + tri kruga revizije isprav
 Puna svita `4eb2c480`: 12.634 passed / 14 failed = skup osnove `71593846`; živi tok V2/V5/V6/M8/R2 ispravan, Supabase zatvoren.
 
 Poznata ograničenja (ne blokiraju PR pregled): heuristike (55a parser, rutiranje, parser ročišta) imaju izmerene promašaje u BEZBEDNOM smeru (NEPOZNATO / bez predloga / 409); 3/18 građanskih pitanja sa „uhapšen/osumnjičen“ bez sidra ne idu na ZPP; ćirilično 55a pitanje → NEPOZNATO; COI samo u pregledaču (od ranije); zaštite od trke u jednom procesu (`/health` workers=1); status fakture menja se pre audita (LOW); posle pada čitanja ročišta rezervacija može da ugasi ročište tog predmeta pri ponovnom slanju istog dana.
+
+## Sector 2 — pouzdanost podsetnika (2026-10-27) — `S2_BLOCKED_PRODUCT_DECISION` / `LIVE_DELIVERY_NOT_VERIFIED`
+
+Ugovor (iz koda): `email-cron.yml` jednom dnevno (zakazano 08:00 UTC; GitHub API: 60/60 dana pokrenuto, stvarni početak 11–17 h UTC; HTTP 403 do 2026-10-23, uspeh od 2026-10-24) → `POST /email-notif/send-reminders` (X-Cron-Key) → profil `korisnik_email_notif` (aktivan + dan_7/3/1) → tačno 7/3/1 dan pre datuma → potvrđeni rokovi (`predmet_hronologija`, `vaznost` ≠ informativan, lanac odluka CONFIRMED) + ročišta `zakazano`, samo aktivni predmeti vlasnika → jedan email po korisniku i pragu → rezervacija UNIQUE(user_id, predmet_id, datum_roka, dana_pre) PRE slanja (at-most-once pokušaj) → `poslato` = SMTP prihvatio, ne prijem u sanduče.
+
+PROVEN i ispravljeno (`b8ad79af`, `fe467ae9`, `8da27423`):
+- pad čitanja hronologije / dnevnika slanja / rezervnog upita aktivnih predmeta obarao CEO cron (nijedan korisnik);
+- pad lanca potvrda tiho izbacivao potvrđene rokove (prazan skup), email samo sa ročištem, posao zelen;
+- atomski višeredni INSERT rezervacije pri delimičnoj trci gasio podsetnik drugog predmeta;
+- (revizija F1) delimično pročitan prag trošio rezervaciju predmeta → potvrđen rok zauvek izgubljen, ponovno slanje zeleno. Sada: pad čitanja rokova/ročišta → prag korisnika bez rezervacije; pad lanca → samo predmeti sa kandidat-rokom; ponovno slanje šalje sve. **Menja S1-C3.**
+- V2 tekst „Zakazivanje ne šalje podsetnike“ bio netačan; Podešavanja sada navode ročišta i stvarni raspored.
+
+Otvoreno (odluka osnivača / migracija): **G** — događaj izvršiv posle poslednjeg slanja svog praga (potvrda/zakazivanje za sutra posle dnevnog slanja, isključeni pragovi) nikad ne dobija email; **V3-L1** — drugo slanje istog dana ne dopunjuje već rezervisan predmet/datum/prag (ključ bez identiteta događaja → migracija). Revizija: F2 PostgREST 1000 redova bez straničenja (tiho, iznad 1000 aktivnih predmeta/profila); F3 potvrđen rok sa `vaznost=informativan` se ne šalje; F4 `date.today()` serverski (samo van rasporeda); F5 email bez naziva predmeta; F6 siguran ne-pokušaj (odbijena veza / pad prijave) troši rezervaciju kao „neisporuceno“.
+
+Testovi: `test_s2_podsetnici_pouzdanost.py` (matrica 10 slučajeva + ovlašćenje), `test_s2_smtp_transport_lokalno.py` (stvaran `_smtp_send` → lokalni SMTP 127.0.0.1, STARTTLS/AUTH, 550/535/421/prekid), `test_s2e_tok_podsetnika.py` (stvarne rute). Fokusirano 3.335 passed / 0 failed; V2 frontend testovi 484/0. Isporuka u sanduče NIJE proverena (nema odobrenog test primaoca).
+
