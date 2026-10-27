@@ -1068,12 +1068,12 @@ NADLEZNOST_ZPP_PRAVILA = (
     "(čl. 45); povreda prava ličnosti (čl. 46); bračni sporovi — poslednje zajedničko prebivalište (čl. 48); radni spor zaposlenog — i "
     "sud mesta rada (čl. 60).\n"
     "- Isključiva: nepokretnost (svojina, stvarna prava, smetanje državine, zakup nepokretnosti) — sud gde se nepokretnost nalazi, "
-    "i kad su stranke ugovorile drugi sud (čl. 51).\n"
+    "(čl. 51); sporazum o drugom sudu tada nije moguć jer je nadležnost isključiva (čl. 65 st. 1).\n"
     "- Isključiva još: nasledni sporovi dok traje ostavinski postupak (čl. 57); sporovi u toku i povodom izvršnog/stečajnog "
     "postupka (čl. 58).\n"
     "- Ugovorni spor: ZPP NEMA opšte pravilo o nadležnosti po mestu izvršenja/ispunjenja ugovora — važi opšta (čl. 39–40) ili "
     "pismeno ugovorena, ako nije propisana isključiva (čl. 65). Mesto ispunjenja obaveze je osnov samo izuzetno: tuženi bez opšte "
-    "mesne nadležnosti u Srbiji (čl. 53 st. 3), strano pravno lice (čl. 55); menica/ček — i sud mesta plaćanja (čl. 59).\n"
+    "mesne nadležnosti u Srbiji (čl. 53 st. 3), strano pravno lice za obaveze zasnovane ili ispunjive u Srbiji — sud stalnog zastupništva ili sedišta organa koji vodi njegove poslove (čl. 55); menica/ček — i sud mesta plaćanja (čl. 59).\n"
     "- Stvarnu nadležnost (osnovni/viši/privredni sud) uređuje Zakon o uređenju sudova (ZPP čl. 27, 480); ako njegov tekst nije u "
     "kontekstu, reci da zaključak o stvarnoj nadležnosti nije potvrđen izvorom.\n"
     "- Ako nedostaje činjenica koja menja ishod (prebivalište/sedište tuženog, vrsta spora, mesto štete, mesto rada), navedi je kao "
@@ -3420,7 +3420,7 @@ def _praksa_smer_se_slaze(stav: str, sazetak: str) -> bool:
 
 def _sazeci_iz_konteksta(praksa_context: str) -> dict:
     """{normalizovan broj odluke: sažetak} iz bloka koji je model dobio (`_format_praksa_context`)."""
-    out, broj = {}, None
+    out, broj, sudar = {}, None, set()
     for red in (praksa_context or "").splitlines():
         m = re.match(r"\d+\.\s+(.*)$", red)   # zaglavlje nije uvučeno; sažetak jeste (i spojen je u jedan red)
         if m:
@@ -3428,7 +3428,13 @@ def _sazeci_iz_konteksta(praksa_context: str) -> dict:
             # broj je prvi deo sa cifrom
             delovi = [x.strip() for x in m.group(1).split(",")]
             broj = _kljuc_odluke(next((x for x in delovi if re.search(r"\d", x)), ""))
-            if broj:
+            if broj in out or broj in sudar:
+                # S1-C5 (revizija M2): isti broj iz dva suda — ne zna se čiji je sažetak; odluka ostaje bez sažetka
+                # (fail-closed: stav joj se ne potvrđuje)
+                sudar.add(broj)
+                out.pop(broj, None)
+                broj = None
+            elif broj:
                 out[broj] = ""
             else:
                 broj = None

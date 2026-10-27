@@ -257,3 +257,31 @@ def test_uklanjanje_prakse_ne_brise_zakonske_recenice():
             "sudska_praksa": [{"sud": "VKS", "broj_odluke": "154", "pravni_princip": "x"}]}
     out = M._ukloni_neproverenu_praksu(data)
     assert "111/2009" in out["pravni_zakljucak"] and "Prema čl. 154 ZOO odgovara štetnik." in out["pravni_zakljucak"]
+
+
+# ── S1-C5 (revizija M1): krivična, upravna i pitanja o odluci ne idu u tok građanske nadležnosti ──
+
+@pytest.mark.parametrize("q", [
+    "Koji sud sudi za ubistvo?",
+    "Koji sud odlučuje o pritvoru okrivljenog?",
+    "Koji sud je nadležan za ekstradiciju?",
+    "Koji sud je nadležan za izdavanje evropskog naloga za hapšenje?",
+    "Kom sudu se podnosi tužba protiv rešenja Poreske uprave?",
+    "Koji je sud zauzeo stav o zastarelosti potraživanja iz ugovora o zajmu?",
+    "Koji sud je doneo presudu Rev 1234/2020 o otkazu?",
+    "Pred kojim sudom se vodi postupak za lišenje poslovne sposobnosti?",
+    "Koji sud je nadležan za vraćanje deteta po Haškoj konvenciji?",
+])
+def test_s1_nije_gradjanska_nadleznost(q):
+    from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
+    assert not je_pitanje_gradjanske_nadleznosti(q)
+
+
+@pytest.mark.parametrize("q", [
+    "Moj klijent iz Beograda želi da tuži fizičko lice koje ima prebivalište u Novom Sadu radi vraćanja duga. Koji sud je mesno nadležan?",
+    "Gde da podnesem tužbu za uznemiravanje na radu?",
+    "Kom sudu podnosimo tužbu protiv dva solidarna dužnika?",
+])
+def test_s1_gradjanska_nadleznost_i_dalje(q):
+    from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
+    assert je_pitanje_gradjanske_nadleznosti(q)

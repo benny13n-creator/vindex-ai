@@ -214,3 +214,16 @@ def test_H4_obrazac_broja():
     assert main._sadrzi_odluku("u odluci Rev. 5/2020", [o]) and main._sadrzi_odluku("Рев 5/2020", [o])
     assert not main._sadrzi_odluku("Prev 5/2020", [o]) and not main._sadrzi_odluku("Rev 5/20201", [o])
     assert main._obrazac_odluke("154") is None
+
+
+def test_M2_isti_broj_iz_dva_suda_nije_potvrdjen():
+    """S1-C5 (revizija M2): „Gž 100/2020“ apelacionih sudova u Nišu i Beogradu — ne zna se čiji je sažetak."""
+    ctx = main._format_praksa_context([
+        {"court": "Apelacioni sud u Nišu", "decision_number": "Gž 100/2020", "date": "2020",
+         "text": "Rok zastarelosti potraživanja naknade štete teče od dana saznanja za štetu."},
+        {"court": "Apelacioni sud u Beogradu", "decision_number": "Gž 100/2020", "date": "2020",
+         "text": "Ugovor o zakupu stana mora biti zaključen u pisanoj formi."}])
+    st = {"sud": "Apelacioni sud u Nišu", "broj_odluke": "Gž 100/2020",
+          "pravni_princip": "Rok zastarelosti potraživanja naknade štete teče od dana saznanja za štetu."}
+    assert main._sazeci_iz_konteksta(ctx) == {}
+    assert main._proveri_stavove_prakse({"pravni_zakljucak": "x", "sudska_praksa": [st]}, ctx)["sudska_praksa"] == []

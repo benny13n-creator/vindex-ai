@@ -657,13 +657,19 @@ _NADLEZNOST_RE = re.compile(
     r"|gde\s+(?:da\s+|mogu\s+da\s+|treba\s+da\s+|se\s+)?(?:podnesem|podnese|podnosi|tuzim|tuzi)\w*(?:\s+\w+)?\s+tuzb\w*"
     r"|gde\s+(?:da\s+|mogu\s+da\s+)?tuzim)")
 _NADLEZNOST_DRUGA_RE = re.compile(r"krivic|upravn|prekrsaj|ustavn|zalb|izvrsn\w*\s+postup|izvrsitelj|predlog\w*\s+za\s+izvrs|"
-                                  r"\bzio\b|izvrsenju\s+i\s+obezbedj|ostavin|nasledn|nasledj|stecaj|vanparnic")
+                                  r"\bzio\b|izvrsenju\s+i\s+obezbedj|ostavin|nasledn|nasledj|stecaj|vanparnic|"
+                                  # S1-C5 (revizija M1): krivični, upravni i posebni postupci bez reči „krivičn/upravn“
+                                  r"ubist|pritvor|okrivljen|optuz|osumnjic|ekstradic|haps|poresk|uprav\w*\s+(?:organ|akt)|"
+                                  r"resenj\w*\s+(?:organa|uprave|ministarstv)|poslovn\w*\s+sposobnost|hask\w*\s+konvencij")
+# S1-C5 (revizija M1): „koji je sud doneo/zauzeo stav …“ pita za ODLUKU, ne za nadležnost
+_NADLEZNOST_ODLUKA_RE = re.compile(r"\bkoji\s+(?:je\s+)?sud\w*\s+(?:je\s+)?(?:done|zauze|odluci|presud|izrek|reka|utvrd)")
 _ZPP_LAW = "zakon o parnicnom postupku"
 
 
 def je_pitanje_gradjanske_nadleznosti(query: str) -> bool:
     q = _normalizuj(query)
-    return bool(_NADLEZNOST_RE.search(q)) and not _NADLEZNOST_DRUGA_RE.search(q)
+    return (bool(_NADLEZNOST_RE.search(q)) and not _NADLEZNOST_DRUGA_RE.search(q)
+            and not _NADLEZNOST_ODLUKA_RE.search(q))
 
 
 def _clan_nadleznosti_zpp(meta: dict) -> bool:
