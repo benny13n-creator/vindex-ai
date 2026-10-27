@@ -3359,6 +3359,25 @@ def _praksa_clanovi(t: str) -> set:
     return set(re.findall(r"\b(?:cl\.|clan\w*)\s*(\d{1,4}[a-z]?)\b", t))
 
 
+# V4: smer stava. Reči se porede bez negacije („nije“ je stop-reč, „ne“ je kraće od 4 slova), pa je „poslodavac MOŽE da
+# otkaže … za vreme trudnoće“ prolazilo kao podržano sažetkom „poslodavac NE MOŽE …“. Smer pripisanog stava se poredi sa
+# rečenicom sažetka koja mu je najbliža; neslaganje = nepodržano (odluka se uklanja kao i ranije).
+_PRAKSA_NEGACIJA_RE = re.compile(r"\b(?:ne|nije|nisu|nismo|nema|nemaju|nece|niti|nikad|nikada|nijedan|nijedna|nijedno)\b")
+
+
+def _praksa_negirano(t: str) -> bool:
+    return bool(_PRAKSA_NEGACIJA_RE.search(_normalizuj((t or "").lower().translate(_CIR_LAT_N8))))
+
+
+def _praksa_smer_se_slaze(stav: str, sazetak: str) -> bool:
+    tokeni = _praksa_tokeni(stav)
+    recenice = [r for r in re.split(r"(?<=[.;!?])\s+", sazetak or "") if r.strip()]
+    if not tokeni or not recenice:
+        return True
+    najbliza = max(recenice, key=lambda r: len(tokeni & _praksa_tokeni(r)))
+    return _praksa_negirano(stav) == _praksa_negirano(najbliza)
+
+
 def _sazeci_iz_konteksta(praksa_context: str) -> dict:
     """{normalizovan broj odluke: sažetak} iz bloka koji je model dobio (`_format_praksa_context`)."""
     out, broj = {}, None
@@ -3397,6 +3416,10 @@ def _proveri_stavove_prakse(data, praksa_context: str):
         isti_clan = bool(_praksa_clanovi(tekst_tvrdnje) & _praksa_clanovi(sazetak or ""))
         preklop = len(tvrdnja & izvor)
         podrzano = sazetak is not None and bool(tvrdnja) and (preklop / len(tvrdnja) >= 0.5 or (isti_clan and preklop >= 2))
+        # V4: smer se meri na pripisanom stavu (pravni_princip / stav), ne na obrazloženju relevantnosti
+        pripisan = str(st.get("pravni_princip") or st.get("stav") or "")
+        if podrzano and pripisan and not _praksa_smer_se_slaze(pripisan, sazetak):
+            podrzano = False
         (ostaje if podrzano else uklonjeni).append(st)
     if not uklonjeni:
         return data
