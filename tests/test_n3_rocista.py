@@ -296,3 +296,29 @@ def test_odbacen_predlog_bez_vremena_se_ne_vraca_kroz_novi_dokument(lanac):
     dok.append({"id": "d-bv1", "predmet_id": pid, "user_id": "uid-A", "naziv_fajla": "Sa.pdf", "tekst_sadrzaj": f"Rociste se zakazuje za {_sr(dan)} godine u 11:00 casova."})
     p2 = k.get(f"/api/rocista/predlozi?predmet_id={pid}", headers=A).json()["predlozi"]
     assert len(p2) == 1 and p2[0]["vreme"] == "11:00" and [x["naziv"] for x in p2[0]["izvori"]] == ["Sa.pdf"], p2
+
+
+# ── S1-C2 (revizija Sektora 1): vraćanje odloženog ročišta posle zakazanog nastavka ──
+
+def test_s1_vrati_na_zakazano_posle_nastavka_409_bez_dva_aktivna(lanac):
+    from routers.email_notif import _danas_beograd
+    k, b = lanac
+    pid = _predmet(k)
+    d1, d2 = _danas_beograd() + timedelta(days=10), _danas_beograd() + timedelta(days=40)
+    r1 = k.post("/api/rocista", json={"predmet_id": pid, "sud": "Osnovni sud u Beogradu", "datum": d1.isoformat()}, headers=A).json()["rociste"]
+    assert k.patch(f"/api/rocista/{r1['id']}", json={"status": "odlozeno"}, headers=A).status_code == 200
+    assert k.post("/api/rocista", json={"predmet_id": pid, "sud": "Osnovni sud u Beogradu", "datum": d2.isoformat()}, headers=A).status_code == 200
+    r = k.patch(f"/api/rocista/{r1['id']}", json={"status": "zakazano"}, headers=A)
+    assert r.status_code == 409 and d2.isoformat() in r.json()["detail"]
+    akt = [x for x in b.tabele["rocista"] if x["predmet_id"] == pid and (x.get("status") or "zakazano") == "zakazano"]
+    assert [x["datum"] for x in akt] == [d2.isoformat()]
+
+
+def test_s1_vrati_na_zakazano_bez_nastavka_i_dalje_radi(lanac):
+    from routers.email_notif import _danas_beograd
+    k, b = lanac
+    pid = _predmet(k)
+    d1 = _danas_beograd() + timedelta(days=10)
+    r1 = k.post("/api/rocista", json={"predmet_id": pid, "sud": "Osnovni sud u Beogradu", "datum": d1.isoformat()}, headers=A).json()["rociste"]
+    assert k.patch(f"/api/rocista/{r1['id']}", json={"status": "odlozeno"}, headers=A).status_code == 200
+    assert k.patch(f"/api/rocista/{r1['id']}", json={"status": "zakazano"}, headers=A).status_code == 200

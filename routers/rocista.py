@@ -294,6 +294,28 @@ async def izmeni_rociste(
     # before the write so the emitted event reflects what actually changed.
     _materially_changed = bool({"datum", "vreme", "status"} & updates.keys())
 
+    # S1-C2 (revizija Sektora 1): „Vrati na zakazano“ na ODLOŽENOM ročištu posle zakazanog nastavka ostavljalo je dva
+    # aktivna ročišta (Danas, kalendar, nedeljni email). Nastavak = drugo zakazano ročište istog predmeta sa kasnijim datumom.
+    if updates.get("status") == "zakazano":
+        try:
+            _cur = await asyncio.to_thread(lambda: supa.table("rocista").select("id, predmet_id, datum, status")
+                                           .eq("id", rociste_id).eq("user_id", uid).limit(1).execute())
+            _c = (_cur.data or [None])[0]
+            _nastavci = []
+            if _c and (_c.get("status") or "zakazano") == "odlozeno":
+                _sva = await asyncio.to_thread(lambda: supa.table("rocista").select("id, datum, status")
+                                               .eq("user_id", uid).eq("predmet_id", _c.get("predmet_id")).execute())
+                _nastavci = [x for x in (_sva.data or []) if x.get("id") != rociste_id
+                             and (x.get("status") or "zakazano") == "zakazano" and str(x.get("datum") or "") > str(_c.get("datum") or "")]
+        except Exception as exc:
+            logger.error("[ROCISTA] provera nastavka pre vraćanja na zakazano nije uspela id=%s: %s", rociste_id, type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Stanje ročišta trenutno nije moguće proveriti. Ništa nije izmenjeno.")
+        if _nastavci:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Za ovaj predmet je već zakazano kasnije ročište ({_nastavci[0].get('datum')}) — verovatno nastavak "
+                       "odloženog. Da biste vratili ovo ročište, prvo otkažite to ročište. Ništa nije izmenjeno.")
+
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # Final Beta Gate F17 (MEDIUM): optimistic-concurrency guard, same

@@ -135,7 +135,9 @@
       await ucitaj();
       if (!aktuelan(id, korisnik)) return;
       poruka(g.ishodNepoznat || r.ok ? "nepoznato" : "greska",
-        r.status === 409 || g.kod === "CONFLICT" ? "Ročište je izmenjeno u međuvremenu (npr. u drugom prozoru). Ništa nije prepisano — lista je osvežena, proverite stanje."
+        (r.status === 409 || g.kod === "CONFLICT") && novo === "zakazano"
+          ? "Ročište nije vraćeno: predmet već ima zakazano kasnije ročište (verovatno nastavak) ili je ročište izmenjeno u međuvremenu. Lista je osvežena — ako treba, prvo otkažite nastavak."
+          : r.status === 409 || g.kod === "CONFLICT" ? "Ročište je izmenjeno u međuvremenu (npr. u drugom prozoru). Ništa nije prepisano — lista je osvežena, proverite stanje."
           : g.ishodNepoznat || r.ok ? "Ishod nije poznat: stanje je možda promenjeno. Lista je osvežena — proverite pre ponovnog pokušaja."
           : g.kod === "NOT_FOUND" ? "Ročište nije pronađeno. Stanje nije promenjeno." : "Server je odbio izmenu. Stanje ročišta nije promenjeno.");
     }
