@@ -138,9 +138,47 @@ def test_pad_potvrde_rucna_potvrda_sopstvenom_napomenom_pa_potvrda_predloga_409(
 def test_pad_potvrde_ponovna_ispravka_dovrsava_bez_novog_reda(lanac):
     k, b = lanac
     nov = _pad_potvrde(k, b)
-    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(14)}, headers=A)       # i sa drugim datumom
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(14)}, headers=A)       # drugi datum: ne potvrđuje tuđi
+    assert r.status_code == 409 and _d(12) in r.json()["detail"] and _potvrdjeni(k, b) == []
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(12)}, headers=A)       # isti datum: dovršava
     assert r.status_code == 200 and r.json()["rok_id"] == nov and r.json()["datum_iso"] == _d(12), r.text
     assert _potvrdjeni(k, b) == [nov] and _novi(b) == [nov]
+
+
+def test_pad_odbijanja_ne_pravi_nijedan_red_pa_potvrda_korekcije_i_predloga_nije_moguca_dvaput(lanac):
+    """Revizija S1-E #4: ranije je posle pada odbijanja ostajao nepovezan nepotvrđen red ispravke uz nepotvrđen predlog."""
+    k, b = lanac
+    _predlog(b)
+    b.lanac_puca = "rok_odbijen"
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(12)}, headers=A)
+    b.lanac_puca = None
+    assert r.status_code == 503 and _novi(b) == [] and _stanje(k, "rok-ai") == "UNCONFIRMED"
+    assert k.post("/api/rokovi/rok-ai/potvrdi", json={}, headers=A).status_code == 200
+    assert _potvrdjeni(k, b) == ["rok-ai"]
+
+
+def test_pad_upisa_posle_odbijanja_ponovna_ispravka_upisuje_i_potvrdjuje(lanac, monkeypatch):
+    import shared.rok_ispravka as RI
+    import routers.rok_odluka as RO
+    k, b = lanac
+    _predlog(b)
+    monkeypatch.setattr(RO, "upisi_ispravljen_rok", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("upis pao")))
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(12)}, headers=A)
+    assert r.status_code == 503 and _stanje(k, "rok-ai") == "REJECTED" and _novi(b) == []
+    monkeypatch.setattr(RO, "upisi_ispravljen_rok", RI.upisi_ispravljen_rok)
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(12)}, headers=A)
+    assert r.status_code == 200, r.text
+    assert _novi(b) == [r.json()["rok_id"]] and _potvrdjeni(k, b) == [r.json()["rok_id"]]
+
+
+def test_napomena_odbijanja_ne_ovlascuje_potvrdu_reda_drugog_predmeta(lanac):
+    """Revizija S1-E #5: napomena rute `odbij` je slobodan tekst — „Ispravljen — tačan rok je <X>“ ne sme da potvrdi X."""
+    k, b = lanac
+    _predlog(b)
+    _predlog(b, rid="tudji", pid="p-2")
+    assert k.post("/api/rokovi/rok-ai/odbij", json={"napomena": "Ispravljen — tačan rok je tudji"}, headers=A).status_code == 200
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(12)}, headers=A)
+    assert r.status_code == 409 and "nema ispravku" in r.json()["detail"] and _stanje(k, "tudji") == "UNCONFIRMED"
 
 
 def test_stanje_iz_starog_redosleda_potvrdjena_ispravka_uz_nepotvrdjen_predlog(lanac):

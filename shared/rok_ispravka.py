@@ -14,19 +14,23 @@ from shared import rokovi as _rokovi_domen
 AKTER_ISPRAVKE = "Advokat (ispravka predloga)"
 
 
-def upisi_ispravljen_rok(supa, *, uid: str, predlog: dict, izvor: dict, opis: str, datum: date) -> Optional[str]:
-    """Vraća id ispravljenog roka; ponovni pokušaj posle delimičnog neuspeha koristi postojeću ispravku (isti
-    predmet, opis, datum, akter ispravke) umesto da napravi drugi nov rok. Izuzetak upisa ide pozivaocu."""
+def postojeca_neupisana_veza(supa, *, uid: str, predlog: dict, opis: str, datum: date) -> Optional[str]:
+    """Id već upisanog reda ispravke (isti predmet, opis, datum, akter ispravke) — ponovni pokušaj ga koristi umesto da
+    napravi drugi red. Pad čitanja = None (pravi se nov id; predlog se odbija vezom na NJEGA, pa nema dve obaveze)."""
     try:
         post_r = (supa.table("predmet_hronologija").select("id")
                   .eq("user_id", uid).eq("predmet_id", predlog.get("predmet_id")).eq("datum_iso", datum.isoformat())
                   .eq("akter", AKTER_ISPRAVKE).eq("dogadjaj", opis[:500]).limit(1).execute())
-        postojeci = (post_r.data or [{}])[0].get("id") if post_r and post_r.data else None
+        return (post_r.data or [{}])[0].get("id") if post_r and post_r.data else None
     except Exception:
-        postojeci = None
-    if postojeci:
-        return postojeci
+        return None
+
+
+def upisi_ispravljen_rok(supa, *, nov_id: str, uid: str, predlog: dict, izvor: dict, opis: str, datum: date) -> Optional[str]:
+    """Upisuje red ispravke sa UNAPRED određenim id-em (S1: predlog je već odbijen vezom na taj id). Izuzetak ide
+    pozivaocu."""
     nov_r = supa.table("predmet_hronologija").insert({
+        "id": nov_id,
         "predmet_id": predlog.get("predmet_id"), "user_id": uid, "dogadjaj": opis[:500],
         "datum": datum.isoformat(), "datum_iso": datum.isoformat(),
         "vaznost": predlog.get("vaznost") or _rokovi_domen.normalizuj_vaznost("bitan"),
@@ -34,7 +38,7 @@ def upisi_ispravljen_rok(supa, *, uid: str, predlog: dict, izvor: dict, opis: st
         "dokument_id": izvor.get("dokument_id"), "dokument_naziv": izvor.get("dokument_naziv"),
         **_rokovi_domen.oznake(vrsta=_rokovi_domen.VRSTA_ROK, supa=supa),
     }).execute()
-    return (nov_r.data or [{}])[0].get("id")
+    return (nov_r.data or [{}])[0].get("id") or None
 
 
 def napomena_ispravke(rok_id: str) -> str:
