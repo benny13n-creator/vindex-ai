@@ -460,9 +460,13 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                     logger.warning("[EMAIL-CRON] dnevnik slanja nije pročitan uid=%.8s: %s", uid, type(exc).__name__)
                     _vec_rezervisani = set()
 
-                # S2 (Sektor 2): pad čitanja rokova ili lanca potvrda je ranije obarao ceo cron (hronologija) ili
-                # TIHO izbacivao potvrđene rokove uz zelen posao (lanac). Sada je greška, a ročišta istog praga se
-                # i dalje šalju — isto kao obrnut slučaj (S1-C3, pad čitanja ročišta).
+                # S2 (Sektor 2): predmet se rezerviše SAMO ako su pročitani SVI njegovi izvori za ovaj prag. Rezervacija
+                # nema identitet događaja, pa bi delimično poslat predmet zauvek izgubio nepročitan događaj, a ponovno
+                # pokretanje bi bilo zeleno (nezavisna revizija S2-E, F1). Zato:
+                #   - pad čitanja rokova ili ročišta → ceo prag ovog korisnika se preskače BEZ rezervacije (greska);
+                #   - pad lanca potvrda → preskaču se samo predmeti koji imaju kandidat-rok tog datuma.
+                # Ponovno pokretanje istog dana tada šalje sve. Ranije: pad hronologije obarao ceo cron, pad lanca tiho
+                # izbacivao potvrđene rokove uz zelen posao, a pad ročišta (S1-C3) slao rokove i trošio rezervaciju.
                 try:
                     rokovi_r = (
                         supa.table("predmet_hronologija")
@@ -475,31 +479,32 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                         .eq("datum_iso", target_iso)
                         .execute()
                     )
-                    rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in _aktivni_ids]
+                    # N4 (Bojan: „podsetnike za ročišta“): ZAKAZANA ročišta istog dana. Ročište unosi advokat (ili ga
+                    # zakazuje iz predloga) — nije AI predlog, pa ne traži potvrdu; otkazano/odloženo/održano ne šalje.
+                    rocista_r = (supa.table("rocista").select("id, predmet_id, sud, sudnica, datum, vreme, status")
+                                 .eq("user_id", uid).eq("datum", target_iso).execute())
+                except Exception as exc:
+                    logger.error("[EMAIL-CRON] rokovi ili ročišta nisu pročitani, prag preskočen bez rezervacije "
+                                 "uid=%.8s dana_pre=%d: %s", uid, dana_pre, type(exc).__name__)
+                    greske += 1
+                    continue
+                rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in _aktivni_ids]
+                nesigurni: set = set()
+                try:
                     # INV-2 / FAZA 6.4.2: NIJEDAN nepotvrdjen rok ne sme da posalje
                     # email -- ni AI ni rucno unet (poreklo ne ovlascuje). Skup
                     # potvrda se cita za sve redove (NS3-N10: raniji komentar je
                     # tvrdio da se cita samo za AI redove).
                     rokovi = _filtriraj_izvrsive(rokovi, _potvrdjeni_ids([r.get("id") for r in rokovi]))
                 except Exception as exc:
-                    logger.error("[EMAIL-CRON] rokovi ili njihove potvrde nisu pročitani uid=%.8s: %s", uid, type(exc).__name__)
+                    logger.error("[EMAIL-CRON] potvrde rokova nisu pročitane, predmeti sa rokom preskočeni bez "
+                                 "rezervacije uid=%.8s: %s", uid, type(exc).__name__)
                     greske += 1
+                    nesigurni = {r.get("predmet_id") for r in rokovi}
                     rokovi = []
                     nepotpun = True
-                # N4 (Bojan: „podsetnike za ročišta“): ZAKAZANA ročišta istog dana. Ročište unosi advokat (ili ga
-                # zakazuje iz predloga) — nije AI predlog, pa ne traži potvrdu; otkazano/odloženo/održano ne šalje.
-                try:
-                    rocista_r = (supa.table("rocista").select("id, predmet_id, sud, sudnica, datum, vreme, status")
-                                 .eq("user_id", uid).eq("datum", target_iso).execute())
-                except Exception as exc:
-                    # Pad čitanja ročišta ne obara ceo cron za sve korisnike; vidi se kao greška (ne kao „0 poslato“).
-                    # S1-C3 (revizija Sektora 1): ni podsetnike za POTVRĐENE rokove tog korisnika — oni se i dalje šalju.
-                    logger.error("[EMAIL-CRON] ročišta nisu pročitana uid=%.8s: %s", uid, type(exc).__name__)
-                    greske += 1
-                    rocista_r = None
-                    nepotpun = True
-                rocista = [r for r in ((rocista_r.data if rocista_r else None) or []) if r.get("predmet_id") in _aktivni_ids
-                           and (r.get("status") or "zakazano") == "zakazano"]
+                rocista = [r for r in (rocista_r.data or []) if r.get("predmet_id") in _aktivni_ids
+                           and (r.get("status") or "zakazano") == "zakazano" and r.get("predmet_id") not in nesigurni]
                 rokovi = [r for r in rokovi if r.get("predmet_id") not in _vec_rezervisani]
                 rocista = [r for r in rocista if r.get("predmet_id") not in _vec_rezervisani]
                 if not rokovi and not rocista:

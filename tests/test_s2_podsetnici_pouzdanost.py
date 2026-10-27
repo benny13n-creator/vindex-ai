@@ -120,47 +120,68 @@ def test_6b_smtp_pada_posle_rezervacije_neisporuceno_bez_ponavljanja():
 
 # ── 7: delimičan pad izvora ────────────────────────────────────────────────────────────────────────────────────
 
-def test_7a_pad_citanja_rocista_rok_se_salje_greska_vidljiva_email_upozorava():
-    b = _baza([_rok("r1", _dan(1))])
-    _kvar(b, "rocista")
+def test_7a_pad_citanja_rocista_prag_bez_rezervacije_ponovno_slanje_salje_sve():
+    """S2-E F1: ranije (S1-C3) se slao rok i trošila rezervacija — ročište istog predmeta je tada zauvek izostajalo, a
+    ponovno pokretanje bilo zeleno. Sada: ništa se ne rezerviše, greska je vidljiva, ponovno slanje šalje oba."""
+    b = _baza([_rok("r1", _dan(1))], [_roc("h1", _dan(1))])
+    tabela = b.table
+    b.table = lambda ime: (_ for _ in ()).throw(RuntimeError("rocista nedostupna")) if ime == "rocista" else tabela(ime)
     rez, poslati = _na_dan(0, b, potvrdjeni=("r1",))
-    assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0]) and rez["greske"] == 1
-    assert "možda nije potpun" in _telo(poslati[0])
+    assert poslati == [] and rez["greske"] == 1 and b.log == []
+    b.table = tabela
+    _, poslati = _na_dan(0, b, potvrdjeni=("r1",))
+    assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0]) and "Osnovni sud" in _telo(poslati[0])
 
 
-def test_7b_pad_citanja_rokova_ne_obara_cron_rociste_i_drugi_korisnik_dobijaju_email():
-    """S2: ranije je izuzetak iz upita nad hronologijom prekidao ceo cron — nijedan korisnik nije dobio podsetnik."""
+def test_7b_pad_citanja_rokova_ne_obara_cron_drugi_korisnik_dobija_email():
+    """S2: ranije je izuzetak iz upita nad hronologijom prekidao ceo cron — nijedan korisnik nije dobio podsetnik.
+    Pogođen korisnik: prag bez rezervacije (greska), pa ponovno slanje šalje i rok i ročište."""
     b = _baza([_rok("r1", _dan(1))], [_roc("h1", _dan(1))])
     _drugi_korisnik(b, rocista=[_roc("h9", _dan(1))])
-    _kvar(b, "predmet_hronologija")
+    tabela = b.table
+    pozivi = {"n": 0}
+
+    def _table(ime):
+        if ime == "predmet_hronologija":
+            pozivi["n"] += 1
+            if pozivi["n"] == 1:                       # samo prvi korisnik
+                raise RuntimeError("predmet_hronologija nedostupna")
+        return tabela(ime)
+    b.table = _table
     rez, poslati = _na_dan(0, b, potvrdjeni=("r1",))
-    assert sorted(p[0] for p in poslati) == ["drugi@example.invalid", b10.MAIL]
-    assert rez["greske"] == 2 and all("možda nije potpun" in _telo(p) for p in poslati)
+    assert [p[0] for p in poslati] == ["drugi@example.invalid"] and rez["greske"] == 1, rez
+    assert [r["user_id"] for r in b.log] == ["u-2"]
+    _, poslati = _na_dan(0, b, potvrdjeni=("r1",))
+    assert len(poslati) == 1 and poslati[0][0] == b10.MAIL
+    assert "Rok za žalbu" in _telo(poslati[0]) and "Osnovni sud" in _telo(poslati[0])
 
 
-def test_7c_pad_lanca_potvrda_je_greska_a_ne_tiho_nepotvrdjen_rok():
-    """S2: `potvrdjeni_ids` je pri padu vraćao prazan skup → email samo sa ročištem, greske=0, posao zelen."""
+def test_7c_pad_lanca_potvrda_je_greska_predmet_sa_rokom_ceka_ostali_idu():
+    """S2: `potvrdjeni_ids` je pri padu vraćao prazan skup → email samo sa ročištem, greske=0, posao zelen, rok
+    zauvek izgubljen. Sada: predmet sa kandidat-rokom se ne šalje i ne rezerviše; predmet bez roka ide (uz upozorenje);
+    posle oporavka ponovno slanje šalje i rok i ročište prvog predmeta."""
+    import asyncio
     import routers.email_notif as en
     from shared import rok_potvrda
-    b = _baza([_rok("r1", _dan(1))], [_roc("h1", _dan(1))])
+    from shared.rate import limiter
+    from tests.test_g2_podsetnici_raspored import _Dan
+    b = _baza([_rok("r1", _dan(1))], [_roc("h1", _dan(1)), _roc("h2", _dan(1), predmet=P2)])
+    b.tabele["predmeti"].append({"id": P2, "user_id": UID, "status": "aktivan"})
 
     def _lanac_pada(*a, **k):
         raise RuntimeError("audit_immutable nedostupna")
-    with patch.object(rok_potvrda, "procitaj_lanac", _lanac_pada):
-        stvarna = en._potvrdjeni_ids
-        from tests.test_g2_podsetnici_raspored import _Dan
-        from shared.rate import limiter
-        import asyncio
-        limiter.reset()
-        _Dan.pomak = 0
-        poslati = []
-        with patch.object(en, "date", _Dan), patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), \
-             patch.object(en, "_get_supa", return_value=b), \
-             patch.object(en, "_smtp_send", lambda to, s, h: poslati.append((to, s, h))), \
-             patch.object(en, "_potvrdjeni_ids", stvarna):
-            rez = asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
+    stvarna = en._potvrdjeni_ids
+    limiter.reset()
+    _Dan.pomak = 0
+    poslati = []
+    with patch.object(rok_potvrda, "procitaj_lanac", _lanac_pada), patch.object(en, "date", _Dan),          patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), patch.object(en, "_get_supa", return_value=b),          patch.object(en, "_smtp_send", lambda to, s, h: poslati.append((to, s, h))),          patch.object(en, "_potvrdjeni_ids", stvarna):
+        rez = asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
     assert rez["greske"] == 1, rez
     assert len(poslati) == 1 and "Rok za žalbu" not in _telo(poslati[0]) and "možda nije potpun" in _telo(poslati[0])
+    assert [r["predmet_id"] for r in b.log] == [P2]
+    _, poslati = _na_dan(0, b, potvrdjeni=("r1",))                         # lanac ponovo dostupan
+    assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati[0]) and "Osnovni sud" in _telo(poslati[0])
+    assert sorted(r["predmet_id"] for r in b.log) == sorted([P2, PID])
 
 
 def test_7d_lanac_potvrda_procitan_nepotvrdjen_rok_i_dalje_ne_salje_bez_greske():

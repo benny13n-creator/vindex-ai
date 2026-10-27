@@ -103,8 +103,9 @@ def test_svaki_ukljucen_prag_tacno_jednom(pragovi, ocekivano):
     assert emailovi == len(ocekivano)                                      # i poslatih emailova tačno toliko
 
 
-def test_s1_pad_citanja_rocista_ne_gasi_podsetnik_za_potvrdjen_rok():
-    """S1-C3 (revizija Sektora 1): ranije je pad upita nad `rocista` preskakao korisnika, pa i potvrđene rokove."""
+def test_s1_pad_citanja_rocista_ne_trosi_rezervaciju_ponovno_slanje_salje_rok():
+    """S1-C3 → S2-E (F1): ranije je pad upita nad `rocista` slao rok i trošio rezervaciju predmeta; sada se prag tog
+    korisnika preskače bez rezervacije (greska, posao crven), pa ponovno slanje istog dana šalje potvrđen rok."""
     b = _baza([_rok("r1", _dan(1))])
     tabela = b.table
 
@@ -114,5 +115,7 @@ def test_s1_pad_citanja_rocista_ne_gasi_podsetnik_za_potvrdjen_rok():
         return tabela(ime)
     b.table = _table
     rez, poslati = _na_dan(0, b, potvrdjeni=("r1",))
+    assert poslati == [] and rez["greske"] == 1 and b.log == []
+    b.table = tabela
+    _, poslati = _na_dan(0, b, potvrdjeni=("r1",))
     assert len(poslati) == 1 and "Rok za žalbu" in poslati[0][2]
-    assert rez["greske"] == 1
