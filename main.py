@@ -284,6 +284,10 @@ def _cache_get(pitanje: str) -> dict | None:
 
 
 def _cache_set(pitanje: str, rezultat: dict) -> None:
+    if os.getenv("VINDEX_CACHE_BYPASS") == "1":
+        # V1 (2026-10-27): bypass je ranije preskakao samo čitanje, pa je lokalni pokretač sa
+        # VINDEX_CACHE_BYPASS=1 i dalje upisao red u produkcioni ai_cache (L2). Bypass = ni čitanje ni upis.
+        return
     if _sadrzi_privatni_kontekst(pitanje):
         # NIGHT-007: never persist a case-derived answer into the shared,
         # tenant-less ai_cache table. This is the half that matters — nothing

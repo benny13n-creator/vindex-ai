@@ -170,11 +170,13 @@ def test_case_context_questions_are_never_written_to_the_shared_ai_cache():
     assert main._cache_get("[Predmet: Marković | parnica | aktivan]\nPITANJE: y") is None
 
 
-def test_generic_questions_are_still_cached():
+def test_generic_questions_are_still_cached(monkeypatch):
     """No regression: the cache must keep working for genuinely public
     questions, which is its entire purpose."""
     import main
 
+    # several test modules set VINDEX_CACHE_BYPASS=1 at import; this test is about the cache being ON
+    monkeypatch.delenv("VINDEX_CACHE_BYPASS", raising=False)
     written = {}
     with patch.object(main, "_supa_cache_set", side_effect=lambda k, r: written.setdefault(k, r)):
         main._cache_set("Koliki je rok za žalbu u parničnom postupku?",
