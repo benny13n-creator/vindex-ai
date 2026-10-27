@@ -27,6 +27,10 @@ def test_otkazano_ili_odlozeno_rociste_nije_predlog(t):
     ("Glavna rasprava zakazuje se za 12.11.2026. godine.", ["2026-11-12"]),
     ("Odlaže se ročište zakazano za 10.11.2026. i zakazuje se novo ročište za 12.11.2026. godine.", ["2026-11-12"]),
     ("Ročište zakazano za 10.11.2026. se odlaže, a novo ročište zakazuje se za 12.11.2026.", ["2026-11-12"]),
+    # revizija S1 ispravke: nastavak opisan pridevom je NOVO ročište
+    ("Odlaže se ročište i novo ročište zakazano za 12.11.2026. u 10 časova.", ["2026-11-12"]),
+    ("Ročište se odlaže, nastavak zakazan za 12.11.2026. u 9 časova.", ["2026-11-12"]),
+    ("Glavna rasprava se odlaže; sledeće ročište zakazano za 12.11.2026.", ["2026-11-12"]),
 ])
 def test_novo_zakazivanje_i_dalje_daje_predlog(t, ocekivano):
     assert _datumi(t) == ocekivano

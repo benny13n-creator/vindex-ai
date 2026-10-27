@@ -151,14 +151,19 @@ _POMOCNI_PRE = re.compile(r"\b(?:je|su|bi[cć]e|[cć]e|biti|bilo|bio|bila)\s+(?:
 _PRIDEV_ZAKAZAN = re.compile(r"zakazan\w*$", re.IGNORECASE)
 
 
+# „novo / sledeće / naredno ročište zakazano za …“, „nastavak zakazan za …“ — pridev tada opisuje NOVO ročište
+_NOVO_PRE = re.compile(r"\b(?:nov\w*|sledec\w*|sledeć\w*|naredn\w*|nastav\w*)\b[^,;]{0,30}$", re.IGNORECASE)
+
+
 def _opisno_zakazano(recenica: str, z) -> bool:
     g = z.group(0)
     if re.match(r"zakazan", g, re.IGNORECASE):
-        return not _POMOCNI_PRE.search(recenica[:z.start()])
+        pre = recenica[:z.start()]
+        return not _POMOCNI_PRE.search(pre) and not _NOVO_PRE.search(pre)
     if re.match(r"(?:za|na)\b", g, re.IGNORECASE):
         pre = recenica[:z.start()].rstrip()
         m = _PRIDEV_ZAKAZAN.search(pre)
-        return bool(m) and not _POMOCNI_PRE.search(pre[:m.start()])
+        return bool(m) and not _POMOCNI_PRE.search(pre[:m.start()]) and not _NOVO_PRE.search(pre[:m.start()])
     return False
 
 
