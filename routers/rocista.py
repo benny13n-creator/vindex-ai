@@ -307,13 +307,14 @@ async def izmeni_rociste(
                                                .eq("user_id", uid).eq("predmet_id", _c.get("predmet_id")).execute())
 
                 def _nastavak(x) -> bool:
-                    # revizija S1-E: nastavak = zakazano ročište napravljeno POSLE odlaganja (vreme upisa); bez vremenskih
-                    # oznaka — kasniji datum. Nepovezano ročište upisano ranije ne blokira ispravku greške.
+                    # 3. krug revizije: `updated_at` se menja pri svakoj izmeni, a nastavak se može upisati i PRE oznake
+                    # „odloženo“ — zato je nastavak svako zakazano ročište istog predmeta sa KASNIJIM datumom ili upisano
+                    # posle poslednje izmene. Lažno 409 (poruka kaže šta da se uradi) je bezbednije od dva aktivna ročišta.
                     if x.get("id") == rociste_id or (x.get("status") or "zakazano") != "zakazano":
                         return False
-                    if x.get("created_at") and _c.get("updated_at"):
-                        return str(x["created_at"]) >= str(_c["updated_at"])
-                    return bool(_c.get("datum")) and str(x.get("datum") or "") > str(_c.get("datum"))
+                    if _c.get("datum") and str(x.get("datum") or "") > str(_c.get("datum")):
+                        return True
+                    return bool(x.get("created_at") and _c.get("updated_at") and str(x["created_at"]) >= str(_c["updated_at"]))
                 _nastavci = [x for x in (_sva.data or []) if _nastavak(x)]
         except Exception as exc:
             logger.error("[ROCISTA] provera nastavka pre vraćanja na zakazano nije uspela id=%s: %s", rociste_id, type(exc).__name__)
