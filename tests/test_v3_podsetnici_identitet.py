@@ -99,15 +99,8 @@ def test_odlozeno_rociste_sa_novim_datumom_dobija_svoj_podsetnik():
     assert [(r["datum_roka"], r["dana_pre"]) for r in sveza.log] == [(_za_3_dana(), 3)]   # odloženo: bez rezervacije
 
 
-@pytest.mark.xfail(strict=True, reason="V3-L1 (poznato ograničenje): ključ rezervacije nema identitet događaja — "
-                   "događaj koji postane izvršiv posle PRVOG pokretanja istog dana, u predmetu/datumu/pragu za koji je "
-                   "podsetnik već poslat, ne ulazi u drugo pokretanje (uključujući /api/cron/daily + email-cron.yml). "
-                   "Ispravka traži kolonu identiteta u email_notif_log (migracija) — odluka osnivača.")
-def test_V3_L1_dogadjaj_potvrdjen_posle_poslatog_podsetnika_istog_predmeta_i_datuma():
-    b = _baza([_rok("r1", _sutra())], [_roc("h1", _sutra())])
-    assert len(_pokreni(b, potvrdjeni=())[1]) == 1                      # 1. pokretanje: samo ročište
-    _, poslati = _pokreni(b, potvrdjeni=("r1",))                         # rok potvrđen posle → 2. pokretanje
-    assert len(poslati) == 1 and "Rok za žalbu" in _telo(poslati)
+# V3-L1 (drugo slanje istog dana ne dopunjuje već podsetnut predmet/datum/prag) je UGOVOR at-most-once po ključu, ne
+# skrivena greška — dokaz i obrazloženje: tests/test_g2_podsetnici_raspored.py::test_DE_* (G2).
 
 
 # ── stvaran lanac odluka (shared/rok_potvrda + audit_immutable u bazi u memoriji) ───────────────────────────────
