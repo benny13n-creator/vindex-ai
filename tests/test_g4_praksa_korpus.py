@@ -34,7 +34,6 @@ KORPUS = [
     (S_REVIZIJA, "Revizija je dopuštena kada vrednost predmeta spora ne prelazi propisani iznos.", False, "prefiks ne-"),
     (S_REVIZIJA, "Revizija je nedopuštena kada vrednost predmeta spora ne prelazi propisani iznos.", True, "prefiks ne-, podrška"),
     (S_OBJEKTIVNA, "Poslodavac odgovara za štetu koju zaposleni pretrpi na radu po principu objektivne odgovornosti.", True, "ne samo … već"),
-    (S_USKO, "Ugovor o zajmu zaključen usmeno je punovažan.", True, "uži stav, preformulisan"),
     (S_UPRAVNI, "Tužba u upravnom sporu odlaže izvršenje osporenog rešenja.", False, "negacija, drugi red reči"),
     (S_UPRAVNI, "Ugovor o zakupu stana mora biti overen kod javnog beležnika.", False, "nepovezan stav"),
     (S_ZASTARELOST, "Rok zastarelosti potraživanja naknade štete ne teče od dana saznanja za štetu.", False, "negacija podržane grane"),
@@ -45,6 +44,7 @@ KORPUS = [
 GRANICA = [
     (S_SVEDOK, "Sud mora da sasluša svedoka kojeg je stranka blagovremeno predložila.", "dvostruka negacija = podrška, a uklanja se"),
     (S_USKO, "Svaki ugovor zaključen usmeno je punovažan.", "preopšte proširenje"),
+    (S_USKO, "Ugovor o zajmu zaključen usmeno je punovažan.", "izostavljeno „između fizičkih lica“ (šire)"),
     (S_IZDVOJENO, "Tužba je trebalo da bude usvojena.", "izdvojeno mišljenje, ne stav veća"),
 ]
 
@@ -68,7 +68,8 @@ def test_granica_heuristike_je_izmerena():
     """Ako se heuristika promeni, ovaj popis se mora svesno ažurirati (test pada na svaku promenu ishoda)."""
     ishod = {opis: bool(_proveri(s, st)["sudska_praksa"]) for s, st, opis in GRANICA}
     assert ishod == {"dvostruka negacija = podrška, a uklanja se": False,
-                     "preopšte proširenje": True, "izdvojeno mišljenje, ne stav veća": True}
+                     "preopšte proširenje": True, "izdvojeno mišljenje, ne stav veća": True,
+                     "izostavljeno „između fizičkih lica“ (šire)": True}
 
 
 @pytest.mark.parametrize("sazetak,stav", [(s, st) for s, st, o, _ in KORPUS if o] + [(s, st) for s, st, _ in GRANICA])
@@ -80,7 +81,8 @@ def test_zadrzan_stav_nikad_bez_doslovnog_sazetka_i_oznake(sazetak, stav):
         return                                                   # uklonjen — ništa se ne prikazuje kao stav suda
     tekst = main._json_ka_tekst(data, "PARNICA")
     deo = tekst[tekst.index("--- SUDSKA PRAKSA"):]
-    assert f"Iz sažetka odluke (doslovno, baza Vindex): „{sazetak}“" in deo
+    assert "Izvod iz teksta odluke u bazi Vindex (doslovno, skraćeno — izvod ne mora biti stav suda)" in deo
+    assert f"„{sazetak} …“" in deo
     assert "AI sažetak — nije potvrđen kao stav suda" in deo
     assert "   Pravni princip: " not in deo                     # neoznačena AI formulacija se ne prikazuje
     assert "   Primena (AI): Odluka potvrđuje stav." in deo and "   AI: Relevantno." in deo
@@ -96,4 +98,40 @@ def test_mera_korpusa():
     nepodrzani = [(s, st) for s, st, o, _ in KORPUS if not o]
     zadrzano = sum(bool(_proveri(s, st)["sudska_praksa"]) for s, st in podrzani)
     uklonjeno = sum(not _proveri(s, st)["sudska_praksa"] for s, st in nepodrzani)
-    assert (zadrzano, len(podrzani), uklonjeno, len(nepodrzani)) == (6, 6, 8, 8)
+    assert (zadrzano, len(podrzani), uklonjeno, len(nepodrzani)) == (5, 5, 8, 8)
+
+
+# ── revizija G4: stvaran put (`_parsiraj_strukturni_odgovor`), ne samo pomoćne funkcije ──
+
+import json  # noqa: E402
+
+_CTX = ("SUDSKA PRAKSA (relevantne odluke iz baze):\n1. Vrhovni sud, Rev 77/2021, 01.01.2021\n"
+        "   Sažetak: Rok zastarelosti teče od dana saznanja za štetu, a ne od dana nastanka štete.")
+
+
+def _parsiraj(data):
+    ok, txt = main._parsiraj_strukturni_odgovor(json.dumps(data), "PARNICA", ["Član 376 ZOO tekst"], praksa_context=_CTX)
+    assert ok
+    return txt
+
+
+@pytest.mark.parametrize("broj", ["", "Re", None])
+def test_F1_stavka_bez_upotrebljivog_broja_se_uklanja(broj):
+    txt = _parsiraj({"pravni_zakljucak": "Zaključak.", "sudska_praksa": [
+        {"sud": "Vrhovni sud", "broj_odluke": broj, "pravni_princip": "Rok zastarelosti teče od dana nastanka štete."}]})
+    assert "--- SUDSKA PRAKSA" not in txt and "od dana nastanka štete" not in txt
+
+
+def test_F4_navod_zadrzane_odluke_u_drugoj_sekciji_je_oznacen():
+    txt = _parsiraj({"pravni_zakljucak": "Prema stavu Vrhovnog suda u Rev 77/2021, rok teče od nastanka štete.",
+                     "sudska_praksa": [{"sud": "Vrhovni sud", "broj_odluke": "Rev 77/2021",
+                                        "pravni_princip": "Rok zastarelosti teče od dana saznanja za štetu."}]})
+    zak = txt[txt.index("--- PRAVNI ZAKLJUČAK"):txt.index("--- SUDSKA PRAKSA")]
+    assert "Rev 77/2021" in zak and "[AI navod o odluci — merodavan je izvod u odeljku SUDSKA PRAKSA]" in zak
+    assert "„Rok zastarelosti teče od dana saznanja za štetu, a ne od dana nastanka štete. …“" in txt
+
+
+def test_F2_verzija_oblika_je_u_kljucu_kesa(monkeypatch):
+    k1 = main._cache_kljuc("Koliki je rok za žalbu?")
+    monkeypatch.setattr(main, "_CACHE_VERZIJA", "starija")
+    assert main._cache_kljuc("Koliki je rok za žalbu?") != k1

@@ -188,6 +188,7 @@ _CACHE: dict[str, tuple[dict, datetime]] = {}
 _CACHE_TTL     = timedelta(hours=6)
 _CACHE_TTL_DB  = timedelta(days=7)
 _CACHE_MAX     = 500
+_CACHE_VERZIJA = "2026-10-27-g4"
 
 
 # NIGHT-007 (2026-08-09): sentinels that mark a question as carrying PRIVILEGED,
@@ -220,7 +221,9 @@ def _cache_kljuc(pitanje: str) -> str:
     # usedforsecurity=False: MD5 se ovde koristi samo kao cache ključ
     # (dedup/lookup), ne za bezbednosnu svrhu — Bandit B324 false-positive
     # bez ove eksplicitne napomene (CELINA 5, 2026-07-24).
-    return hashlib.md5(_normalizuj_za_cache(pitanje).encode(), usedforsecurity=False).hexdigest()
+    # G4 (revizija F2): verzija oblika odgovora — keširan odgovor starijeg oblika (npr. neoznačena sudska praksa)
+    # se posle izmene oblika ne vraća 7 dana; nov oblik = nova verzija.
+    return hashlib.md5(f"{_CACHE_VERZIJA}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
 def _normalizuj_za_cache(tekst: str) -> str:
@@ -3304,7 +3307,8 @@ def _json_ka_tekst(data: dict, tip: str, potvrda: dict | None = None) -> str:
             izvorni  = (item.get("izvorni_sazetak") or "").strip()
             if izvorni:
                 # G4: stav suda = doslovan sažetak iz baze; formulacija modela je samo AI sažetak (provera je leksička)
-                parts.append(f"   Iz sažetka odluke (doslovno, baza Vindex): „{izvorni}“")
+                parts.append(f"   Izvod iz teksta odluke u bazi Vindex (doslovno, skraćeno — izvod ne mora biti stav suda): "
+                             f"„{izvorni} …“")
             if princip:
                 parts.append(f"   Pravni princip (AI sažetak — nije potvrđen kao stav suda; proverite u odluci): {princip}"
                              if izvorni else f"   Pravni princip: {princip}")
@@ -3459,6 +3463,7 @@ def _proveri_stavove_prakse(data, praksa_context: str):
         # G4: zadržana odluka nosi DOSLOVAN sažetak iz izvora — prikaz ne sme da predstavi AI parafrazu kao stav suda
         (ostaje if podrzano else uklonjeni).append(dict(st, izvorni_sazetak=re.sub(r"\s+", " ", sazetak or "").strip()[:400])
                                                    if podrzano else st)
+    data = _oznaci_navode_zadrzane_prakse(data, ostaje)
     if not uklonjeni:
         return dict(data, sudska_praksa=ostaje)
     logger.warning("[N8_PRAKSA] uklonjeni nepodržani stavovi: %s", [u.get("broj_odluke") for u in uklonjeni][:3])
@@ -3466,6 +3471,34 @@ def _proveri_stavove_prakse(data, praksa_context: str):
     ociscen = _ukloni_neproverenu_praksu(dict(data, sudska_praksa=uklonjeni))
     ociscen["sudska_praksa"] = ostaje
     return ociscen
+
+
+_NAVOD_PRAKSE_OZNAKA = " [AI navod o odluci — merodavan je izvod u odeljku SUDSKA PRAKSA]"
+
+
+def _oznaci_navode_zadrzane_prakse(data, zadrzane):
+    """G4 (revizija F4): rečenica IZVAN odeljka SUDSKA PRAKSA koja navodi zadržanu odluku je tekst modela o odluci —
+    označava se (ne briše), da advokat ne pročita AI tvrdnju o stavu suda kao proverenu."""
+    dns = [_normalizuj(str(st.get("broj_odluke") or "")) for st in zadrzane if isinstance(st, dict)]
+    dns = [d for d in dns if "/" in d and len(d.strip()) >= 5]
+    if not dns or not isinstance(data, dict):
+        return data
+
+    def _cisti(tekst: str) -> str:
+        delovi = re.split(r"(?<=[.!?])\s+", tekst)
+        return " ".join(d + _NAVOD_PRAKSE_OZNAKA if any(x in _normalizuj(d) for x in dns) and _NAVOD_PRAKSE_OZNAKA not in d
+                        else d for d in delovi)
+
+    def _hodaj(obj):
+        if isinstance(obj, str):
+            return _cisti(obj)
+        if isinstance(obj, list):
+            return [_hodaj(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: _hodaj(v) for k, v in obj.items()}
+        return obj
+
+    return {k: (v if k == "sudska_praksa" else _hodaj(v)) for k, v in data.items()}
 
 
 def _ukloni_neproverenu_praksu(data):
@@ -3650,7 +3683,9 @@ def _parsiraj_strukturni_odgovor(
                 "[COMMIT3_PRAKSA] %d praksa citations verified OK [tip=%s]",
                 len(cited_pairs), tip,
             )
-            data = _proveri_stavove_prakse(data, praksa_context)
+        # G4 (revizija F1): i stavke BEZ upotrebljivog broja odluke (prazan / kraći od 3 znaka) — ranije su zaobilazile
+        # proveru i prikazivale se kao „Pravni princip:“ suda; bez broja nema sažetka, pa se uklanjaju.
+        data = _proveri_stavove_prakse(data, praksa_context)
 
     return True, _napomene_nadleznosti(pitanje, _json_ka_tekst(data, tip, potvrda=potvrda))
 
