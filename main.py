@@ -3594,9 +3594,38 @@ def _ukloni_neproverenu_praksu(data):
 
 
 # N8: napomene o izvoru za pitanja o građanskoj nadležnosti (determinističke, ne iz modela).
-_NAPOMENA_STVARNA = ("\n\n--- NAPOMENA O IZVORU\nStvarnu nadležnost sudova (osnovni, viši, privredni sud) uređuje Zakon o uređenju "
-                     "sudova; ZPP na njega upućuje (čl. 27, a za privredne sporove čl. 480). Taj zakon nije u bazi Vindexa, pa zaključak "
-                     "o STVARNOJ nadležnosti nije potvrđen izvorom iz baze — proverite ga u važećem tekstu Zakona o uređenju sudova.")
+# S3 (noćni sprint): Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023, bez kasnijih izmena) — doslovni citati
+# (transliteracija ćiriličnog teksta sa pravno-informacioni-sistem.rs, provereno 27.10.2026; test: test_s3_kz_55a_63_2026).
+# Zakon NIJE u bazi zakona Vindex (Pinecone) — zato se navodi ovde, sa izvorom.
+ZUS_IZVOR = "Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023), proveren tekst sa pravno-informacioni-sistem.rs"
+ZUS_24_2 = ("Osnovni sud u prvom stepenu sudi u građanskopravnom sporu ako za pojedini građanskopravni spor nije nadležan drugi "
+            "sud i vodi izvršni i vanparnični postupak, osim ako zakonom nije drukčije propisano.")
+ZUS_24_3 = ("Osnovni sud u prvom stepenu sudi u stambenom sporu; sporu povodom zasnivanja, postojanja i prestanka radnog odnosa; o "
+            "pravu, obavezi i odgovornosti iz radnog odnosa; o naknadi štete koju zaposleni pretrpi na radu ili u vezi sa radom; "
+            "sporu povodom zadovoljavanja stambenih potreba na osnovu rada.")
+ZUS_25_1_7 = "sudi u građanskopravnom sporu ako vrednost predmeta spora omogućuje izjavljivanje revizije"
+ZUS_27_1_1 = ("u sporu između domaćeg i stranog privrednog društva, preduzeća, zadruga i preduzetnika i njihovih asocijacija "
+              "(privredni subjekti), u sporu koji nastane između privrednog subjekta i drugog pravnog lica u obavljanju delatnosti "
+              "privrednog subjekta, kao i ako je u navedenom sporu jedna od stranaka fizičko lice ako je sa strankom u odnosu "
+              "materijalnog suparničarstva;")
+_NAPOMENA_STVARNA = (
+    "\n\n--- STVARNA NADLEŽNOST (" + ZUS_IZVOR + "; zakon nije u bazi Vindex)\n"
+    "Čl. 24 st. 2: „" + ZUS_24_2 + "“\n"
+    "Čl. 24 st. 3: „" + ZUS_24_3 + "“\n"
+    "Čl. 25 st. 1 tač. 7 (viši sud u prvom stepenu): „" + ZUS_25_1_7 + "“ — revizija nije dozvoljena u imovinskopravnim "
+    "sporovima ako vrednost predmeta spora pobijenog dela ne prelazi dinarsku protivvrednost od 40.000 evra (ZPP čl. 403 st. 3); "
+    "isti član nabraja i druge sporove višeg suda.\n"
+    "Čl. 27 st. 1 tač. 1 (privredni sud u prvom stepenu): „" + ZUS_27_1_1 + "“\n"
+    "Koja odredba važi zavisi od stranaka, vrste spora i vrednosti predmeta spora — proverite ih u konkretnom slučaju.")
+# Konkretan sud: Zakon o sedištima i područjima sudova i javnih tužilaštava (101/2013, 9/2026, 56/2026) — nije u bazi.
+_BEOGRAD_SUD_RE = re.compile(r"beograd\w*|vozdovac|vracar|zvezdar|palilul|rakovic|savski\s+venac|stari\s+grad|cukaric|novi\s+beograd|"
+                             r"zemun|surcin|barajev|grock|kosjeric")
+_NAPOMENA_SEDISTA = (
+    "\n\n--- KONKRETAN SUD (sedište i područje)\nSedišta i područja sudova određuje Zakon o sedištima i područjima sudova i javnih "
+    "tužilaštava (101/2013, 9/2026, 56/2026; nije u bazi Vindex — naziv konkretnog suda proverite). Izmene iz 9/2026 (u Beogradu "
+    "prestaje sa radom dosadašnji Treći osnovni sud i osnivaju se novi Treći i Četvrti osnovni sud; sudska jedinica u Kosjeriću) "
+    "primenjuju se od 1. marta 2027. godine — do tada važi raspored iz 101/2013. Predmete koji do tada nisu okončani pred "
+    "dosadašnjim Trećim osnovnim sudom u Beogradu preuzimaju mesno nadležni sudovi osnovani tim izmenama.")
 
 
 # N8: više tuženih — model je u stvarnom toku (M8, dva solidarna dužnika) ponavljano citirao čl. 39 umesto čl. 42.
@@ -3634,6 +3663,8 @@ def _napomene_nadleznosti(pitanje: str, tekst: str) -> str:
     q = _normalizuj(pitanje)
     if "stvarn" in q or (("privredn" in q or "osnovn" in q or "visi sud" in q) and "mesn" not in q):
         tekst += _NAPOMENA_STVARNA
+    if _BEOGRAD_SUD_RE.search(q) and re.search(r"osnovn\w*\s+sud|konkret\w*\s+sud|koji\s+sud|kom\s+sudu", q):
+        tekst += _NAPOMENA_SEDISTA
     if _VISE_TUZENIH_RE.search(q):
         tekst += _NAPOMENA_VISE_TUZENIH
     _label, _ = ekstrakcija_clana(pitanje)

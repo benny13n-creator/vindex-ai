@@ -109,3 +109,35 @@ def test_pravila_nadleznosti_nose_proveren_zakon_o_uredjenju_sudova_i_vremensku_
 def test_verzija_kljuca_kesa_promenjena_posle_s3():
     import main as M
     assert M._CACHE_VERZIJA == "2026-10-28-s3"
+
+
+ZUS_PIS = {   # doslovno sa pravno-informacioni-sistem.rs (Закон о уређењу судова, 10/2023-25), provereno 27.10.2026
+    "ZUS_24_2": "Основни суд у првом степену суди у грађанскоправном спору ако за поједини грађанскоправни спор није надлежан "
+                "други суд и води извршни и ванпарнични поступак, осим ако законом није друкчије прописано.",
+    "ZUS_24_3": "Основни суд у првом степену суди у стамбеном спору; спору поводом заснивања, постојања и престанка радног односа; о "
+                "праву, обавези и одговорности из радног односа; о накнади штете коју запослени претрпи на раду или у вези са радом; "
+                "спору поводом задовољавања стамбених потреба на основу рада.",
+    "ZUS_25_1_7": "суди у грађанскоправном спору ако вредност предмета спора омогућује изјављивање ревизије",
+    "ZUS_27_1_1": "у спору између домаћег и страног привредног друштва, предузећа, задруга и предузетника и њихових асоцијација "
+                  "(привредни субјекти), у спору који настане између привредног субјекта и другог правног лица у обављању "
+                  "делатности привредног субјекта, као и ако је у наведеном спору једна од странака физичко лице ако је са "
+                  "странком у односу материјалног супарничарства;",
+}
+
+
+@pytest.mark.parametrize("ime", sorted(ZUS_PIS))
+def test_citati_zus_su_doslovna_transliteracija(ime):
+    import main as M
+    assert "".join(_LAT.get(z, z) for z in ZUS_PIS[ime]) == getattr(M, ime)
+
+
+@pytest.mark.parametrize("q,stvarna,sedista", [
+    ("Tužimo fizičko lice sa prebivalištem u Novom Sadu radi vraćanja zajma od 3.000 evra. Koji sud je mesno i stvarno nadležan?", True, False),
+    ("Tužimo fizičko lice sa prebivalištem na Voždovcu u Beogradu radi duga. Koji konkretan osnovni sud u Beogradu je nadležan?", True, True),
+    ("Klijent iz Niša tuži privredno društvo sa sedištem u Kragujevcu. Koji sud je mesno nadležan?", False, False),
+])
+def test_napomene_stvarne_nadleznosti_i_sedista(q, stvarna, sedista):
+    import main as M
+    t = M._napomene_nadleznosti(q, "")
+    assert ("--- STVARNA NADLEŽNOST" in t) is stvarna and ("od 1. marta 2027" in t) is sedista
+    assert "nije potvrđen izvorom iz baze" not in t
