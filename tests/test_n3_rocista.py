@@ -322,3 +322,18 @@ def test_s1_vrati_na_zakazano_bez_nastavka_i_dalje_radi(lanac):
     r1 = k.post("/api/rocista", json={"predmet_id": pid, "sud": "Osnovni sud u Beogradu", "datum": d1.isoformat()}, headers=A).json()["rociste"]
     assert k.patch(f"/api/rocista/{r1['id']}", json={"status": "odlozeno"}, headers=A).status_code == 200
     assert k.patch(f"/api/rocista/{r1['id']}", json={"status": "zakazano"}, headers=A).status_code == 200
+
+
+def test_s1e_vrati_na_zakazano_nepovezano_ranije_rociste_ne_blokira(lanac):
+    """Revizija S1-E: drugo zakazano ročište upisano PRE odlaganja nije nastavak — ispravka greške je dozvoljena."""
+    from routers.email_notif import _danas_beograd
+    k, b = lanac
+    pid = _predmet(k)
+    d1, d2 = _danas_beograd() + timedelta(days=10), _danas_beograd() + timedelta(days=40)
+    r1 = k.post("/api/rocista", json={"predmet_id": pid, "sud": "Osnovni sud u Beogradu", "datum": d1.isoformat()}, headers=A).json()["rociste"]
+    r2 = k.post("/api/rocista", json={"predmet_id": pid, "sud": "Viši sud u Beogradu", "datum": d2.isoformat()}, headers=A).json()["rociste"]
+    for x in b.tabele["rocista"]:                                  # vremena upisa kao u bazi (DEFAULT now())
+        x["created_at"] = "2026-01-01T10:00:00+00:00" if x["id"] == r1["id"] else "2026-01-01T10:05:00+00:00"
+    assert k.patch(f"/api/rocista/{r1['id']}", json={"status": "odlozeno"}, headers=A).status_code == 200
+    r = k.patch(f"/api/rocista/{r1['id']}", json={"status": "zakazano"}, headers=A)
+    assert r.status_code == 200, r.text

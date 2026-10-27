@@ -298,15 +298,23 @@ async def izmeni_rociste(
     # aktivna ročišta (Danas, kalendar, nedeljni email). Nastavak = drugo zakazano ročište istog predmeta sa kasnijim datumom.
     if updates.get("status") == "zakazano":
         try:
-            _cur = await asyncio.to_thread(lambda: supa.table("rocista").select("id, predmet_id, datum, status")
+            _cur = await asyncio.to_thread(lambda: supa.table("rocista").select("id, predmet_id, datum, status, updated_at")
                                            .eq("id", rociste_id).eq("user_id", uid).limit(1).execute())
             _c = (_cur.data or [None])[0]
             _nastavci = []
             if _c and (_c.get("status") or "zakazano") == "odlozeno":
-                _sva = await asyncio.to_thread(lambda: supa.table("rocista").select("id, datum, status")
+                _sva = await asyncio.to_thread(lambda: supa.table("rocista").select("id, datum, status, created_at")
                                                .eq("user_id", uid).eq("predmet_id", _c.get("predmet_id")).execute())
-                _nastavci = [x for x in (_sva.data or []) if x.get("id") != rociste_id
-                             and (x.get("status") or "zakazano") == "zakazano" and str(x.get("datum") or "") > str(_c.get("datum") or "")]
+
+                def _nastavak(x) -> bool:
+                    # revizija S1-E: nastavak = zakazano ročište napravljeno POSLE odlaganja (vreme upisa); bez vremenskih
+                    # oznaka — kasniji datum. Nepovezano ročište upisano ranije ne blokira ispravku greške.
+                    if x.get("id") == rociste_id or (x.get("status") or "zakazano") != "zakazano":
+                        return False
+                    if x.get("created_at") and _c.get("updated_at"):
+                        return str(x["created_at"]) >= str(_c["updated_at"])
+                    return bool(_c.get("datum")) and str(x.get("datum") or "") > str(_c.get("datum"))
+                _nastavci = [x for x in (_sva.data or []) if _nastavak(x)]
         except Exception as exc:
             logger.error("[ROCISTA] provera nastavka pre vraćanja na zakazano nije uspela id=%s: %s", rociste_id, type(exc).__name__)
             raise HTTPException(status_code=503, detail="Stanje ročišta trenutno nije moguće proveriti. Ništa nije izmenjeno.")
