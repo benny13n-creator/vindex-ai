@@ -35,6 +35,9 @@ CITAT_55A = ("Za krivično delo učinjeno sa umišljajem, za koje je propisana k
              "sa umišljajem na zatvor od najmanje jednu godinu; 2) ako od dana otpuštanja učinioca sa izdržavanja izrečene kazne "
              "do izvršenja novog krivičnog dela nije proteklo pet godina.")
 OPSTI_MINIMUM_DANA = 30          # čl. 45 st. 1
+_NAPOMENA_POLOVINA = ("Način računanja: „polovina raspona“ je ovde sredina između propisanog minimuma i maksimuma (minimum + "
+                      "(maksimum − minimum) / 2) — čl. 55a ne navodi formulu, to je tumačenje, a stav sudske prakse o tome nije u bazi. "
+                      "Najniža kazna važi ako se kazna ne ublažava (vidi otvoreno pitanje).")
 OPSTI_MAKSIMUM_MESECI = 20 * 12  # čl. 45 st. 1
 _DANA_U_MESECU = 30              # samo kad raspon sadrži dane — navodi se u rezultatu
 
@@ -496,6 +499,9 @@ def blok(pitanje: str) -> Optional[tuple[str, Rezultat]]:
             dodatak = " (najmanja mera nije propisana — opšti minimum 30 dana, čl. 45 st. 1)" if cinjenice.get("min_iz_opsteg_minimuma") else ""
             redovi.append(f"Ako se uslovi utvrde: kazna bi morala biti veća od {format_trajanje(int(pol), genitiv=True)}, najviše "
                           f"{format_trajanje(cinjenice['propisan_max_dana'])} zatvora{dodatak}.")
+    if any(x.startswith(("Zakonski okvir po čl. 55a", "Ako se uslovi utvrde")) for x in redovi):
+        # V4: zakon kaže samo „iznad polovine raspona propisane kazne“ — način računanja je tumačenje, ne tekst zakona
+        redovi.append(_NAPOMENA_POLOVINA)
     redovi += r.napomene
     redovi.append("Ovo je zakonski okvir, NE predviđanje kazne: konkretnu kaznu u tom okviru odmerava sud prema svim okolnostima (čl. 54).")
     redovi.append("Proverite i da li je neka ranija osuda brisana rehabilitacijom — tada se osuđeni smatra neosuđivanim (čl. 97 st. 1).")

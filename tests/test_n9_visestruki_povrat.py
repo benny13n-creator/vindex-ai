@@ -344,3 +344,17 @@ def test_mutacije_propisan_raspon_ranijih_dela_nije_izrecena_kazna():
 def test_mutacije_godina_uz_osudu_nije_broj_osuda():
     c = iz_pitanja("Okrivljeni je 2015 osuđen na zatvor od dve godine za umišljajno delo, otpušten je pre tri godine, " + NOVO)
     assert c["broj_ranijih_osuda"] is None
+
+
+def test_v4_nacin_racunanja_polovine_je_oznacen_kao_tumacenje():
+    """V4: zakon kaže samo „iznad polovine raspona propisane kazne“; sredina min–max je tumačenje i to se kaže."""
+    tekst, r = V.blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa "
+                      "izdržavanja kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je "
+                      "propisan zatvor od jedne do osam godina. U kom rasponu sud mora da izrekne kaznu?")
+    assert "više od 4 godine i 6 meseci, najviše 8 godina" in tekst and "4 godine i 7 meseci" in tekst
+    assert "to je tumačenje" in tekst and "ne ublažava" in tekst
+    nepoznato, _ = V.blok("Šta je višestruki povrat ako je za delo propisan zatvor od jedne do osam godina?")
+    assert ("Ako se uslovi utvrde" in nepoznato) == ("to je tumačenje" in nepoznato)
+    nije, _ = V.blok("Okrivljeni je dva puta osuđen na zatvor od po tri godine za umišljajna dela, otpušten je pre sedam godina, "
+                     "a sada je učinio umišljajno delo sa propisanim zatvorom od dve do deset godina. Da li se primenjuje član 55a KZ?")
+    assert "to je tumačenje" not in nije        # bez raspona nema ni napomene o računanju
