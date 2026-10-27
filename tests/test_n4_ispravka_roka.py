@@ -88,7 +88,10 @@ def test_delimican_neuspeh_pa_ponovni_pokusaj_ne_pravi_drugi_rok(lanac):
     b.lanac_puca = "rok_potvrdjen"                               # upis novog reda uspe, potvrda ne
     r1 = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": tacan}, headers=A)
     assert r1.status_code == 503
-    assert _stanje(k, "rok-ai") == "UNCONFIRMED"                 # predlog nije izgubljen
+    # S1: predlog se odbija PRE potvrde ispravke — posle pada potvrde predlog je odbijen, ispravka upisana i nepotvrđena,
+    # a NIJEDNA obaveza nije potvrđena (ranije: predlog ostajao nepotvrđen uz mogućnost druge potvrđene obaveze)
+    assert _stanje(k, "rok-ai") == "REJECTED"
+    assert [x for x in b.tabele["predmet_hronologija"] if x["datum_iso"] == tacan and _stanje(k, x["id"]) == "CONFIRMED"] == []
     b.lanac_puca = None
     r2 = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": tacan}, headers=A)
     assert r2.status_code == 200, r2.text

@@ -46,7 +46,8 @@ from pydantic import BaseModel, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
-from shared.rok_ispravka import napomena_ispravke, postojeca_ispravka, upisi_ispravljen_rok
+from shared.rok_ispravka import (ispravka_iz_odbijanja, napomena_ispravke, napomena_odbijanja, postojeca_ispravka,
+                                 upisi_ispravljen_rok)
 from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
     STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_ODBIJEN, STANJE_POTVRDJEN,
@@ -395,6 +396,29 @@ async def odbij(
 _ISPRAVKA_U_TOKU: set = set()
 
 
+async def _dovrsi_ispravku(supa, uid: str, red: dict, rok_id: str):
+    """Predlog odbijen u okviru ispravke: potvrđuje TAČNO onu ispravku čiji je id u napomeni odbijanja (ne pravi nov rok)."""
+    try:
+        nov_id = await asyncio.to_thread(ispravka_iz_odbijanja, rok_id)
+        _st = await asyncio.to_thread(odluke, [nov_id], True) if nov_id else {}
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] dovršavanje ispravke: stanje nije pročitano rok=%s: %s", rok_id, exc)
+        raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+    if not nov_id:
+        raise HTTPException(status_code=409, detail="Ispravlja se samo nepotvrđen predlog; ovaj rok je već potvrđen ili odbijen. Ništa nije zabeleženo.")
+    ispravka = await _rok_u_vlasnistvu(supa, nov_id, uid)
+    stanje = stanje_roka(nov_id, _st)
+    if stanje == STANJE_POTVRDJEN:
+        raise HTTPException(status_code=409, detail=f"Ovaj predlog je već ispravljen — važi ispravljen rok {nov_id}. Ništa nije zabeleženo.")
+    if stanje != STANJE_NEPOTVRDJEN:
+        raise HTTPException(status_code=409, detail="Ispravka ovog predloga je odbijena. Ništa nije zabeleženo.")
+    if not await potvrdi_rok(nov_id, uid, napomena=napomena_ispravke(rok_id)):
+        raise HTTPException(status_code=503, detail="Predlog je odbijen, a ispravljen rok je upisan, ali NIJE potvrđen. Ponovite ispravku — biće dovršena.")
+    await _javi_odluku(uid, red, nov_id, "potvrda")
+    return {"ok": True, "rok_id": nov_id, "ispravljen_rok_id": rok_id, "datum_iso": str(ispravka.get("datum_iso") or "")[:10],
+            "stanje_odluke": STANJE_POTVRDJEN, "stari_odbijen": True}
+
+
 class IspravkaReq(BaseModel):
     datum_iso: str = Field(..., min_length=10, max_length=10)
     dogadjaj:  Optional[str] = Field(default=None, max_length=500)
@@ -433,6 +457,9 @@ async def ispravi(
         except Exception as exc:
             logger.error("[ROK_ODLUKA] stanje pre ispravke nije procitano rok=%s: %s", rok_id, exc)
             raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+        if stanje_roka(rok_id, _pre) == STANJE_ODBIJEN:
+            # S1: predlog je odbijen U OKVIRU ispravke, a potvrda ispravke nije uspela — ponovna ispravka je dovršava.
+            return await _dovrsi_ispravku(supa, uid, red, rok_id)
         if stanje_roka(rok_id, _pre) != STANJE_NEPOTVRDJEN:
             raise HTTPException(status_code=409, detail="Ispravlja se samo nepotvrđen predlog; ovaj rok je već potvrđen ili odbijen. Ništa nije zabeleženo.")
         # G3: već postoji potvrđena ispravka ovog predloga (odbijanje predloga ranije nije uspelo) — nov rok se ne
@@ -466,9 +493,14 @@ async def ispravi(
             nov_id = None
         if not nov_id:
             raise HTTPException(status_code=503, detail="Ispravljen rok nije upisan. Predlog je ostao nepromenjen.")
+        # S1: predlog se ODBIJA PRE potvrde ispravke (napomena odbijanja nosi id ispravke). Delimičan neuspeh tako nikad
+        # ne ostavlja dve potvrđene obaveze: pad odbijanja → ništa nije potvrđeno; pad potvrde → predlog je odbijen, a
+        # ponovna ispravka dovršava potvrdu preko veze iz odbijanja.
+        if not await odbij_rok(rok_id, uid, napomena=napomena_odbijanja(nov_id)):
+            raise HTTPException(status_code=503, detail="Ispravka nije završena: predlog nije odbijen i ispravljen rok nije potvrđen. Ponovite ispravku (isti datum).")
+        odbijen = True
         if not await potvrdi_rok(nov_id, uid, napomena=napomena_ispravke(rok_id)):
-            raise HTTPException(status_code=503, detail="Ispravljen rok je upisan, ali NIJE potvrđen — vidi se kao nov predlog uz stari. Potvrdite ga ručno.")
-        odbijen = await odbij_rok(rok_id, uid, napomena=f"Ispravljen — tačan rok je {nov_id}")
+            raise HTTPException(status_code=503, detail="Predlog je odbijen, a ispravljen rok je upisan, ali NIJE potvrđen. Ponovite ispravku — biće dovršena.")
         await _javi_odluku(uid, red, nov_id, "potvrda")
     finally:
         _ISPRAVKA_U_TOKU.discard(kljuc)

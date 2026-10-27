@@ -57,3 +57,21 @@ def postojeca_ispravka(supa, *, uid: str, predlog: dict, rok_id: str) -> Optiona
         if red.get("action") == AKCIJA_POTVRDA and ((red.get("metadata") or {}).get("napomena") == trazena):
             return str(red.get("resource_id"))
     return None
+
+
+PREFIKS_ODBIJANJA = "Ispravljen — tačan rok je "
+
+
+def napomena_odbijanja(nov_id: str) -> str:
+    """Napomena ODBIJANJA predloga — veza predlog → ispravljen rok, upisana PRE potvrde ispravke (S1)."""
+    return f"{PREFIKS_ODBIJANJA}{nov_id}"
+
+
+def ispravka_iz_odbijanja(rok_id: str) -> Optional[str]:
+    """Id ispravljenog roka iz napomene odbijanja predloga, ili None. Pad čitanja ide pozivaocu (fail-closed)."""
+    from shared.rok_potvrda import AKCIJA_ODBIJANJE, procitaj_lanac
+    for red in procitaj_lanac([rok_id], "action, resource_id, metadata, seq"):
+        napomena = str((red.get("metadata") or {}).get("napomena") or "")
+        if red.get("action") == AKCIJA_ODBIJANJE and napomena.startswith(PREFIKS_ODBIJANJA):
+            return napomena[len(PREFIKS_ODBIJANJA):].strip() or None
+    return None
