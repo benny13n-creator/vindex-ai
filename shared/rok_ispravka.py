@@ -14,18 +14,6 @@ from shared import rokovi as _rokovi_domen
 AKTER_ISPRAVKE = "Advokat (ispravka predloga)"
 
 
-def postojeca_neupisana_veza(supa, *, uid: str, predlog: dict, opis: str, datum: date) -> Optional[str]:
-    """Id već upisanog reda ispravke (isti predmet, opis, datum, akter ispravke) — ponovni pokušaj ga koristi umesto da
-    napravi drugi red. Pad čitanja = None (pravi se nov id; predlog se odbija vezom na NJEGA, pa nema dve obaveze)."""
-    try:
-        post_r = (supa.table("predmet_hronologija").select("id")
-                  .eq("user_id", uid).eq("predmet_id", predlog.get("predmet_id")).eq("datum_iso", datum.isoformat())
-                  .eq("akter", AKTER_ISPRAVKE).eq("dogadjaj", opis[:500]).limit(1).execute())
-        return (post_r.data or [{}])[0].get("id") if post_r and post_r.data else None
-    except Exception:
-        return None
-
-
 def upisi_ispravljen_rok(supa, *, nov_id: str, uid: str, predlog: dict, izvor: dict, opis: str, datum: date) -> Optional[str]:
     """Upisuje red ispravke sa UNAPRED određenim id-em (S1: predlog je već odbijen vezom na taj id). Izuzetak ide
     pozivaocu."""

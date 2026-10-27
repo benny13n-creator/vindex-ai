@@ -48,7 +48,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
 from shared.rok_ispravka import (AKTER_ISPRAVKE, ispravka_iz_odbijanja, napomena_ispravke, napomena_odbijanja,
-                                 postojeca_ispravka, postojeca_neupisana_veza, upisi_ispravljen_rok)
+                                 postojeca_ispravka, upisi_ispravljen_rok)
 from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
     STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_ODBIJEN, STANJE_POTVRDJEN,
@@ -512,20 +512,20 @@ async def ispravi(
         # S1: redosled je ODBIJANJE predloga (napomena nosi UNAPRED određen id ispravke) → upis ispravke sa tim id-em →
         # potvrda ispravke. Pre odbijanja ne postoji nijedan nov red, pa nikad nema dva nepovezana kandidata (ni dve
         # potvrđene obaveze); posle odbijanja ponovna ispravka dovršava TAČNO tu ispravku (upis koji fali / potvrdu).
-        postojeci = await asyncio.to_thread(postojeca_neupisana_veza, supa, uid=uid, predlog=red, opis=opis, datum=novi_datum)
-        nov_id = postojeci or str(uuid.uuid4())
+        # 3. krug revizije: bez ponovne upotrebe „sličnog“ reda — pre odbijanja red ispravke OVOG predloga ne postoji, pa bi
+        # pronađen red pripadao drugom predlogu (ili bio odbijen) → uvek nov id.
+        nov_id = str(uuid.uuid4())
         if not await odbij_rok(rok_id, uid, napomena=napomena_odbijanja(nov_id)):
             raise HTTPException(status_code=503, detail="Ispravka nije zabeležena: predlog nije odbijen. Ništa nije izmenjeno — pokušajte ponovo.")
         odbijen = True
-        if not postojeci:
-            try:
-                upisan = await asyncio.to_thread(upisi_ispravljen_rok, supa, nov_id=nov_id, uid=uid, predlog=red,
-                                                 izvor=izvor, opis=opis, datum=novi_datum)
-            except Exception as exc:
-                logger.error("[ROK_ODLUKA] ispravka: nov rok nije upisan rok=%s: %s", rok_id, exc)
-                upisan = None
-            if not upisan:
-                raise HTTPException(status_code=503, detail="Predlog je odbijen, a ispravljen rok NIJE upisan. Ponovite ispravku — biće dovršena.")
+        try:
+            upisan = await asyncio.to_thread(upisi_ispravljen_rok, supa, nov_id=nov_id, uid=uid, predlog=red,
+                                             izvor=izvor, opis=opis, datum=novi_datum)
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] ispravka: nov rok nije upisan rok=%s: %s", rok_id, exc)
+            upisan = None
+        if not upisan:
+            raise HTTPException(status_code=503, detail="Predlog je odbijen, a ispravljen rok NIJE upisan. Ponovite ispravku — biće dovršena.")
         if not await potvrdi_rok(nov_id, uid, napomena=napomena_ispravke(rok_id)):
             raise HTTPException(status_code=503, detail="Predlog je odbijen, a ispravljen rok je upisan, ali NIJE potvrđen. Ponovite ispravku — biće dovršena.")
         await _javi_odluku(uid, red, nov_id, "potvrda")

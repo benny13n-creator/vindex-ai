@@ -203,3 +203,18 @@ def test_potvrda_predloga_bez_ispravke_i_dalje_radi(lanac):
     _predlog(b)
     assert k.post("/api/rokovi/rok-ai/potvrdi", json={}, headers=A).status_code == 200
     assert _stanje(k, "rok-ai") == "CONFIRMED"
+
+
+def test_3k_odbijen_slican_red_drugog_predloga_se_ne_koristi_ponovo(lanac):
+    """3. krug revizije: ranije je „isti predmet, opis, datum, akter ispravke“ ponovo uzimao i ODBIJEN red drugog
+    predloga — potvrda nije mogla da ga oživi, a ruta je javljala CONFIRMED (nula obaveza)."""
+    from shared.rok_ispravka import AKTER_ISPRAVKE
+    k, b = lanac
+    _predlog(b)
+    b.tabele["predmet_hronologija"].append({"id": "stari-isp", "predmet_id": "p-1", "user_id": "uid-A", "dogadjaj": "Rok za tužbu",
+                                            "datum": _d(12), "datum_iso": _d(12), "vaznost": "važan", "akter": AKTER_ISPRAVKE,
+                                            "izvor": "HUMAN_DIRECT", "vrsta": "rok"})
+    assert k.post("/api/rokovi/stari-isp/odbij", json={}, headers=A).status_code == 200
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(12)}, headers=A)
+    assert r.status_code == 200 and r.json()["rok_id"] != "stari-isp", r.text
+    assert _potvrdjeni(k, b) == [r.json()["rok_id"]]
