@@ -162,7 +162,7 @@ def _smtp_send(to_addr: str, subject: str, html: str) -> None:
                 raise _NijePredato(f"DATA odbijen {kod}")
         except _NijePredato:
             raise
-        except (OSError, smtplib.SMTPException) as exc:
+        except (OSError, smtplib.SMTPException, ValueError) as exc:   # ValueError: npr. ne-ASCII adresa (UnicodeEncodeError)
             raise _NijePredato(f"pre sadržaja: {type(exc).__name__}") from exc
         sadrzaj = re.sub(rb"(?m)^\.", b"..", re.sub(rb"\r\n|\n|\r(?!\n)", b"\r\n", msg.as_bytes()))
         if not sadrzaj.endswith(b"\r\n"):
@@ -462,7 +462,7 @@ def _sada() -> datetime:
 def _podsetnici_pauzirani() -> bool:
     """Operativna pauza (runbook: oporavak bez brisanja istorije): `VINDEX_EMAIL_PODSETNICI_PAUZA=1` → dnevno slanje i
     hitna provera ne šalju ništa; dnevni posao je CRVEN (greska + napomena), da pauza ne izgleda kao „nema rokova“."""
-    return os.getenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "").strip() in ("1", "true", "da")
+    return os.getenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "").strip().lower() in ("1", "true", "da", "yes", "on")
 
 
 
@@ -929,7 +929,7 @@ def proveri_hitne_podsetnike(uid: str) -> dict:
     dnevno slanje → nema duplikata ni u trci. Samo za `uid` pozivaoca (ruta je već proverila vlasništvo)."""
     n = _novi_brojaci()
     if _podsetnici_pauzirani():
-        return n
+        return {**n, "pauzirano": True}
     try:
         supa = _get_supa()
         sada = _sada()
@@ -952,6 +952,72 @@ def proveri_hitne_podsetnike(uid: str) -> dict:
     if any(n[k] for k in ("poslato", "greske", "neisporuceno")):
         logger.info("[EMAIL-HITNO] uid=%.8s %s", uid, n)
     return n
+
+
+_PERIOD_HITNE_S = 600
+
+
+def proveri_hitne_svima() -> dict:
+    """Periodična hitna provera za SVE uključene profile (revizija S2-N F2/F3): ono što trajni okidač ili pozadinski
+    zadatak nisu mogli da pošalju (prolazna greška baze/SMTP-a, restart, pauza koja je u međuvremenu ukinuta) šalje se
+    najkasnije u sledećem krugu — ne tek sledećeg dnevnog slanja. Isti ključevi rezervacije → nema duplikata; sigurno
+    nepredate poruke najviše _MAX_POKUSAJA puta; nepoznat ishod se ne ponavlja (D4)."""
+    n = _novi_brojaci()
+    if _podsetnici_pauzirani():
+        return {**n, "pauzirano": True}
+    try:
+        supa = _get_supa()
+        sada = _sada()
+        sada_bg = _beograd(sada)
+        danas = sada_bg.date()
+        profili = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute().data or []
+        if not profili:
+            return n
+        try:
+            dnevno_proslo = bool(supa.table(_TABELA_POKRETANJA).select("dan").eq("dan", danas.isoformat()).execute().data)
+        except Exception:
+            dnevno_proslo = True
+        emails = {str(p["id"]): p.get("email", "") for p in (supa.table("profiles").select("id, email").execute().data or [])}
+        for profil in profili:
+            _obradi_korisnika(supa, profil, emails.get(profil["user_id"], ""), danas, sada_bg, n,
+                              samo_hitno=True, dnevno_proslo=dnevno_proslo)
+    except Exception as exc:
+        logger.error("[EMAIL-HITNO] periodična provera nije izvršena: %s", type(exc).__name__)
+        n["greske"] += 1
+    if any(n[k] for k in ("poslato", "greske", "neisporuceno")):
+        logger.info("[EMAIL-HITNO] periodično %s", n)
+    return n
+
+
+_petlja_hitnih: Optional[asyncio.Task] = None
+
+
+async def _petlja_hitnih_podsetnika() -> None:
+    while True:
+        await asyncio.sleep(_PERIOD_HITNE_S)
+        try:
+            await asyncio.to_thread(proveri_hitne_svima)
+        except Exception as exc:                       # petlja nikad ne sme da stane
+            logger.error("[EMAIL-HITNO] krug periodične provere pao: %s", type(exc).__name__)
+
+
+def pokreni_petlju_hitnih() -> None:
+    """Startup (api.py). Isključuje se sa VINDEX_PODSETNICI_PETLJA=0 (npr. lokalni alati)."""
+    global _petlja_hitnih
+    if os.getenv("VINDEX_PODSETNICI_PETLJA", "1").strip() == "0" or (_petlja_hitnih and not _petlja_hitnih.done()):
+        return
+    _petlja_hitnih = asyncio.get_running_loop().create_task(_petlja_hitnih_podsetnika())
+
+
+async def zaustavi_petlju_hitnih() -> None:
+    global _petlja_hitnih
+    if _petlja_hitnih and not _petlja_hitnih.done():
+        _petlja_hitnih.cancel()
+        try:
+            await _petlja_hitnih
+        except (asyncio.CancelledError, Exception):
+            pass
+    _petlja_hitnih = None
 
 
 # ─── Weekly Digest ────────────────────────────────────────────────────────────

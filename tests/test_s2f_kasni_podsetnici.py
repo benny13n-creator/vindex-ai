@@ -493,3 +493,50 @@ def test_rev_pad_provere_nepoznatih_ishoda_je_greska_a_slanje_ide():
     b.table = _table
     rez, poslati = _cron(b, _t(DAN, 8), potvrdjeni=("r1",))
     assert rez["greske"] == 1 and len(poslati) == 1, rez
+
+
+# ── revizija S2-N: periodična provera, pauza, redosled posledica ──────────────────────────────────────────────
+
+def _svima(b, sada, potvrdjeni=(), smtp=None):
+    import routers.email_notif as en
+    smtp = smtp or _Smtp()
+    with _okruzenje(b, sada, potvrdjeni, smtp):
+        rez = en.proveri_hitne_svima()
+    return rez, smtp.poslati
+
+
+def test_periodicna_provera_nadoknadjuje_prolazni_smtp_pad_hitne_provere():
+    import routers.email_notif as en
+    b = _baza(pragovi=(1,))
+    _cron(b, _t(DAN, 8))                                                      # dnevno slanje prošlo
+    b.tabele["predmet_hronologija"].append(_rok("r1", _d(0)))
+    rez, _ = _hitno(b, _t(DAN, 10), potvrdjeni=("r1",), smtp=_Smtp(puca=en._NijePredato("prijava")))
+    assert rez["greske"] == 1 and _svrhe(b) == [("r1", "kasni", "neuspeh")]
+    rez, poslati = _svima(b, _t(DAN, 10, 10), potvrdjeni=("r1",))           # sledeći krug (10 min)
+    assert len(poslati) == 1 and _svrhe(b) == [("r1", "kasni", "poslato")]
+    assert _svima(b, _t(DAN, 10, 20), potvrdjeni=("r1",))[1] == []          # bez duplikata
+
+
+def test_periodicna_provera_posle_ukinute_pauze_salje(monkeypatch):
+    b = _baza(rocista=[dict(_roc("h1", _d(0)), vreme="20:00:00")], pragovi=(1,))
+    monkeypatch.setenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "True")             # i velikim slovom
+    assert _hitno(b, _t(DAN, 9))[0].get("pauzirano") is True and b.log == []
+    monkeypatch.delenv("VINDEX_EMAIL_PODSETNICI_PAUZA")
+    _, poslati = _svima(b, _t(DAN, 9, 10))
+    assert len(poslati) == 1
+
+
+@pytest.mark.parametrize("vrednost,pauza", [("1", True), ("true", True), ("True", True), ("YES", True), ("on", True),
+                                            ("da", True), ("0", False), ("", False), ("false", False)])
+def test_vrednosti_pauze(monkeypatch, vrednost, pauza):
+    import routers.email_notif as en
+    monkeypatch.setenv("VINDEX_EMAIL_PODSETNICI_PAUZA", vrednost)
+    assert en._podsetnici_pauzirani() is pauza
+
+
+def test_email_posledica_je_prva_a_akcije_ostaju_poslednje():
+    from services.event_bus import EventType                                # bus prvi (kao u aplikaciji)
+    from services.case_evolution import CONSEQUENCE_REGISTRY
+    for et in (EventType.ROCISTE_ZAKAZANO, EventType.MANUAL_CORRECTION_APPLIED):
+        imena = [c.name for c in CONSEQUENCE_REGISTRY[et]]
+        assert imena[0] == "email_podsetnik_hitno" and imena[-2:] == ["refresh_case_actions", "project_notifications"]

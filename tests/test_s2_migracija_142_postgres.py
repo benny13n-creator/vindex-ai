@@ -187,3 +187,31 @@ def test_odustajanje_bez_zapisa_brise_samo_nove_tabele_i_ponovna_primena_radi(ba
         c.execute(M142)
         _red(c)
         assert c.execute("SELECT count(*) FROM email_podsetnik_dogadjaj").fetchone()[0] == 1
+
+
+def test_odustajanje_ceka_istovremeni_upis_i_tada_odbija(baza):
+    """Revizija S2-N F5: nekomitovan upis rezervacije u toku — blok čeka zaključavanje, vidi komitovan red i odbija."""
+    with psycopg.connect(baza, autocommit=True) as c:
+        c.execute(M142)
+    app = psycopg.connect(baza)
+    ishod = {}
+    try:
+        _red(app)                                                              # aplikacija: nekomitovano
+        def _operater():
+            with psycopg.connect(baza, autocommit=True) as o:
+                try:
+                    o.execute(_odustajanje())
+                    ishod["op"] = "obrisano"
+                except psycopg.errors.RaiseException:
+                    ishod["op"] = "odbijeno"
+        t = threading.Thread(target=_operater)
+        t.start()
+        t.join(1.0)
+        assert t.is_alive(), "blok je morao da čeka zaključavanje"
+        app.commit()
+        t.join(15)
+    finally:
+        app.close()
+    assert ishod["op"] == "odbijeno"
+    with psycopg.connect(baza, autocommit=True) as c:
+        assert c.execute("SELECT count(*) FROM email_podsetnik_dogadjaj").fetchone()[0] == 1

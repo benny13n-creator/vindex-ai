@@ -61,6 +61,7 @@ GRANT SELECT, INSERT ON public.email_podsetnik_pokretanje TO service_role;
 -- (VINDEX_EMAIL_PODSETNICI_PAUZA=1) ili vraćanje koda POSLE dnevnog slanja; tabele i istorija OSTAJU.
 -- [ODUSTAJANJE] SAMO ako 142 nikad nije zabeležila nijedan stvaran podsetnik — blok odbija brisanje čim postoji zapis:
 -- DO $$ BEGIN
+--   LOCK TABLE public.email_podsetnik_dogadjaj, public.email_podsetnik_pokretanje IN ACCESS EXCLUSIVE MODE;
 --   IF EXISTS (SELECT 1 FROM public.email_podsetnik_dogadjaj) OR EXISTS (SELECT 1 FROM public.email_podsetnik_pokretanje) THEN
 --     RAISE EXCEPTION 'email_podsetnik_* ima zapise — ne brisati (istorija slanja); koristiti pauzu/vraćanje koda';
 --   END IF;

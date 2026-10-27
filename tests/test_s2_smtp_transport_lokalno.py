@@ -354,3 +354,15 @@ def test_grupni_email_ishod_vazi_za_sve_stavke_i_pad_zapisa_ne_razdvaja(cert):
     assert rez["poslato"] == 1 and sorted(r["stanje"] for r in b.log) == ["poslato", "poslato"]
     assert rez2["poslato"] == 1 and rez2["greske"] == 1 and sorted(r["stanje"] for r in b2.log) == ["rezervisano"] * 2
     assert rez3["poslato"] == 0 and len(s.primljeno) == 2
+
+
+def test_ne_ascii_primalac_nije_predato(cert):
+    s = LokalniSmtp(*cert)
+    b = _baza([_rok("r1", _dan(1))])
+    b.tabele["profiles"][0]["email"] = "advokat@primer-čćž.invalid"
+    try:
+        rez = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez["greske"] == 1 and rez["neisporuceno"] == 0 and s.primljeno == []
+    assert [r["stanje"] for r in b.log] == ["neuspeh"]

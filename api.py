@@ -873,6 +873,9 @@ async def _start_smart_intake_background_loops():
         from services.event_bus import start_dispatch_loop
         start_worker()
         start_dispatch_loop()
+        # Sektor 2 (D2/D4): periodična hitna provera email podsetnika (oporavak prolaznih grešaka i restarta).
+        from routers.email_notif import pokreni_petlju_hitnih
+        pokreni_petlju_hitnih()
     except Exception as exc:
         logger.error("[STARTUP] Smart Intake pozadinske petlje nisu pokrenute (nije fatalno za ostatak app-a): %s", exc)
 
@@ -886,6 +889,8 @@ async def _stop_smart_intake_background_loops():
         from services.event_bus import stop_dispatch_loop
         await stop_worker()
         await stop_dispatch_loop()
+        from routers.email_notif import zaustavi_petlju_hitnih
+        await zaustavi_petlju_hitnih()
     except Exception as exc:
         logger.warning("[SHUTDOWN] Smart Intake pozadinske petlje nisu čisto zaustavljene: %s", exc)
 
