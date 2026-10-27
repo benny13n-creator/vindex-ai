@@ -3474,6 +3474,43 @@ def _proveri_stavove_prakse(data, praksa_context: str):
     return ociscen
 
 
+# S1-C5 (revizija H4): „Rev. 5/2020“, „str. 3“, „čl. 187“ — deljenje rečenica posle tačke je presecalo navod odluke, a
+# tačno poređenje teksta nije prepoznavalo „Rev. 5/2020“ kao „Rev 5/2020“. Rečenica se ne prekida posle poznate skraćenice
+# ni ispred cifre; broj odluke se traži obrascem (delovi broja uz tačku/razmak/crtu između, granice sa obe strane).
+_PRAKSA_SKRACENICE = {"rev", "gz", "gz1", "kzz", "kz", "kz1", "kz2", "uz", "iuz", "iu", "uzp", "pzz", "prev", "pz",
+                      "str", "br", "cl", "st", "tac", "tacka", "sl", "gl", "dr", "npr", "tj", "itd", "god", "ul", "kp"}
+
+
+def _recenice_sa_razmacima(tekst: str) -> list:
+    """[rečenica, razmak, rečenica, …] — kao `re.split(r"((?<=[.!?])\\s+)")`, ali bez prekida posle skraćenice ili ispred
+    cifre (spojeni delovi zadržavaju originalni razmak)."""
+    delovi = re.split(r"((?<=[.!?])\s+)", tekst or "")
+    out = [delovi[0]] if delovi else [""]
+    for i in range(1, len(delovi) - 1, 2):
+        razmak, dalje = delovi[i], delovi[i + 1]
+        poslednja = re.search(r"([^\W\d_]+)\.$", out[-1])
+        if (poslednja and _normalizuj(poslednja.group(1).translate(_CIR_LAT_N8)) in _PRAKSA_SKRACENICE) or re.match(r"\d", dalje):
+            out[-1] = out[-1] + razmak + dalje
+        else:
+            out += [razmak, dalje]
+    return out
+
+
+def _obrazac_odluke(broj: str):
+    """Obrazac za broj odluke u normalizovanom tekstu: „Rev 5/2020“ hvata i „Rev. 5/2020“, „rev-5 / 2020“, ćirilicu;
+    ne hvata „Prev 5/2020“ ni „Rev 5/20201“. None za broj bez oblika odluke."""
+    n = _normalizuj((broj or "").lower().translate(_CIR_LAT_N8))
+    delovi = re.findall(r"[a-z]+|\d+|/", n)
+    if "/" not in delovi or len("".join(delovi)) < 4:
+        return None
+    return re.compile(r"(?<![a-z0-9])" + r"[\s.\-]{0,3}".join(re.escape(d) for d in delovi) + r"(?![0-9/])")
+
+
+def _sadrzi_odluku(tekst: str, obrasci) -> bool:
+    t = _normalizuj((tekst or "").lower().translate(_CIR_LAT_N8))
+    return any(o.search(t) for o in obrasci)
+
+
 # Oznaka namerno NE sadrži „sudska praksa“ ni naziv suda sa brojem (`_PRAKSA_RECENICA_RE`) — inače bi je čišćenje uklonilo.
 _NAVOD_PRAKSE_OZNAKA = " [AI navod o ovoj odluci — nije potvrđen kao stav suda]"
 
@@ -3483,19 +3520,18 @@ def _oznaci_navode_zadrzane_prakse(data, zadrzane):
     označava se (ne briše), da advokat ne pročita AI tvrdnju o stavu suda kao proverenu. Menja se samo rečenica sa
     navodom (razmaci i prelomi redova ostaju), broj odluke se poklapa kao cela oznaka, oznaka ide ispred završne
     interpunkcije (ponovni prolaz je ne dodaje opet)."""
-    dns = [_normalizuj(str(st.get("broj_odluke") or "")).strip() for st in zadrzane if isinstance(st, dict)]
-    obrasci = [re.compile(r"(?<![a-z0-9])" + re.escape(d) + r"(?![0-9/])") for d in dns if "/" in d and len(d) >= 5]
+    obrasci = [o for o in (_obrazac_odluke(str(st.get("broj_odluke") or "")) for st in zadrzane if isinstance(st, dict)) if o]
     if not obrasci or not isinstance(data, dict):
         return data
 
     def _recenica(d: str) -> str:
-        if not d.strip() or _NAVOD_PRAKSE_OZNAKA in d or not any(o.search(_normalizuj(d)) for o in obrasci):
+        if not d.strip() or _NAVOD_PRAKSE_OZNAKA in d or not _sadrzi_odluku(d, obrasci):
             return d
         m = re.search(r"[.!?]*$", d)
         return d[:m.start()] + _NAVOD_PRAKSE_OZNAKA + d[m.start():]
 
     def _cisti(tekst: str) -> str:
-        return "".join(_recenica(d) if i % 2 == 0 else d for i, d in enumerate(re.split(r"((?<=[.!?])\s+)", tekst)))
+        return "".join(_recenica(d) if i % 2 == 0 else d for i, d in enumerate(_recenice_sa_razmacima(tekst)))
 
     def _hodaj(obj):
         if isinstance(obj, str):
@@ -3512,11 +3548,11 @@ def _oznaci_navode_zadrzane_prakse(data, zadrzane):
 def _ukloni_neproverenu_praksu(data):
     dns = [dn for _, dn in _extract_praksa_citations(data)] if isinstance(data, dict) else []
     # revizija N8 F9: goli broj („154“) bi brisao „Prema čl. 154 ZOO…“ — briše se samo broj u obliku odluke
-    dns_norm = [_normalizuj(dn) for dn in dns if dn and "/" in dn and len(dn.strip()) >= 5]
+    obrasci = [o for o in (_obrazac_odluke(dn) for dn in dns if dn and "/" in dn and len(dn.strip()) >= 5) if o]
 
     def _cisti(tekst: str) -> str:
-        delovi = re.split(r"(?<=[.!?])\s+", tekst)
-        ostaje = [d for d in delovi if not (_PRAKSA_RECENICA_RE.search(d) or any(x and x in _normalizuj(d) for x in dns_norm))]
+        delovi = _recenice_sa_razmacima(tekst)[0::2]                          # S1-C5: bez prekida posle „Rev.“, „str.“
+        ostaje = [d for d in delovi if not (_PRAKSA_RECENICA_RE.search(d) or _sadrzi_odluku(d, obrasci))]
         return " ".join(ostaje).strip()
 
     def _hodaj(obj):

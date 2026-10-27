@@ -177,3 +177,40 @@ def test_deo_broja_druge_odluke_se_ne_oznacava_i_ponovni_prolaz_ne_dodaje():
     jednom = main._oznaci_navode_zadrzane_prakse(data, zadrzane)
     assert jednom["a"] == "Prema Prev 7/2021 važi X. Prema Rev 7/20211 važi Y. Prema Rev 7/2021 važi Z " + _OZN + "."
     assert main._oznaci_navode_zadrzane_prakse(jednom, zadrzane) == jednom
+
+
+# ── S1-C5 (revizija H4): skraćenice („Rev.“, „str.“) i broj odluke sa tačkom ──
+
+def _h4_ctx():
+    return main._format_praksa_context([{"court": "Vrhovni kasacioni sud", "decision_number": "Rev 5/2020", "date": "2020",
+                                         "text": "Poslodavac ne može da otkaže ugovor o radu zaposlenoj za vreme trudnoće, osim u "
+                                                 "slučajevima propisanim članom 187 Zakona o radu."}])
+
+
+_H4_PROZA = ("Vrhovni kasacioni sud je u odluci Rev. 5/2020 zauzeo stav da zaposlena ima pravo na dvostruku naknadu štete. "
+             "Prema stavu VKS (Rev 5/2020, str. 3) otkaz je ništav i bez tužbe. Tužbu treba podneti u roku.")
+
+
+def test_H4_zadrzana_odluka_navod_sa_tackom_i_skracenicom_oznacen_bez_lomljenja():
+    st = {"sud": "Vrhovni kasacioni sud", "broj_odluke": "Rev 5/2020", "sazetak_relevantnosti": "x",
+          "pravni_princip": "Poslodavac ne može da otkaže ugovor o radu zaposlenoj za vreme trudnoće, član 187 Zakona o radu."}
+    out = main._proveri_stavove_prakse({"pravni_zakljucak": _H4_PROZA, "sudska_praksa": [st]}, _h4_ctx())
+    z = out["pravni_zakljucak"]
+    assert out["sudska_praksa"] and z.count(_OZN) == 2, z
+    assert "u odluci Rev. 5/2020 zauzeo stav da zaposlena ima pravo na dvostruku naknadu štete " + _OZN + "." in z
+    assert "(Rev 5/2020, str. 3) otkaz je ništav i bez tužbe " + _OZN + "." in z
+    assert z.endswith("Tužbu treba podneti u roku.")
+
+
+def test_H4_uklonjena_odluka_navod_sa_tackom_i_skracenicom_uklonjen_ceo():
+    st = {"sud": "Vrhovni kasacioni sud", "broj_odluke": "Rev 5/2020", "sazetak_relevantnosti": "x",
+          "pravni_princip": "Otkaz zaposlenoj za vreme trudnoće je dopušten ako poslodavac prestane da postoji."}
+    out = main._proveri_stavove_prakse({"pravni_zakljucak": _H4_PROZA, "sudska_praksa": [st]}, _h4_ctx())
+    assert out["sudska_praksa"] == [] and out["pravni_zakljucak"] == "Tužbu treba podneti u roku."
+
+
+def test_H4_obrazac_broja():
+    o = main._obrazac_odluke("Rev 5/2020")
+    assert main._sadrzi_odluku("u odluci Rev. 5/2020", [o]) and main._sadrzi_odluku("Рев 5/2020", [o])
+    assert not main._sadrzi_odluku("Prev 5/2020", [o]) and not main._sadrzi_odluku("Rev 5/20201", [o])
+    assert main._obrazac_odluke("154") is None
