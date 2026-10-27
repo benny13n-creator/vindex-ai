@@ -15,6 +15,7 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 os.environ["VINDEX_CACHE_BYPASS"] = "1"
 # G1: pokretač nikad ne pristupa bazi (ni ai_cache ni security_events) — samo OpenAI + Pinecone
 os.environ["VINDEX_BEZ_BAZE"] = "1"
+os.environ["SENTRY_DSN"] = ""   # G1: ni Sentry (api.py ga uključuje pri uvozu) iz lokalnog pokretača
 
 import main as _m
 ask_agent = _m.ask_agent

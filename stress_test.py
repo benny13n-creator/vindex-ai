@@ -5,6 +5,9 @@ Pokretanje: PYTHONIOENCODING=utf-8 C:/Python311/python.exe stress_test.py
 """
 import sys
 import os
+# G1: pokretač nikad ne pristupa bazi (ni ai_cache ni security_events) — samo OpenAI + Pinecone
+os.environ["VINDEX_BEZ_BAZE"] = "1"
+os.environ["SENTRY_DSN"] = ""   # G1: ni Sentry (api.py ga uključuje pri uvozu) iz lokalnog pokretača
 sys.path.insert(0, os.path.dirname(__file__))
 
 from main import ask_agent

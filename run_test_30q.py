@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 # G1: pokretač nikad ne pristupa bazi (ni ai_cache ni security_events) — samo OpenAI + Pinecone
 os.environ["VINDEX_BEZ_BAZE"] = "1"
+os.environ["SENTRY_DSN"] = ""   # G1: ni Sentry (api.py ga uključuje pri uvozu) iz lokalnog pokretača
 
 # ─── CLI args ─────────────────────────────────────────────────────────────────
 _parser = argparse.ArgumentParser(add_help=False)

@@ -79,13 +79,16 @@ def test_samo_tacno_1_zatvara(monkeypatch):
     assert deps._get_supa() is s
 
 
-@pytest.mark.parametrize("skripta", ["run_test_30q.py", "run_test_100q.py", "scripts/test_c7a_e2e.py"])
-def test_pokretaci_postavljaju_zastavicu_posle_env_a_pre_ask_agent(skripta):
-    """Zastavica se postavlja izričito (`os.environ[...] = "1"`) POSLE učitavanja `.env` — vrednost iz `.env` je ne
-    može pregaziti — i PRE uvoza `main`/`ask_agent`."""
+@pytest.mark.parametrize("skripta", ["run_test_30q.py", "run_test_100q.py", "scripts/test_c7a_e2e.py", "stress_test.py",
+                                     "debug_rag.py", "verify_subquery_fix.py"])
+def test_pokretaci_postavljaju_zastavicu_posle_env_a_pre_uvoza_toka(skripta):
+    """Zastavica (i prazan SENTRY_DSN) se postavlja izričito POSLE učitavanja `.env` — `load_dotenv` bez override-a ih
+    ne može pregaziti — i PRE uvoza `main` / `api` / `app.services.retrieve`."""
     s = (KOREN / skripta).read_text(encoding="utf-8")
-    env = s.index("load_dotenv(")
     zastavica = s.index('os.environ["VINDEX_BEZ_BAZE"] = "1"')
-    uvoz = min(m.start() for m in re.finditer(r"^(?:from main import|import main)", s, re.M))
-    assert env < zastavica < uvoz
+    assert s.index('os.environ["SENTRY_DSN"] = ""') > zastavica
+    if "load_dotenv(" in s:
+        assert s.index("load_dotenv(") < zastavica
+    uvoz = min(m.start() for m in re.finditer(r"^\s*(?:from main import|import main|import api|from app\.services\.retrieve import)", s, re.M))
+    assert zastavica < uvoz
     assert "override=True" not in s
