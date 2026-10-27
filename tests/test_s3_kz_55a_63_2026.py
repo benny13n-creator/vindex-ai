@@ -141,3 +141,16 @@ def test_napomene_stvarne_nadleznosti_i_sedista(q, stvarna, sedista):
     t = M._napomene_nadleznosti(q, "")
     assert ("--- STVARNA NADLEŽNOST" in t) is stvarna and ("od 1. marta 2027" in t) is sedista
     assert "nije potvrđen izvorom iz baze" not in t
+
+
+def test_stari_tekst_55a_iz_baze_se_oznacava_u_odgovoru():
+    import main as M
+    q = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, otpušten je pre tri "
+         "godine, a sada je sa umišljajem izvršio krađu za koju je propisan zatvor od jedne do osam godina. Raspon?")
+    ai = ("--- CITAT ZAKONA [RAG]\n\"Krivični zakonik, član 55a: Za krivično delo učinjeno sa umišljajem, za koje je propisana kazna "
+          "zatvora, sud će izreći kaznu iznad polovine raspona propisane kazne, pod sledećim uslovima: 1) ako je učinilac ranije "
+          "dva puta osuđen za krivična dela učinjena sa umišljajem na zatvor od najmanje jednu godinu\"")
+    v = M._dodaj_proracun_povrata(q, {"status": "success", "data": ai})
+    assert v["data"].count("[TEKST ČL. 55a PRE IZMENE 63/2026") == 2
+    blok = v["data"].split("\n\n--- CITAT ZAKONA")[0]
+    assert "PRE IZMENE" not in blok and "polazeći od najmanje mere te kazne" in blok    # važeći tekst u proračunu

@@ -4109,6 +4109,13 @@ def _tvrdnje_o_primeni(tekst: str) -> set:
     return out
 
 
+# Tekst čl. 55a PRE izmene 63/2026: „iznad polovine raspona propisane kazne, pod sledećim uslovima“ (bez „polazeći od
+# najmanje mere te kazne“) i ranije osude „za krivična dela učinjena sa umišljajem“ (bez „ista ili istovrsna“).
+_STARI_55A_RE = re.compile(r"iznad\s+polovine\s+raspona\s+propisane\s+kazne,?\s+pod\s+sledećim\s+uslovima"
+                           r"|osuđen\s+za\s+krivična\s+dela\s+učinjena\s+sa\s+umišljajem", re.I)
+_OZNAKA_STARI_55A = "[TEKST ČL. 55a PRE IZMENE 63/2026 — za dela izvršena od 18.07.2026 važi tekst iz PRORAČUNA] "
+
+
 def _dodaj_proracun_povrata(pitanje: str, rezultat: dict) -> dict:
     """N9: izmereno je da model tvrdi „uslovi iz čl. 55a su ispunjeni“ i kad ranija kazna traje šest meseci ili je od
     otpusta prošlo sedam godina, a da pitanje sa činjenicama blokira bez ikakvog odgovora. Uslove i raspon računa
@@ -4126,6 +4133,8 @@ def _dodaj_proracun_povrata(pitanje: str, rezultat: dict) -> dict:
         return rezultat
     tekst_bloka, r = b
     odgovor = rezultat["data"]
+    # S3 (63/2026): baza zakona još ima tekst čl. 55a pre izmene — svaki njegov navod u AI delu se označava (ne briše).
+    odgovor = _STARI_55A_RE.sub(lambda m: _OZNAKA_STARI_55A + m.group(0), odgovor)
     sa_cinjenicama = "Uslovi prema činjenicama iz pitanja:" in tekst_bloka
     if sa_cinjenicama:
         zakljucak = {DA: "Uslovi iz čl. 55a KZ su ispunjeni — vidi PRORAČUN (računa sistem).",
