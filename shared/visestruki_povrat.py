@@ -299,7 +299,9 @@ def _broj_osuda(q: str):
 
 
 # S1: posebne vrste ranije osude — da li se računaju za čl. 55a nije rešeno izvorom u bazi
-_POSEBNA_OSUDA = r"brisan\w*|maloletn\w*|rad\w*\s+u\s+javnom\s+interesu|zamenjen\w*"   # samo u segmentu ranijih osuda
+# bilo gde u pitanju, ali samo jednoznačni izrazi (ne „izvod iz kaznene evidencije“, ne „na štetu maloletnog lica“)
+_POSEBNA_OSUDA = (r"brisan\w*|maloletnick\w*\s+zatvor\w*|kao\s+maloletn\w*|vaspitn\w*\s+mer\w*|rad\w*\s+u\s+javnom\s+interesu|"
+                  r"zamenjen\w*")
 _GLAGOL_DELA = r"(?:izvrs|ucin)\w*"
 _GODINA = r"(?<![/\d.])\b(?:19|20)\d{2}\b(?!\s*/)"        # godina, ali ne „94/2016“ (broj Službenog glasnika) ni deo datuma
 
@@ -370,17 +372,25 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     if broj is not None and not druga_osoba:
         out["broj_ranijih_osuda"] = broj
         seg = re.sub(_RASPON + "|" + _SAMO_DO, " ", ranije)                   # propisani rasponi ranijih dela nisu kazne
-        # S1: krivica ranijih dela iz SEGMENTA ranijih osuda — od rečenice osude do sidra novog dela (rečenica o novom delu
-        # ispred osude ne pripada ranijim osudama; „Jedno od tih dela je bilo iz nehata.“ posle osude pripada) — i PRE
-        # uklanjanja zagrada („(drugo delo je bilo iz nehata)“). Bez sidra: samo rečenica osude.
+        # S1 (3. krug revizije): krivica ranijih dela SAMO iz rečenice osude (pre uklanjanja zagrada, do sidra novog dela).
+        # Bilo koja DRUGA oznaka krivice van te rečenice i van dela o novom delu („Jedno od tih dela je bilo iz nehata.“,
+        # „Krađu je izvršio sa umišljajem.“ bez sidra) — ako se ne slaže, ili ako rečenica osude krivicu ne kaže — NEPOZNATO.
         _p = m_osude.start() if m_osude else 0
         _poc = max(max(q.rfind(x, 0, _p) for x in (". ", "; ", "? ", "! ")) + 2, 0)
-        if granica is not None and granica > _p:
-            _kraj = granica
-        else:
-            _kraj = min([i for i in (q.find(x, _p) for x in (". ", "; ", "? ", "! ")) if i >= 0] or [len(q)])
-        seg_osude = re.sub(_RASPON + "|" + _SAMO_DO, " ", q[_poc:_kraj])
-        kriv = _krivica(seg_osude)
+        _kraj = min([i for i in (q.find(x, _p) for x in (". ", "; ", "? ", "! ")) if i >= 0]
+                    + ([granica] if granica is not None and granica > _p else []) or [len(q)])
+        kriv = _krivica(re.sub(_RASPON + "|" + _SAMO_DO, " ", q[_poc:_kraj]))
+        _ostalo = q[:_poc] + " " + (q[_kraj:granica] if granica is not None and granica > _kraj else
+                                    ("" if granica is not None else q[_kraj:]))
+        _sa_krivicom = [s for s in re.split(r"[.;?!](?:\s|$)", _ostalo) if re.search(r"umisljaj\w*|nehat\w*", s)]
+        _o_ranijim = [s for s in _sa_krivicom if re.search(r"\b(?:oba|obe|ranij\w*|tih|tim|te\s+osud\w*|prethodn\w*|osudj\w*)\b", s)]
+        _drugo = [s for s in _sa_krivicom if s not in _o_ranijim]
+        _k_ranije = _krivica(" ".join(_o_ranijim)) if _o_ranijim else None
+        if kriv is None:
+            # „Oba dela su učinjena sa umišljajem.“ — samo rečenica koja IZRIČITO govori o ranijim delima, i nijedna druga
+            kriv = _k_ranije if (_o_ranijim and not _drugo) else None
+        elif (_o_ranijim and _k_ranije != kriv) or any(_krivica(s) != kriv for s in _drugo):
+            kriv = None
         seg = re.sub(r"\([^)]*\)", " ", seg)
         po = re.search(r"zatvor\w*\s+od\s+po\s+(" + _DUR + ")", seg)
         par = re.search(r"zatvor\w*\s+od\s+(\w+)\s+i\s+(\w+)\s+(" + _JED_TXT + ")", seg)
@@ -395,7 +405,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
             trajanja = [_dur_dana(x) for x in pojedinacno]
         if uslovno:
             trajanja = None
-        if re.search(_POSEBNA_OSUDA, seg_osude):
+        if re.search(_POSEBNA_OSUDA, q):
             kriv, trajanja = None, None
             napomene.append("Pitanje pominje brisanu osudu, maloletnički zatvor ili zamenu kazne — da li se takva osuda računa "
                             "za čl. 55a nije rešeno izvorom u bazi; uslov o ranijim osudama ostaje nepoznat.")
@@ -431,7 +441,8 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
                   or re.search(r"\bpre\s+(vise\s+od\s+)?(" + _DUR + r")\s+(?:je\s+)?(?:bio\s+)?otpust", q))
             # bez sidra novog dela — tekst posle rečenice o otpustu („Prošle godine je izvršio …“)
             _posle = q[q.find(recenica_otpusta) + len(recenica_otpusta):] if recenica_otpusta else ""
-            if mp and _dur_dana(mp.group(2)) is not None and not _novo_delo_ima_svoje_vreme(novo or _posle):
+            # 3. krug revizije: ceo tekst posle rečenice o otpustu („Otpušten je pre 6 g. Krađu je izvršio pre 4 g. Sada …“)
+            if mp and _dur_dana(mp.group(2)) is not None and not _novo_delo_ima_svoje_vreme(novo + " " + _posle):
                 meseci = _dur_dana(mp.group(2)) / _DANA_U_MESECU
                 if not mp.group(1):
                     out["proteklo_od_otpusta_meseci"] = meseci

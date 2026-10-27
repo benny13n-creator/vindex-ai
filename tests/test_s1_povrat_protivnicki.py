@@ -104,3 +104,21 @@ def test_jednoznacan_slucaj_ostaje_DA(q):
 ])
 def test_vreme_novog_dela_nije_jednoznacno(q):
     assert _uslov(q, 3) == V.NEPOZNATO
+
+
+# ── 3. krug revizije Sektora 1 ──
+
+@pytest.mark.parametrize("q", [
+    "Okrivljeni je dva puta osuđen na zatvor od po dve godine. Otpušten je pre dve godine. Krađu je izvršio sa umišljajem. "
+    "Sada mu se sudi, propisan je zatvor od jedne do osam godina i to delo je umišljajno. 55a?",
+    OSUDE + " Otpušten je pre dve godine. " + NOVO.replace(" 55a?", "") + " Jedna od ranijih osuda je u međuvremenu brisana. 55a?",
+    OSUDE + " Otpušten je pre dve godine. " + NOVO.replace(" 55a?", "") + " Prva osuda je bila na maloletnički zatvor. 55a?",
+])
+def test_3k_ranije_osude_nisu_jednoznacne(q):
+    assert _uslov(q, 2) == V.NEPOZNATO and _ishod(q) != V.DA
+
+
+def test_3k_delo_posle_otpusta_izmedju_otpusta_i_sidra():
+    q = (OSUDE + " Otpušten je pre šest godina. Krađu je izvršio pre četiri godine. Sada mu se sudi za to delo izvršeno sa "
+         "umišljajem, propisan je zatvor od jedne do osam godina. 55a?")
+    assert _uslov(q, 3) == V.NEPOZNATO and _ishod(q) != V.NE
