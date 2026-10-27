@@ -25,9 +25,10 @@ def _bez_komentara(sql):
     return "\n".join(l for l in sql.splitlines() if not l.lstrip().startswith("--"))
 
 
-def _rollback():
-    deo = M142.split("-- [ROLLBACK]", 1)[1]
-    return "\n".join(re.sub(r"^--\s?", "", l) for l in deo.splitlines()[1:] if l.strip().startswith("-- DROP"))
+def _odustajanje():
+    """Zaštićen blok [ODUSTAJANJE] iz komentara migracije (bez `-- `)."""
+    deo = M142.split("-- [ODUSTAJANJE]", 1)[1].split("\n", 1)[1]
+    return "\n".join(re.sub(r"^--\s?", "", l) for l in deo.splitlines() if l.startswith("--"))
 
 
 @pytest.fixture
@@ -165,14 +166,22 @@ def test_uslovno_ponavljanje_dobija_samo_jedan_proces(baza):
     assert (ishod["a"], ishod["b"]) == (1, 0)
 
 
-def test_rollback_brise_samo_nove_tabele_i_ponovna_primena_radi(baza):
+def test_odustajanje_odbija_brisanje_cim_postoji_zapis(baza):
+    """Nedestruktivno: sa ijednim zapisom blok baca grešku i NIŠTA ne briše."""
+    with psycopg.connect(baza, autocommit=True) as c:
+        c.execute(M142)
+        _red(c)
+        with pytest.raises(psycopg.errors.RaiseException):
+            c.execute(_odustajanje())
+        assert c.execute("SELECT count(*) FROM email_podsetnik_dogadjaj").fetchone()[0] == 1
+        assert c.execute("SELECT to_regclass('public.email_podsetnik_pokretanje')").fetchone()[0] is not None
+
+
+def test_odustajanje_bez_zapisa_brise_samo_nove_tabele_i_ponovna_primena_radi(baza):
     with psycopg.connect(baza, autocommit=True) as c:
         pre = _stari(c)
         c.execute(M142)
-        _red(c)
-        rb = _rollback()
-        assert rb.count("DROP TABLE") == 2
-        c.execute(rb)
+        c.execute(_odustajanje())
         assert c.execute("SELECT to_regclass('public.email_podsetnik_dogadjaj')").fetchone()[0] is None
         assert _stari(c) == pre
         c.execute(M142)

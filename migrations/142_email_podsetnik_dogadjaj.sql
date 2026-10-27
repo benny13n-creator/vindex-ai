@@ -8,7 +8,7 @@
 -- trajno osim podsetnika tog dana.
 -- VRAĆANJE KODA: nov kod NE piše `email_notif_log`, pa stari kod vraćen ISTOG dana ponovo šalje podsetnike koje je
 -- nov kod tog dana već poslao (najviše jedan duplikat po predmetu/datumu/pragu). Vraćati kod POSLE dnevnog slanja
--- ili sledećeg dana pre njega. Tabele ostaju (stari kod ih ignoriše); DROP tek ako se odustaje od 142.
+-- ili sledećeg dana pre njega. Tabele ostaju (stari kod ih ignoriše); vidi OPORAVAK na kraju fajla.
 --
 -- Ključ: (user_id, tip, dogadjaj_id, datum_dogadjaja, svrha)
 --   tip             'rok' (predmet_hronologija.id) | 'rociste' (rocista.id)
@@ -57,6 +57,13 @@ CREATE TABLE IF NOT EXISTS public.email_podsetnik_pokretanje (
 ALTER TABLE public.email_podsetnik_pokretanje ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON public.email_podsetnik_pokretanje TO service_role;
 
--- [ROLLBACK] (tek POSLE vraćanja koda na verziju bez ovih tabela; gubi se samo istorija novih rezervacija):
--- DROP TABLE IF EXISTS public.email_podsetnik_pokretanje;
--- DROP TABLE IF EXISTS public.email_podsetnik_dogadjaj;
+-- OPORAVAK JE NEDESTRUKTIVAN (runbook docs/release/S2_PODSETNICI_142_RUNBOOK.md): pauza
+-- (VINDEX_EMAIL_PODSETNICI_PAUZA=1) ili vraćanje koda POSLE dnevnog slanja; tabele i istorija OSTAJU.
+-- [ODUSTAJANJE] SAMO ako 142 nikad nije zabeležila nijedan stvaran podsetnik — blok odbija brisanje čim postoji zapis:
+-- DO $$ BEGIN
+--   IF EXISTS (SELECT 1 FROM public.email_podsetnik_dogadjaj) OR EXISTS (SELECT 1 FROM public.email_podsetnik_pokretanje) THEN
+--     RAISE EXCEPTION 'email_podsetnik_* ima zapise — ne brisati (istorija slanja); koristiti pauzu/vraćanje koda';
+--   END IF;
+--   DROP TABLE public.email_podsetnik_pokretanje;
+--   DROP TABLE public.email_podsetnik_dogadjaj;
+-- END $$;
