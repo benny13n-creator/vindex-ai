@@ -101,3 +101,18 @@ def test_svaki_ukljucen_prag_tacno_jednom(pragovi, ocekivano):
         emailovi += len(_na_dan(n, b)[1])                                  # i ručno ponovljeno slanje istog dana
     assert [r["dana_pre"] for r in b.log] == [p for p in ocekivano if p in pragovi]
     assert emailovi == len(ocekivano)                                      # i poslatih emailova tačno toliko
+
+
+def test_s1_pad_citanja_rocista_ne_gasi_podsetnik_za_potvrdjen_rok():
+    """S1-C3 (revizija Sektora 1): ranije je pad upita nad `rocista` preskakao korisnika, pa i potvrđene rokove."""
+    b = _baza([_rok("r1", _dan(1))])
+    tabela = b.table
+
+    def _table(ime):
+        if ime == "rocista":
+            raise RuntimeError("rocista nedostupna")
+        return tabela(ime)
+    b.table = _table
+    rez, poslati = _na_dan(0, b, potvrdjeni=("r1",))
+    assert len(poslati) == 1 and "Rok za žalbu" in poslati[0][2]
+    assert rez["greske"] == 1

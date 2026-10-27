@@ -455,10 +455,11 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                                  .eq("user_id", uid).eq("datum", target_iso).execute())
                 except Exception as exc:
                     # Pad čitanja ročišta ne obara ceo cron za sve korisnike; vidi se kao greška (ne kao „0 poslato“).
+                    # S1-C3 (revizija Sektora 1): ni podsetnike za POTVRĐENE rokove tog korisnika — oni se i dalje šalju.
                     logger.error("[EMAIL-CRON] ročišta nisu pročitana uid=%.8s: %s", uid, type(exc).__name__)
                     greske += 1
-                    continue
-                rocista = [r for r in (rocista_r.data or []) if r.get("predmet_id") in _aktivni_ids
+                    rocista_r = None
+                rocista = [r for r in ((rocista_r.data if rocista_r else None) or []) if r.get("predmet_id") in _aktivni_ids
                            and (r.get("status") or "zakazano") == "zakazano"]
                 rokovi = [r for r in rokovi if r.get("predmet_id") not in _vec_rezervisani]
                 rocista = [r for r in rocista if r.get("predmet_id") not in _vec_rezervisani]
