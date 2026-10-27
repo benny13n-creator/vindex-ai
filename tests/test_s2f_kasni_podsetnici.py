@@ -540,3 +540,15 @@ def test_email_posledica_je_prva_a_akcije_ostaju_poslednje():
     for et in (EventType.ROCISTE_ZAKAZANO, EventType.MANUAL_CORRECTION_APPLIED):
         imena = [c.name for c in CONSEQUENCE_REGISTRY[et]]
         assert imena[0] == "email_podsetnik_hitno" and imena[-2:] == ["refresh_case_actions", "project_notifications"]
+
+
+def test_bez_baze_nove_pozadinske_putanje_ne_dosezu_bazu(monkeypatch):
+    """S4.1: lokalni pokretači sa VINDEX_BEZ_BAZE=1 — periodična i hitna provera ne smeju da otvore produkcionu bazu."""
+    import routers.email_notif as en
+    import shared.deps as D
+    monkeypatch.setenv("VINDEX_BEZ_BAZE", "1")
+    monkeypatch.setattr(en, "_get_supa", D._get_supa)                        # stvaran _get_supa, ne lažna baza
+    pozvano = []
+    monkeypatch.setattr("supabase.create_client", lambda *a, **k: pozvano.append(a) or (_ for _ in ()).throw(AssertionError))
+    assert en.proveri_hitne_svima()["greske"] == 1 and en.proveri_hitne_podsetnike("u-1")["greske"] == 1
+    assert pozvano == []
