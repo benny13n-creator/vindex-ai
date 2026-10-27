@@ -188,7 +188,7 @@ _CACHE: dict[str, tuple[dict, datetime]] = {}
 _CACHE_TTL     = timedelta(hours=6)
 _CACHE_TTL_DB  = timedelta(days=7)
 _CACHE_MAX     = 500
-_CACHE_VERZIJA = "2026-10-27-g4"
+_CACHE_VERZIJA = "2026-10-28-s3"
 
 
 # NIGHT-007 (2026-08-09): sentinels that mark a question as carrying PRIVILEGED,
@@ -1074,8 +1074,23 @@ NADLEZNOST_ZPP_PRAVILA = (
     "- Ugovorni spor: ZPP NEMA opšte pravilo o nadležnosti po mestu izvršenja/ispunjenja ugovora — važi opšta (čl. 39–40) ili "
     "pismeno ugovorena, ako nije propisana isključiva (čl. 65). Mesto ispunjenja obaveze je osnov samo izuzetno: tuženi bez opšte "
     "mesne nadležnosti u Srbiji (čl. 53 st. 3), strano pravno lice za obaveze zasnovane ili ispunjive u Srbiji — sud stalnog zastupništva ili sedišta organa koji vodi njegove poslove (čl. 55); menica/ček — i sud mesta plaćanja (čl. 59).\n"
-    "- Stvarnu nadležnost (osnovni/viši/privredni sud) uređuje Zakon o uređenju sudova (ZPP čl. 27, 480); ako njegov tekst nije u "
-    "kontekstu, reci da zaključak o stvarnoj nadležnosti nije potvrđen izvorom.\n"
+    "- Stvarna nadležnost (ZPP čl. 27 upućuje na zakon): Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023, bez kasnijih izmena; "
+    "tekst proveren na pravno-informacioni-sistem.rs). OSNOVNI sud u prvom stepenu sudi u građanskopravnom sporu ako nije nadležan "
+    "drugi sud, u stambenom sporu i u radnom sporu (zasnivanje, postojanje i prestanak radnog odnosa; prava, obaveze i odgovornost iz "
+    "radnog odnosa; naknada štete zaposlenom na radu ili u vezi sa radom) (čl. 24 st. 2–3). VIŠI sud u prvom stepenu: građanskopravni "
+    "spor kad vrednost predmeta spora omogućava izjavljivanje revizije (revizija nije dozvoljena ako vrednost pobijenog dela ne "
+    "prelazi dinarsku protivvrednost 40.000 evra — ZPP čl. 403 st. 3), autorsko pravo i industrijska svojina ako nije nadležan drugi "
+    "sud, osporavanje ili utvrđivanje očinstva i materinstva, zaštita od diskriminacije i zlostavljanja na radu, ispravka i odgovor "
+    "na informaciju i šteta u vezi sa objavljivanjem informacije, štrajk, kolektivni ugovor, obavezno socijalno osiguranje ako nije "
+    "nadležan drugi sud, matična evidencija, izbor i razrešenje organa pravnog lica (čl. 25 st. 1 tač. 7–8). PRIVREDNI sud: spor "
+    "između privrednih subjekata i spor privrednog subjekta sa drugim pravnim licem u obavljanju delatnosti (i kad je fizičko lice "
+    "materijalni suparničar), sporovi iz Zakona o privrednim društvima i statusa privrednog subjekta, privatizacija i hartije od "
+    "vrednosti, strano ulaganje, brod i vazduhoplov, zaštita firme, upis u sudski registar, reorganizacija, likvidacija i stečaj "
+    "(čl. 27 st. 1).\n"
+    "- KONKRETAN sud (sedište i područje) određuje Zakon o sedištima i područjima sudova i javnih tužilaštava (101/2013, 9/2026, "
+    "56/2026); njegov tekst nije u kontekstu — naziv konkretnog suda navedi samo kao pretpostavku koju treba proveriti. Izmene iz "
+    "9/2026 (u Beogradu prestaje dosadašnji Treći osnovni sud i osnivaju se novi Treći i Četvrti osnovni sud; sudska jedinica u "
+    "Kosjeriću) PRIMENJUJU SE TEK OD 1. MARTA 2027. — do tada važi raspored iz 101/2013.\n"
     "- Ako nedostaje činjenica koja menja ishod (prebivalište/sedište tuženog, vrsta spora, mesto štete, mesto rada), navedi je kao "
     "nedostajuću umesto da je pretpostaviš."
 )

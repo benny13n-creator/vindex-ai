@@ -6,7 +6,10 @@ Izvor (proveren 27.10.2026): prečišćen tekst Krivičnog zakonika na pravno-in
 kopiran sa te stranice; napomena izdavača: zakon 63/2026 stupa na snagu 18.07.2026, a samo njegovi čl. 2–3 (čl. 348–348g)
 primenjuju se posle devet meseci. Lokalni tekst zakona (data/laws/pdfs/krivicni_zakonik.pdf) i baza Vindex su zaključno
 sa 94/2024."""
+import os
 from datetime import date
+
+os.environ.setdefault("OPENAI_API_KEY", "sk-test-dummy")   # `main` gradi klijenta pri uvozu; poziva se ne pravi
 
 import pytest
 
@@ -90,3 +93,19 @@ def test_aritmetika_polovine_deterministicki(mn_g, mx_g, polovina, najniza):
     assert r.primenjuje_se == V.DA
     assert r.raspon["polovina_raspona_dana"] == polovina[0] * G + polovina[1] * M
     assert r.raspon["najniza_dozvoljena_dana"] == najniza[0] * G + najniza[1] * M
+
+
+# ── S3: nadležnost — Zakon o uređenju sudova i sedišta sudova (provereno na PIS 27.10.2026) ─────────────────────
+
+def test_pravila_nadleznosti_nose_proveren_zakon_o_uredjenju_sudova_i_vremensku_granicu_sedista():
+    import main as M
+    t = M.NADLEZNOST_ZPP_PRAVILA
+    assert "10/2023, bez kasnijih izmena" in t and "čl. 24 st. 2–3" in t and "čl. 25 st. 1 tač. 7–8" in t and "čl. 27 st. 1" in t
+    assert "40.000 evra — ZPP čl. 403 st. 3" in t
+    assert "101/2013, 9/2026, 56/2026" in t and "TEK OD 1. MARTA 2027" in t and "do tada važi raspored iz 101/2013" in t
+    assert "nije potvrđen izvorom" not in t                     # stvarna nadležnost više nije „bez izvora“
+
+
+def test_verzija_kljuca_kesa_promenjena_posle_s3():
+    import main as M
+    assert M._CACHE_VERZIJA == "2026-10-28-s3"
