@@ -17,6 +17,12 @@ def _datumi(t):
     "Ročište zakazano za 12.11.2026. godine se skida sa dnevnog reda.",
     "Ročište zakazano za 12. 11. 2026. godine stavlja se van snage.",
     "Ročište zakazano za 12.11.2026. godine skida se sa dnevnog reda.",
+    # 3. krug revizije: „novo“ kao deo reči i kvalifikator koji opisuje STARO ročište
+    "Odlaže se ročište u Novom Sadu zakazano za 12.11.2026. godine.",
+    "Otkazuje se sledeće ročište zakazano za 12.11.2026. godine.",
+    "Odlaže se nastavak glavne rasprave zakazan za 12.11.2026. godine.",
+    "Otkazano je naredno ročište zakazano za 12.11.2026. godine.",
+    "Odlaže se ročište po tužbi Novaković zakazano za 12.11.2026.",
 ])
 def test_otkazano_ili_odlozeno_rociste_nije_predlog(t):
     assert _datumi(t) == []

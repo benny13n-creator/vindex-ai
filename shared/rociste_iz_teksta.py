@@ -152,7 +152,11 @@ _PRIDEV_ZAKAZAN = re.compile(r"zakazan\w*$", re.IGNORECASE)
 
 
 # „novo / sledeće / naredno ročište zakazano za …“, „nastavak zakazan za …“ — pridev tada opisuje NOVO ročište
-_NOVO_PRE = re.compile(r"\b(?:nov\w*|sledec\w*|sledeć\w*|naredn\w*|nastav\w*)\b[^,;]{0,30}$", re.IGNORECASE)
+# 3. krug revizije: cela reč („Novom Sadu“, „novembra“, „Novaković“ nisu „novo“) i samo na POČETKU nove klauze
+# („…, nastavak zakazan“, „… i novo ročište zakazano“, „…; sledeće ročište zakazano“) — „Otkazuje se sledeće ročište
+# zakazano za …“ opisuje staro ročište.
+_NOVO_PRE = re.compile(r"(?:[,;]|\b(?:a|i)\b)\s*(?:(?:\w+\s+){0,2})?(?:novo|nova|novi|novog|sledec\w*|sledeć\w*|naredn\w*|"
+                       r"nastavak|nastavka)\b[^,;]{0,30}$", re.IGNORECASE)
 
 
 def _opisno_zakazano(recenica: str, z) -> bool:
