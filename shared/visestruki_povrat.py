@@ -298,6 +298,32 @@ def _broj_osuda(q: str):
     return None, None
 
 
+# S1: posebne vrste ranije osude — da li se računaju za čl. 55a nije rešeno izvorom u bazi
+_POSEBNA_OSUDA = r"brisan\w*|kaznen\w*\s+evidencij|maloletn\w*|rad\w*\s+u\s+javnom\s+interesu|zamenjen\w*"
+_GLAGOL_DELA = r"(?:izvrs|ucin)\w*"
+
+
+def _datum_novog_dela(novo: str):
+    """S1: datum NOVOG dela samo kad je jedini datum (i jedina godina) u delu o novom delu i stoji uz glagol izvršenja —
+    datum ročišta/suđenja nije datum dela."""
+    if not novo:
+        return None
+    datumi = list(re.finditer(_DATUM, novo))
+    godine = re.findall(r"\b(?:19|20)\d{2}\b", re.sub(_DATUM, " ", novo))
+    if len(datumi) != 1 or godine:
+        return None
+    d = datumi[0]
+    blizu = novo[max(0, d.start() - 60):d.start()] + " " + novo[d.end():d.end() + 25]
+    return d if re.search(_GLAGOL_DELA, blizu) else None
+
+
+def _novo_delo_ima_svoje_vreme(novo: str) -> bool:
+    """S1: „otpušten pre N“ meri vreme od otpusta do DANAS; ako novo delo ima svoje vreme („izvršio pre dve godine“,
+    datum, godina, „pre otpusta“), vreme od otpusta do novog dela nije navedeno."""
+    return bool(novo and (re.search(r"\bpre\s+(?:vise\s+od\s+)?" + _DUR, novo) or re.search(_DATUM, novo)
+                          or re.search(r"\b(?:19|20)\d{2}\b", novo) or re.search(r"pre\s+otpust", novo)))
+
+
 def analiza(pitanje: str) -> tuple[dict, list[str]]:
     """(činjenice za `izracunaj`, napomene o prepoznavanju). Šta nije jednoznačno ostaje None (NEPOZNATO)."""
     q = _norm(pitanje)
@@ -338,8 +364,14 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     if broj is not None and not druga_osoba:
         out["broj_ranijih_osuda"] = broj
         seg = re.sub(_RASPON + "|" + _SAMO_DO, " ", ranije)                   # propisani rasponi ranijih dela nisu kazne
+        # S1: krivica ranijih dela samo iz REČENICE same osude (rečenica o novom delu ne pripada ranijim osudama) i PRE
+        # uklanjanja zagrada („(drugo delo je bilo iz nehata)“ menja krivicu jedne osude → nepoznato)
+        _p = m_osude.start() if m_osude else 0
+        _poc = max(q.rfind(x, 0, _p) for x in (". ", "; ", "? ", "! ")) + 2
+        _kraj = min([i for i in (q.find(x, _p) for x in (". ", "; ", "? ", "! ")) if i >= 0]
+                    + ([granica] if granica is not None and granica > _p else []) or [len(q)])
+        kriv = _krivica(re.sub(_RASPON + "|" + _SAMO_DO, " ", q[max(_poc, 0):_kraj]))
         seg = re.sub(r"\([^)]*\)", " ", seg)
-        kriv = _krivica(seg)
         po = re.search(r"zatvor\w*\s+od\s+po\s+(" + _DUR + ")", seg)
         par = re.search(r"zatvor\w*\s+od\s+(\w+)\s+i\s+(\w+)\s+(" + _JED_TXT + ")", seg)
         pojedinacno = [x for x in re.findall(r"zatvor\w*\s+od\s+(" + _DUR + ")", seg) if not x.startswith("po ")]
@@ -353,6 +385,10 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
             trajanja = [_dur_dana(x) for x in pojedinacno]
         if uslovno:
             trajanja = None
+        if re.search(_POSEBNA_OSUDA, q):
+            kriv, trajanja = None, None
+            napomene.append("Pitanje pominje brisanu osudu, maloletnički zatvor ili zamenu kazne — da li se takva osuda računa "
+                            "za čl. 55a nije rešeno izvorom u bazi; uslov o ranijim osudama ostaje nepoznat.")
         out["ranije_osude"] = [RanijaOsuda(kriv, (t // _DANA_U_MESECU) if t is not None else None)
                                for t in (trajanja or [None] * broj)]
 
@@ -371,7 +407,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         napomene.append("Uz otpust je navedeno više vremena (npr. za više kazni) — za uslov od pet godina potreban je jedan datum.")
     if len(pomeni) == 1 and not uslovno and not vise_vremena:
         mo = re.search(r"otpust\w*[^.]{0,60}?" + _DATUM, q)
-        mn_ = re.search(_DATUM, novo) if novo else None
+        mn_ = _datum_novog_dela(novo)
         try:
             if mo and mn_:
                 o = date(int(mo.group(3)), int(mo.group(2)), int(mo.group(1)))
@@ -383,7 +419,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         if not out["otpust"] and not mo:
             mp = (re.search(r"otpust\w*[^.,;]{0,40}?\bpre\s+(vise\s+od\s+)?(" + _DUR + ")", q)
                   or re.search(r"\bpre\s+(vise\s+od\s+)?(" + _DUR + r")\s+(?:je\s+)?(?:bio\s+)?otpust", q))
-            if mp and _dur_dana(mp.group(2)) is not None:
+            if mp and _dur_dana(mp.group(2)) is not None and not _novo_delo_ima_svoje_vreme(novo):
                 meseci = _dur_dana(mp.group(2)) / _DANA_U_MESECU
                 if not mp.group(1):
                     out["proteklo_od_otpusta_meseci"] = meseci
