@@ -58,7 +58,7 @@ _ZAKAZIVANJE = re.compile(r"zakaz\w*|odr[žz]a(?:će|ce)\s+se|(?<!ne)(?<!ne\s)(?
 _NIJE_PREDSTOJECE = re.compile(r"\b(?:odla[žz]\w*|odlo[žz]\w*|otkazuje|otkazan\w*|ne\s*(?:će|ce)\s+(?:se\s+)?odr[žz]a\w*|"
                                r"pomer\w*|prekida\w*|donet\w*|pristupi(?:o|la|li|lo)\b|prekinut\w*|umesto|ne\s+mo\w*\s+(?:se\s+)?odr[žz]a\w*|"
                                r"nij[ea]\s+(?:se\s+)?(?:\w+\s+)?odr[žz]a\w*|"
-                               r"skida\s+se\s+sa\s+dnevnog\s+reda|(?<!će\s)(?<!ce\s)odr[žz]an\w*|zaklju[čc]en\w*|naknadno|neodre[đd]eno)\b",
+                               r"(?:se\s+)?skida\s+(?:se\s+)?sa\s+dnevnog\s+reda|ne\s+odr[žz]ava\w*|van\s+snage|(?<!će\s)(?<!ce\s)odr[žz]an\w*|zaklju[čc]en\w*|naknadno|neodre[đd]eno)\b",
                                re.IGNORECASE)
 # Datum uz koji stoji rok za radnju, ne ročište.
 # „rešenjem od 28.10.“, „podnesak od …“ — datum akta, ne ročišta.
@@ -145,6 +145,23 @@ def _citat(recenica: str, m) -> str:
     return re.sub(r"\s+", " ", c).strip()
 
 
+# S1-C2 (revizija Sektora 1): u rečenici koja otkazuje/odlaže, „ročište ZAKAZANO ZA 12.11.“ opisuje STARO ročište —
+# pridev bez pomoćnog glagola („je/su/biće … zakazano“) i „za <datum>“ odmah iza njega nisu novo zakazivanje.
+_POMOCNI_PRE = re.compile(r"\b(?:je|su|bi[cć]e|[cć]e|biti|bilo|bio|bila)\s+(?:\w+\s+)?$", re.IGNORECASE)
+_PRIDEV_ZAKAZAN = re.compile(r"zakazan\w*$", re.IGNORECASE)
+
+
+def _opisno_zakazano(recenica: str, z) -> bool:
+    g = z.group(0)
+    if re.match(r"zakazan", g, re.IGNORECASE):
+        return not _POMOCNI_PRE.search(recenica[:z.start()])
+    if re.match(r"(?:za|na)\b", g, re.IGNORECASE):
+        pre = recenica[:z.start()].rstrip()
+        m = _PRIDEV_ZAKAZAN.search(pre)
+        return bool(m) and not _POMOCNI_PRE.search(pre[:m.start()])
+    return False
+
+
 def nadji_rocista(tekst: str) -> list[dict]:
     """Predlozi ročišta iz jednog teksta: `[{datum: date, vreme: 'HH:MM'|None, sudnica: str|None, citat: str}]`,
     bez ponavljanja istog (datum, vreme). Prošli datumi se NE odbacuju ovde (to radi pozivalac, uz broj)."""
@@ -166,7 +183,7 @@ def nadji_rocista(tekst: str) -> list[dict]:
         granica = 0                                          # posle poslednje oznake „nije predstojeće“
         for n in ne:                                         # „umesto <staro ročište>, …“ gasi ceo deo do zareza
             granica = max(granica, recenica.find(",", n.end()) if n.group(0).lower() == "umesto" and "," in recenica[n.end():] else n.end())
-        zak = [z for z in _ZAKAZIVANJE.finditer(recenica) if z.start() >= granica]
+        zak = [z for z in _ZAKAZIVANJE.finditer(recenica) if z.start() >= granica and not (ne and _opisno_zakazano(recenica, z))]
         if ne and not zak:
             continue                                         # samo stanje (odloženo / održano …), bez novog datuma
         izabrani = []
