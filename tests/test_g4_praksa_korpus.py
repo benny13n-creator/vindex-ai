@@ -127,7 +127,7 @@ def test_F4_navod_zadrzane_odluke_u_drugoj_sekciji_je_oznacen():
                      "sudska_praksa": [{"sud": "Vrhovni sud", "broj_odluke": "Rev 77/2021",
                                         "pravni_princip": "Rok zastarelosti teče od dana saznanja za štetu."}]})
     zak = txt[txt.index("--- PRAVNI ZAKLJUČAK"):txt.index("--- SUDSKA PRAKSA")]
-    assert "Rev 77/2021" in zak and "[AI navod o odluci — merodavan je izvod u odeljku SUDSKA PRAKSA]" in zak
+    assert "Rev 77/2021" in zak and "[AI navod o ovoj odluci — nije potvrđen kao stav suda]" in zak
     assert "„Rok zastarelosti teče od dana saznanja za štetu, a ne od dana nastanka štete. …“" in txt
 
 
@@ -135,3 +135,45 @@ def test_F2_verzija_oblika_je_u_kljucu_kesa(monkeypatch):
     k1 = main._cache_kljuc("Koliki je rok za žalbu?")
     monkeypatch.setattr(main, "_CACHE_VERZIJA", "starija")
     assert main._cache_kljuc("Koliki je rok za žalbu?") != k1
+
+
+_CTX2 = _CTX + "\n2. Apelacioni sud u Beogradu, Gž 5/2020, 01.01.2020\n   Sažetak: Ugovor o zakupu stana mora biti pisan."
+_OZN = "[AI navod o ovoj odluci — nije potvrđen kao stav suda]"
+
+
+def _parsiraj2(data):
+    ok, txt = main._parsiraj_strukturni_odgovor(json.dumps(data), "PARNICA", ["Član 376 ZOO tekst"], praksa_context=_CTX2)
+    assert ok
+    return txt
+
+
+def _dve(zakljucak):
+    return {"pravni_zakljucak": zakljucak, "sudska_praksa": [
+        {"sud": "Vrhovni sud", "broj_odluke": "Rev 77/2021", "pravni_princip": "Rok zastarelosti teče od dana saznanja za štetu."},
+        {"sud": "Apelacioni sud u Beogradu", "broj_odluke": "Gž 5/2020", "pravni_princip": "Poslodavac odgovara objektivno."}]}
+
+
+@pytest.mark.parametrize("zakljucak,ostaje", [
+    ("Prema Rev 77/2021 rok teče od nastanka. Tužba je neblagovremena.", "Tužba je neblagovremena."),
+    ("Prema Rev 77/2021 rok teče od nastanka", "rok teče od nastanka"),
+])
+def test_mesovit_odgovor_navod_oznacen_a_ostali_tekst_ostaje(zakljucak, ostaje):
+    txt = _parsiraj2(_dve(zakljucak))
+    zak = txt[txt.index("--- PRAVNI ZAKLJUČAK"):txt.index("--- SUDSKA PRAKSA")]
+    assert _OZN in zak and ostaje in zak and "Gž 5/2020" not in txt
+
+
+def test_prelomi_redova_ostaju_kad_je_odluka_zadrzana():
+    data = {"pravni_zakljucak": "Zaključak.", "procesni_koraci": "1. Podneti tužbu.\n2. Predložiti dokaze.",
+            "sudska_praksa": [{"sud": "Vrhovni sud", "broj_odluke": "Rev 77/2021",
+                               "pravni_princip": "Rok zastarelosti teče od dana saznanja za štetu."}]}
+    out = main._proveri_stavove_prakse(data, _CTX)
+    assert out["procesni_koraci"] == "1. Podneti tužbu.\n2. Predložiti dokaze."
+
+
+def test_deo_broja_druge_odluke_se_ne_oznacava_i_ponovni_prolaz_ne_dodaje():
+    zadrzane = [{"broj_odluke": "Rev 7/2021"}]
+    data = {"a": "Prema Prev 7/2021 važi X. Prema Rev 7/20211 važi Y. Prema Rev 7/2021 važi Z."}
+    jednom = main._oznaci_navode_zadrzane_prakse(data, zadrzane)
+    assert jednom["a"] == "Prema Prev 7/2021 važi X. Prema Rev 7/20211 važi Y. Prema Rev 7/2021 važi Z " + _OZN + "."
+    assert main._oznaci_navode_zadrzane_prakse(jednom, zadrzane) == jednom

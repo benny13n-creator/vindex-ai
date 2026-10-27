@@ -3463,31 +3463,39 @@ def _proveri_stavove_prakse(data, praksa_context: str):
         # G4: zadržana odluka nosi DOSLOVAN sažetak iz izvora — prikaz ne sme da predstavi AI parafrazu kao stav suda
         (ostaje if podrzano else uklonjeni).append(dict(st, izvorni_sazetak=re.sub(r"\s+", " ", sazetak or "").strip()[:400])
                                                    if podrzano else st)
-    data = _oznaci_navode_zadrzane_prakse(data, ostaje)
     if not uklonjeni:
-        return dict(data, sudska_praksa=ostaje)
+        return dict(_oznaci_navode_zadrzane_prakse(data, ostaje), sudska_praksa=ostaje)
     logger.warning("[N8_PRAKSA] uklonjeni nepodržani stavovi: %s", [u.get("broj_odluke") for u in uklonjeni][:3])
     data["sudska_praksa"] = []
     ociscen = _ukloni_neproverenu_praksu(dict(data, sudska_praksa=uklonjeni))
+    # revizija G4: označavanje POSLE čišćenja — oznaka ne sme da postane meta čišćenja rečenica o praksi
+    ociscen = _oznaci_navode_zadrzane_prakse(ociscen, ostaje)
     ociscen["sudska_praksa"] = ostaje
     return ociscen
 
 
-_NAVOD_PRAKSE_OZNAKA = " [AI navod o odluci — merodavan je izvod u odeljku SUDSKA PRAKSA]"
+# Oznaka namerno NE sadrži „sudska praksa“ ni naziv suda sa brojem (`_PRAKSA_RECENICA_RE`) — inače bi je čišćenje uklonilo.
+_NAVOD_PRAKSE_OZNAKA = " [AI navod o ovoj odluci — nije potvrđen kao stav suda]"
 
 
 def _oznaci_navode_zadrzane_prakse(data, zadrzane):
-    """G4 (revizija F4): rečenica IZVAN odeljka SUDSKA PRAKSA koja navodi zadržanu odluku je tekst modela o odluci —
-    označava se (ne briše), da advokat ne pročita AI tvrdnju o stavu suda kao proverenu."""
-    dns = [_normalizuj(str(st.get("broj_odluke") or "")) for st in zadrzane if isinstance(st, dict)]
-    dns = [d for d in dns if "/" in d and len(d.strip()) >= 5]
-    if not dns or not isinstance(data, dict):
+    """G4 (revizija F4): rečenica IZVAN odeljka sa praksom koja navodi zadržanu odluku je tekst modela o odluci —
+    označava se (ne briše), da advokat ne pročita AI tvrdnju o stavu suda kao proverenu. Menja se samo rečenica sa
+    navodom (razmaci i prelomi redova ostaju), broj odluke se poklapa kao cela oznaka, oznaka ide ispred završne
+    interpunkcije (ponovni prolaz je ne dodaje opet)."""
+    dns = [_normalizuj(str(st.get("broj_odluke") or "")).strip() for st in zadrzane if isinstance(st, dict)]
+    obrasci = [re.compile(r"(?<![a-z0-9])" + re.escape(d) + r"(?![0-9/])") for d in dns if "/" in d and len(d) >= 5]
+    if not obrasci or not isinstance(data, dict):
         return data
 
+    def _recenica(d: str) -> str:
+        if not d.strip() or _NAVOD_PRAKSE_OZNAKA in d or not any(o.search(_normalizuj(d)) for o in obrasci):
+            return d
+        m = re.search(r"[.!?]*$", d)
+        return d[:m.start()] + _NAVOD_PRAKSE_OZNAKA + d[m.start():]
+
     def _cisti(tekst: str) -> str:
-        delovi = re.split(r"(?<=[.!?])\s+", tekst)
-        return " ".join(d + _NAVOD_PRAKSE_OZNAKA if any(x in _normalizuj(d) for x in dns) and _NAVOD_PRAKSE_OZNAKA not in d
-                        else d for d in delovi)
+        return "".join(_recenica(d) if i % 2 == 0 else d for i, d in enumerate(re.split(r"((?<=[.!?])\s+)", tekst)))
 
     def _hodaj(obj):
         if isinstance(obj, str):
