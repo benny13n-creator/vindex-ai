@@ -159,6 +159,8 @@ _supa_lock = threading.Lock()
 
 def _get_supa() -> SupabaseClient:
     global _supa
+    from shared.deps import _baza_zabranjena   # G1: ista brana kao shared/deps._get_supa (zaseban singleton)
+    _baza_zabranjena()
     if _supa is None:
         with _supa_lock:
             if _supa is None:

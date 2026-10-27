@@ -15,6 +15,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
+# G1: pokretač nikad ne pristupa bazi (ni ai_cache ni security_events) — samo OpenAI + Pinecone
+os.environ["VINDEX_BEZ_BAZE"] = "1"
 
 # ─── CLI args ─────────────────────────────────────────────────────────────────
 _parser = argparse.ArgumentParser(add_help=False)

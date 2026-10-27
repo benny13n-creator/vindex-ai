@@ -89,8 +89,18 @@ _supa: Optional[SupabaseClient] = None
 _supa_lock = threading.Lock()
 
 
+def _baza_zabranjena() -> None:
+    """G1 (2026-10-27): lokalni pravni pokretači (run_test_30q/100q, scripts/test_c7a_e2e) učitavaju ceo `.env` sa
+    produkcionim ključem; `ask_agent` je tada upisivao u `ai_cache` i, pri padu pretrage, u `security_events`.
+    VINDEX_BEZ_BAZE=1 zatvara SVAKI pristup bazi — proverava se pri svakom pozivu, pa ni već napravljen klijent ne
+    prolazi. Produkcija ovu promenljivu ne postavlja."""
+    if os.getenv("VINDEX_BEZ_BAZE") == "1":
+        raise RuntimeError("VINDEX_BEZ_BAZE=1: pristup bazi je zatvoren u ovom procesu (lokalni pokretač).")
+
+
 def _get_supa() -> SupabaseClient:
     global _supa
+    _baza_zabranjena()
     if _supa is None:
         with _supa_lock:
             if _supa is None:
