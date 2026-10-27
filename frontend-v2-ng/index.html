@@ -654,6 +654,14 @@
         </div>
         <div class="matter__body" id="odeljak-pregled" hidden>
           <p class="notice" id="pregled-poruka" role="status" aria-live="polite" hidden></p>
+          <section class="matter__section" aria-labelledby="iz-naslov">
+            <div class="section-head">
+              <h2 class="matter__h2" id="iz-naslov">Izveštaj o predmetu</h2>
+              <button class="text-btn text-btn--line" id="iz-pdf" type="button">Preuzmi PDF</button>
+            </div>
+            <p class="field__help">Opis, ročišta (sa stanjem), hronologija (rok sa stanjem odluke: nepotvrđen predlog je tako i označen), dokumenti i beleške. Ništa se ne šalje klijentu.</p>
+            <p class="notice" id="iz-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
           <!-- NS006 Task 11: živo stanje predmeta (src/zivi-pregled.js). Samo čitanje: promene verzija + kanonske radnje. -->
           <section class="matter__section zp" id="zp-blok" hidden aria-labelledby="zp-naslov">
             <h2 class="matter__h2" id="zp-naslov">Stanje predmeta</h2>
@@ -943,7 +951,11 @@
         </div>
         <div class="matter__body" id="odeljak-naplata" hidden>
           <section class="matter__section matter__section--first" aria-labelledby="np-stavke-naslov">
-            <h2 class="matter__h2" id="np-stavke-naslov">Stavke naplate</h2>
+            <div class="section-head">
+              <h2 class="matter__h2" id="np-stavke-naslov">Stavke naplate</h2>
+              <button class="text-btn text-btn--line" id="np-csv" type="button">Evidencija naplate (CSV, ova godina)</button>
+            </div>
+            <p class="notice" id="np-csv-poruka" role="status" aria-live="polite" hidden></p>
             <dl class="facts facts--doc" id="np-zbir" hidden></dl>
             <p class="list-state" id="np-stavke-stanje" role="status" hidden></p>
             <div class="ledger-wrap">

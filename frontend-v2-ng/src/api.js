@@ -280,7 +280,7 @@
   async function preuzmi(putanja, opcije) {
     opcije = opcije || {};
     var adresa;
-    try { adresa = napraviAdresu(putanja, null); }
+    try { adresa = napraviAdresu(putanja, opcije.metod === "GET" ? (opcije.parametri || null) : null); }   // N6: upit samo uz GET
     catch (e) { return greska("CONFIG_ERROR", e.message, 0); }
     var zabranjeno = zabranjenoPolje(opcije.telo);
     if (zabranjeno) return greska("CONFIG_ERROR", "polje „" + zabranjeno + "“ nije dozvoljeno: pripadnost podataka određuje server", 0);

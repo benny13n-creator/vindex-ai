@@ -257,7 +257,7 @@ async def billing_csv_export(
     # Za IZVOZ nema „delimično": dokument koji advokat šalje dalje mora biti
     # kompletan ili se ne sme proizvesti. Zato je i `predmeti` ovde `_mora`, a
     # ne `_dopuna` — tiho prazna kolona „Predmet" u eksportu je gora od greške.
-    entries_r, predmeti_r = await asyncio.gather(
+    entries_r, predmeti_r, fakture_r = await asyncio.gather(
         _db(lambda: supa.table("billing_entries")
             .select("datum, predmet_id, tarifa_sifra, tarifa_naziv, opis, sati, iznos_rsd, obracunato, faktura_id")
             .eq("user_id", uid)
@@ -265,17 +265,21 @@ async def billing_csv_export(
             .order("datum")
             .execute()),
         _db(lambda: supa.table("predmeti").select("id, naziv").eq("user_id", uid).execute()),
+        _db(lambda: supa.table("fakture").select("id, broj_fakture, status").eq("user_id", uid).execute()),
         return_exceptions=True,
     )
 
     entries  = _mora(entries_r, "stavke naplate")
     predmeti = _mora(predmeti_r, "predmeti")
+    # N6: evidencija naplate kaže i da li je faktura plaćena (dve kolone dodate na kraj; postojeće kolone iste).
+    fakture_map = {f["id"]: f for f in _mora(fakture_r, "fakture")}
 
     pred_map = {p["id"]: p.get("naziv", "") for p in predmeti}
 
     buf = io.StringIO()
     w   = csv.writer(buf, delimiter=";", quoting=csv.QUOTE_MINIMAL)
-    w.writerow(["Datum", "Predmet", "Klijent", "Šifra tarife", "Naziv tarife", "Opis", "Sati", "Iznos RSD", "Obračunato", "Faktura ID"])
+    w.writerow(["Datum", "Predmet", "Klijent", "Šifra tarife", "Naziv tarife", "Opis", "Sati", "Iznos RSD", "Obračunato", "Faktura ID",
+                "Broj fakture", "Status fakture"])
 
     for e in entries:
         w.writerow([
@@ -289,6 +293,9 @@ async def billing_csv_export(
             e.get("iznos_rsd", ""),
             "da" if e.get("obracunato") else "ne",
             e.get("faktura_id", ""),
+            (fakture_map.get(e.get("faktura_id")) or {}).get("broj_fakture", ""),
+            {"nacrt": "nacrt", "izdata": "izdata", "placena": "plaćena", "stornirana": "stornirana"}.get(
+                (fakture_map.get(e.get("faktura_id")) or {}).get("status", ""), ""),
         ])
 
     filename = f"billing_{od_date}_{do_date}.csv"
@@ -576,6 +583,8 @@ async def billing_mesecni(
     """
     uid  = user["user_id"]
     supa = _get_supa()
+    from shared import rokovi as _rk129
+    _ima_129 = _rk129._sema_ima_129(supa)
     today = date.today()
 
     if mesec:
@@ -627,7 +636,7 @@ async def billing_mesecni(
             .lt("datum_iso", today_iso)
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("id,datum_iso,dogadjaj,predmet_id")
+            .select("id,datum_iso,dogadjaj,predmet_id" + (",vrsta,stanje" if _ima_129 else ""))
             .eq("user_id", uid)
             .gte("datum_iso", today_iso)
             .lte("datum_iso", (today + timedelta(days=14)).isoformat())
@@ -657,6 +666,19 @@ async def billing_mesecni(
         _mora(RuntimeError("lanac odluka o rokovima"), "odluke o rokovima")
     prekoraceni = [r for r in prekoraceni if _rokovi_hitni.je_hitan_za_prikaz(r, _odl)]
     sledeci14   = _mora(hronologija_r, "nadolazeći rokovi")
+    # N6: „narednih 14 dana“ su ROKOVI (ne obični događaji hronologije), svaki sa stanjem odluke — AI predlog se
+    # ne sme pročitati kao potvrđena obaveza; odbijen rok se ne prikazuje. Nepročitan lanac → 503 (kao gore).
+    if _ima_129:
+        sledeci14 = [h for h in sledeci14 if _rokovi_hitni.je_rok(h) and h.get("stanje") not in ("izvrsen", "otkazan")]
+    from shared.rok_potvrda import odluke as _odluke14, stanje_roka as _stanje14
+    try:
+        _odl14 = await asyncio.to_thread(_odluke14, [h.get("id") for h in sledeci14], True)
+    except Exception:
+        _mora(RuntimeError("lanac odluka o rokovima"), "odluke o rokovima")
+    sledeci14 = [{**h, "stanje_odluke": _stanje14(h.get("id"), _odl14)} for h in sledeci14]
+    sledeci14 = [h for h in sledeci14 if h["stanje_odluke"] != "REJECTED"]
+    # N6: ročište u mesecu = zakazano ili održano; otkazano/odloženo se ne broji (lista nosi `status`).
+    rocista = [r for r in rocista if (r.get("status") or "zakazano") not in ("otkazano", "odlozeno")]
 
     # B2-MESECNI-001 — TRI POJMA KOJA SE NE SMEJU MEŠATI.
     #
@@ -674,6 +696,9 @@ async def billing_mesecni(
     #   rad        `billing_entries.iznos_rsd`      uneseno, još nefakturisano
     #   fakturisan `fakture.iznos_sa_pdv`           izdato klijentu
     #   naplaćen   `fakture` sa `status='placena'`  stvarno naplaćeno
+    # N6: fakturisano = IZDATO klijentu (izdata ili plaćena). Nacrt nije izdat, stornirana nije dug — ranije su
+    # oba ulazila u „fakturisano“ i „neplaćeno“, pa je advokat video dug koji nikad nije ispostavljen.
+    fakture = [f for f in fakture if f.get("status") in ("izdata", "placena")]
     fakturisano = sum(float(f.get("iznos_sa_pdv") or 0) for f in fakture)
     naplaceno   = sum(
         float(f.get("iznos_sa_pdv") or 0)

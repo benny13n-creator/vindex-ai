@@ -317,6 +317,22 @@
       ucitajTarife(); ucitajStavke(); ucitajTajmer(); ucitajFakture();
     }
 
+    /* N6: evidencija naplate (GET /billing/report/csv — sve stavke naloga od 1.1. tekuće godine, sa statusom fakture). */
+    var csvZauzet = false;
+    $("np-csv").addEventListener("click", async function () {
+      if (csvZauzet || !trenutni) return;
+      if (!prijavljen()) { poruka("np-csv-poruka", "greska", "Niste prijavljeni. Ništa nije preuzeto."); return; }
+      var g = new Date().getFullYear();
+      csvZauzet = true; $("np-csv").disabled = true; poruka("np-csv-poruka", "ucitavanje", "Pravljenje evidencije…");
+      var r = await api.preuzmi("/billing/report/csv", { metod: "GET", parametri: { od: g + "-01-01", "do": g + "-12-31" }, token: sesija.token(), tip: "text/csv" });
+      csvZauzet = false; $("np-csv").disabled = false;
+      if (!r.ok) { poruka("np-csv-poruka", "greska", "Evidencija nije preuzeta (" + r.greska.kod + "). Ništa nije preuzeto."); return; }
+      var url = URL.createObjectURL(r.blob), a = d.createElement("a");
+      a.href = url; a.download = r.ime || ("evidencija-naplate-" + g + ".csv"); d.body.append(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      poruka("np-csv-poruka", "uspeh", "Preuzeta je evidencija naplate za " + g + ". (sve stavke vašeg naloga, sa predmetom i statusom fakture).");
+    });
+
     $("np-forma").addEventListener("submit", function (e) { e.preventDefault(); dodajStavku(); });
     $("np-faktura-forma").addEventListener("submit", function (e) { e.preventDefault(); napraviFakturu(); });
     $("np-tajmer-forma").addEventListener("submit", function (e) { e.preventDefault(); });

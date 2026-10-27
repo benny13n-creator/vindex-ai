@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y tesseract-ocr poppler-utils \
+    && apt-get install -y tesseract-ocr poppler-utils fonts-dejavu-core \
     && (apt-get install -y tesseract-ocr-srp || true) \
     && (apt-get install -y tesseract-ocr-srp-latn || true) \
     && rm -rf /var/lib/apt/lists/*
