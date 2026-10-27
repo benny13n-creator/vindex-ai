@@ -228,3 +228,36 @@ def test_s1_upis_prosao_a_odgovor_pukao_nema_druge_stavke(ok, monkeypatch):
     assert next(t for t in b.tabele["timer_sessions"] if t["id"] == "t-1")["aktivan"] is False
     assert k.post("/billing/timer/stop", json={"kreiraj_entry": True}, headers=zaglavlje("A")).status_code in (404, 409)
     assert len([e for e in b.tabele["billing_entries"] if e["predmet_id"] == PA]) == 1
+
+
+def test_s1e_pad_upisa_ne_prepoznaje_stariju_istu_stavku(ok, monkeypatch):
+    """Revizija S1-E: ranije je provera tražila stavku istog opisa/sati/iznosa/datuma, pa je pad upisa DRUGE sesije
+    istog dana „našao“ prvu stavku i rad druge sesije se tiho gubio. Provera je sada po id-u ovog upisa."""
+    k, b = ok
+    _aktivan_tajmer(b)
+    b.tabele["billing_entries"].append({"id": "stara", "user_id": "uid-A", "predmet_id": PA, "opis": "Rad po predmetu (tajmer)",
+                                        "obracunato": False, "datum": "2000-01-01"})
+    import routers.billing as BL
+    pravi = BL._get_supa
+
+    class _Pada:
+        def __init__(self, s):
+            self._s = s
+
+        def table(self, ime):
+            t = self._s.table(ime)
+            if ime == "billing_entries":
+                t.insert = lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("baza pala"))
+                orig_eq = t.eq
+
+                def _eq(kol, v, *a, **kw):
+                    polja.append(kol)
+                    return orig_eq(kol, v, *a, **kw)
+                t.eq = _eq
+            return t
+    polja = []
+    monkeypatch.setattr(BL, "_get_supa", lambda: _Pada(pravi()))
+    r = k.post("/billing/timer/stop", json={"kreiraj_entry": True}, headers=zaglavlje("A"))
+    monkeypatch.setattr(BL, "_get_supa", pravi)
+    assert r.status_code == 503 and next(t for t in b.tabele["timer_sessions"] if t["id"] == "t-1")["aktivan"] is True
+    assert "id" in polja and "opis" not in polja, polja                    # provera po id-u ovog upisa

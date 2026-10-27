@@ -25,6 +25,7 @@ import email as _email_lib
 import io
 import logging
 import math
+import uuid
 import os
 import smtplib
 from datetime import date, datetime, timedelta, timezone
@@ -523,8 +524,10 @@ async def timer_stop(
         satnica = await _resolve_tarifa_for_predmet(supa, uid, t["predmet_id"])
         iznos   = math.ceil(sati * satnica)
         opis    = (body.opis or t.get("opis") or "Rad po predmetu (tajmer)").strip()[:400]
+        entry_id = str(uuid.uuid4())     # revizija S1-E: ishod upisa se proverava po TAČNO ovom id-u, ne po sličnoj stavci
         try:
             er = await _db(lambda: supa.table("billing_entries").insert({
+                "id":         entry_id,
                 "user_id":    uid,
                 "predmet_id": t["predmet_id"],
                 "opis":       opis,
@@ -542,9 +545,7 @@ async def timer_stop(
             # sledećim zaustavljanjem upisao DRUGU stavku za isti rad. Tajmer se vraća samo kad je potvrđeno da je nema.
             try:
                 post = await _db(lambda: supa.table("billing_entries").select("*")
-                                 .eq("user_id", uid).eq("predmet_id", t["predmet_id"]).eq("opis", opis).eq("sati", sati)
-                                 .eq("iznos_rsd", iznos).eq("datum", date.today().isoformat()).eq("obracunato", False)
-                                 .limit(1).execute())
+                                 .eq("id", entry_id).eq("user_id", uid).limit(1).execute())
             except Exception as exc2:
                 logger.error("[BILLING] timer stop: provera upisa nije uspela uid=%.8s: %s", uid, type(exc2).__name__)
                 raise HTTPException(status_code=503, detail="Ishod upisa stavke nije poznat. Tajmer je zaustavljen — proverite "
