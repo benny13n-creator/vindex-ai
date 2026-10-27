@@ -3482,20 +3482,21 @@ def _proveri_stavove_prakse(data, praksa_context: str):
 
 # S1-C5 (revizija H4): „Rev. 5/2020“, „str. 3“, „čl. 187“ — deljenje rečenica posle tačke je presecalo navod odluke, a
 # tačno poređenje teksta nije prepoznavalo „Rev. 5/2020“ kao „Rev 5/2020“. Rečenica se ne prekida posle poznate skraćenice
-# ni ispred cifre; broj odluke se traži obrascem (delovi broja uz tačku/razmak/crtu između, granice sa obe strane).
+# citata; broj odluke se traži obrascem (delovi broja uz tačku/razmak/crtu između, granice sa obe strane).
+# Samo oznake vrste odluke i citata („Rev.“, „str.“, „čl.“) — ne opšte skraćenice koje završavaju rečenicu („itd.“, „god.“)
 _PRAKSA_SKRACENICE = {"rev", "gz", "gz1", "kzz", "kz", "kz1", "kz2", "uz", "iuz", "iu", "uzp", "pzz", "prev", "pz",
-                      "str", "br", "cl", "st", "tac", "tacka", "sl", "gl", "dr", "npr", "tj", "itd", "god", "ul", "kp"}
+                      "str", "br", "cl", "st", "tac", "kp"}
 
 
 def _recenice_sa_razmacima(tekst: str) -> list:
-    """[rečenica, razmak, rečenica, …] — kao `re.split(r"((?<=[.!?])\\s+)")`, ali bez prekida posle skraćenice ili ispred
-    cifre (spojeni delovi zadržavaju originalni razmak)."""
+    """[rečenica, razmak, rečenica, …] — kao `re.split(r"((?<=[.!?])\\s+)")`, ali bez prekida posle skraćenice oznake odluke
+    ili citata (spojeni delovi zadržavaju originalni razmak)."""
     delovi = re.split(r"((?<=[.!?])\s+)", tekst or "")
     out = [delovi[0]] if delovi else [""]
     for i in range(1, len(delovi) - 1, 2):
         razmak, dalje = delovi[i], delovi[i + 1]
         poslednja = re.search(r"([^\W\d_]+)\.$", out[-1])
-        if (poslednja and _normalizuj(poslednja.group(1).translate(_CIR_LAT_N8)) in _PRAKSA_SKRACENICE) or re.match(r"\d", dalje):
+        if poslednja and _normalizuj(poslednja.group(1).translate(_CIR_LAT_N8)) in _PRAKSA_SKRACENICE:
             out[-1] = out[-1] + razmak + dalje
         else:
             out += [razmak, dalje]

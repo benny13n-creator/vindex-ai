@@ -227,3 +227,14 @@ def test_M2_isti_broj_iz_dva_suda_nije_potvrdjen():
           "pravni_princip": "Rok zastarelosti potraživanja naknade štete teče od dana saznanja za štetu."}
     assert main._sazeci_iz_konteksta(ctx) == {}
     assert main._proveri_stavove_prakse({"pravni_zakljucak": "x", "sudska_praksa": [st]}, ctx)["sudska_praksa"] == []
+
+
+def test_S1E_opsta_skracenica_na_kraju_recenice_i_lista_ne_spajaju_recenice():
+    """Revizija S1-E: „… kamati itd. U Rev 5/2020 …“ — uklanjanje je brisalo i legitimnu prvu rečenicu; broj stavke
+    liste („3.“) se lepio za prethodnu rečenicu."""
+    st = {"sud": "Vrhovni kasacioni sud", "broj_odluke": "Rev 5/2020", "sazetak_relevantnosti": "x",
+          "pravni_princip": "Otkaz zaposlenoj za vreme trudnoće je dopušten ako poslodavac prestane da postoji."}
+    proza = "Sud primenjuje pravila o naknadi štete, kamati itd. U Rev 5/2020 VKS je zauzeo stav X."
+    out = main._proveri_stavove_prakse({"pravni_zakljucak": proza, "sudska_praksa": [st]}, _h4_ctx())
+    assert out["sudska_praksa"] == [] and out["pravni_zakljucak"] == "Sud primenjuje pravila o naknadi štete, kamati itd."
+    assert main._recenice_sa_razmacima("Prvo. 3. Treće.")[0::2] == ["Prvo.", "3.", "Treće."]
