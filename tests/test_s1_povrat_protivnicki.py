@@ -63,3 +63,44 @@ def test_datum_dela_uz_glagol_izvrsenja_i_dalje_racuna():
          "izdržavanja kazne 01.03.2020. Novo delo, tešku krađu, izvršio je sa umišljajem 15.01.2024, a propisan je zatvor "
          "od jedne do osam godina. U kom rasponu?")
     assert _uslov(q, 3) == V.DA
+
+
+# ── revizija S1 ispravki: ni DA za dvosmisleno, ni NEPOZNATO za jednoznačno ──
+
+OSUDE = "Okrivljeni je dva puta osuđen za umišljajna dela na zatvor od po dve godine."
+
+
+@pytest.mark.parametrize("q", [
+    OSUDE + " Jedno od tih dela je ipak bilo iz nehata. Otpušten je pre dve godine. " + NOVO,
+    "Okrivljeni je dva puta osuđen na zatvor od po dve godine, jednom za umišljajnu krađu. Drugo delo je izvršio iz "
+    "nehata. Otpušten je pre dve godine. " + NOVO,
+])
+def test_protivrecna_krivica_posle_recenice_osude_nije_DA(q):
+    assert _uslov(q, 2) == V.NEPOZNATO and _ishod(q) == V.NEPOZNATO
+
+
+@pytest.mark.parametrize("q", [
+    "Prema izvodu iz kaznene evidencije, okrivljeni je dva puta osuđen za umišljajna dela na zatvor od po dve godine. "
+    "Otpušten je pre dve godine. " + NOVO,
+    OSUDE + " Otpušten je pre dve godine. Sada je sa umišljajem izvršio krađu na štetu maloletnog lica, propisan je "
+    "zatvor od jedne do osam godina. 55a?",
+    "Okrivljeni je dva puta osuđen na zatvor od po dve godine. Oba dela su učinjena sa umišljajem. Otpušten je pre dve "
+    "godine. " + NOVO,
+    OSUDE + " Otpušten je pre dve godine. Sada je sa umišljajem izvršio krađu iz člana 204 KZ (Sl. glasnik RS 94/2016), "
+    "propisan je zatvor od jedne do osam godina. 55a?",
+    "Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa izdržavanja "
+    "kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je propisan zatvor od jedne "
+    "do osam godina. U kom rasponu sud mora da izrekne kaznu?",
+])
+def test_jednoznacan_slucaj_ostaje_DA(q):
+    assert _ishod(q) == V.DA
+
+
+@pytest.mark.parametrize("q", [
+    OSUDE + " Otpušten je pre dve godine. Prošle godine je sa umišljajem izvršio krađu, propisan je zatvor od jedne do "
+    "osam godina. 55a?",
+    OSUDE + " Otpušten je pre dve godine. Sada je utvrđeno da je sa umišljajem izvršio krađu dok je još bio na "
+    "izdržavanju kazne, propisan je zatvor od jedne do osam godina. 55a?",
+])
+def test_vreme_novog_dela_nije_jednoznacno(q):
+    assert _uslov(q, 3) == V.NEPOZNATO
