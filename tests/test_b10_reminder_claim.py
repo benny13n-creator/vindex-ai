@@ -205,6 +205,9 @@ class FakeBaza:
             if tuple(str(row.get(k)) for k in kljuc) in postojeci:
                 raise RuntimeError('{"code":"23505","message":"duplicate key value violates unique constraint '
                                    + tabela + '_kljuc"}')
+        if tabela == "email_notif_log":           # 021: poslato_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            from datetime import datetime, timezone
+            rows = [{"poslato_at": datetime.now(timezone.utc).isoformat(), **r} for r in rows]
         cilj.extend(dict(r) for r in rows)
 
     def table(self, ime):

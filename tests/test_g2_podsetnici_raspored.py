@@ -93,7 +93,7 @@ def test_G_dogadjaj_izvrsiv_tek_posle_poslednjeg_praga_dobija_dodatni_podsetnik(
     assert _na_dan(0, b)[1] == []                                          # ništa dospelo u trenutku slanja
     b.tabele["predmet_hronologija"].append(_rok("r1", _dan(1)))           # potvrđen posle 08:00
     _, poslati = _na_dan(1, b, potvrdjeni=("r1",))
-    assert len(poslati) == 1 and "Rok za žalbu" in poslati[0][2] and "ističe DANAS" in poslati[0][2]
+    assert len(poslati) == 1 and "Rok za žalbu" in poslati[0][2] and "zabeleženi datum roka: DANAS" in poslati[0][2]
     assert [(r["dogadjaj_id"], r["svrha"], r["stanje"]) for r in b.log] == [("r1", "kasni", "poslato")]
     assert _na_dan(1, b, potvrdjeni=("r1",))[1] == []                     # jednom po događaju
 

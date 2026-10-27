@@ -25,6 +25,7 @@ import asyncio
 import html
 import logging
 import os
+import re
 import smtplib
 import types
 import uuid
@@ -49,6 +50,7 @@ _SMTP_PORT   = int(os.getenv("EMAIL_SMTP_PORT", "587"))
 _SMTP_USER   = os.getenv("EMAIL_SMTP_USER", "")
 _SMTP_PASS   = os.getenv("EMAIL_SMTP_PASS", "")
 _FROM_ADDR   = os.getenv("EMAIL_FROM", "") or _SMTP_USER
+_SMTP_TIMEOUT = 15
 
 # Operation Lawyer Zero, LZ-001 (2026-08-03) je ovde drzao listu
 # ["kritičan","važan","bitan","kljucan","normalan"], uz obrazlozenje da
@@ -134,7 +136,7 @@ def _smtp_send(to_addr: str, subject: str, html: str) -> None:
     msg["To"]      = to_addr
     msg.attach(MIMEText(html, "html", "utf-8"))
     try:
-        smtp = smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=15)
+        smtp = smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=_SMTP_TIMEOUT)
     except (OSError, smtplib.SMTPException) as exc:
         raise _NijePredato(f"veza: {type(exc).__name__}") from exc
     try:
@@ -144,15 +146,37 @@ def _smtp_send(to_addr: str, subject: str, html: str) -> None:
             smtp.login(_SMTP_USER, _SMTP_PASS)
         except (OSError, smtplib.SMTPException) as exc:
             raise _NijePredato(f"prijava: {type(exc).__name__}") from exc
+        # Faze kao u `smtplib.SMTP.sendmail`, ali razdvojene da se zna da li je SADRŽAJ predat (noćni sprint S2.6):
+        # MAIL/RCPT i komanda DATA (do odgovora 354) → sadržaj još nije poslat, svaki pad je „sigurno nije predato“
+        # (i istek vremena). Tek posle slanja sadržaja pad bez odgovora je NEPOZNAT ishod.
         try:
-            smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
-        except (smtplib.SMTPRecipientsRefused, smtplib.SMTPSenderRefused) as exc:
-            raise _NijePredato(f"odbijen pre sadržaja: {type(exc).__name__}") from exc
-        except smtplib.SMTPDataError as exc:
-            # Odgovor ≠ 250 na DATA ili posle sadržaja: server je IZRIČITO rekao da poruku nije prihvatio.
-            if 400 <= int(exc.smtp_code or 0) < 500:
-                raise _NijePredato(f"privremeno odbijeno {exc.smtp_code}") from exc
-            raise _Odbijeno(f"odbijeno {exc.smtp_code}") from exc
+            smtp.ehlo_or_helo_if_needed()
+            kod, _ = smtp.mail(_FROM_ADDR)
+            if kod != 250:
+                raise _NijePredato(f"pošiljalac odbijen {kod}")
+            kod, _ = smtp.rcpt(to_addr)
+            if kod not in (250, 251):
+                raise _NijePredato(f"primalac odbijen {kod}")
+            kod, _ = smtp.docmd("DATA")
+            if kod != 354:
+                raise _NijePredato(f"DATA odbijen {kod}")
+        except _NijePredato:
+            raise
+        except (OSError, smtplib.SMTPException) as exc:
+            raise _NijePredato(f"pre sadržaja: {type(exc).__name__}") from exc
+        sadrzaj = re.sub(rb"(?m)^\.", b"..", re.sub(rb"\r\n|\n|\r(?!\n)", b"\r\n", msg.as_bytes()))
+        if not sadrzaj.endswith(b"\r\n"):
+            sadrzaj += b"\r\n"
+        smtp.send(sadrzaj + b".\r\n")                       # pad odavde dalje: ishod NEPOZNAT (propagira)
+        kod, odgovor = smtp.getreply()
+        if kod == 250:
+            return
+        if 400 <= kod < 500:
+            # Server je IZRIČITO odgovorio da poruku nije prihvatio (privremeno) — sme ponovo.
+            raise _NijePredato(f"privremeno odbijeno {kod}")
+        if 500 <= kod < 600:
+            raise _Odbijeno(f"odbijeno {kod}")
+        raise RuntimeError(f"neočekivan SMTP odgovor {kod}")  # nepoznat ishod
     finally:
         try:
             smtp.quit()          # pad QUIT-a posle 250 ne menja ishod (poruka je već prihvaćena)
@@ -435,6 +459,14 @@ def _sada() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _podsetnici_pauzirani() -> bool:
+    """Operativna pauza (runbook: oporavak bez brisanja istorije): `VINDEX_EMAIL_PODSETNICI_PAUZA=1` → dnevno slanje i
+    hitna provera ne šalju ništa; dnevni posao je CRVEN (greska + napomena), da pauza ne izgleda kao „nema rokova“."""
+    return os.getenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "").strip() in ("1", "true", "da")
+
+
+
+
 def _je_dup(exc: Exception) -> bool:
     t = str(exc)
     return "23505" in t or "duplicate key" in t.lower()
@@ -469,8 +501,10 @@ def _vreme_rocista(v):
 
 
 def _predstoji_danas(ev: dict, sada_bg: datetime) -> bool:
-    """Događaj DANAS: rok (samo datum) ističe na kraju dana → još predstoji. Ročište sa vremenom predstoji samo pre
-    tog vremena; ročište BEZ vremena se ne šalje — ne može se utvrditi da nije već održano (vreme se ne izmišlja)."""
+    """Događaj DANAS. Rok ima samo zabeležen DATUM (trenutak isteka nije poznat i ne tvrdi se) → šalje se, jer je
+    neposlat podsetnik na dan roka gori od zakasnelog; poruka kaže samo da je zabeleženi datum roka danas. Ročište sa
+    vremenom predstoji samo pre tog vremena; ročište BEZ vremena se ne šalje — ne može se utvrditi da nije već
+    održano (vreme se ne izmišlja)."""
     if ev["tip"] == "rok":
         return True
     hm = _vreme_rocista(ev["red"].get("vreme")) if ev["red"].get("vreme") else None
@@ -556,13 +590,15 @@ def _vremena_potvrda(rok_ids: list) -> dict:
 
 
 def _pokriva_stari_red(ev: dict, prag: int, stari: dict, potvrde: dict) -> bool:
-    """Stari red (predmet, datum, prag) pokriva događaj koji je bio izvršiv PRE tog slanja. Nepoznato vreme bilo koje
-    strane → pokriveno (bez duplikata; kao do sada). Kasnije izvršiv događaj NIJE mogao biti u tom emailu."""
+    """Stari red (predmet, datum, prag) pokriva događaj koji je bio izvršiv PRE tog slanja; kasnije izvršiv NIJE mogao
+    biti u tom emailu. Nepoznato vreme → NIJE pokriveno (noćni sprint S2.2): tiho gašenje nije bezbedno, najviše jedan
+    suvišan podsetnik jeste. Za važeće redove vremena uvek postoje (`rocista.created_at`, `email_notif_log.poslato_at`
+    i `audit_immutable.created_at` su NOT NULL)."""
     kljuc = (str(ev["predmet_id"]), ev["datum"].isoformat(), prag)
     if kljuc not in stari:
         return False
     poslato_at = _kao_trenutak(stari[kljuc])
-    od = _kao_trenutak(ev["red"].get("created_at"))
+    od = _kao_trenutak(ev["red"].get("created_at")) if ev["tip"] == "rociste" else None
     if ev["tip"] == "rociste":
         # Pomeranje i vraćanje (otkazano → zakazano) menjaju red na mestu: `created_at` ostaje star, a ročište na ovom
         # datumu/u ovom stanju postoji tek od `updated_at` (revizija S2-F, F1). Kozmetička izmena posle starog slanja
@@ -571,10 +607,10 @@ def _pokriva_stari_red(ev: dict, prag: int, stari: dict, potvrde: dict) -> bool:
         if od and izm:
             od = max(od, izm)
     if ev["tip"] == "rok":
-        p = _kao_trenutak(potvrde.get(ev["id"]))
-        od = max(od, p) if (od and p) else None
+        # Rok je izvršiv tek od potvrde (D5) — potvrda je uvek posle upisa reda.
+        od = _kao_trenutak(potvrde.get(ev["id"]))
     if poslato_at is None or od is None:
-        return True
+        return False
     return od <= poslato_at
 
 
@@ -609,7 +645,9 @@ def _email_html_kasni(stavke: list, danas: date, user_id: str = "", email: str =
         r = ev["red"]
         if ev["tip"] == "rok":
             opis = html.escape(str(r.get("dogadjaj") or "Rok"))
-            kada = f"{html.escape(ev['datum'].isoformat())} — ističe {_koliko(ev, danas)}"
+            # Samo zabeležen datum — bez tvrdnje kada rok pravno ističe (noćni sprint S2.5).
+            kada = (f"{html.escape(ev['datum'].isoformat())} — zabeleženi datum roka: {_koliko(ev, danas)}"
+                    f" (vreme isteka nije zabeleženo)")
         else:
             opis = f'Ročište — {html.escape(str(r.get("sud") or "Sud"))}' + (
                 f', sudnica {html.escape(str(r.get("sudnica")))}' if r.get("sudnica") else "")
@@ -850,6 +888,9 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         sada_bg = _beograd(sada)
         danas = sada_bg.date()
         n = _novi_brojaci()
+        if _podsetnici_pauzirani():
+            logger.error("[EMAIL-CRON] dnevni podsetnici PAUZIRANI (VINDEX_EMAIL_PODSETNICI_PAUZA) — ništa nije poslato")
+            return {**n, "greske": 1, "napomena": "Podsetnici su pauzirani — ništa nije poslato"}
         try:
             supa.table(_TABELA_POKRETANJA).insert({"dan": danas.isoformat(), "pokrenuto_at": sada.isoformat()}).execute()
         except Exception as exc:
@@ -887,6 +928,8 @@ def proveri_hitne_podsetnike(uid: str) -> dict:
     da čeka sledeće dnevno slanje: `kasni`, i današnji prag ako je današnje dnevno slanje već prošlo. Isti ključevi kao
     dnevno slanje → nema duplikata ni u trci. Samo za `uid` pozivaoca (ruta je već proverila vlasništvo)."""
     n = _novi_brojaci()
+    if _podsetnici_pauzirani():
+        return n
     try:
         supa = _get_supa()
         sada = _sada()

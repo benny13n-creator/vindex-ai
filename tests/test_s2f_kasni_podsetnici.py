@@ -156,8 +156,9 @@ def test_d0_rociste_pre_i_posle_pocetka_i_bez_vremena():
 def test_d0_rok_samo_datum_istice_danas():
     b = _baza()
     b.tabele["predmet_hronologija"].append(_rok("r1", _d(0)))
-    _, poslati = _hitno(b, _t(DAN, 21), potvrdjeni=("r1",))                   # 22:00 Beograd — rok ističe na kraju dana
-    assert len(poslati) == 1 and "ističe DANAS" in poslati[0][2] and poslati[0][1] == "Vindex AI — Podsetnik: rok uskoro"
+    _, poslati = _hitno(b, _t(DAN, 21), potvrdjeni=("r1",))                   # 22:00 Beograd — zabeležen samo datum
+    assert len(poslati) == 1 and poslati[0][1] == "Vindex AI — Podsetnik: rok uskoro"
+    assert "zabeleženi datum roka: DANAS (vreme isteka nije zabeleženo)" in poslati[0][2] and "ističe" not in poslati[0][2]   # bez tvrdnje o trenutku isteka
 
 
 def test_prosao_dogadjaj_se_ne_salje():
@@ -297,10 +298,17 @@ def test_stari_red_rok_potvrdjen_posle_slanja_nije_pokriven():
         assert _cron(b, _t(DAN, 10), potvrdjeni=("r1",))[1] == []           # potvrđen pre slanja: pokriven
 
 
-def test_stari_red_bez_vremena_pokriva_bez_duplikata():
+def test_stari_red_bez_vremena_NE_pokriva_salje_se():
+    """Noćni sprint S2.2: nepoznato vreme nije dokaz pokrivenosti — tiho gašenje nije bezbedno; najviše jedan suvišan
+    podsetnik jeste. (Za važeće redove vremena postoje: NOT NULL kolone.)"""
     b = _baza(rocista=[_roc("h1", _d(1))])                                    # nema created_at
     _stari(b, PID, _d(1), 1, "2026-11-02T08:05:00+00:00")
-    assert _cron(b, _t(DAN, 10))[1] == []
+    assert len(_cron(b, _t(DAN, 10))[1]) == 1
+    b = _baza([_rok("r1", _d(1))])                                            # rok bez vremena potvrde
+    _stari(b, PID, _d(1), 1, "2026-11-02T08:05:00+00:00")
+    import routers.email_notif as en
+    with patch.object(en, "_vremena_potvrda", lambda ids: {}):
+        assert len(_cron(b, _t(DAN, 10), potvrdjeni=("r1",))[1]) == 1
 
 
 def test_stari_najkasniji_prag_sprecava_dodatni_sutra():

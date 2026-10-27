@@ -150,7 +150,7 @@ def test_s2e_ispravka_posle_slanja_salje_ispravljen_datum_a_ne_predlog(lanac, sm
     r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": _d(0)}, headers=A)   # tačan rok je DANAS
     assert r.status_code == 200, r.text
     (za, naslov, telo), = _poruke(smtp)
-    assert "ističe DANAS" in telo and _d(0) in telo and _d(1) not in telo
+    assert "zabeleženi datum roka: DANAS (vreme isteka nije zabeleženo)" in telo and _d(0) in telo and _d(1) not in telo
     assert _stanje(k, "rok-ai") == "REJECTED" and _stanje(k, r.json()["rok_id"]) == "CONFIRMED"
     assert _cron()["poslato"] == 0
 
@@ -163,3 +163,49 @@ def test_s2e_iskljuceni_podsetnici_ni_hitna_provera_ne_salje(lanac, smtp):
     assert k.post("/api/rocista", json={"predmet_id": p1, "sud": "Osnovni sud", "datum": _d(0), "vreme": "23:59"},
                   headers=A).status_code == 200
     assert smtp.primljeno == [] and b.tabele["email_podsetnik_dogadjaj"] == []
+
+
+@pytest.mark.parametrize("dogadjaj", ["rociste", "rok"])
+def test_s2e_trajni_okidac_posle_restarta_salje_iz_reda_dogadjaja(lanac, smtp, monkeypatch, dogadjaj):
+    """Noćni sprint S2.4: pozadinski zadatak rute živi samo u memoriji procesa. Ako proces padne posle odgovora,
+    podsetnik ipak stiže — iz trajnog reda `events` (upisan PRE odgovora), kad ga bus isporuči. Svaki tip događaja
+    zasebno (ročište → ROCISTE_ZAKAZANO, potvrda roka → MANUAL_CORRECTION_APPLIED). Ponovna isporuka: bez duplikata."""
+    import asyncio
+    import routers.rocista as rc
+    import routers.rok_odluka as ro
+    from services.event_bus import dispatch_pending_events
+    k, b = lanac
+    p1 = _predmet(k, A, "Predmet jedan")
+    _profil(b)
+    monkeypatch.setattr(rc, "_hitni_podsetnici", lambda uid: None)            # „restart“: zadatak se nikad ne izvrši
+    monkeypatch.setattr(ro, "_hitni_podsetnici", lambda uid: None)
+    if dogadjaj == "rociste":
+        assert k.post("/api/rocista", json={"predmet_id": p1, "sud": "Osnovni sud u Beogradu", "datum": _d(0),
+                                            "vreme": "23:59"}, headers=A).status_code == 200
+    else:
+        _predlog(b, rid="rok-ai", uid="uid-A", pid=p1, dana=0)
+        assert k.post("/api/rokovi/rok-ai/potvrdi", json={}, headers=A).status_code == 200
+    assert smtp.primljeno == []                                               # bez zadatka: još ništa
+    assert any(e.get("dispatched_at") is None for e in b.tabele.get("events", []))
+    for _ in range(4):
+        asyncio.run(dispatch_pending_events())
+    (za, naslov, telo), = _poruke(smtp)
+    assert ("Osnovni sud u Beogradu" if dogadjaj == "rociste" else "Rok za tužbu") in telo
+    for _ in range(2):
+        asyncio.run(dispatch_pending_events())                                # ponovna isporuka: nema duplikata
+    assert len(smtp.primljeno) == 1
+    assert [(r["tip"], r["svrha"], r["stanje"]) for r in b.tabele["email_podsetnik_dogadjaj"]] == [(dogadjaj, "kasni", "poslato")]
+
+
+def test_s2e_pauza_podsetnika_nista_ne_salje_i_dnevni_posao_je_crven(lanac, smtp, monkeypatch):
+    k, b = lanac
+    p1 = _predmet(k, A, "Predmet jedan")
+    _profil(b)
+    monkeypatch.setenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "1")
+    assert k.post("/api/rocista", json={"predmet_id": p1, "sud": "Osnovni sud", "datum": _d(0), "vreme": "23:59"},
+                  headers=A).status_code == 200
+    rez = _cron()
+    assert smtp.primljeno == [] and b.tabele["email_podsetnik_dogadjaj"] == []
+    assert rez["greske"] == 1 and "pauzirani" in rez["napomena"]
+    monkeypatch.delenv("VINDEX_EMAIL_PODSETNICI_PAUZA")
+    assert _cron()["poslato"] == 1                                            # posle pauze: dodatni podsetnik ide

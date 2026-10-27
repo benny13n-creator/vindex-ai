@@ -80,7 +80,7 @@ def test_5_dogadjaj_izvrsiv_posle_poslednjeg_praga_dobija_jedan_dodatni_podsetni
     b.tabele["rocista"].append(_roc("h1", _dan(1)))
     _, poslati = _na_dan(1, b, potvrdjeni=("r1",))
     assert len(poslati) == 1 and poslati[0][1] == "Vindex AI — Podsetnik: rok i ročište uskoro"
-    assert "ističe DANAS" in _telo(poslati[0]) and "u 10:00 — DANAS" in _telo(poslati[0])
+    assert "zabeleženi datum roka: DANAS (vreme isteka nije zabeleženo)" in _telo(poslati[0]) and "u 10:00 — DANAS" in _telo(poslati[0])
     assert sorted((r["dogadjaj_id"], r["svrha"]) for r in b.log) == [("h1", "kasni"), ("r1", "kasni")]
     assert _na_dan(1, b, potvrdjeni=("r1",))[1] == []
 

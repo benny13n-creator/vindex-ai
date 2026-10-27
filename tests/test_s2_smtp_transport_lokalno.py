@@ -90,6 +90,9 @@ class LokalniSmtp:
                     od, za = k, []
                     salji("250 OK")
                 elif gk.startswith("RCPT TO"):
+                    if self.posle_data == "zastoj_rcpt":         # bez odgovora → klijentu istekne vreme PRE sadržaja
+                        f.readline()
+                        return
                     adr = k.split(":", 1)[1].strip().strip("<>")
                     if adr in self.odbij_rcpt:
                         salji("550 5.1.1 User unknown")
@@ -97,6 +100,9 @@ class LokalniSmtp:
                         za.append(adr)
                         salji("250 OK")
                 elif gk == "DATA":
+                    if self.posle_data == "data_554":            # komanda DATA odbijena — sadržaj se ne šalje
+                        salji("554 5.5.1 No valid recipients")
+                        continue
                     salji("354 End data with <CR><LF>.<CR><LF>")
                     telo = b""
                     while True:
@@ -106,6 +112,9 @@ class LokalniSmtp:
                         telo += r
                     if self.posle_data == "prekid":
                         veza.close()
+                        return
+                    if self.posle_data == "zastoj_posle":        # sadržaj primljen, odgovor nikad ne stiže
+                        f.readline()
                         return
                     if self.posle_data == "554":
                         salji("554 5.7.1 Poruka odbijena")
@@ -281,3 +290,67 @@ def test_smtp_prihvatio_a_zapis_ishoda_pao_ne_ponavlja_se(cert):
         s.zatvori()
     assert rez["poslato"] == 1 and rez["greske"] == 1 and rez2["poslato"] == 0 and len(s.primljeno) == 1
     assert [r["stanje"] for r in b.log] == ["rezervisano"]
+
+
+# ── noćni sprint S2.6: faze predaje (istek vremena PRE i POSLE sadržaja, odbijena komanda DATA, grupni email) ─────
+
+@pytest.fixture
+def kratak_timeout(monkeypatch):
+    import routers.email_notif as en
+    monkeypatch.setattr(en, "_SMTP_TIMEOUT", 1)
+
+
+def test_istek_vremena_pre_sadrzaja_nije_predato_i_ponavlja_se(cert, kratak_timeout):
+    s = LokalniSmtp(*cert, posle_data="zastoj_rcpt")
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        rez = _pokreni_stvarno(b, s)
+        assert rez["greske"] == 1 and rez["neisporuceno"] == 0, rez
+        assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)]
+        s.posle_data = "ok"
+        rez2 = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez2["poslato"] == 1 and len(s.primljeno) == 1
+
+
+def test_istek_vremena_posle_sadrzaja_je_nepoznat_i_ne_ponavlja_se(cert, kratak_timeout):
+    s = LokalniSmtp(*cert, posle_data="zastoj_posle")
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        rez = _pokreni_stvarno(b, s)
+        s.posle_data = "ok"
+        rez2 = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez["neisporuceno"] == 1 and rez["greske"] == 0 and rez2["poslato"] == 0
+    assert [r["stanje"] for r in b.log] == ["nepoznato"]
+
+
+def test_odbijena_komanda_data_nije_predato(cert):
+    s = LokalniSmtp(*cert, posle_data="data_554")
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        rez = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez["greske"] == 1 and s.primljeno == [] and [r["stanje"] for r in b.log] == ["neuspeh"]
+
+
+def test_grupni_email_ishod_vazi_za_sve_stavke_i_pad_zapisa_ne_razdvaja(cert):
+    """Dva roka u jednom emailu: uspeh → oba `poslato`; pad zapisa ishoda (jedan UPDATE za sve) → oba ostaju
+    `rezervisano` (nepoznat zapis), nijedan se ne ponavlja."""
+    s = LokalniSmtp(*cert)
+    b = _baza([_rok("r1", _dan(1)), dict(_rok("r2", _dan(1)), dogadjaj="Drugi rok")])
+    b2 = _baza([_rok("r1", _dan(1)), dict(_rok("r2", _dan(1)), dogadjaj="Drugi rok")])
+    try:
+        rez = _pokreni_stvarno(b, s)
+        b2.update_puca = True
+        rez2 = _pokreni_stvarno(b2, s)
+        b2.update_puca = False
+        rez3 = _pokreni_stvarno(b2, s)
+    finally:
+        s.zatvori()
+    assert rez["poslato"] == 1 and sorted(r["stanje"] for r in b.log) == ["poslato", "poslato"]
+    assert rez2["poslato"] == 1 and rez2["greske"] == 1 and sorted(r["stanje"] for r in b2.log) == ["rezervisano"] * 2
+    assert rez3["poslato"] == 0 and len(s.primljeno) == 2
