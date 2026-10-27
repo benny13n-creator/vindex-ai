@@ -197,3 +197,34 @@ def test_zaustavljanje_koje_nije_ugasilo_tajmer_ne_pravi_stavku(ok, monkeypatch)
     monkeypatch.setattr(BL, "_get_supa", lambda: _VecUgasen(pravi()))
     r = k.post("/billing/timer/stop", json={"kreiraj_entry": True}, headers=zaglavlje("A"))
     assert r.status_code == 409 and [e for e in b.tabele["billing_entries"] if e["predmet_id"] == PA] == []
+
+
+def test_s1_upis_prosao_a_odgovor_pukao_nema_druge_stavke(ok, monkeypatch):
+    """S1-C4 (revizija Sektora 1): stavka JE upisana, ali odgovor baze pukne (istek veze). Ranije se tajmer vraćao i
+    sledeće zaustavljanje je upisivalo DRUGU stavku za isti rad."""
+    k, b = ok
+    _aktivan_tajmer(b)
+    import routers.billing as BL
+    pravi = BL._get_supa
+
+    class _UpisPaPuca:
+        def __init__(self, s):
+            self._s = s
+
+        def table(self, ime):
+            t = self._s.table(ime)
+            if ime == "billing_entries":
+                orig = t.insert
+
+                def _insert(vals):
+                    orig(vals).execute()                               # upis se DOGODIO
+                    raise RuntimeError("connection reset")             # … ali odgovor nije stigao
+                t.insert = _insert
+            return t
+    monkeypatch.setattr(BL, "_get_supa", lambda: _UpisPaPuca(pravi()))
+    r = k.post("/billing/timer/stop", json={"kreiraj_entry": True}, headers=zaglavlje("A"))
+    monkeypatch.setattr(BL, "_get_supa", pravi)
+    assert r.status_code == 200 and r.json()["entry"], r.text
+    assert next(t for t in b.tabele["timer_sessions"] if t["id"] == "t-1")["aktivan"] is False
+    assert k.post("/billing/timer/stop", json={"kreiraj_entry": True}, headers=zaglavlje("A")).status_code in (404, 409)
+    assert len([e for e in b.tabele["billing_entries"] if e["predmet_id"] == PA]) == 1

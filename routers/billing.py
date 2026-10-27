@@ -538,6 +538,18 @@ async def timer_stop(
         except Exception as exc:
             logger.error("[BILLING] timer stop: stavka nije upisana uid=%.8s: %s", uid, type(exc).__name__)
             entry = None
+            # S1-C4 (revizija Sektora 1): izuzetak posle upisa (istek veze) ne znači da stavke nema — vraćen tajmer bi
+            # sledećim zaustavljanjem upisao DRUGU stavku za isti rad. Tajmer se vraća samo kad je potvrđeno da je nema.
+            try:
+                post = await _db(lambda: supa.table("billing_entries").select("*")
+                                 .eq("user_id", uid).eq("predmet_id", t["predmet_id"]).eq("opis", opis).eq("sati", sati)
+                                 .eq("iznos_rsd", iznos).eq("datum", date.today().isoformat()).eq("obracunato", False)
+                                 .limit(1).execute())
+            except Exception as exc2:
+                logger.error("[BILLING] timer stop: provera upisa nije uspela uid=%.8s: %s", uid, type(exc2).__name__)
+                raise HTTPException(status_code=503, detail="Ishod upisa stavke nije poznat. Tajmer je zaustavljen — proverite "
+                                                            "stavke naplate pre ponovnog unosa.")
+            entry = (post.data or [None])[0]
         if entry is None:
             # N5 (pregled): tajmer je ugašen, a stavka nije upisana — rad bi se izgubio. Tajmer se vraća u
             # aktivno stanje (isti početak), pa ponovni pokušaj zaustavljanja upisuje stavku.
