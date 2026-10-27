@@ -281,6 +281,13 @@ def test_s1_nije_gradjanska_nadleznost(q):
     "Moj klijent iz Beograda želi da tuži fizičko lice koje ima prebivalište u Novom Sadu radi vraćanja duga. Koji sud je mesno nadležan?",
     "Gde da podnesem tužbu za uznemiravanje na radu?",
     "Kom sudu podnosimo tužbu protiv dva solidarna dužnika?",
+    # revizija S1-E: građanske tužbe sa rečima krivičnog/poreskog konteksta
+    "Kom sudu se podnosi tužba za naknadu štete zbog neosnovanog pritvora?",
+    "Koji sud je nadležan za tužbu za nematerijalnu štetu od ubistva člana porodice?",
+    "Koji sud je mesno nadležan za tužbu za naknadu štete koju je okrivljeni prouzrokovao u saobraćajnoj nezgodi?",
+    "Kom sudu podnosim tužbu protiv poreskog savetnika zbog pogrešnog saveta?",
+    "Koji sud je nadležan ako je tuženi direktor osumnjičen u drugom postupku?",
+    "Koji sud je mesno nadležan za tužbu radi duga ako poslovna sposobnost tuženog nije sporna?",
 ])
 def test_s1_gradjanska_nadleznost_i_dalje(q):
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
