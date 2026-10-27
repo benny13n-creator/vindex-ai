@@ -660,12 +660,14 @@ _NADLEZNOST_DRUGA_RE = re.compile(r"krivic|upravn|prekrsaj|ustavn|zalb|izvrsn\w*
                                   r"\bzio\b|izvrsenju\s+i\s+obezbedj|ostavin|nasledn|nasledj|stecaj|vanparnic|"
                                   # S1-C5 (revizija M1): postupci bez reči „krivičn/upravn“ koji NISU parnica
                                   r"ekstradic|uprav\w*\s+(?:organ|akt)|resenj\w*\s+(?:\w+\s+)?(?:organa|uprave|ministarstv)|"
-                                  r"tuzb\w*\s+protiv\s+resenj|"
+                                  r"tuzb\w*\s+protiv\s+resenj|privatn\w*\s+tuzb|"
                                   r"lisenj\w*\s+poslovn\w*\s+sposobnost|hask\w*\s+konvencij")
 # S1-E (revizija): reči krivičnog/poreskog konteksta isključuju SAMO bez građanskog sidra — „naknada štete zbog
 # neosnovanog pritvora“, „tužba protiv poreskog savetnika“ su parnice
 _NADLEZNOST_MEKO_DRUGA_RE = re.compile(r"ubist|pritvor|okrivljen|optuz|osumnjic|haps|poresk")
-_GRADJANSKO_SIDRO_RE = re.compile(r"naknad\w*\s+(?:\w+\s+){0,2}stet|\bstet\w*|tuzb\w*\s+protiv|parnic|tuzil\w*|tuzen\w*")
+# 3. krug revizije: bez gole „štete“ (krivično delo „kojim je pričinjena šteta“) i bez „tužil-“ (javni tužilac, tužilaštvo)
+_GRADJANSKO_SIDRO_RE = re.compile(r"naknad\w*\s+(?:\w+\s+){0,2}(?:materijaln\w*\s+|nematerijaln\w*\s+)?stet|tuzb\w*\s+(?:\w+\s+){0,3}"
+                                  r"(?:protiv|za\s+(?:\w+\s+)?(?:naknad|nematerijaln|materijaln|stet))|parnic|\btuzen\w*")
 # S1-C5 (revizija M1): „koji je sud doneo/zauzeo stav …“ pita za ODLUKU, ne za nadležnost
 _NADLEZNOST_ODLUKA_RE = re.compile(r"\bkoji\s+(?:je\s+)?sud\w*\s+(?:je\s+)?(?:done|zauze|odluci|presud|izrek|reka|utvrd)")
 _ZPP_LAW = "zakon o parnicnom postupku"

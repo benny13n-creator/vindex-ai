@@ -271,6 +271,13 @@ def test_uklanjanje_prakse_ne_brise_zakonske_recenice():
     "Koji sud je doneo presudu Rev 1234/2020 o otkazu?",
     "Pred kojim sudom se vodi postupak za lišenje poslovne sposobnosti?",
     "Koji sud je nadležan za vraćanje deteta po Haškoj konvenciji?",
+    # 3. krug revizije: krivična pitanja sa rečima „šteta“ / „tužilac“
+    "Koji sud je nadležan za ubistvo ako je javni tužilac podigao optužnicu u Nišu?",
+    "Koji sud je nadležan da sudi okrivljenom za prevaru kojom je pričinjena šteta od pet miliona dinara?",
+    "Koji sud odlučuje o produženju pritvora kada je tužilaštvo predložilo produženje?",
+    "Koji sud je nadležan za poresku utaju kojom je budžetu naneta šteta?",
+    "Koji sud je nadležan za suđenje osumnjičenom za pranje novca, gde je šteta veća od milion?",
+    "Koji sud je nadležan za privatnu tužbu za uvredu protiv okrivljenog?",
 ])
 def test_s1_nije_gradjanska_nadleznost(q):
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
