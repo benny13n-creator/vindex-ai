@@ -96,21 +96,27 @@ def u_akciju(kontradikcija: dict) -> dict:
     label = (kontradikcija.get("issue_label") or "").strip()
     razlog = label or "Kontradikcija u predmetu"
     tezina = kontradikcija.get("tezina")
+    dokaz = {
+        # Eksplicitna, mašinski čitljiva veza nazad na domen entitet.
+        "source_type": IZVOR_TIP,
+        "source_id": str(cid),
+        "issue_id": str(kontradikcija.get("issue_id") or ""),
+        "relation_type": kontradikcija.get("relation_type"),
+        "state": kontradikcija.get("state"),
+        # Članovi i provenijencija -- prenose se, ne učestvuju u identitetu.
+        "claim_ids": sorted(str(x) for x in (kontradikcija.get("claim_ids") or [])),
+        "dokument_ids": sorted(str(x) for x in (kontradikcija.get("dokument_ids") or []) if x),
+    }
+    if kontradikcija.get("kontinuitet") == "NIJE_POTVRDJEN":
+        # CG001: isti signal kao analiza (shared/genome_contract.py). Ključ i prioritet se NE menjaju — prioritet
+        # prati sačuvanu težinu, ne nepotvrđeni predlog modela; menja se samo ono što advokat čita.
+        dokaz["kontinuitet"] = "NIJE_POTVRDJEN"
+        razlog += " — najnovija analiza vezuje druge tvrdnje; kontinuitet nije potvrđen, proverite povezane tvrdnje"
 
     return {
         "tip": TIP_AKCIJE,
         "razlog": razlog,
-        "dokaz": {
-            # Eksplicitna, mašinski čitljiva veza nazad na domen entitet.
-            "source_type": IZVOR_TIP,
-            "source_id": str(cid),
-            "issue_id": str(kontradikcija.get("issue_id") or ""),
-            "relation_type": kontradikcija.get("relation_type"),
-            "state": kontradikcija.get("state"),
-            # Članovi i provenijencija -- prenose se, ne učestvuju u identitetu.
-            "claim_ids": sorted(str(x) for x in (kontradikcija.get("claim_ids") or [])),
-            "dokument_ids": sorted(str(x) for x in (kontradikcija.get("dokument_ids") or []) if x),
-        },
+        "dokaz": dokaz,
         "prioritet": _TEZINA_PRIORITET.get(tezina, _PODRAZUMEVANI_PRIORITET),
         "rok": None,
         "dedupe_key": projekcioni_kljuc(cid),
@@ -189,6 +195,7 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str) -> list[dict]:
         out.append({
             **k,
             "issue_label": (issues.get(k["issue_id"]) or {}).get("label"),
+            "issue_status": (issues.get(k["issue_id"]) or {}).get("status"),
             "claim_ids": claim_ids,
             "dokument_ids": sorted({dok_po_dokazu.get(c) for c in claim_ids if dok_po_dokazu.get(c)}),
         })
@@ -250,11 +257,30 @@ async def predmet_ima_v2(supa, predmet_id: str) -> bool:
     return bool((r.data if r else None) or [])
 
 
-async def v2_akcije_za_predmet(supa, predmet_id: str) -> list[dict]:
-    """Ceo put: baza -> akcije. Prazna lista znači „ovaj predmet nema V2"."""
+async def v2_akcije_za_predmet(supa, predmet_id: str, case_dna: Optional[dict] = None) -> list[dict]:
+    """Ceo put: baza -> akcije. Prazna lista znači „ovaj predmet nema V2".
+
+    `case_dna` (CG001): najnovije opažanje; ako ga domen ne može vezati za aktivnu spornu tačku, akcija to kaže."""
     kontradikcije = await ucitaj_v2_kontradikcije(supa, predmet_id)
     if not kontradikcije:
         return []
+    opazanje = case_dna.get("kontradikcije") if isinstance(case_dna, dict) and "greska" not in case_dna else None
+    if isinstance(opazanje, list):
+        import asyncio
+        from shared.issue_v2 import nerazreseno_prema_opazanju
+        ids = sorted({str(c) for s in opazanje if isinstance(s, dict) and isinstance(s.get("claim_ids"), list)
+                      for c in s["claim_ids"] if c})
+        zive: set = set()
+        if ids:
+            # Isto kao prikaz: povučena tvrdnja nije član opažanja. Opseg je predmet.
+            zr = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokazi").select("id,deleted_at")
+                           .eq("predmet_id", predmet_id).in_("id", ids).execute()
+            )
+            zive = {str(d["id"]) for d in ((zr.data if zr else None) or []) if not d.get("deleted_at")}
+        oznacene = {c for n in nerazreseno_prema_opazanju(kontradikcije, opazanje, zive) for c in n["kontradikcije"]}
+        kontradikcije = [{**k, "kontinuitet": "NIJE_POTVRDJEN"} if str(k.get("id")) in oznacene else k
+                         for k in kontradikcije]
     akcije = u_akcije(kontradikcije)
     logger.info("[V2-PROJ] predmet=%s projektovano %d V2 kontradikcija", predmet_id, len(akcije))
     return akcije

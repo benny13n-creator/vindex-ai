@@ -51,6 +51,7 @@ from shared.contradiction_identity import (contradiction_identity,
 # pravila o tome sta model sme da referise.
 from shared.claim_catalog import MAKS_TVRDNJI as _MAKS_TVRDNJI, napravi_katalog, redovi_za_prompt
 from shared.claim_catalog import GreskaKataloga, razresi_reference
+from shared.contradiction_materializer import izvori_nedosledni
 from services.v2_observation import upisi_v2_opazanje
 from services.v2_contradiction_persistence import (
     V2PackageRejected, V2StaleObservation)
@@ -239,7 +240,7 @@ async def _fetch_dokazi_kontekst(supa, predmet_id: str) -> list[dict]:
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
-                .select("id,predmet_id,tvrdnja,kategorija,pravni_element,deleted_at")
+                .select("id,predmet_id,dokument_id,tvrdnja,kategorija,pravni_element,deleted_at")
                 .eq("predmet_id", predmet_id)
                 .is_("deleted_at", "null")
                 .order("id")
@@ -540,6 +541,10 @@ async def _extract_genome(
             try:
                 _ids = razresi_reference(_k.get("claim_refs"), _katalog_k, predmet_id, _poznati_k) if _katalog_k else None
             except GreskaKataloga:
+                _ids = None
+            # CG001: veza koju V2 materijalizacija odbija (tvrdnje ne pokrivaju navedene izvore) nije ni trajna veza
+            # za poređenje verzija — isti vlasnik pravila, isti ishod.
+            if _ids and izvori_nedosledni(_k, _ids, _poznati_k):
                 _ids = None
             _k["claim_ids"] = sorted(_ids) if _ids and len(set(_ids)) >= 2 else None
         return result

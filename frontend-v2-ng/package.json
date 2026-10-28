@@ -33,6 +33,7 @@
     "verify:brand": "node tests/brand-identity.mjs",
     "verify:live-analiza": "node tests/live-analiza.mjs",
     "verify:live-pregled-zivi": "node tests/live-pregled-zivi.mjs",
+    "verify:live-cg001-kontinuitet": "node tests/live-cg001-kontinuitet.mjs",
     "verify:live-radna-lista": "node tests/live-radna-lista.mjs",
     "verify:live-pripremljeno": "node tests/live-pripremljeno.mjs",
     "verify:live-law-brain": "node tests/live-law-brain.mjs",

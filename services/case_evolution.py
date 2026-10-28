@@ -1163,7 +1163,7 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     # (A014 tamo pada zatvoreno), pa za njega ovo vraca praznu listu i legacy
     # putanja ostaje netaknuta -- sto je i uslov iz A015 §14.
     from services.v2_projection import predmet_ima_v2, v2_akcije_za_predmet
-    _v2_akcije = await v2_akcije_za_predmet(supa, predmet_id)
+    _v2_akcije = await v2_akcije_za_predmet(supa, predmet_id, case_dna=case_dna)
     if _v2_akcije:
         actions.extend(_v2_akcije)
         return actions

@@ -223,9 +223,11 @@
       /* PROTIVREČNOSTI */
       var k = g.kontradikcije || {};
       function kontr(x) {
-        var info = [x.relacija ? RELACIJA[x.relacija] : "", x.tezina ? "težina: " + TEZINA[x.tezina] : "", STANJE_K[x.stanje] || ""].filter(Boolean).join(" · ");
+        var info = [x.relacija ? RELACIJA[x.relacija] : "", x.tezina ? "težina: " + TEZINA[x.tezina] : "", STANJE_K[x.stanje] || "",
+          x.kontinuitet === "NIJE_POTVRDJEN" ? "kontinuitet nije potvrđen" : ""].filter(Boolean).join(" · ");
         var dodaci = [meta(info)];
         if (x.opis) dodaci.push(meta(x.opis));
+        if (x.kontinuitet && x.napomena) dodaci.push(meta(x.napomena));   // CG001: sačuvana veza vs najnovija analiza
         var ul = el("ul", "an-sub");
         niz(x.ucesnici).forEach(function (u) {
           ul.append(stavkaListe(u.tvrdnja || "Tvrdnja nije dostupna", u.poreklo, [dugmeIzvora(u.dokument_id, dokNaziv[u.dokument_id], u.lokacija)]));
