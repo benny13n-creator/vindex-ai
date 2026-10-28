@@ -28,7 +28,7 @@
 | R4 | AI Case Assistant („razumi moj predmet“) | gap analiza, Phase 4 | INFERRED | Genome postoji; lanac događaj → posledica nije potpun (kanon audit 2026-09-10) |
 | R5 | Court Workflow (najniži prioritet) | gap analiza, Phase 5 | INFERRED | nije istraživano (van N1) |
 
-- **Doslovni Bojanov tekst: `REQUIREMENT_SOURCE_MISSING`** (nijedan od pet). Pet faza su osnivačev prenos, ne Bojanove reči.
+- **Doslovni Bojanov tekst:** upisan 2026-10-28 u `docs/v2-execution/VINDEX_BOJAN_ORIGINAL_REQUIREMENTS_2026-10-26.md` (tekst koji je dostavio osnivač, ne nezavisno overen izvor). Pet faza ispod su osnivačev prenos, ne Bojanove reči.
 - **Kontradikcija (UNKNOWN):** A018 kaže „od njegove **četiri** izričite stavke“, a imenuje samo dve (podsetnici, OCR skeniranog
   dokumenta). Izvor četiri stavke nije pronađen. Ne menja N1: obe imenovane su pokrivene (OCR ovde; podsetnici N-kasnije).
 - B1–B13 (A018) **nisu** proglašeni za pet zahteva — to je inženjerska matrica, ne Bojanov tekst.
@@ -199,7 +199,7 @@ prikačena dokumenta. Pun paket na produkcionom Python-u 3.11: 12238 passed, 72 
 3. „Iz dokumenta“ za nepročitan dokument otvara predmet pa ne prikači dokument → predmet bez dokumenata (postojeće ponašanje
    servera; UI to sada tačno kaže).
 4. „Ručno“ (`POST /api/predmeti`) ima istu klasu kao D2 (nepoznat ishod → poruka, bez ponovnog čitanja); van N1 (nije na listi tokova).
-5. Doslovni Bojanov tekst — `REQUIREMENT_SOURCE_MISSING`; izvor „četiri izričite stavke“ (A018) — UNKNOWN.
+5. Doslovni Bojanov tekst — upisan (`VINDEX_BOJAN_ORIGINAL_REQUIREMENTS_2026-10-26.md`, osnivačev prenos); izvor „četiri izričite stavke“ (A018) — UNKNOWN.
 6. **Kvalitet OCR-a u produkcionoj slici:** latinični sken je pročitan sa ćiriličnim slovima umešanim u reči (CI `c997a8f4`). Tekst
    stiže do predmeta, ali pretraga i ekstrakcija nad njim mogu promašiti. Izbor jezika OCR-a za latinične dokumente — zaseban zadatak.
 7. Ostanak u istoj sesiji „Iz dokumenta“ posle otvaranja predmeta prikačuje nove dokumente TOM predmetu (dizajn, UI to prikazuje);

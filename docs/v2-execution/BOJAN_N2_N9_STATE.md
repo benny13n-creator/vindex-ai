@@ -1,7 +1,7 @@
 # BOJAN N2–N9 — dnevnik izvršenja
 
 Grana `feature/bojan-n2-n9` (worktree `C:/vindex-intake`), lokalni commitovi, **bez push-a, merge-a, deploya i migracija**.
-Izvor zahteva: Bojanov tekst iz zadatka (fajl `VINDEX_BOJAN_ORIGINAL_REQUIREMENTS_2026-10-26.md` NE postoji u repozitorijumu — provereno).
+Izvor zahteva: Bojanov tekst iz zadatka, od 2026-10-28 u `docs/v2-execution/VINDEX_BOJAN_ORIGINAL_REQUIREMENTS_2026-10-26.md` (osnivačev prenos).
 Odluka osnivača: AI predlog roka/obaveze ostaje predlog dok ga advokat ne potvrdi.
 
 ## Pre-flight (2026-10-26)
@@ -248,3 +248,23 @@ Commitovi `ff460d8f` … `9548bcf9` (iznad `53795794`). Ništa pushovano/spojeno
 - **Puna svita `9548bcf9`**: 12.806 passed / 14 failed = skup osnove (0 novih), 478 skipped, 2 xfailed.
 - **S5**: browser E2E 10/10 (207 provera: N2, prijem×2, N3, N4, N5, N6, izolacija, podešavanja, klijenti); živi model+Pinecone (baza zatvorena) S1/Z2/Z3/Z4/V2/V2b/V7/V8.
 - **Revizije**: S2 noć (F1 HIGH Genome blokirao email, F2/F3 progutan okidač, F4–F6) i završna (M1 HIGH lažno DA istovrsnosti, M2 detektor, M3 iscrpljivanje pokušaja) — sve ispravljeno uz testove i mutacije.
+
+## Bojan Final Closure (2026-10-28) — `TECHNICALLY_COMPLETE_RELEASE_AUTHORIZATION_PENDING`
+
+Ništa pushovano/spojeno/pušteno; 142 NIJE primenjena; nijedan upis u produkciju ni u Pinecone; nijedan pravi email.
+
+- **PR #58 CI** (`pytest 3.13`, 1 pad): log (GitHub API, samo čitanje) — `assert [] == ['nova.adresa@example.com']` uz
+  `RuntimeWarning: coroutine 'to_thread' was never awaited`: pozadinski zadatak `asyncio.create_task` u `routers/waitlist.py` se
+  uništi kad se petlja TestClient-a zatvori. Isti test fajl pada i na `main`-u (run 40321415053, `test_dve_istovremene_prijave_iste_adrese`).
+  Nestabilnost postojećeg testa, nevezana za prijem; kod nije menjan. Duže čekanje u testu NE bi pomoglo (proba).
+- **Okidači starog dispečera**: `email-cron.yml` I `/api/cron/daily` (spoljni raspored; `chain_anchors` 0 redova → nijedan run
+  nije završen). Pauza postoji samo u novom kodu. Runbook §3: prelaz uz gašenje okidača, ne čekanje cron-a.
+- **Šema (samo čitanje)**: OpenAPI šema PostgREST-a (ceo izložen `public`) nema tabele 142; direktan SQL nije dostupan (nema DB URL).
+- **Gate D živo (OpenAI + Pinecone samo čitanje, baza zatvorena, 6 pitanja)** — pre ispravke: AI deo navodio čl. 55a pre 63/2026 kao
+  važeći, stvarnu nadležnost pripisivao ZPP čl. 40, lažno UPOZORENJE na uslovnu negaciju. Ispravka `a5080ff4`: tekst čl. 55a iz
+  korpusa se pri čitanju zamenjuje važećim (stari označen kao istorijski), proveren ZUS čl. 24/25/27 u kontekstu za pitanja o
+  nadležnosti. Posle: D1 čl. 39 / Novi Sad; D2 ZUS čl. 27 / privredni sud; D3 >4 g. 6 m. – 8 g., najniža 4 g. 7 m.; D4 AI deo
+  blokiran (citira čl. 5 van konteksta), proračun daje važeći tekst; D5 NEPOZNATO; D6 NE uz čl. 5. Bez protivrečja i bez
+  neoznačenog starog teksta u svih 6.
+- **Puna svita na `a5080ff4`**: 12.816 / 14 (isti skup kao osnova).
+- **COI**: ugovor = UI kapija, „Iz dokumenta“ savetodavno; serverska obaveznost ostaje odluka osnivača.

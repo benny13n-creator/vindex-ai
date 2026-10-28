@@ -33,7 +33,7 @@ Svaki produkcioni korak traži izričito odobrenje osnivača. Dokazi: `docs/v2-e
   Očekivano: obe tabele postoje; `dogadjaj` SELECT/INSERT/UPDATE, `pokretanje` SELECT/INSERT.
 - **Stari kod nad novom šemom radi nepromenjeno** (dokazano matricom, §4) — migracija se može primeniti danima pre koda.
 
-## 3. Puštanje koda — BEZ preklapanja sa dnevnim slanjem
+## 3. Puštanje koda — stari dispečer NE SME da ima okidač tokom prelaza
 
 Dokaz (lažna baza, stari modul `342824d1` i nov modul, isti dan):
 
@@ -48,15 +48,30 @@ Dokaz (lažna baza, stari modul `342824d1` i nov modul, isti dan):
 | istovremeno stari i nov | **2 emaila** |
 | nov danas, stari sutra (vraćanje posle slanja) | bez duplikata |
 
-Zato:
-1. Primeniti 142 (§2).
-2. Sačekati da DANAŠNJE zakazano slanje (`email-cron.yml`) **završi** (GitHub Actions: run `completed`). Ne puštati dok je run
-   `queued`/`in_progress`.
-3. Pustiti kod (spajanje u `main` → automatski deploy). Render zamenjuje proces; stari kod nema hitne provere ni petlju, pa je
-   preklapanje moguće samo preko dnevnog slanja — koje je za danas već prošlo.
-4. Smoke (§6). Prvo dnevno slanje novog koda je sutra.
+**Okidači slanja podsetnika u STAROM kodu (`11475df8`, provereno čitanjem izvora 2026-10-28):**
 
-Ručno pokretanje `send-reminders` ili `/api/cron/daily` tokom prelaza: NE (pravi „nov pa stari“ / istovremeno).
+| Okidač | Ko ga poziva | Stanje u produkciji |
+|---|---|---|
+| `POST /email-notif/send-reminders` | `email-cron.yml` (raspored `0 8 * * *`, stvarni početak 11–17 h UTC; i `workflow_dispatch`); ručno osnivačev JWT | radi od 24.10 (GitHub API) |
+| `POST /api/cron/daily` (poziva `posalji_podsetnike`) | spoljni raspored (dokumentacija: Render cron 07:00 UTC, `X-Cron-Secret`) | `chain_anchors` = **0 redova** → nijedan run nije završen; da li je raspored uopšte podešen: UNKNOWN (Render dashboard) |
+| petlja u procesu | — | NE postoji u starom kodu (nema je pre ove grane) |
+
+`VINDEX_EMAIL_PODSETNICI_PAUZA` postoji SAMO u novom kodu — stari kod je ignoriše, pa pauza nije zaštita prelaza.
+`email_notif_log` = 0 redova: stari kod rezerviše pre slanja, dakle do sada nije poslao nijedan podsetnik.
+
+Zato se prelaz ne oslanja na čekanje cron-a, nego na **gašenje okidača starog koda**:
+1. Primeniti 142 (§2).
+2. GitHub → Actions → „Email Podsetnici za rokove“ → **Disable workflow**; potvrditi da nema run-a `queued`/`in_progress`.
+3. Render → Cron Jobs: ako postoji posao koji zove `/api/cron/daily`, **Suspend**. Ako ne postoji — zabeležiti (zatvara UNKNOWN).
+4. Ne pokretati ručno `send-reminders` ni `/api/cron/daily`.
+   Od ovog trenutka stari kod nema nijedan okidač slanja podsetnika → ne može da pošalje (ni tokom preklapanja instanci pri deploy-u).
+5. Pustiti kod (spajanje u `main` → automatski deploy). Sačekati `/health` → `commit` = nov SHA (stara instanca ugašena).
+6. Smoke (§6).
+7. Vratiti okidače: **Enable workflow** (i Resume Render posla, ako je bio suspendovan). Sledeći run služi nov kod.
+   Ako je stari kod danas već poslao: „stari pa nov“ = bez duplikata (matrica).
+
+Kad se okidači ne mogu ugasiti: puštati tek kad današnji `email-cron.yml` run ima `completed` (stari postupak) — slabije, jer ne
+pokriva `/api/cron/daily` čiji raspored nije poznat.
 
 ## 4. Prelaz i stara istorija
 
