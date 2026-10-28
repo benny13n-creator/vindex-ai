@@ -24,7 +24,7 @@
   function napravi(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); };
     var sesija = o.sesija, api = o.api, naUspeh = o.naUspeh || function () {}, ishodCoi = o.ishodCoi;
-    var gen = 0, radi = false, predlog = null, klijent = null, coi = null, kPretraga = null, tajmerPretrage = null;
+    var gen = 0, radi = false, predlog = null, klijent = null, coi = null, kPretraga = null, tajmerPretrage = null, sumnja = null;
 
     var prijem = root.VxPrijemPredmeta.napravi({ sesija: sesija, api: api, prefiks: "nd",
       naOtvoren: function (id) { var a = $("nd-otvori-predmet"); a.href = o.adresaPredmeta(id, "pregled"); $("nd-otvoren").hidden = false;
@@ -95,7 +95,7 @@
       var ime = imeKlijenta();
       $("npo-klijent-izbor").textContent = klijent ? "Izabran klijent iz kartoteke: " + klijent.ime : (ime ? "Nov klijent: " + ime : "Klijent nije izabran.");
       var coiOk = !!coi && coi.ime === ime && (coi.i.nastavak === "slobodno" || (coi.i.nastavak === "potvrda" && $("npo-coi-potvrda").checked));
-      $("npo-otvori").disabled = radi || !predlog || tekst($("npo-naziv").value).length < 2 || !ime || !coiOk;
+      $("npo-otvori").disabled = radi || sumnja === tekst($("npo-naziv").value).slice(0, 200) || !predlog || tekst($("npo-naziv").value).length < 2 || !ime || !coiOk;
     }
 
     async function pretrazi() {
@@ -164,7 +164,10 @@
         $("npo-ime").value = ""; $("npo-prezime").value = "";
         kid = klijent.id;
       }
-      var telo = { klijent_id: kid, naziv: tekst($("npo-naziv").value).slice(0, 200), opis: tekst($("npo-opis").value).slice(0, 4000),
+      var naziv = tekst($("npo-naziv").value).slice(0, 200);
+      var pre = await istoimeni(naziv);                    // N1: osnova za proveru ishoda ako veza pukne
+      if (moja !== gen) return;
+      var telo = { klijent_id: kid, naziv: naziv, opis: tekst($("npo-opis").value).slice(0, 4000),
         tip: tekst($("npo-vrsta").value).slice(0, 50) || "opsti", vrsta_spora: tekst($("npo-vrsta").value).slice(0, 100),
         vrednost_spora: tekst($("npo-vrednost").value).slice(0, 100), protivna_strana: tekst($("npo-protivna").value).slice(0, 200) };
       if (predlog && ispravanDatum(predlog.prvi_rok) && $("npo-rok-upisi").checked) {
@@ -172,13 +175,38 @@
       }
       var r = await api.send("/api/intake/kreiraj", { telo: telo, token: sesija.token(), oblik: function (x) { return x.ok === true || !!x.predmet_id; } });
       if (moja !== gen) return;
-      radi = false; uskladi();
-      if (r.ok && r.podaci && ispravanId(r.podaci.predmet_id)) { poruka("uspeh", "Predmet je otvoren."); naUspeh(tekst(r.podaci.predmet_id)); return; }
-      if (r.ok) { poruka("nepoznato", "Predmet je verovatno otvoren, ali odgovor nije mogao da se pročita. Proverite listu predmeta."); return; }
+      if (r.ok && r.podaci && ispravanId(r.podaci.predmet_id)) { radi = false; uskladi(); poruka("uspeh", "Predmet je otvoren."); naUspeh(tekst(r.podaci.predmet_id)); return; }
       var g = r.greska || {};
-      poruka(g.ishodNepoznat ? "nepoznato" : "greska", g.ishodNepoznat ? "Ishod nije poznat — predmet je možda otvoren. Proverite listu predmeta pre ponovnog pokušaja."
-        : r.status === 409 ? "Predmet sa ovim nazivom je upravo otvoren. Proverite listu predmeta."
+      if (r.ok || g.ishodNepoznat) { await razresiIshod(moja, naziv, pre); return; }
+      radi = false; uskladi();
+      poruka("greska", r.status === 409 ? "Predmet sa ovim nazivom je upravo otvoren. Proverite listu predmeta."
         : r.status === 404 ? "Klijent nije pronađen u vašoj kartoteci. Predmet nije otvoren." : "Server je odbio otvaranje. Predmet nije otvoren.");
+    }
+
+    /* N1: ID-jevi aktivnih predmeta sa TAČNO ovim nazivom (GET /api/predmeti?q=, vlasnik iz tokena), ili null kad
+     * spisak ne može pouzdano da se pročita. `%` i `_` server uklanja iz upita, pa se traži najduži deo bez njih. */
+    async function istoimeni(naziv) {
+      var q = naziv.split(/[%_]/).sort(function (a, b) { return b.length - a.length; })[0].trim();
+      if (q.length < 2) return null;
+      var r = await api.get("/api/predmeti", { token: sesija.token(), parametri: { q: q.slice(0, 120), view: "summary", limit: 200 },
+        oblik: function (x) { return Array.isArray(x.predmeti); } });
+      if (!r.ok || !r.podaci || (typeof r.podaci.ukupno === "number" && r.podaci.ukupno > r.podaci.predmeti.length)) return null;
+      return r.podaci.predmeti.filter(function (p) { return p && tekst(p.naziv) === naziv && ispravanId(p.id); }).map(function (p) { return tekst(p.id); });
+    }
+    /* N1: posle nepoznatog ishoda NE ponavlja se slepo kreiranje: spisak predmeta se čita ponovo i poredi sa onim
+     * pre slanja. Tačno jedan nov predmet = otvoren je; nijedan = nije; inače se otvaranje zaključava (bez duplikata). */
+    async function razresiIshod(moja, naziv, pre) {
+      poruka("ucitavanje", "Odgovor servera nije stigao. Proveravam da li je predmet otvoren…");
+      await new Promise(function (ok) { setTimeout(ok, 2500); });   // upis koji je još u toku dobija vreme da se vidi
+      if (moja !== gen) return;
+      var posle = pre ? await istoimeni(naziv) : null;
+      if (moja !== gen) return;
+      radi = false;
+      var novi = pre && posle ? posle.filter(function (id) { return pre.indexOf(id) < 0; }) : null;
+      if (novi && novi.length === 1) { uskladi(); poruka("uspeh", "Veza je bila prekinuta, ali predmet JE otvoren (provereno u listi predmeta)."); naUspeh(novi[0]); return; }
+      if (novi && novi.length === 0) { uskladi(); poruka("greska", "Predmet NIJE otvoren (provereno u listi predmeta). Možete pokušati ponovo."); return; }
+      sumnja = naziv; uskladi();                          // zaključano za OVAJ naziv; drugi naziv je svesno drugi predmet
+      poruka("nepoznato", "Ishod nije poznat i nije mogao da se proveri — predmet je možda otvoren. Otvaranje pod ovim nazivom je zaključano da ne bi nastao duplikat; proverite listu predmeta.");
     }
 
     $("npo-opis-forma").addEventListener("submit", function (e) { e.preventDefault(); predlozi(); });
@@ -190,7 +218,7 @@
     $("npo-klijent-pretraga").addEventListener("input", function () { clearTimeout(tajmerPretrage); tajmerPretrage = setTimeout(pretrazi, 250); });
 
     function ocisti() {
-      gen++; radi = false; predlog = null; klijent = null; coi = null;
+      gen++; radi = false; predlog = null; klijent = null; coi = null; sumnja = null;
       if (kPretraga) { kPretraga.abort(); kPretraga = null; }
       $("npo-opis-forma").reset(); $("npo-predlog").reset(); $("npo-predlog").hidden = true; $("npo-klijenti").replaceChildren();
       prikaziCoi(null); poruka(null); $("nd-otvoren").hidden = true;
