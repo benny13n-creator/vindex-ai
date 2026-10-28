@@ -17,6 +17,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+# G1: pokretač nikad ne pristupa bazi (ni ai_cache ni security_events) — samo OpenAI + Pinecone
+os.environ["VINDEX_BEZ_BAZE"] = "1"
+os.environ["SENTRY_DSN"] = ""   # G1: ni Sentry (api.py ga uključuje pri uvozu) iz lokalnog pokretača
 sys.path.insert(0, str(Path(__file__).parent))
 logging.basicConfig(level=logging.WARNING)
 

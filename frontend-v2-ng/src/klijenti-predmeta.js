@@ -18,6 +18,10 @@
  * tužilac tog predmeta), pa se status ponovo izvodi ISTIM pravilom kao u
  * routers/conflict_check.py (aktivan predmet → sukob; ostalo → pregled). Podudaranje
  * imena se ne dira.
+ * N2: kad je klijent IZABRAN iz kartoteke (`klijentId`), nalaz o TOM ISTOM zapisu kome server izričito
+ * daje ulogu klijenta (`uloga_klijent === true`), i nalaz po imenu u predmetu u kome je on izričito
+ * klijent (`klijenti_predmeta`), nisu sukob sa samim sobom: prikazuju se i traže izričitu potvrdu, ali
+ * ne blokiraju. Imenjak (drugi zapis), protivna strana, bivši klijent i nalaz bez tih polja ostaju kao ranije.
  */
 (function (root) {
   "use strict";
@@ -31,19 +35,28 @@
   function imeKlijenta(k) { var i = [tekst(k.ime), tekst(k.prezime)].filter(Boolean).join(" "); return i || tekst(k.firma) || "Klijent bez imena"; }
 
   /** Serverski odgovor → ishod; `predmetId` = predmet za koji se klijent vezuje. */
-  function ishod(sirov, predmetId) {
+  function ishod(sirov, predmetId, klijentId) {
     if (!sirov || typeof sirov !== "object" || !tekst(sirov.status)) {
       return { vrsta: "nepotpuna", nastavak: "potvrda", konflikti: [], naslov: "Provera sukoba interesa nije izvršena",
                telo: "Odsustvo rezultata NE znači da sukoba nema. Ponovite proveru pre povezivanja." };
     }
     var svi = Array.isArray(sirov.konflikti) ? sirov.konflikti : [];
+    var kid = tekst(klijentId);
+    function isti_(k) {                                    // nalaz je o IZABRANOM klijentu u ulozi našeg klijenta
+      if (!kid || !tekst(k.predmet_id)) return false;
+      if (tekst(k.sloj) === "klijenti") return k.uloga_klijent === true && tekst(k.klijent_id) === kid;
+      if (tekst(k.sloj) === "predmeti") return Array.isArray(k.klijenti_predmeta) && k.klijenti_predmeta.map(tekst).indexOf(kid) >= 0;
+      return false;
+    }
     var drugi = svi.filter(function (k) { return k && tekst(k.predmet_id) !== String(predmetId); }).map(function (k) {
-      return { predmet: tekst(k.predmet_naziv) || "Predmet bez naziva", aktivan: !!AKTIVNI[tekst(k.predmet_status).toLowerCase()],
-               opis: [TIP_SLOJA[tekst(k.sloj)] || tekst(k.sloj), TIP_NALAZA[tekst(k.tip_konflikta)] || ""].filter(Boolean).join(", "),
+      var isti = isti_(k);
+      return { predmet: tekst(k.predmet_naziv) || "Predmet bez naziva", aktivan: !!AKTIVNI[tekst(k.predmet_status).toLowerCase()], isti: isti,
+               opis: isti ? "isti klijent iz kartoteke, već je vaš klijent u ovom predmetu"
+                 : [TIP_SLOJA[tekst(k.sloj)] || tekst(k.sloj), TIP_NALAZA[tekst(k.tip_konflikta)] || ""].filter(Boolean).join(", "),
                podudaranje: tekst(k.podudaranje) };
     });
     var potpuna = sirov.provera_potpuna === true;
-    if (drugi.some(function (k) { return k.aktivan; })) {
+    if (drugi.some(function (k) { return k.aktivan && !k.isti; })) {
       return { vrsta: "sukob", nastavak: "blokirano", konflikti: drugi, naslov: "Sukob interesa u aktivnom predmetu",
                telo: "Povezivanje je zaustavljeno. Proverite navedene predmete i Kodeks profesionalne etike." };
     }
@@ -51,6 +64,10 @@
       var sl = Array.isArray(sirov.slojevi_greska) ? sirov.slojevi_greska.map(tekst).filter(Boolean) : [];
       return { vrsta: "nepotpuna", nastavak: "potvrda", konflikti: drugi, naslov: "Provera sukoba interesa nije potpuna",
                telo: (sl.length ? "Nije pretraženo: " + sl.join(", ") + ". " : "") + "Odsustvo rezultata NE znači da sukoba nema." };
+    }
+    if (drugi.length && drugi.every(function (k) { return k.isti; })) {
+      return { vrsta: "pregled", nastavak: "potvrda", konflikti: drugi, naslov: "Izabrani klijent već ima predmete kod vas",
+               telo: "To nije sukob sa samim sobom. Pre nastavka proverite da protivna strana novog predmeta nije vaš klijent." };
     }
     if (drugi.length) {
       return { vrsta: "pregled", nastavak: "potvrda", konflikti: drugi, naslov: "Pronađeno preklapanje koje traži proveru",
@@ -143,7 +160,7 @@
         var li = el("li"), b = el("button", "pick__item");
         b.type = "button"; b.dataset.klijent = String(k.id);
         b.append(el("span", "pick__name", imeKlijenta(k)));
-        var meta = [tekst(k.firma) && imeKlijenta(k) !== tekst(k.firma) ? tekst(k.firma) : "", tekst(k.email)].filter(Boolean).join(" · ");
+        var meta = [tekst(k.firma) && imeKlijenta(k) !== tekst(k.firma) ? tekst(k.firma) : "", tekst(k.email), tekst(k.telefon)].filter(Boolean).join(" · ");
         if (meta) b.append(el("span", "pick__meta", meta));
         b.addEventListener("click", function () { izaberi({ id: String(k.id), ime: tekst(k.ime), prezime: tekst(k.prezime), firma: tekst(k.firma), email: tekst(k.email), tip: tekst(k.tip) }); });
         li.append(b); $("kl-rezultati").append(li);
@@ -178,7 +195,7 @@
         oblik: function (x) { return typeof x.status === "string"; } });
       if (moja !== genCoi || !trenutni || trenutni.id !== pid || trenutni.korisnik !== korisnik) return;
       kCoi = null;
-      prikaziCoi(ishod(r.ok ? r.podaci : null, pid));
+      prikaziCoi(ishod(r.ok ? r.podaci : null, pid, k.id));
     }
     function prikaziCoi(i) {
       coi = i;

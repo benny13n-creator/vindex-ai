@@ -1255,6 +1255,22 @@ def veza_sa_izvorom(akcija: dict, source_type: str, source_id: str) -> str | Non
     return None
 
 
+async def _consequence_email_podsetnik_hitno(event: Event) -> str:
+    """Sektor 2 (odluka D2), noćni sprint S2.4: hitna email provera posle zakazivanja/izmene ročišta i potvrde roka,
+    kao TRAJNA posledica (red `events` je upisan pre odgovora rute; posle restarta procesa bus ga i dalje isporučuje).
+    Pozadinski zadatak rute ostaje brz put — obe provere koriste isti ključ rezervacije, pa nema duplikata.
+    Ne baca izuzetak (bacanje bi ponavljalo ceo događaj): greška (izvor nepročitan, poruka sigurno nepredata, pauza)
+    ostaje bez rezervacije ili kao `neuspeh`, a nadoknađuje je periodična provera (`proveri_hitne_svima`, na 10 min) i
+    dnevno slanje. `result_ref` beleži stvarne brojače — `completed` znači samo da je provera pokrenuta."""
+    if event.type == EventType.MANUAL_CORRECTION_APPLIED and (event.payload or {}).get("odluka") != "potvrda":
+        return "preskoceno:nije_potvrda"
+    if not event.user_id:
+        return "preskoceno:bez_korisnika"
+    from routers.email_notif import proveri_hitne_podsetnike
+    n = await asyncio.to_thread(proveri_hitne_podsetnike, event.user_id)
+    return f"poslato={n.get('poslato', 0)} greske={n.get('greske', 0)} neisporuceno={n.get('neisporuceno', 0)}"
+
+
 async def _consequence_refresh_case_actions(event: Event) -> str:
     """THE canonical entry point Program Omega Sprint 003's own charter
     names `refresh_case_actions(case_id)`. Reconciles the CURRENT target
@@ -1703,6 +1719,10 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # document does, from Genome's own perspective (it just recomputes).
         # No timeline_entry here: routers/rocista.py never produced one for
         # hearing creation before this sprint, so none is invented now.
+        # Sektor 2 (D2): trajni okidač hitnog email podsetnika (pozadinski zadatak rute ne preživljava restart).
+        # PRVI: pad genome_refresh (AI model) ne sme da odloži ni zaustavi podsetnik (revizija S2-N F1).
+        # refresh_case_actions/project_notifications ostaju poslednji (Omega Sprint 003 invarijant).
+        ConsequenceDef(name="email_podsetnik_hitno", executor=_consequence_email_podsetnik_hitno),
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
         ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
@@ -1763,6 +1783,8 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     # VCR001 T03 — odluka advokata o roku (potvrda/odbijanje, routers/rok_odluka.py) menja ciljni skup akcija
     # (Rule 6): bez ovoga bi akcija „Rok čeka vašu potvrdu“ ostala otvorena do sledećeg nepovezanog događaja.
     EventType.MANUAL_CORRECTION_APPLIED: [
+        # Sektor 2 (D2): potvrda/ispravka roka → trajni okidač hitnog email podsetnika (samo `odluka == potvrda`).
+        ConsequenceDef(name="email_podsetnik_hitno", executor=_consequence_email_podsetnik_hitno),
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
         ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
     ],

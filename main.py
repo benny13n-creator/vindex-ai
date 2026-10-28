@@ -188,6 +188,7 @@ _CACHE: dict[str, tuple[dict, datetime]] = {}
 _CACHE_TTL     = timedelta(hours=6)
 _CACHE_TTL_DB  = timedelta(days=7)
 _CACHE_MAX     = 500
+_CACHE_VERZIJA = "2026-10-28-s3"
 
 
 # NIGHT-007 (2026-08-09): sentinels that mark a question as carrying PRIVILEGED,
@@ -220,7 +221,9 @@ def _cache_kljuc(pitanje: str) -> str:
     # usedforsecurity=False: MD5 se ovde koristi samo kao cache ključ
     # (dedup/lookup), ne za bezbednosnu svrhu — Bandit B324 false-positive
     # bez ove eksplicitne napomene (CELINA 5, 2026-07-24).
-    return hashlib.md5(_normalizuj_za_cache(pitanje).encode(), usedforsecurity=False).hexdigest()
+    # G4 (revizija F2): verzija oblika odgovora — keširan odgovor starijeg oblika (npr. neoznačena sudska praksa)
+    # se posle izmene oblika ne vraća 7 dana; nov oblik = nova verzija.
+    return hashlib.md5(f"{_CACHE_VERZIJA}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
 def _normalizuj_za_cache(tekst: str) -> str:
@@ -284,6 +287,10 @@ def _cache_get(pitanje: str) -> dict | None:
 
 
 def _cache_set(pitanje: str, rezultat: dict) -> None:
+    if os.getenv("VINDEX_CACHE_BYPASS") == "1":
+        # V1 (2026-10-27): bypass je ranije preskakao samo čitanje, pa je lokalni pokretač sa
+        # VINDEX_CACHE_BYPASS=1 i dalje upisao red u produkcioni ai_cache (L2). Bypass = ni čitanje ni upis.
+        return
     if _sadrzi_privatni_kontekst(pitanje):
         # NIGHT-007: never persist a case-derived answer into the shared,
         # tenant-less ai_cache table. This is the half that matters — nothing
@@ -1045,7 +1052,57 @@ def _proveri_tematsku_relevantnost(pitanje: str, odgovor: str, docs: list[str]) 
 # Pattern se primenjuje na normalizovani (bez dijakritika, lowercase) odgovor.
 # Ako se pogodi → odgovor se odbacuje i vraća se siguran fallback.
 
+# N8: pravila mesne/stvarne nadležnosti iz LOKALNOG teksta ZPP-a (data/laws/pdfs/zakon_o_parnicnom_postupku.pdf,
+# provereno član po član). Ulazi u sistemsku poruku samo za pitanja o građanskoj nadležnosti — izmereno je da model
+# bez njih vezuje opštu nadležnost za prebivalište TUŽIOCA i izmišlja nadležnost „po mestu izvršenja ugovora“.
+NADLEZNOST_ZPP_PRAVILA = (
+    "PRAVILA NADLEŽNOSTI (Zakon o parničnom postupku, proveren tekst — koristi ih kao okvir, citiraj tačan član):\n"
+    "- Opšta mesna nadležnost: sud PREBIVALIŠTA TUŽENOG (čl. 39 st. 1); ako tuženi nema prebivalište ni u Srbiji ni u drugoj "
+    "državi — boravište tuženog (čl. 39 st. 2). "
+    "Prebivalište TUŽIOCA NIJE osnov opšte nadležnosti.\n"
+    "- Protiv pravnog lica: sud SEDIŠTA prema izveštaju APR-a (čl. 40 st. 2); protiv Republike/AP/JLS: sedište skupštine (čl. 40 st. 1).\n"
+    "- Više tuženih jednom tužbom (suparničari iz čl. 205 st. 1 tač. 1) bez zajedničke mesne nadležnosti: nadležan je sud mesno "
+    "nadležan za JEDNOG od tuženih (čl. 42).\n"
+    "- Posebne (pored opšte): zakonsko izdržavanje — i prebivalište tužioca koji traži izdržavanje (čl. 43); vanugovorna šteta — mesto "
+    "štetne radnje ili posledice, a kod smrti/teške telesne povrede i prebivalište tužioca (čl. 44); potrošač — prebivalište potrošača "
+    "(čl. 45); povreda prava ličnosti (čl. 46); bračni sporovi — poslednje zajedničko prebivalište (čl. 48); radni spor zaposlenog — i "
+    "sud mesta rada (čl. 60).\n"
+    "- Isključiva: nepokretnost (svojina, stvarna prava, smetanje državine, zakup nepokretnosti) — sud gde se nepokretnost nalazi, "
+    "(čl. 51); sporazum o drugom sudu tada nije moguć jer je nadležnost isključiva (čl. 65 st. 1).\n"
+    "- Isključiva još: nasledni sporovi dok traje ostavinski postupak (čl. 57); sporovi u toku i povodom izvršnog/stečajnog "
+    "postupka (čl. 58).\n"
+    "- Ugovorni spor: ZPP NEMA opšte pravilo o nadležnosti po mestu izvršenja/ispunjenja ugovora — važi opšta (čl. 39–40) ili "
+    "pismeno ugovorena, ako nije propisana isključiva (čl. 65). Mesto ispunjenja obaveze je osnov samo izuzetno: tuženi bez opšte "
+    "mesne nadležnosti u Srbiji (čl. 53 st. 3), strano pravno lice za obaveze zasnovane ili ispunjive u Srbiji — sud stalnog zastupništva ili sedišta organa koji vodi njegove poslove (čl. 55); menica/ček — i sud mesta plaćanja (čl. 59).\n"
+    "- Stvarna nadležnost (ZPP čl. 27 upućuje na zakon): Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023, bez kasnijih izmena; "
+    "tekst proveren na pravno-informacioni-sistem.rs). OSNOVNI sud u prvom stepenu sudi u građanskopravnom sporu ako nije nadležan "
+    "drugi sud, u stambenom sporu i u radnom sporu (zasnivanje, postojanje i prestanak radnog odnosa; prava, obaveze i odgovornost iz "
+    "radnog odnosa; naknada štete zaposlenom na radu ili u vezi sa radom) (čl. 24 st. 2–3). VIŠI sud u prvom stepenu: građanskopravni "
+    "spor kad vrednost predmeta spora omogućava izjavljivanje revizije (revizija nije dozvoljena ako vrednost pobijenog dela ne "
+    "prelazi dinarsku protivvrednost 40.000 evra — ZPP čl. 403 st. 3), autorsko pravo i industrijska svojina ako nije nadležan drugi "
+    "sud, osporavanje ili utvrđivanje očinstva i materinstva, zaštita od diskriminacije i zlostavljanja na radu, ispravka i odgovor "
+    "na informaciju i šteta u vezi sa objavljivanjem informacije, štrajk, kolektivni ugovor, obavezno socijalno osiguranje ako nije "
+    "nadležan drugi sud, matična evidencija, izbor i razrešenje organa pravnog lica (čl. 25 st. 1 tač. 7–8). PRIVREDNI sud: spor "
+    "između privrednih subjekata i spor privrednog subjekta sa drugim pravnim licem u obavljanju delatnosti (i kad je fizičko lice "
+    "materijalni suparničar), sporovi iz Zakona o privrednim društvima i statusa privrednog subjekta, privatizacija i hartije od "
+    "vrednosti, strano ulaganje, brod i vazduhoplov, zaštita firme, upis u sudski registar, reorganizacija, likvidacija i stečaj "
+    "(čl. 27 st. 1).\n"
+    "- KONKRETAN sud (sedište i područje) određuje Zakon o sedištima i područjima sudova i javnih tužilaštava (101/2013, 9/2026, "
+    "56/2026); njegov tekst nije u kontekstu — naziv konkretnog suda navedi samo kao pretpostavku koju treba proveriti. Izmene iz "
+    "9/2026 (u Beogradu prestaje dosadašnji Treći osnovni sud i osnivaju se novi Treći i Četvrti osnovni sud; sudska jedinica u "
+    "Kosjeriću) PRIMENJUJU SE TEK OD 1. MARTA 2027. — do tada važi raspored iz 101/2013.\n"
+    "- Ako nedostaje činjenica koja menja ishod (prebivalište/sedište tuženog, vrsta spora, mesto štete, mesto rada), navedi je kao "
+    "nedostajuću umesto da je pretpostaviš."
+)
+
 ZABRANJENE_GRESKE: list[tuple[str, str]] = [
+    # N8: TVRDNJA da je opšta mesna nadležnost po prebivalištu TUŽIOCA (ZPP čl. 39: tuženog). Revizija: samo pozitivan
+    # iskaz neposredno uz „opšta mesna nadležnost“ — posebne nadležnosti (čl. 43, 44, 46) i negacije ostaju dozvoljene.
+    (
+        r"opst\w*\s+mesn\w*\s+nadlez\w*\s+(?:suda\s+)?(?:je\s+|ima\s+|pripada\s+|se\s+odredjuje\s+|odredjuje\s+se\s+)?"
+        r"(?:(?:prema|po)\s+)?(?:(?!ne\b|nije\b|samo\b)\w+\s+){0,2}prebivalist\w*\s+tuzioc",
+        "Opšta mesna nadležnost određuje se po prebivalištu TUŽENOG (ZPP čl. 39), ne tužioca.",
+    ),
     # Zastarelost: opomena / dopis / email ne prekida zastarelost
     (
         r"opomen\w*\s+\w{0,15}\s*prekid",
@@ -3262,14 +3319,21 @@ def _json_ka_tekst(data: dict, tip: str, potvrda: dict | None = None) -> str:
             header_parts = [p for p in [sud, broj, datum] if p]
             header = f"{idx}. " + ", ".join(header_parts) if header_parts else f"{idx}. —"
             parts.append(header)
+            izvorni  = (item.get("izvorni_sazetak") or "").strip()
+            if izvorni:
+                # G4: stav suda = doslovan sažetak iz baze; formulacija modela je samo AI sažetak (provera je leksička)
+                parts.append(f"   Izvod iz teksta odluke u bazi Vindex (doslovno, skraćeno — izvod ne mora biti stav suda): "
+                             f"„{izvorni} …“")
             if princip:
-                parts.append(f"   Pravni princip: {princip}")
+                parts.append(f"   Pravni princip (AI sažetak — nije potvrđen kao stav suda; proverite u odluci): {princip}"
+                             if izvorni else f"   Pravni princip: {princip}")
+            ai = " (AI)" if izvorni else ""     # G4: uz doslovan sažetak sve ostalo je izričito AI tekst
             if primena:
-                parts.append(f"   Primena: {primena}")
+                parts.append(f"   Primena{ai}: {primena}")
             if razlika:
-                parts.append(f"   Razlika: {razlika}")
+                parts.append(f"   Razlika{ai}: {razlika}")
             if sazetak:
-                parts.append(f"   {sazetak}")
+                parts.append(f"   AI: {sazetak}" if izvorni else f"   {sazetak}")
             parts.append("")
 
     parts += [
@@ -3283,12 +3347,375 @@ def _json_ka_tekst(data: dict, tip: str, potvrda: dict | None = None) -> str:
     return "\n".join(parts)
 
 
+# N8: bez dostavljenog bloka SUDSKA PRAKSA svaka odluka koju model navede je NEPROVERENA (izmereno: „Vrhovni sud,
+# Us 14/2023: Osnovni sud u Kragujevcu je nadležan u ovoj pravnoj stvari“ i „Ustavni sud, Už-12306/2019“ — nijedna
+# nije bila u kontekstu, a provera T6 se tada uopšte nije izvršavala). Takve odluke i rečenice „sudska praksa
+# potvrđuje…“ se uklanjaju; ostatak odgovora (zakonski osnov) ostaje i prolazi postojeću proveru članova.
+_PRAKSA_RECENICA_RE = re.compile(
+    r"sudsk\w*\s+praks\w*|"
+    r"(?:vrhovn\w*|apelacion\w*|ustavn\w*|kasacion\w*|privredn\w*\s+apelacion\w*|upravn\w*)\s+sud\w*[^.]{0,80}?\b(?!br\b|broj\b)[A-ZŠĐČĆŽa-zšđčćž]{1,4}\.?\s?-?\s?\d{1,6}/\d{2,4}",
+    re.IGNORECASE)
+
+
+_CIR_LAT_N8 = str.maketrans({
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "ђ": "dj", "е": "e", "ж": "z", "з": "z", "и": "i", "ј": "j",
+    "к": "k", "л": "l", "љ": "lj", "м": "m", "н": "n", "њ": "nj", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
+    "ћ": "c", "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "c", "џ": "dz", "ш": "s"})
+_PRAKSA_STOP = {"sud", "suda", "sudu", "koji", "koja", "koje", "ovoj", "ovom", "ovaj", "pravnoj", "stvari", "prema", "radi", "kada",
+                "kao", "ili", "ako", "nije", "jer", "sto", "biti", "bude", "odluka", "potvrdjuje", "primena", "primenu", "slucaj",
+                "slucajevima", "slicnim", "predmeta", "predmet", "clan", "clana", "clanu", "clanom", "zakona", "zakonu",
+                "postupak", "postupku", "tokom"}
+
+
+def _kljuc_odluke(t: str) -> str:
+    """Revizija N8 F6: broj odluke za TAČNO poređenje (ćirilica→latinica, bez razmaka/crtica): „Уж-12306/2019“ == „Už 12306/2019“,
+    a „Rev 1/20“ != „Rev 1/2019“ (ranije podniz)."""
+    return re.sub(r"[^a-z0-9/]", "", _normalizuj((t or "").lower().translate(_CIR_LAT_N8)))
+
+
+def _praksa_tokeni(t: str) -> set:
+    t = _normalizuj((t or "").lower().translate(_CIR_LAT_N8))
+    return {w[:6] for w in re.findall(r"[a-z]{4,}", t) if w not in _PRAKSA_STOP}
+
+
+def _praksa_clanovi(t: str) -> set:
+    """Brojevi članova navedeni u tekstu („članu 187“, „чл. 187“) — isti propisani osnov je jak znak podrške."""
+    t = _normalizuj((t or "").lower().translate(_CIR_LAT_N8))
+    return set(re.findall(r"\b(?:cl\.|clan\w*)\s*(\d{1,4}[a-z]?)\b", t))
+
+
+# V4: smer stava. Reči se porede bez negacije („nije“ je stop-reč, „ne“ je kraće od 4 slova), pa je „poslodavac MOŽE da
+# otkaže … za vreme trudnoće“ prolazilo kao podržano sažetkom „poslodavac NE MOŽE …“. Smer pripisanog stava se poredi sa
+# rečenicom sažetka koja mu je najbliža; neslaganje = nepodržano (odluka se uklanja kao i ranije).
+_PRAKSA_NEGACIJA_RE = re.compile(r"\b(?:ne|nije|nisu|nismo|nema|nemaju|nece|niti|nikad|nikada|nijedan|nijedna|nijedno)\b")
+
+
+# Revizija V4: smer se meri na KLAUZULI (zarez, „a ne“, „nego“, „već“) — „teče od saznanja, a ne od nastanka“ nije negiran
+# stav o saznanju; „ne samo … već i“ nije negacija; prefiks „ne-“ uz isti koren („nedopuštena“/„dopuštena“) je suprotan smer.
+_PRAKSA_KLAUZULA_RE = re.compile(r"[,;:]\s*|\s+(?=(?:a\s+ne|nego|vec)\b)")
+_PRAKSA_NE_SAMO_RE = re.compile(r"\bne\s+samo\b")
+
+
+def _praksa_norm(t: str) -> str:
+    return _normalizuj((t or "").lower().translate(_CIR_LAT_N8))
+
+
+def _praksa_negirano(t: str) -> bool:
+    return bool(_PRAKSA_NEGACIJA_RE.search(_PRAKSA_NE_SAMO_RE.sub(" ", _praksa_norm(t))))
+
+
+def _praksa_prefiks_ne(a: str, b: str) -> bool:
+    """Reč sa „ne-“ u jednom tekstu, a ista reč bez njega u drugom („nezakonit“ / „zakonit“)."""
+    ra, rb = set(re.findall(r"[a-z]+", _praksa_norm(a))), set(re.findall(r"[a-z]+", _praksa_norm(b)))
+
+    def _jedan_smer(x, y):
+        return any(w.startswith("ne") and len(w) >= 7 and w not in y and any(v[:6] == w[2:8] for v in y if len(v) >= 5)
+                   for w in x)
+    return _jedan_smer(ra, rb) or _jedan_smer(rb, ra)
+
+
+def _praksa_smer_se_slaze(stav: str, sazetak: str) -> bool:
+    tokeni = _praksa_tokeni(stav)
+    recenice = [r for r in re.split(r"(?<=[.;!?])\s+", _praksa_norm(sazetak)) if r.strip()]
+    if not tokeni or not recenice:
+        return True
+    recenica = max(recenice, key=lambda r: len(tokeni & _praksa_tokeni(r)))
+    klauzule = [k for k in _PRAKSA_KLAUZULA_RE.split(recenica) if k.strip()] or [recenica]
+    najbliza = max(klauzule, key=lambda k: len(tokeni & _praksa_tokeni(k)))
+    if _praksa_negirano(stav) != _praksa_negirano(najbliza) or _praksa_prefiks_ne(stav, najbliza):
+        return False
+    if not _praksa_negirano(stav):
+        # „teče od saznanja, a ne od nastanka“ → stav „teče od nastanka“: reč samo iz ISKLJUČENE (negirane) klauzule
+        neg = set().union(*[_praksa_tokeni(k) for k in klauzule if _praksa_negirano(k)])
+        poz = set().union(*[_praksa_tokeni(k) for k in klauzule if not _praksa_negirano(k)])
+        if tokeni & (neg - poz):
+            return False
+    return True
+
+
+def _sazeci_iz_konteksta(praksa_context: str) -> dict:
+    """{normalizovan broj odluke: sažetak} iz bloka koji je model dobio (`_format_praksa_context`)."""
+    out, broj, sudar = {}, None, set()
+    for red in (praksa_context or "").splitlines():
+        m = re.match(r"\d+\.\s+(.*)$", red)   # zaglavlje nije uvučeno; sažetak jeste (i spojen je u jedan red)
+        if m:
+            # zaglavlje je „sud, broj, datum“, a naziv suda/organa može sadržati zarez („Ministarstvo rada, zapošljavanja, …“):
+            # broj je prvi deo sa cifrom
+            delovi = [x.strip() for x in m.group(1).split(",")]
+            broj = _kljuc_odluke(next((x for x in delovi if re.search(r"\d", x)), ""))
+            if broj in out or broj in sudar:
+                # S1-C5 (revizija M2): isti broj iz dva suda — ne zna se čiji je sažetak; odluka ostaje bez sažetka
+                # (fail-closed: stav joj se ne potvrđuje)
+                sudar.add(broj)
+                out.pop(broj, None)
+                broj = None
+            elif broj:
+                out[broj] = ""
+            else:
+                broj = None
+        elif broj is not None and red.strip().startswith("Sažetak:"):
+            out[broj] = red.split("Sažetak:", 1)[1]
+    return out
+
+
+def _proveri_stavove_prakse(data, praksa_context: str):
+    """N8: broj odluke iz konteksta NIJE dovoljan — STAV koji joj se pripisuje mora biti podržan njenim sažetkom
+    (izmereno: Ustavnom sudu je pripisana „nadležnost prema prebivalištu tužioca“ iz odluke o naknadi štete).
+    Nepodržana odluka se uklanja iz odgovora zajedno sa rečenicama koje je navode."""
+    if not isinstance(data, dict) or not isinstance(data.get("sudska_praksa"), list):
+        return data
+    sazeci = _sazeci_iz_konteksta(praksa_context)
+    ostaje, uklonjeni = [], []
+    for st in data["sudska_praksa"]:
+        if not isinstance(st, dict):
+            continue
+        dn = _kljuc_odluke(st.get("broj_odluke") or "")
+        sazetak = sazeci.get(dn) if dn else None
+        tvrdnja = _praksa_tokeni(" ".join(str(st.get(x) or "") for x in ("pravni_princip", "sazetak_relevantnosti", "stav")))
+        izvor = _praksa_tokeni(sazetak or "")
+        tekst_tvrdnje = " ".join(str(st.get(x) or "") for x in ("pravni_princip", "sazetak_relevantnosti", "stav"))
+        isti_clan = bool(_praksa_clanovi(tekst_tvrdnje) & _praksa_clanovi(sazetak or ""))
+        preklop = len(tvrdnja & izvor)
+        podrzano = sazetak is not None and bool(tvrdnja) and (preklop / len(tvrdnja) >= 0.5 or (isti_clan and preklop >= 2))
+        # V4: smer se meri na pripisanom stavu (pravni_princip / stav), ne na obrazloženju relevantnosti
+        pripisan = str(st.get("pravni_princip") or st.get("stav") or "")
+        if podrzano and pripisan and not _praksa_smer_se_slaze(pripisan, sazetak):
+            podrzano = False
+        # G4: zadržana odluka nosi DOSLOVAN sažetak iz izvora — prikaz ne sme da predstavi AI parafrazu kao stav suda
+        (ostaje if podrzano else uklonjeni).append(dict(st, izvorni_sazetak=re.sub(r"\s+", " ", sazetak or "").strip()[:400])
+                                                   if podrzano else st)
+    if not uklonjeni:
+        return dict(_oznaci_navode_zadrzane_prakse(data, ostaje), sudska_praksa=ostaje)
+    logger.warning("[N8_PRAKSA] uklonjeni nepodržani stavovi: %s", [u.get("broj_odluke") for u in uklonjeni][:3])
+    data["sudska_praksa"] = []
+    ociscen = _ukloni_neproverenu_praksu(dict(data, sudska_praksa=uklonjeni))
+    # revizija G4: označavanje POSLE čišćenja — oznaka ne sme da postane meta čišćenja rečenica o praksi
+    ociscen = _oznaci_navode_zadrzane_prakse(ociscen, ostaje)
+    ociscen["sudska_praksa"] = ostaje
+    return ociscen
+
+
+# S1-C5 (revizija H4): „Rev. 5/2020“, „str. 3“, „čl. 187“ — deljenje rečenica posle tačke je presecalo navod odluke, a
+# tačno poređenje teksta nije prepoznavalo „Rev. 5/2020“ kao „Rev 5/2020“. Rečenica se ne prekida posle poznate skraćenice
+# citata; broj odluke se traži obrascem (delovi broja uz tačku/razmak/crtu između, granice sa obe strane).
+# Oznake vrste odluke i citata („Rev.“, „str.“, „čl.“) i skraćenice SREDINE rečenice („tj.“, „npr.“, „Sl. glasnik“) — ne
+# one koje obično završavaju rečenicu („itd.“, „god.“)
+_PRAKSA_SKRACENICE = {"rev", "gz", "gz1", "kzz", "kz", "kz1", "kz2", "uz", "iuz", "iu", "uzp", "pzz", "prev", "pz",
+                      "str", "br", "cl", "st", "tac", "kp", "tj", "npr"}   # „Sl.“ samo ispred „glasnik“; „i dr.“/„i sl.“ završavaju
+
+
+def _recenice_sa_razmacima(tekst: str) -> list:
+    """[rečenica, razmak, rečenica, …] — kao `re.split(r"((?<=[.!?])\\s+)")`, ali bez prekida posle skraćenice oznake odluke
+    ili citata (spojeni delovi zadržavaju originalni razmak)."""
+    delovi = re.split(r"((?<=[.!?])\s+)", tekst or "")
+    out = [delovi[0]] if delovi else [""]
+    for i in range(1, len(delovi) - 1, 2):
+        razmak, dalje = delovi[i], delovi[i + 1]
+        poslednja = re.search(r"([^\W\d_]+)\.$", out[-1])
+        _sk = _normalizuj(poslednja.group(1).translate(_CIR_LAT_N8)) if poslednja else ""
+        if _sk in _PRAKSA_SKRACENICE or (_sk == "sl" and re.match(r"glasnik", _normalizuj(dalje))):
+            out[-1] = out[-1] + razmak + dalje
+        else:
+            out += [razmak, dalje]
+    return out
+
+
+def _obrazac_odluke(broj: str):
+    """Obrazac za broj odluke u normalizovanom tekstu: „Rev 5/2020“ hvata i „Rev. 5/2020“, „rev-5 / 2020“, ćirilicu;
+    ne hvata „Prev 5/2020“ ni „Rev 5/20201“. None za broj bez oblika odluke."""
+    n = _normalizuj((broj or "").lower().translate(_CIR_LAT_N8))
+    delovi = re.findall(r"[a-z]+|\d+|/", n)
+    if "/" not in delovi or len("".join(delovi)) < 4:
+        return None
+    return re.compile(r"(?<![a-z0-9])" + r"[\s.\-]{0,3}".join(re.escape(d) for d in delovi) + r"(?![0-9/])")
+
+
+def _sadrzi_odluku(tekst: str, obrasci) -> bool:
+    t = _normalizuj((tekst or "").lower().translate(_CIR_LAT_N8))
+    return any(o.search(t) for o in obrasci)
+
+
+# Oznaka namerno NE sadrži „sudska praksa“ ni naziv suda sa brojem (`_PRAKSA_RECENICA_RE`) — inače bi je čišćenje uklonilo.
+_NAVOD_PRAKSE_OZNAKA = " [AI navod o ovoj odluci — nije potvrđen kao stav suda]"
+
+
+def _oznaci_navode_zadrzane_prakse(data, zadrzane):
+    """G4 (revizija F4): rečenica IZVAN odeljka sa praksom koja navodi zadržanu odluku je tekst modela o odluci —
+    označava se (ne briše), da advokat ne pročita AI tvrdnju o stavu suda kao proverenu. Menja se samo rečenica sa
+    navodom (razmaci i prelomi redova ostaju), broj odluke se poklapa kao cela oznaka, oznaka ide ispred završne
+    interpunkcije (ponovni prolaz je ne dodaje opet)."""
+    obrasci = [o for o in (_obrazac_odluke(str(st.get("broj_odluke") or "")) for st in zadrzane if isinstance(st, dict)) if o]
+    if not obrasci or not isinstance(data, dict):
+        return data
+
+    def _recenica(d: str) -> str:
+        if not d.strip() or _NAVOD_PRAKSE_OZNAKA in d or not _sadrzi_odluku(d, obrasci):
+            return d
+        m = re.search(r"[.!?]*$", d)
+        return d[:m.start()] + _NAVOD_PRAKSE_OZNAKA + d[m.start():]
+
+    def _cisti(tekst: str) -> str:
+        return "".join(_recenica(d) if i % 2 == 0 else d for i, d in enumerate(_recenice_sa_razmacima(tekst)))
+
+    def _hodaj(obj):
+        if isinstance(obj, str):
+            return _cisti(obj)
+        if isinstance(obj, list):
+            return [_hodaj(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: _hodaj(v) for k, v in obj.items()}
+        return obj
+
+    return {k: (v if k == "sudska_praksa" else _hodaj(v)) for k, v in data.items()}
+
+
+def _ukloni_neproverenu_praksu(data):
+    dns = [dn for _, dn in _extract_praksa_citations(data)] if isinstance(data, dict) else []
+    # revizija N8 F9: goli broj („154“) bi brisao „Prema čl. 154 ZOO…“ — briše se samo broj u obliku odluke
+    obrasci = [o for o in (_obrazac_odluke(dn) for dn in dns if dn and "/" in dn and len(dn.strip()) >= 5) if o]
+
+    def _cisti(tekst: str) -> str:
+        delovi = _recenice_sa_razmacima(tekst)[0::2]                          # S1-C5: bez prekida posle „Rev.“, „str.“
+        ostaje = [d for d in delovi if not (_PRAKSA_RECENICA_RE.search(d) or _sadrzi_odluku(d, obrasci))]
+        return " ".join(ostaje).strip()
+
+    def _hodaj(obj):
+        if isinstance(obj, str):
+            return _cisti(obj)
+        if isinstance(obj, list):
+            return [_hodaj(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: _hodaj(v) for k, v in obj.items()}
+        return obj
+
+    if isinstance(data, dict) and isinstance(data.get("sudska_praksa"), list):
+        data["sudska_praksa"] = []
+    return _hodaj(data)
+
+
+# N8: napomene o izvoru za pitanja o građanskoj nadležnosti (determinističke, ne iz modela).
+# S3 (noćni sprint): Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023, bez kasnijih izmena) — doslovni citati
+# (transliteracija ćiriličnog teksta sa pravno-informacioni-sistem.rs, provereno 27.10.2026; test: test_s3_kz_55a_63_2026).
+# Zakon NIJE u bazi zakona Vindex (Pinecone) — zato se navodi ovde, sa izvorom.
+ZUS_IZVOR = "Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023), proveren tekst sa pravno-informacioni-sistem.rs"
+ZUS_24_2 = ("Osnovni sud u prvom stepenu sudi u građanskopravnom sporu ako za pojedini građanskopravni spor nije nadležan drugi "
+            "sud i vodi izvršni i vanparnični postupak, osim ako zakonom nije drukčije propisano.")
+ZUS_24_3 = ("Osnovni sud u prvom stepenu sudi u stambenom sporu; sporu povodom zasnivanja, postojanja i prestanka radnog odnosa; o "
+            "pravu, obavezi i odgovornosti iz radnog odnosa; o naknadi štete koju zaposleni pretrpi na radu ili u vezi sa radom; "
+            "sporu povodom zadovoljavanja stambenih potreba na osnovu rada.")
+ZUS_25_1_7 = "sudi u građanskopravnom sporu ako vrednost predmeta spora omogućuje izjavljivanje revizije"
+ZUS_27_1_1 = ("u sporu između domaćeg i stranog privrednog društva, preduzeća, zadruga i preduzetnika i njihovih asocijacija "
+              "(privredni subjekti), u sporu koji nastane između privrednog subjekta i drugog pravnog lica u obavljanju delatnosti "
+              "privrednog subjekta, kao i ako je u navedenom sporu jedna od stranaka fizičko lice ako je sa strankom u odnosu "
+              "materijalnog suparničarstva;")
+# Bojan beta (živo merenje D2): uz samo napomenu ispod, AI deo je stvarnu nadležnost pripisivao ZPP-u (čl. 40) jer u
+# kontekstu nije bilo ZUS-a. Isti proveren tekst ulazi u kontekst kao izvor (zaglavlje kao iz korpusa), pa ga model
+# može citirati, a provera citata ga priznaje.
+_ZUS_KONTEKST = [
+    f"ZAKON: Zakon o uređenju sudova\nČLAN: Član {clan}\n\nCITABILNI TEKST: Član {clan} {tekst}\n[Izvor: {ZUS_IZVOR}.]\n"
+    for clan, tekst in (
+        ("24", f"(2) {ZUS_24_2} (3) {ZUS_24_3}"),
+        ("25", f"(1) [viši sud u prvom stepenu] … 7) {ZUS_25_1_7} …"),
+        ("27", f"(1) [privredni sud u prvom stepenu] 1) {ZUS_27_1_1} …"),
+    )
+]
+_NAPOMENA_STVARNA = (
+    "\n\n--- STVARNA NADLEŽNOST (" + ZUS_IZVOR + "; zakon nije u bazi Vindex)\n"
+    "Čl. 24 st. 2: „" + ZUS_24_2 + "“\n"
+    "Čl. 24 st. 3: „" + ZUS_24_3 + "“\n"
+    "Čl. 25 st. 1 tač. 7 (viši sud u prvom stepenu): „" + ZUS_25_1_7 + "“ — revizija nije dozvoljena u imovinskopravnim "
+    "sporovima ako vrednost predmeta spora pobijenog dela ne prelazi dinarsku protivvrednost od 40.000 evra (ZPP čl. 403 st. 3); "
+    "isti član nabraja i druge sporove višeg suda.\n"
+    "Čl. 27 st. 1 tač. 1 (privredni sud u prvom stepenu): „" + ZUS_27_1_1 + "“\n"
+    "Koja odredba važi zavisi od stranaka, vrste spora i vrednosti predmeta spora — proverite ih u konkretnom slučaju.")
+# Konkretan sud: Zakon o sedištima i područjima sudova i javnih tužilaštava (101/2013, 9/2026, 56/2026) — nije u bazi.
+_BEOGRAD_SUD_RE = re.compile(r"beograd\w*|vozdovac|vracar|zvezdar|palilul|rakovic|savski\s+venac|stari\s+grad|cukaric|novi\s+beograd|"
+                             r"zemun|surcin|barajev|grock|kosjeric")
+_NAPOMENA_SEDISTA = (
+    "\n\n--- KONKRETAN SUD (sedište i područje)\nSedišta i područja sudova određuje Zakon o sedištima i područjima sudova i javnih "
+    "tužilaštava (101/2013, 9/2026, 56/2026; nije u bazi Vindex — naziv konkretnog suda proverite). Izmene iz 9/2026 (u Beogradu "
+    "prestaje sa radom dosadašnji Treći osnovni sud i osnivaju se novi Treći i Četvrti osnovni sud; sudska jedinica u Kosjeriću) "
+    "primenjuju se od 1. marta 2027. godine — do tada važi raspored iz 101/2013. Predmete koji do tada nisu okončani pred "
+    "dosadašnjim Trećim osnovnim sudom u Beogradu preuzimaju mesno nadležni sudovi osnovani tim izmenama.")
+
+
+# N8: više tuženih — model je u stvarnom toku (M8, dva solidarna dužnika) ponavljano citirao čl. 39 umesto čl. 42.
+# Tekst je doslovno iz lokalnog ZPP-a (čl. 42 i čl. 205 st. 1 tač. 1).
+_VISE_TUZENIH_RE = re.compile(r"\b(?:dva|dvoje|tri|troje|vise|nekoliko)\s+(?:\w+\s+)?tuzen\w*|\bsolidarn\w*\s+duzni\w*|\bvise\s+lica\b[^.?]{0,40}tuz")
+_NAPOMENA_VISE_TUZENIH = ("\n\n--- NAPOMENA O IZVORU (više tuženih)\nZPP čl. 42: „Ako je jednom tužbom tuženo više lica (član 205. stav 1. "
+                          "tačka 1), a za njih ne postoji mesna nadležnost istog suda, nadležan je sud koji je mesno nadležan za jednog od "
+                          "tuženih.“ Čl. 205 st. 1 tač. 1 obuhvata suparničare čija prava, odnosno obaveze proističu iz istog činjeničnog i "
+                          "pravnog osnova ili koji su u pravnoj zajednici u pogledu predmeta spora — proverite da li činjenice to ispunjavaju.")
+
+
+def _naziv_zakona_u_pitanju(pitanje: str):
+    """Pun naziv zakona iz pitanja u bilo kom padežu („Zakona o obligacionim odnosima“) ili šifra (ZOO) — ono što je
+    KORISNIK naveo, nezavisno od toga u kom zakonu pretraga traži odgovor."""
+    from app.services.retrieve import _ZAKON_KODOVI
+    q = _normalizuj(pitanje)
+    for kod, naziv in _ZAKON_KODOVI.items():
+        if re.search(rf"\b{re.escape(kod)}\b", q):
+            return naziv
+        reci = naziv.split()
+        if len(reci) >= 3 and reci[0] == "zakon":
+            obrazac = r"\bzakon\w*\s+" + r"\s+".join(re.escape(w[:max(4, len(w) - 2)]) + r"\w*" for w in reci[1:])
+            if re.search(obrazac, q):
+                return naziv
+    return None
+
+
+def _napomene_nadleznosti(pitanje: str, tekst: str) -> str:
+    try:
+        from app.services.retrieve import ekstrakcija_clana, je_pitanje_gradjanske_nadleznosti
+    except Exception:
+        return tekst
+    if not pitanje or not je_pitanje_gradjanske_nadleznosti(pitanje):
+        return tekst
+    q = _normalizuj(pitanje)
+    if "stvarn" in q or (("privredn" in q or "osnovn" in q or "visi sud" in q) and "mesn" not in q):
+        tekst += _NAPOMENA_STVARNA
+    if _BEOGRAD_SUD_RE.search(q) and re.search(r"osnovn\w*\s+sud|konkret\w*\s+sud|koji\s+sud|kom\s+sudu", q):
+        tekst += _NAPOMENA_SEDISTA
+    if _VISE_TUZENIH_RE.search(q):
+        tekst += _NAPOMENA_VISE_TUZENIH
+    _label, _ = ekstrakcija_clana(pitanje)
+    _zakon = _naziv_zakona_u_pitanju(pitanje)
+    # Revizija N8 F4: ispravka samo kad je CITIRAN član drugog zakona i kad lokalni tekst TOG člana ne sadrži pravilo o
+    # nadležnosti (ZIO čl. 7 jeste pravilo o nadležnosti — ranije je i on „ispravljan“).
+    if _label and _zakon and _normalizuj(_zakon) != "zakon o parnicnom postupku":
+        _tekst_clana = _lokalni_clan(_zakon, _label.replace("Član ", ""))
+        if _tekst_clana is not None and not _PRAVILO_NADLEZNOSTI_RE.search(_normalizuj(_tekst_clana)):
+            from app.services.retrieve import _ZAKON_KRATKI_KOD
+            _oznaka = _ZAKON_KRATKI_KOD.get(_normalizuj(_zakon), _zakon)
+            tekst += ("\n\n--- ISPRAVKA PREMISE\nPitanje kao osnov nadležnosti navodi " + _label + " " + str(_oznaka)
+                      + ", a taj član (proveren lokalni tekst) ne uređuje nadležnost suda. Mesnu nadležnost u građanskim stvarima "
+                        "uređuje Zakon o parničnom postupku (čl. 38–65).")
+    return tekst
+
+
+# „nadležan sud“ / „mesno je nadležan“ — ne i „akt nadležnog organa“ (ZOO čl. 84)
+_PRAVILO_NADLEZNOSTI_RE = re.compile(r"(?:mesno|stvarno)\s+(?:je\s+)?nadlez|nadlez\w*\s+(?:je\s+)?(?:i\s+)?sud|sud\w*\s+(?:je\s+)?nadlez|nadleznost\w*\s+sud")
+
+
+def _lokalni_clan(zakon: str, broj: str):
+    """Tekst člana iz lokalnog teksta zakona (data/laws/pdfs/<zakon>.pdf, UTF-8); None ako fajl ili član ne postoji."""
+    from pathlib import Path
+    put = Path(__file__).resolve().parent / "data" / "laws" / "pdfs" / (_normalizuj(zakon).replace(" ", "_") + ".pdf")
+    try:
+        sadrzaj = put.read_text(encoding="utf-8")
+    except Exception:
+        return None
+    m = re.search(rf"^Član {re.escape(broj)}\s*$(.*?)(?=^Član \d+\w?\s*$|\Z)", sadrzaj, re.M | re.S)
+    return m.group(1) if m else None
+
+
 def _parsiraj_strukturni_odgovor(
     raw_json: str,
     tip: str,
     docs: list[str],
     praksa_context: str = "",
     potvrda: dict | None = None,
+    pitanje: str = "",
 ) -> tuple[bool, str]:
     """
     Parse JSON response from LLM (Commit 3/3 structured output).
@@ -3305,6 +3732,9 @@ def _parsiraj_strukturni_odgovor(
     except Exception as exc:
         logger.warning("[COMMIT3] JSON parse greška [tip=%s]: %s", tip, exc)
         return False, _format_halucination_block(f"JSON parse greška: {exc}", docs)
+
+    if not praksa_context:
+        data = _ukloni_neproverenu_praksu(data)
 
     # BLACKSWAN-AI-004 fix (Operation Black Swan, Mission 001, AI Attack): guard_text used
     # to scan only 3 named fields (citat_zakona/pravni_osnov/pravni_zakljucak), but
@@ -3363,8 +3793,11 @@ def _parsiraj_strukturni_odgovor(
                 "[COMMIT3_PRAKSA] %d praksa citations verified OK [tip=%s]",
                 len(cited_pairs), tip,
             )
+        # G4 (revizija F1): i stavke BEZ upotrebljivog broja odluke (prazan / kraći od 3 znaka) — ranije su zaobilazile
+        # proveru i prikazivale se kao „Pravni princip:“ suda; bez broja nema sažetka, pa se uklanjaju.
+        data = _proveri_stavove_prakse(data, praksa_context)
 
-    return True, _json_ka_tekst(data, tip, potvrda=potvrda)
+    return True, _napomene_nadleznosti(pitanje, _json_ka_tekst(data, tip, potvrda=potvrda))
 
 
 # ─── NACRT RAG context hints (Commit 2/3) ────────────────────────────────────
@@ -3543,7 +3976,8 @@ def _format_praksa_context(decisions: list[dict]) -> str:
         sud  = d.get("court", "")
         dn   = d.get("decision_number", "?")
         date = d.get("date", "")
-        text = (d.get("text") or "").strip()[:300]
+        # N8: sažetak u jednom redu — red „2. …“ unutar teksta odluke se ranije čitao kao zaglavlje sledeće odluke
+        text = " ".join((d.get("text") or "").split())[:300]
         header_parts = [p for p in [sud, dn, date] if p]
         lines.append(f"{i}. " + ", ".join(header_parts))
         if text:
@@ -3663,6 +4097,92 @@ def _generate_high_interpretation(pitanje: str, article: str, law: str, text: st
 
 # ─── Javne funkcije agenta ───────────────────────────────────────────────────
 
+# zaključak modela u svim oblicima izlaza: „--- PRAVNI ZAKLJUČAK“ (strukturni), „PRAVNI ZAKLJUČAK:“ i
+# „KRATAK ZAKLJUČAK (TL;DR):“ (rezervni oblik, OBAVEZNE_SEKCIJE_QA)
+_ZAKLJUCAK_SEKCIJA_RE = re.compile(r"(--- PRAVNI ZAKLJUČAK\n)(.*?)(?=\n\n---|\n---|\Z)", re.S)
+_ZAKLJUCAK_RED_RE = re.compile(r"((?:PRAVNI ZAKLJUČAK|KRATAK ZAKLJUČAK \(TL;DR\)):[ \t]*)([^\n]*)")
+_TVRDNJA_DA_RE = re.compile(
+    r"(?<![a-z])su\s+ispunjeni|(?<![a-z])ispunjeni\s+su\s+(?:svi\s+)?uslovi|(?<![a-z])ispunjeni\s+(?:svi\s+)?uslovi"
+    r"|primenjuje\s+se\s+(?:cl\w*\.?\s+)?55\s?a|55\s?a\s+(?:kz\s+)?se\s+primenjuje|(?<![a-z])primenjuje\s+se\s+visestruk")
+_TVRDNJA_NE_RE = re.compile(r"nisu\s+ispunjeni|nije\s+ispunjen|ne\s+primenjuje\s+se|se\s+ne\s+primenjuje|ne\s+moze\s+(?:se\s+)?primeniti")
+_USLOVNO_RE = re.compile(r"\b(?:ako|ukoliko|kada|kad|ne|nisu|nije|samo\s+ako)\b")
+_USLOVNO_NE_RE = re.compile(r"\b(?:ako|ukoliko|kada|kad|da\s+li|smatra\w*|ospor\w*|tvrdi\w*)\b")
+
+
+def _tvrdnje_o_primeni(tekst: str) -> set:
+    """{"DA", "NE"} — šta AI tekst TVRDI o primeni čl. 55a; uslovne rečenice („ukoliko su ispunjeni uslovi“) nisu tvrdnja."""
+    t = _normalizuj(tekst)
+    out = set()
+    for m in _TVRDNJA_DA_RE.finditer(t):
+        if not _USLOVNO_RE.search(t[max(0, m.start() - 25): m.start()]):
+            out.add("DA")
+    for m in _TVRDNJA_NE_RE.finditer(t):
+        # „može da ospori ako smatra da uslovi nisu ispunjeni“ nije tvrdnja (izmereno: lažno UPOZORENJE, Bojan beta)
+        if not _USLOVNO_NE_RE.search(t[max(0, m.start() - 30): m.start()]):
+            out.add("NE")
+    return out
+
+
+# Tekst čl. 55a PRE izmene 63/2026: „iznad polovine raspona propisane kazne, pod sledećim uslovima“ (bez „polazeći od
+# najmanje mere te kazne“) i ranije osude „za krivična dela učinjena sa umišljajem“ (bez „ista ili istovrsna“).
+_STARI_55A_RE = re.compile(r"iznad\s+polovine\s+raspona\s+propisane\s+kazne,?\s+pod\s+sledećim\s+uslovima", re.I)
+_OZNAKA_STARI_55A = "[TEKST ČL. 55a PRE IZMENE 63/2026 — za dela izvršena od 18.07.2026 važi tekst iz PRORAČUNA] "
+
+
+def _dodaj_proracun_povrata(pitanje: str, rezultat: dict) -> dict:
+    """N9: izmereno je da model tvrdi „uslovi iz čl. 55a su ispunjeni“ i kad ranija kazna traje šest meseci ili je od
+    otpusta prošlo sedam godina, a da pitanje sa činjenicama blokira bez ikakvog odgovora. Uslove i raspon računa
+    `shared.visestruki_povrat`; zaključak modela se zamenjuje determinističkim kad su činjenice navedene, a tvrdnja AI
+    teksta koja se ne slaže sa proračunom (u bilo kom smeru) se izričito označava."""
+    if not isinstance(rezultat, dict) or rezultat.get("status") != "success" or not isinstance(rezultat.get("data"), str):
+        return rezultat
+    try:
+        from shared.visestruki_povrat import DA, NE, blok
+        b = blok(pitanje)
+    except Exception as exc:  # proračun nikad ne sme da obori odgovor
+        logger.warning("[N9_POVRAT] proračun nije uspeo: %s", exc)
+        return rezultat
+    if b is None:
+        return rezultat
+    tekst_bloka, r = b
+    odgovor = rezultat["data"]
+    # S3 (63/2026): baza zakona još ima tekst čl. 55a pre izmene — svaki njegov navod u AI delu se označava (ne briše).
+    odgovor = _STARI_55A_RE.sub(lambda m: _OZNAKA_STARI_55A + m.group(0), odgovor)
+    sa_cinjenicama = "Uslovi prema činjenicama iz pitanja:" in tekst_bloka
+    if sa_cinjenicama:
+        zakljucak = {DA: "Uslovi iz čl. 55a KZ su ispunjeni — vidi PRORAČUN (računa sistem).",
+                     NE: "Čl. 55a KZ se ne primenjuje na navedene činjenice — vidi PRORAČUN (računa sistem)."}.get(
+            r.primenjuje_se, "Primena čl. 55a KZ se ne može utvrditi iz navedenih činjenica — vidi PRORAČUN (računa sistem).")
+        odgovor = _ZAKLJUCAK_SEKCIJA_RE.sub(lambda m: m.group(1) + zakljucak, odgovor, count=1)
+        odgovor = _ZAKLJUCAK_RED_RE.sub(lambda m: m.group(1) + zakljucak, odgovor)
+        ostatak = _ZAKLJUCAK_RED_RE.sub("", _ZAKLJUCAK_SEKCIJA_RE.sub("", odgovor))
+        tvrdnje = _tvrdnje_o_primeni(ostatak)
+        suprotno = {DA: tvrdnje & {"NE"}, NE: tvrdnje & {"DA"}}.get(r.primenjuje_se, tvrdnje)
+        if suprotno:
+            opis = "da se čl. 55a primenjuje" if "DA" in suprotno and "NE" not in suprotno else (
+                "da se čl. 55a ne primenjuje" if "NE" in suprotno and "DA" not in suprotno else "ishod primene čl. 55a")
+            tekst_bloka += (f"\nUPOZORENJE: deo AI teksta ispod tvrdi {opis}, što se ne slaže sa proračunom iz činjenica u pitanju; "
+                            "merodavan je ovaj proračun.")
+    # blokada iz guard-a stiže i bez zastavice `blocked` (izmereno: V1, V3) — prepoznaje se i po tekstu
+    if rezultat.get("blocked") or "Odgovor je blokiran" in odgovor:
+        tekst_bloka += ("\n(Slobodan AI odgovor ispod je blokiran zbog neproverenih navoda; ovaj proračun se zasniva na proverenom "
+                        "tekstu čl. 55a i ne zavisi od njega.)")
+    logger.info("[N9_POVRAT] proračun dodat: primena=%s", r.primenjuje_se)
+    return {**rezultat, "data": tekst_bloka + "\n\n" + odgovor, "proracun_povrata": r.primenjuje_se}
+
+
+def _sa_proracunom_povrata(fn):
+    """N9: deterministički proračun višestrukog povrata (KZ čl. 55a) se dodaje POSLE `ask_agent` — na svaku povratnu
+    granu (i blokiran odgovor i odgovor iz keša) — i nikad se ne kešira."""
+    import functools
+
+    @functools.wraps(fn)
+    def omot(pitanje, *args, **kwargs):
+        return _dodaj_proracun_povrata(pitanje, fn(pitanje, *args, **kwargs))
+    return omot
+
+
+@_sa_proracunom_povrata
 def ask_agent(
     pitanje: str,
     history: list[dict] | None = None,
@@ -3807,7 +4327,14 @@ def ask_agent(
 
         # KORAK 1.6: Sudska praksa retrieval (T3) — separate pipeline, never affects zakon band
         try:
-            _praksa_raw = retrieve_sudska_praksa(pitanje_api, top_k=10)
+            from app.services.retrieve import je_pitanje_gradjanske_nadleznosti as _je_nadl
+            if _je_nadl(pitanje_api):
+                # N8: za građansku nadležnost izvor je ZPP; semantička pretraga prakse je na imenu grada („Kragujevac“)
+                # vraćala tuđe odluke koje su prikazivane kao da odlučuju o ovom slučaju — izmereno.
+                logger.info("[PRAKSA] pitanje o građanskoj nadležnosti — praksa se ne pretražuje [q=%s]", log_id)
+                _praksa_raw = []
+            else:
+                _praksa_raw = retrieve_sudska_praksa(pitanje_api, top_k=10)
             _processed_praksa = process_praksa_chunks(_praksa_raw, k=3)
         except Exception as _pe:
             logger.warning("[PRAKSA] Retrieval/processing greška: %s — nastavlja se bez prakse", _pe)
@@ -3950,6 +4477,12 @@ def ask_agent(
             filtrirani = [d for d in _ref_docs if len(d.strip()) > 50] + [
                 d for d in filtrirani if d not in _ref_set
             ]
+        try:
+            from app.services.retrieve import je_pitanje_gradjanske_nadleznosti as _je_nadl_ctx
+            if filtrirani and _je_nadl_ctx(pitanje_api):
+                filtrirani = filtrirani + _ZUS_KONTEKST   # Bojan beta: stvarna nadležnost iz ZUS-a, ne iz ZPP-a
+        except Exception as _ze:
+            logger.debug("[N8] ZUS nije dodat u kontekst: %s", _ze)
         if not filtrirani:
             odgovor = _format_low_response(top_score)
             return {
@@ -3968,6 +4501,12 @@ def ask_agent(
             "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, SEKCIJE_DEFINICIJA, "gpt-4o", 2500),
         }
         system_prompt, aktivan_sekcije, _model, _max_tokens = _prompt_map.get(tip, _prompt_map["DEFINICIJA"])
+        try:
+            from app.services.retrieve import je_pitanje_gradjanske_nadleznosti as _je_nadl_sp
+            if _je_nadl_sp(pitanje_api):
+                system_prompt = system_prompt + "\n\n" + NADLEZNOST_ZPP_PRAVILA   # N8: proveren okvir iz ZPP-a
+        except Exception as _ne:
+            logger.debug("[N8] pravila nadležnosti nisu dodata: %s", _ne)
 
         # ── TARGET-1 (N1-NEW-3): MEMORIJA VISE NE ULAZI U T1 SLOJ ────────────
         #
@@ -4131,7 +4670,7 @@ def ask_agent(
                 _korak_15_authoritative, confidence, _izvori, top_article
             )
             _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(
-                _raw_med, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+                _raw_med, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda, pitanje=pitanje_api
             )
             if not _json_ok_med:
                 logger.warning("[MEDIUM→BLOCK] Commit3 guard [q=%s]", log_id)
@@ -4234,7 +4773,7 @@ def ask_agent(
             _korak_15_authoritative, confidence, _izvori, top_article
         )
         _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(
-            _raw_high, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+            _raw_high, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda, pitanje=pitanje_api
         )
 
         # Soft section check — log only, do not discard
@@ -4303,7 +4842,7 @@ def ask_agent(
                 _korak_15_authoritative, confidence, _izvori, top_article
             )
             _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(
-                _raw_dg, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+                _raw_dg, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda, pitanje=pitanje_api
             )
             if not _json_ok_dg:
                 logger.warning("[DOWNGRADE→BLOCK] Commit3 guard posle downgrade [q=%s]", log_id)

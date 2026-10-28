@@ -405,6 +405,7 @@
 
   function ocistiPredmet() {
     detaljPodaci = null;
+    if ($("iz-poruka")) izvestajPoruka(null);
     $("predmet-naslov").textContent = "";
     $("predmet-ref").replaceChildren();
     $("predmet-cinjenice").replaceChildren();
@@ -466,6 +467,23 @@
       tab.href = adresaPredmeta(ruta.id, x);
       if (x === o) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
     });
+  }
+
+  /* N6: izveštaj o predmetu (GET /api/predmeti/{id}/pdf-export — vlasnik iz tokena). */
+  var izvestajZauzet = false;
+  function izvestajPoruka(st, t) { var n = $("iz-poruka"); if (!st) { n.hidden = true; n.textContent = ""; return; } n.hidden = false; n.dataset.stanje = st; n.textContent = t; }
+  async function preuzmiIzvestaj() {
+    if (izvestajZauzet || !detaljPodaci || !detaljPodaci.predmet) return;
+    var id = detaljPodaci.predmet.id;
+    izvestajZauzet = true; $("iz-pdf").disabled = true; izvestajPoruka("ucitavanje", "Pravljenje izveštaja…");
+    var r = await window.VxApi.preuzmi("/api/predmeti/" + encodeURIComponent(id) + "/pdf-export", { metod: "GET", token: window.VxSesija.token(), tip: "application/pdf" });
+    izvestajZauzet = false; $("iz-pdf").disabled = false;
+    if (!detaljPodaci || !detaljPodaci.predmet || detaljPodaci.predmet.id !== id) return;
+    if (!r.ok) { izvestajPoruka("greska", r.greska.kod === "AUTH_REQUIRED" ? "Prijava je istekla. Izveštaj nije preuzet." : "Izveštaj nije napravljen (" + r.greska.kod + "). Fajl nije preuzet."); return; }
+    var url = URL.createObjectURL(r.blob), a = document.createElement("a");
+    a.href = url; a.download = r.ime || "vindex-predmet.pdf"; document.body.append(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+    izvestajPoruka("uspeh", "Izveštaj „" + (r.ime || "vindex-predmet.pdf") + "“ je preuzet.");
   }
 
   function prikaziPredmetPodatke(v) {
@@ -970,6 +988,7 @@
     };
     window.VxSesija.naPromenu(uskladiNovLink);
     window.addEventListener("hashchange", primeniRutu);
+    $("iz-pdf").addEventListener("click", preuzmiIzvestaj);
 
     kontrolerLive.pokreni();
     if (window.__vxUskladiOdjavu) window.__vxUskladiOdjavu();

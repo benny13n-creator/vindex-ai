@@ -97,7 +97,9 @@ def test_promena_predmeta_bez_rucnog_refresha(lanac):
     assert rez["greske"] == 0, rez
     assert len(pozivi) == 1, "tačno jedna analiza po događaju"
     posledice = {c["consequence_name"]: c["status"] for c in baza.tabele["case_evolution_consequences"] if c["event_id"] == event_id}
-    assert posledice == {"genome_refresh": "completed", "refresh_case_actions": "completed", "project_notifications": "completed"}, posledice
+    # Sektor 2 (D2): ROCISTE_ZAKAZANO ima i trajni okidač hitnog email podsetnika.
+    assert posledice == {"genome_refresh": "completed", "email_podsetnik_hitno": "completed",
+                         "refresh_case_actions": "completed", "project_notifications": "completed"}, posledice
 
     # 3. Genome v3 → v4, istorija vezana za događaj
     g = baza.tabele["predmeti"][0]["case_dna"]

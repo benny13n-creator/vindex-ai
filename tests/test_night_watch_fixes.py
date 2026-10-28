@@ -153,13 +153,15 @@ def test_cleanup_still_deletes_a_genuinely_expired_namespace():
 
 # ── NIGHT-007 — privileged case content must never enter the shared cache ──
 
-def test_case_context_questions_are_never_written_to_the_shared_ai_cache():
+def test_case_context_questions_are_never_written_to_the_shared_ai_cache(monkeypatch):
     """ai_cache is keyed on the normalized question text alone and has no
     tenant column, no expiry sweep, and no GDPR erasure path. api.py builds
     `KONTEKST PREDMETA:\\n<beleške + istorija>\\n\\nPITANJE: ...`, so a client's
     privileged case material was persisted there for 7 days."""
     import main
 
+    # with VINDEX_CACHE_BYPASS=1 (set at import by several test modules) _cache_set returns before this guard
+    monkeypatch.delenv("VINDEX_CACHE_BYPASS", raising=False)
     written = {}
     with patch.object(main, "_supa_cache_set", side_effect=lambda k, r: written.setdefault(k, r)):
         main._cache_set("KONTEKST PREDMETA:\nBeleške: klijent priznao\n\nPITANJE: rok?",
@@ -170,11 +172,13 @@ def test_case_context_questions_are_never_written_to_the_shared_ai_cache():
     assert main._cache_get("[Predmet: Marković | parnica | aktivan]\nPITANJE: y") is None
 
 
-def test_generic_questions_are_still_cached():
+def test_generic_questions_are_still_cached(monkeypatch):
     """No regression: the cache must keep working for genuinely public
     questions, which is its entire purpose."""
     import main
 
+    # several test modules set VINDEX_CACHE_BYPASS=1 at import; this test is about the cache being ON
+    monkeypatch.delenv("VINDEX_CACHE_BYPASS", raising=False)
     written = {}
     with patch.object(main, "_supa_cache_set", side_effect=lambda k, r: written.setdefault(k, r)):
         main._cache_set("Koliki je rok za žalbu u parničnom postupku?",

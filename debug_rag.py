@@ -14,6 +14,9 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 load_dotenv()
+# G1: pokretač nikad ne pristupa bazi (ni ai_cache ni security_events) — samo OpenAI + Pinecone
+os.environ["VINDEX_BEZ_BAZE"] = "1"
+os.environ["SENTRY_DSN"] = ""   # G1: ni Sentry (api.py ga uključuje pri uvozu) iz lokalnog pokretača
 
 logging.basicConfig(
     level=logging.DEBUG,

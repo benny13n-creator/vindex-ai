@@ -296,9 +296,10 @@ async def test_pdf_izvoz_vlastitog_predmeta_ograniceno_na_vlasnika():
          patch.object(ex, "_odluke", return_value={}):
         resp = await ex.get_predmet_pdf_export(PA, user={"user_id": A})
     assert resp.media_type == "application/pdf"
-    predmet, dokumenti, beleske, hron = pozvan[0]
+    # N6: PDF dobija i ročišta predmeta (peti argument) — i ona samo vlasnikova.
+    predmet, dokumenti, beleske, hron, rocista = pozvan[0]
     assert predmet["id"] == PA
-    assert "TAJNA-B" not in json.dumps([dokumenti, beleske, hron])
+    assert "TAJNA-B" not in json.dumps([dokumenti, beleske, hron, rocista])
     assert [h["id"] for h in hron] == ["h1"]
     assert all(h["stanje_odluke"] != "CONFIRMED" for h in hron)
 

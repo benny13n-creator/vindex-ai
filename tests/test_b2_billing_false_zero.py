@@ -101,6 +101,9 @@ SEMA = {
         # Migracija 127 (posle merenja iznad): `izvor`. Kanonski čitalac
         # shared/rokovi.py::_KOLONE ga bira u produkciji od Wave 3 (2026-09-20).
         "izvor",
+        # Migracija 129 (primenjena u produkciji): `vrsta`, `stanje`. Mesečni izveštaj ih bira od N6 iza sonde
+        # shared/rokovi.py::_sema_ima_129 (rokovi u „sledećih 14 dana“ = samo `vrsta='rok'`).
+        "vrsta", "stanje",
     },
 }
 
@@ -473,3 +476,28 @@ def test_8d_zastarele_racuna_tacno():
     assert d["aging"]["61_90_dana"]["iznos"] == 5000.0
     assert d["aging"]["starije_90"]["iznos"] == 0.0
     assert d["aging"]["do_30_dana"]["iznos"] == 3000.0
+
+
+def test_1b_mesecni_pre_migracije_129_ne_trazi_vrsta_stanje(monkeypatch):
+    """G6: rezervna grana pre migracije 129 je i dalje u kodu (`_sema_ima_129` → False), pa se meri i ona: jedini
+    upit sa `vrsta`/`stanje` sme biti sama sonda šeme; izveštaj radi (200)."""
+    from shared import rokovi as rk
+    pre129 = dict(SEMA, predmet_hronologija=SEMA["predmet_hronologija"] - {"vrsta", "stanje"})
+    monkeypatch.setattr(sys.modules[__name__], "SEMA", pre129)
+    rk._resetuj_sondu()
+    try:
+        supa, c = _klijent()
+        with patch.object(br, "_get_supa", return_value=supa):
+            r = c.get("/billing/report/mesecni")
+        assert rk._KOLONE_129 is False, "sonda nije prepoznala šemu bez 129"
+    finally:
+        rk._resetuj_sondu()
+    sonda = [(t, k) for t, k in supa.trazeno if t == "predmet_hronologija" and "vrsta" in k]
+    assert sonda == [("predmet_hronologija", "vrsta, stanje")], sonda
+    for tab, kolone in supa.trazeno:
+        if (tab, kolone) in sonda:
+            continue
+        for col in [x.strip().split("(")[0].strip() for x in kolone.split(",")]:
+            if col and pre129.get(tab) is not None:
+                assert col in pre129[tab], f"pre 129: `{tab}.{col}` ne postoji"
+    assert r.status_code == 200, r.text[:200]

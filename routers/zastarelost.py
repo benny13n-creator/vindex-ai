@@ -243,6 +243,12 @@ async def post_kalkulisi_zastarelost(req: ZastarelostRequest):
         "datum_zastarelosti_iso": rez.datum_zastarelosti.isoformat(),
         "dana_preostalo":         rez.dana_preostalo,
         "isteklo":                rez.isteklo,
+        # N4: poslednji kalendarski dan i pomeranje sa neradnog dana (pravilo i izvor neradnih dana)
+        "vrsta":                  rez.vrsta,
+        "kalendarski_poslednji_dan": rez.kalendarski_poslednji_dan.strftime("%d.%m.%Y") if rez.kalendarski_poslednji_dan else None,
+        "pomereno_razlog":        rez.pomereno_razlog,
+        "pravilo_racunanja":      rez.pravilo_racunanja,
+        "izvor_neradnih_dana":    rez.izvor_neradnih_dana,
         "napomena":               rez.napomena,
     }
 

@@ -11,6 +11,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
+# G1: pokretač nikad ne pristupa bazi (ni ai_cache ni security_events) — samo OpenAI + Pinecone
+os.environ["VINDEX_BEZ_BAZE"] = "1"
+os.environ["SENTRY_DSN"] = ""   # G1: ni Sentry (api.py ga uključuje pri uvozu) iz lokalnog pokretača
 
 _parser = argparse.ArgumentParser(add_help=False)
 _parser.add_argument("--no-cache", action="store_true")

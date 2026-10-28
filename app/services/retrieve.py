@@ -643,8 +643,67 @@ def _tokenizuj(query: str) -> list[str]:
     return [t for t in tokeni if len(t) >= 3 and t not in STOPWORDS]
 
 
+# N8 (Bojan: mesna i stvarna nadležnost): pitanje „koji sud je nadležan“ se ranije vezivalo za MATERIJALNI zakon iz
+# činjenica („zajam“ → ZOO čl. 320, „otkaz“ → ZR čl. 191, „nezgoda“ → ZBSP čl. 168), pa pravila o nadležnosti iz
+# ZPP-a nisu ni pretraživana i sistem je odgovarao „nemam pouzdan odgovor“ (izmereno, 5/5 pitanja). Građanska
+# nadležnost (bez krivične/upravne/prekršajne) se zato traži u ZPP-u.
+# Revizija N8: samo „nadlež…“ je hvatalo „nadležni organ“, „nadležnost ministarstva“, „kom sudu se izjavljuje žalba“ —
+# sada se traži SUD u istom izrazu, a postupci sa sopstvenim pravilima nadležnosti (izvršni, ostavinski, stečajni,
+# vanparnični, ustavna žalba, pravni lekovi) ostaju na starom toku.
+_NADLEZNOST_RE = re.compile(
+    r"\b(?:mesn\w*\s+nadlez\w*|mesno\s+nadlez\w*|stvarn\w*\s+nadlez\w*|stvarno\s+nadlez\w*"
+    r"|nadlez\w*\s+(?:je\s+|bi\s+bio\s+)?(?:\w+\s+){0,3}sud\w*|sud\w*\s+(?:je\s+|bi\s+bio\s+)?(?:mesno\s+|stvarno\s+)?nadlez\w*"
+    r"|nadleznost\w*\s+(?:\w+\s+)?sud\w*|koji\s+(?:je\s+)?sud\b|kom\s+sudu|kojem\s+sudu|kojim\s+sudom|pred\s+kojim\s+sudom"
+    # S3 (usko, posle završne revizije M2): „koji (konkretan) osnovni/viši/privredni sud … je nadležan“ — sa rečju nadležan
+    r"|koji\s+(?:konkret\w*\s+)?(?:osnovni|visi|privredni)\s+sud\w*\s+(?:\w+\s+){0,3}?(?:je\s+)?(?:mesno\s+|stvarno\s+)?nadlez\w*"
+    r"|gde\s+(?:da\s+|mogu\s+da\s+|treba\s+da\s+|se\s+)?(?:podnesem|podnese|podnosi|tuzim|tuzi)\w*(?:\s+\w+)?\s+tuzb\w*"
+    r"|gde\s+(?:da\s+|mogu\s+da\s+)?tuzim)")
+_NADLEZNOST_DRUGA_RE = re.compile(r"krivic|upravn|prekrsaj|ustavn|zalb|izvrsn\w*\s+postup|izvrsitelj|predlog\w*\s+za\s+izvrs|"
+                                  r"\bzio\b|izvrsenju\s+i\s+obezbedj|ostavin|nasledn|nasledj|stecaj|vanparnic|"
+                                  # S1-C5 (revizija M1): postupci bez reči „krivičn/upravn“ koji NISU parnica
+                                  r"ekstradic|uprav\w*\s+(?:organ|akt)|resenj\w*\s+(?:\w+\s+)?(?:organa|uprave|ministarstv)|"
+                                  r"tuzb\w*\s+protiv\s+resenj|privatn\w*\s+tuzb|privatn\w*\s+tuzil|"
+                                  r"lisenj\w*\s+poslovn\w*\s+sposobnost|hask\w*\s+konvencij")
+# S1-E (revizija): reči krivičnog/poreskog konteksta isključuju SAMO bez građanskog sidra — „naknada štete zbog
+# neosnovanog pritvora“, „tužba protiv poreskog savetnika“ su parnice
+_NADLEZNOST_MEKO_DRUGA_RE = re.compile(r"ubist|pritvor|okrivljen|optuz|osumnjic|haps|poresk")
+# 3. krug revizije: bez gole „štete“ (krivično delo „kojim je pričinjena šteta“) i bez „tužil-“ (javni tužilac, tužilaštvo)
+_GRADJANSKO_SIDRO_RE = re.compile(r"naknad\w*\s+(?:\w+\s+){0,2}(?:materijaln\w*\s+|nematerijaln\w*\s+)?stet|tuzb\w*\s+(?:\w+\s+){0,3}"
+                                  r"(?:protiv|za\s+(?:\w+\s+)?(?:naknad|nematerijaln|materijaln|stet))|parnic|\btuzen\w*|"
+                                  r"(?:zahtev|trazim|odstet|obestecen|regres)\w*\s+(?:\w+\s+){0,3}(?:(?:za|zbog|od)\s+)?stet|"
+                                  r"\bodstet\w*|\bobestecen\w*")
+# S1-C5 (revizija M1): „koji je sud doneo/zauzeo stav …“ pita za ODLUKU, ne za nadležnost
+_NADLEZNOST_ODLUKA_RE = re.compile(r"\bkoji\s+(?:je\s+)?sud\w*\s+(?:je\s+)?(?:done|zauze|odluci|presud|izrek|reka|utvrd)")
+_ZPP_LAW = "zakon o parnicnom postupku"
+
+
+def je_pitanje_gradjanske_nadleznosti(query: str) -> bool:
+    q = _normalizuj(query)
+    return (bool(_NADLEZNOST_RE.search(q)) and not _NADLEZNOST_DRUGA_RE.search(q)
+            and not (_NADLEZNOST_MEKO_DRUGA_RE.search(q) and not _GRADJANSKO_SIDRO_RE.search(q))
+            and not _NADLEZNOST_ODLUKA_RE.search(q))
+
+
+def _clan_nadleznosti_zpp(meta: dict) -> bool:
+    """ZPP čl. 27–33 (stvarna nadležnost, vrednost spora) i 38–65 (mesna nadležnost, sporazum) — lokalni tekst ZPP-a."""
+    if _normalizuj(meta.get("law", "")) != _ZPP_LAW:
+        return False
+    m = re.search(r"\d+", meta.get("article", "") or "")
+    return bool(m) and (27 <= int(m.group()) <= 33 or 38 <= int(m.group()) <= 65)
+
+
+def _imenovan_drugi_zakon(q_norm: str) -> bool:
+    """Revizija N8 F1: pitanje koje IMENUJE drugi zakon („po članu 179 Zakona o radu“, „ZIO“) zadržava taj zakon —
+    inače bi se traženi član tražio u ZPP-u. Pravila nadležnosti iz ZPP-a se i tada dodaju ciljanim pretragama."""
+    if re.search(r"\bzakon\w*\s+o\s+(?!parnicn)\w+|\bzakonik\w*\b|\bporodicn\w*\s+zakon", q_norm):
+        return True
+    return any(re.search(rf"\b{re.escape(k)}\b", q_norm) for k in _ZAKON_KODOVI if k != "zpp")
+
+
 def _prepoznaj_zakon(query: str) -> Optional[str]:
     q = _normalizuj(query)
+    if je_pitanje_gradjanske_nadleznosti(query) and not _imenovan_drugi_zakon(q):
+        return _ZPP_LAW
     sortirani = sorted(LAW_HINTS.items(), key=lambda x: len(x[0]), reverse=True)
     for kljuc, zakon in sortirani:
         if _normalizuj(kljuc) in q:
@@ -655,7 +714,10 @@ def _prepoznaj_zakon(query: str) -> Optional[str]:
 def _izvuci_broj_clana(query: str) -> Optional[str]:
     q = query.lower()
     for obrazac in [
-        r"(?:clan|član|čl\.|cl\.)\s*(\d+[a-zA-Z]?)",  # Latin (with/without diacritic)
+        # N8: i padeži („prema članu 999“, „člana 39“, „članom 5“) — ranije je izmišljen član u padežu prolazio
+        # bez provere postojanja (KORAK 1.5) i odgovor je tiho citirao drugi član.
+        r"(?:clan|član)(?:a|u|om)?\s*(\d+[a-zA-Z]?)",
+        r"(?:čl\.|cl\.)\s*(\d+[a-zA-Z]?)",  # Latin (with/without diacritic)
         r"(?:чл\.?)\s*(\d+[a-zA-Z]?)",                 # Cyrillic
     ]:
         m = re.search(obrazac, q)
@@ -888,6 +950,24 @@ def _log_rag_error(reason: str, namespace: str, detail: str) -> None:
 
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
 
+def _vazeci_tekst_clanova(matches):
+    """Bojan beta (63/2026): korpus ima KZ zaključno sa 94/2024, pa za čl. 55a vraća tekst PRE izmene i model ga je
+    navodio kao važeći (izmereno: „PRAVNA DEFINICIJA“ i „CITAT ZAKONA [RAG]“ bez „ista ili istovrsna“). Dok se korpus ne
+    ažurira (poseban, odobren upis u Pinecone), tekst tog člana se pri čitanju zamenjuje proverenim važećim tekstom;
+    stari tekst ostaje u punom tekstu člana, označen kao istorijski (čl. 5 KZ — vremensko važenje)."""
+    from shared.visestruki_povrat import CITAT_55A, CITAT_55A_DO_63_2026, IZVOR_55A
+    for m in matches or []:
+        md = getattr(m, "metadata", None)
+        if not isinstance(md, dict) or md.get("law") != "KZ" or str(md.get("article") or "").strip() != "Član 55a":
+            continue
+        vazeci = f"Član 55a {CITAT_55A}"
+        md.update(text=vazeci, tekst_preview=vazeci[:300], verzija_teksta="63/2026",
+                  parent_text=(f"{vazeci}\n[Izvor: {IZVOR_55A}.]\n"
+                               f"[ISTORIJSKI TEKST — važio do 17.07.2026, pre izmene 63/2026; primenjuje se samo ako je blaži "
+                               f"za učinioca dela izvršenog pre 18.07.2026 (čl. 5 KZ): {CITAT_55A_DO_63_2026}]"))
+    return matches
+
+
 def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None,
                          *, neuspeh: Optional[list] = None) -> list:
     """`neuspeh`: opciona lista u koju se, ako upit PADNE, upisuje `IZVOR_ZAKON`.
@@ -908,7 +988,7 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
         matches = index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
         if not matches:
             logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
-        return matches
+        return _vazeci_tekst_clanova(matches)
     except Exception as exc:
         _sentry_capture(exc)
         logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
@@ -924,7 +1004,8 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
     index = _get_index()
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
-        return index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
+        return _vazeci_tekst_clanova(
+            index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches)
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u pretraga_vec")
@@ -1073,13 +1154,13 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None, raise_o
     try:
         vektor = _ugradi_query(f"{label_clana} {zakon or ''}")
         index = _get_index()
-        return index.query(
+        return _vazeci_tekst_clanova(index.query(
             vector=vektor,
             top_k=10,
             namespace=_ZAKONI_NS,
             include_metadata=True,
             filter=filter_dict,
-        ).matches
+        ).matches)
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u direktnom fetchu člana %s", label_clana)
@@ -1633,6 +1714,10 @@ def _izracunaj_skor(
     if re.search(r'\bprevar', query_norm) and re.search(r'\b(milion|hiljada|dinara)\b', query_norm):
         if re.search(r'\b208\b', clan_doc) and zakon_doc == "kz": skor += 80
 
+    # N8: pitanje o građanskoj nadležnosti — pravila o nadležnosti iz ZPP-a ispred ostalih članova ZPP-a.
+    if je_pitanje_gradjanske_nadleznosti(query) and _clan_nadleznosti_zpp(meta):
+        skor += 60
+
     return skor
 
 
@@ -1722,6 +1807,18 @@ _ZOO_FALLBACK_CLANOVI = ["Član 154", "Član 155", "Član 200", "Član 189"]
 # "milion dinara" penalty threshold phrase; KZ 208's own threshold reads "milion i petsto".
 # Expansion term is semantically close to KZ 208's definition text (lažno prikazivanje /
 # imovinska korist) so it retrieves KZ 208 with a real cosine score, not a zero-vector fetch.
+# N8: ciljane pretrage pravila nadležnosti u ZPP-u (po jedna za opštu i svaku posebnu), da odgovarajući član bude
+# u kontekstu i kad semantika pitanja vuče ka materijalnom zakonu (npr. „solidarni dužnici“ → ZPP čl. 42).
+_NADLEZNOST_ZPP_TERMINI = [
+    "opšta mesna nadležnost sud na čijem području tuženi ima prebivalište",
+    "mesna nadležnost u sporovima protiv pravnih lica sedište prema izveštaju Agencije za privredne registre",
+    "jednom tužbom tuženo više lica mesna nadležnost suda za jednog od tuženih",
+    "spor o zakonskom izdržavanju nadležan sud prebivališta tužioca",
+    "vanugovorna odgovornost za štetu sud mesta štetne radnje ili posledice",
+    "zaštita prava potrošača sud prebivališta potrošača",
+    "isključiva mesna nadležnost nepokretnost sud na čijem području se nalazi",
+    "spor iz radnog odnosa tužilac zaposleni sud na čijem se području rad obavlja",
+]
 _PREVARA_KZ_TERMINI = ["krivično delo prevare lažnim prikazivanjem imovinska korist KZ 208"]
 
 # ─── Interna helper: jedan retrieval krug ────────────────────────────────────
@@ -1793,6 +1890,11 @@ def _jedan_retrieval_krug(
     if re.search(r'\bprevar', q_norm) and re.search(r'\b(milion|hiljada|dinara)\b', q_norm):
         for term in _PREVARA_KZ_TERMINI:
             fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "KZ"))
+
+    # j) N8: građanska nadležnost → pravila nadležnosti iz ZPP-a
+    if je_pitanje_gradjanske_nadleznosti(query):
+        for term in _NADLEZNOST_ZPP_TERMINI:
+            fjobs.append(executor.submit(_semanticka_pretraga, term, 2, _ZPP_LAW))
 
     # i) Sprint 2A: multi-query pod-pitanja
     for sub_q in extra_queries:

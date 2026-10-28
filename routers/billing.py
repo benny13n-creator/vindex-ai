@@ -25,6 +25,7 @@ import email as _email_lib
 import io
 import logging
 import math
+import uuid
 import os
 import smtplib
 from datetime import date, datetime, timedelta, timezone
@@ -246,6 +247,19 @@ class FakturaReq(BaseModel):
 
 class FakturaStatusReq(BaseModel):
     status: str = Field(..., pattern="^(nacrt|izdata|placena|stornirana)$")
+    # N5: očekivano trenutno stanje (V2 ga šalje) — zastareo prikaz dobija 409 umesto da prepiše novije stanje.
+    iz_statusa: Optional[str] = Field(default=None, pattern="^(nacrt|izdata|placena|stornirana)$")
+
+
+# N5: dozvoljeni prelazi statusa fakture. Povratak u „nacrt“ nije dozvoljen: trigger nepromenljivosti
+# (migracija 003) štiti finansijska polja samo dok status NIJE nacrt, pa bi vraćanje otključalo izmenu
+# izdate fakture. Stornirana je završna. „plaćena → izdata“ ispravlja greškom zabeleženu uplatu.
+_FAKTURA_PRELAZI = {
+    "nacrt": {"izdata", "stornirana"},
+    "izdata": {"placena", "stornirana"},
+    "placena": {"izdata"},
+    "stornirana": set(),
+}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -493,11 +507,16 @@ async def timer_stop(
     stop_dt  = datetime.now(timezone.utc)
     trajanje = int((stop_dt - start_dt).total_seconds())
 
-    await _db(lambda: supa.table("timer_sessions").update({
+    # N5: zaustavljanje je USLOVNO (`aktivan = true`) — samo zahtev koji je zaista ugasio tajmer pravi stavku.
+    # Ranije su dva istovremena zaustavljanja (dva taba, ponovljen zahtev) oba pročitala aktivan tajmer i
+    # upisala DVE stavke naplate za isti rad (izmereno).
+    ugasen = await _db(lambda: supa.table("timer_sessions").update({
         "aktivan":    False,
         "stop_at":    stop_dt.isoformat(),
         "trajanje_s": trajanje,
-    }).eq("id", t["id"]).execute())
+    }).eq("id", t["id"]).eq("user_id", uid).eq("aktivan", True).execute())
+    if not ugasen.data:
+        raise HTTPException(status_code=409, detail="Tajmer je već zaustavljen (drugi prozor ili ponovljen zahtev). Nova stavka nije upisana.")
 
     entry = None
     if body.kreiraj_entry:
@@ -505,17 +524,43 @@ async def timer_stop(
         satnica = await _resolve_tarifa_for_predmet(supa, uid, t["predmet_id"])
         iznos   = math.ceil(sati * satnica)
         opis    = (body.opis or t.get("opis") or "Rad po predmetu (tajmer)").strip()[:400]
-        er = await _db(lambda: supa.table("billing_entries").insert({
-            "user_id":    uid,
-            "predmet_id": t["predmet_id"],
-            "opis":       opis,
-            "tip":        body.tip,
-            "sati":       sati,
-            "iznos_rsd":  iznos,
-            "datum":      date.today().isoformat(),
-            "obracunato": False,
-        }).execute())
-        entry = er.data[0] if er.data else None
+        entry_id = str(uuid.uuid4())     # revizija S1-E: ishod upisa se proverava po TAČNO ovom id-u, ne po sličnoj stavci
+        try:
+            er = await _db(lambda: supa.table("billing_entries").insert({
+                "id":         entry_id,
+                "user_id":    uid,
+                "predmet_id": t["predmet_id"],
+                "opis":       opis,
+                "tip":        body.tip,
+                "sati":       sati,
+                "iznos_rsd":  iznos,
+                "datum":      date.today().isoformat(),
+                "obracunato": False,
+            }).execute())
+            entry = er.data[0] if er.data else None
+        except Exception as exc:
+            logger.error("[BILLING] timer stop: stavka nije upisana uid=%.8s: %s", uid, type(exc).__name__)
+            entry = None
+            # S1-C4 (revizija Sektora 1): izuzetak posle upisa (istek veze) ne znači da stavke nema — vraćen tajmer bi
+            # sledećim zaustavljanjem upisao DRUGU stavku za isti rad. Tajmer se vraća samo kad je potvrđeno da je nema.
+            try:
+                post = await _db(lambda: supa.table("billing_entries").select("*")
+                                 .eq("id", entry_id).eq("user_id", uid).limit(1).execute())
+            except Exception as exc2:
+                logger.error("[BILLING] timer stop: provera upisa nije uspela uid=%.8s: %s", uid, type(exc2).__name__)
+                raise HTTPException(status_code=503, detail="Ishod upisa stavke nije poznat. Tajmer je zaustavljen — proverite "
+                                                            "stavke naplate pre ponovnog unosa.")
+            entry = (post.data or [None])[0]
+        if entry is None:
+            # N5 (pregled): tajmer je ugašen, a stavka nije upisana — rad bi se izgubio. Tajmer se vraća u
+            # aktivno stanje (isti početak), pa ponovni pokušaj zaustavljanja upisuje stavku.
+            try:
+                await _db(lambda: supa.table("timer_sessions").update({"aktivan": True, "stop_at": None, "trajanje_s": None})
+                          .eq("id", t["id"]).eq("user_id", uid).execute())
+            except Exception as exc:
+                logger.error("[BILLING] timer stop: vraćanje tajmera nije uspelo uid=%.8s: %s", uid, type(exc).__name__)
+                raise HTTPException(status_code=503, detail="Stavka nije upisana, a tajmer nije mogao da se vrati. Upišite rad ručno.")
+            raise HTTPException(status_code=503, detail="Stavka nije upisana. Tajmer i dalje radi — pokušajte ponovo da ga zaustavite.")
 
     logger.info("[BILLING] timer stop uid=%.8s trajanje=%ds", uid, trajanje)
     return {"success": True, "trajanje_s": trajanje, "trajanje_h": round(trajanje / 3600, 2), "entry": entry}
@@ -923,10 +968,25 @@ async def faktura_status_update(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    r = await _db(lambda: supa.table("fakture").update({"status": body.status}).eq("id", faktura_id).eq("user_id", uid).execute())
-    if not r.data:
+    cur = await _db(lambda: supa.table("fakture").select("id, status").eq("id", faktura_id).eq("user_id", uid).limit(1).execute())
+    if not cur.data:
         raise HTTPException(status_code=404, detail="Faktura nije pronađena.")
-    return {"success": True, "status": body.status}
+    staro = cur.data[0].get("status") or "nacrt"
+    if body.iz_statusa and body.iz_statusa != staro:
+        raise HTTPException(status_code=409, detail="Status fakture je u međuvremenu promenjen. Osvežite spisak; ništa nije upisano.")
+    if body.status == staro:
+        return {"success": True, "status": staro, "promenjeno": False}
+    if body.status not in _FAKTURA_PRELAZI.get(staro, set()):
+        raise HTTPException(status_code=409, detail=f"Prelaz „{staro}“ → „{body.status}“ nije dozvoljen. Ništa nije upisano.")
+    # Uslovno po prethodnom stanju: dva istovremena zahteva ne mogu oba da prođu sa istim „staro“.
+    r = await _db(lambda: supa.table("fakture").update({"status": body.status}).eq("id", faktura_id).eq("user_id", uid)
+                  .eq("status", staro).execute())
+    if not r.data:
+        raise HTTPException(status_code=409, detail="Status fakture je u međuvremenu promenjen. Osvežite spisak; ništa nije upisano.")
+    from shared.audit_immutable import log_action
+    zapis = await log_action("faktura_status_promenjen", user_id=uid, resource_type="faktura", resource_id=faktura_id,
+                             metadata={"iz": staro, "u": body.status})
+    return {"success": True, "status": body.status, "promenjeno": True, "trag_zapisan": zapis is not None}
 
 
 @router.get("/faktura")

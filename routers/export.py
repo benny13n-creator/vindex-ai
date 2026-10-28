@@ -162,9 +162,9 @@ async def post_v1_query(request: Request):
 
 # ─── Phase 5.3 — PDF export predmeta ─────────────────────────────────────────
 
-def _generiši_pdf(predmet, dokumenti, beleske, hronologija) -> bytes:
+def _generiši_pdf(predmet, dokumenti, beleske, hronologija, rocista=None) -> bytes:
     from predmet_pdf import generiši_predmet_pdf
-    return generiši_predmet_pdf(predmet, dokumenti, beleske, hronologija)
+    return generiši_predmet_pdf(predmet, dokumenti, beleske, hronologija, rocista)
 
 
 @router.get("/api/predmeti/{predmet_id}/pdf-export")  # Phase 5.3
@@ -186,7 +186,10 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
 
     predmet = predmet_res.data
 
-    docs_res, beleske_res, hron_res = await asyncio.gather(
+    from shared import rokovi as _rk
+    _ima_129 = _rk._sema_ima_129(supa)
+    _hron_kolone = "id, dogadjaj, akter, datum, datum_iso, vaznost" + (", vrsta" if _ima_129 else "")
+    docs_res, beleske_res, hron_res, roc_res = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
                          .select("naziv_fajla, status, velicina_kb, created_at")
@@ -205,10 +208,19 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
-                         .select("id, dogadjaj, akter, datum, datum_iso, vaznost")
+                         .select(_hron_kolone)
                          .eq("predmet_id", predmet_id)
                          .eq("user_id", uid)
                          .order("datum_iso", desc=False)
+                         .execute()
+        ),
+        # N6: ročišta predmeta (sva stanja — izveštaj je istorija predmeta)
+        asyncio.to_thread(
+            lambda: supa.table("rocista")
+                         .select("datum, vreme, sud, sudnica, status")
+                         .eq("predmet_id", predmet_id)
+                         .eq("user_id", uid)
+                         .order("datum")
                          .execute()
         ),
     )
@@ -225,8 +237,9 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
         import logging as _logging
         _logging.getLogger("vindex.export").error("[EXPORT] stanje odluka nije procitano: %s", _oe)
         _stanje = lambda rid: _NEPOZNATO  # noqa: E731
+    # N6: posle migracije 129 oznaku odluke nosi samo red izjavljen kao rok; pre 129 (nema `vrsta`) — kao ranije.
     _hron_sa_stanjem = [
-        {**h, "stanje_odluke": _stanje(h.get("id"))} for h in _hron
+        {**h, "stanje_odluke": (_stanje(h.get("id")) if (not _ima_129 or _rk.je_rok(h)) else None)} for h in _hron
     ]
 
     try:
@@ -236,6 +249,7 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
             docs_res.data or [],
             beleske_res.data or [],
             _hron_sa_stanjem,
+            roc_res.data or [],
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Greška pri generisanju PDF-a: {exc}")

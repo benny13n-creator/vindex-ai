@@ -18,7 +18,7 @@ from typing import Optional
 
 from datetime import date as _date
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from security.html_sanitize import sanitize_user_input
@@ -127,12 +127,23 @@ class RocistePatchReq(BaseModel):
         return sanitize_user_input(v)
 
 
+def _hitni_podsetnici(uid: str) -> None:
+    """S2 (D2): posle advokatove radnje proveri da li događaju treba podsetnik koji ne sme da čeka dnevno slanje.
+    Pozadinski zadatak POSLE odgovora — radnja je već sačuvana i ne čeka SMTP; greška se samo beleži."""
+    try:
+        from routers.email_notif import proveri_hitne_podsetnike
+        proveri_hitne_podsetnike(uid)
+    except Exception as exc:
+        logger.error("[PODSETNIK] hitna provera nije pokrenuta uid=%.8s: %s", uid, type(exc).__name__)
+
+
 @router.post("/api/rocista")
 @limiter.limit("30/minute")
 async def kreiraj_rociste(
     body: RocisteReq,
     request: Request,
     user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     uid  = user["user_id"]
     supa = _get_supa()
@@ -222,6 +233,8 @@ async def kreiraj_rociste(
     except Exception as _e:
         logger.warning("[ROCISTE] ROCISTE_ZAKAZANO durable event upis greška (non-fatal) predmet=%s: %s", body.predmet_id, _e)
 
+    if background_tasks is not None:
+        background_tasks.add_task(_hitni_podsetnici, uid)
     return {"rociste": row, "ok": True}
 
 
@@ -275,6 +288,7 @@ async def izmeni_rociste(
     body: RocistePatchReq,
     request: Request,
     user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     uid  = user["user_id"]
     supa = _get_supa()
@@ -293,6 +307,37 @@ async def izmeni_rociste(
     # status until an unrelated event happened to touch the case. Captured
     # before the write so the emitted event reflects what actually changed.
     _materially_changed = bool({"datum", "vreme", "status"} & updates.keys())
+
+    # S1-C2 (revizija Sektora 1): „Vrati na zakazano“ na ODLOŽENOM ročištu posle zakazanog nastavka ostavljalo je dva
+    # aktivna ročišta (Danas, kalendar, nedeljni email). Nastavak = drugo zakazano ročište istog predmeta sa kasnijim datumom.
+    if updates.get("status") == "zakazano":
+        try:
+            _cur = await asyncio.to_thread(lambda: supa.table("rocista").select("id, predmet_id, datum, status, updated_at")
+                                           .eq("id", rociste_id).eq("user_id", uid).limit(1).execute())
+            _c = (_cur.data or [None])[0]
+            _nastavci = []
+            if _c and (_c.get("status") or "zakazano") == "odlozeno":
+                _sva = await asyncio.to_thread(lambda: supa.table("rocista").select("id, datum, status, created_at")
+                                               .eq("user_id", uid).eq("predmet_id", _c.get("predmet_id")).execute())
+
+                def _nastavak(x) -> bool:
+                    # 3. krug revizije: `updated_at` se menja pri svakoj izmeni, a nastavak se može upisati i PRE oznake
+                    # „odloženo“ — zato je nastavak svako zakazano ročište istog predmeta sa KASNIJIM datumom ili upisano
+                    # posle poslednje izmene. Lažno 409 (poruka kaže šta da se uradi) je bezbednije od dva aktivna ročišta.
+                    if x.get("id") == rociste_id or (x.get("status") or "zakazano") != "zakazano":
+                        return False
+                    if _c.get("datum") and str(x.get("datum") or "") > str(_c.get("datum")):
+                        return True
+                    return bool(x.get("created_at") and _c.get("updated_at") and str(x["created_at"]) >= str(_c["updated_at"]))
+                _nastavci = [x for x in (_sva.data or []) if _nastavak(x)]
+        except Exception as exc:
+            logger.error("[ROCISTA] provera nastavka pre vraćanja na zakazano nije uspela id=%s: %s", rociste_id, type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Stanje ročišta trenutno nije moguće proveriti. Ništa nije izmenjeno.")
+        if _nastavci:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Za ovaj predmet je već zakazano kasnije ročište ({_nastavci[0].get('datum')}) — verovatno nastavak "
+                       "odloženog. Da biste vratili ovo ročište, prvo otkažite to ročište. Ništa nije izmenjeno.")
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -334,6 +379,8 @@ async def izmeni_rociste(
         except Exception as _e:
             logger.warning("[ROCISTE] ROCISTE_ZAKAZANO (update) durable event upis greška (non-fatal) rociste=%s: %s", rociste_id, _e)
 
+    if background_tasks is not None:
+        background_tasks.add_task(_hitni_podsetnici, uid)
     return {"rociste": row, "ok": True}
 
 
@@ -495,4 +542,128 @@ async def obrisi_rociste(
     await log_action("rociste_delete", user_id=uid,
                      resource_type="rociste", resource_id=rociste_id)
 
+    return {"ok": True}
+
+
+# ── N3: predlozi ročišta iz dokumenata predmeta ──────────────────────────────
+#
+# Bojan: „da on sam radi zakazivanje u kalendaru". Datum iz sudskog poziva se ranije prekucavao ručno.
+# Ovde se iz teksta dokumenata PREDMETA čitaju PREDLOZI (shared/rociste_iz_teksta.py) — ništa se ne upisuje
+# u `rocista`. Advokat predlog proverava i zakazuje postojećim POST /api/rocista (isti 30-s duplikat
+# štit), ili ga odbacuje (zapis u `audit_immutable`, bez nove tabele i migracije). Predlog nestaje kad
+# postoji ročište istog datuma (i vremena, ako su oba poznata), bez obzira na stanje tog ročišta.
+
+_AKCIJA_PREDLOG_ODBACEN = "rociste_predlog_odbacen"
+_RESURS_PREDLOG = "rociste_predlog"
+_KLJUC_PREDLOGA = re.compile(r"^\d{4}-\d{2}-\d{2}\|(?:\d{2}:\d{2})?$")
+
+
+async def _predmet_pozivaoca(supa, predmet_id: str, uid: str) -> None:
+    r = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
+    )
+    if not getattr(r, "data", None):
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+
+
+@router.get("/api/rocista/predlozi")
+@limiter.limit("60/minute")
+async def predlozi_rocista(
+    request: Request,
+    predmet_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from routers.email_notif import _danas_beograd
+    from shared.rociste_iz_teksta import broj_iz_teksta, nadji_rocista, sud_iz_teksta
+
+    uid  = user["user_id"]
+    supa = _get_supa()
+    await _predmet_pozivaoca(supa, predmet_id, uid)
+    try:
+        dok_r, roc_r = await asyncio.gather(
+            asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, tekst_sadrzaj")
+                              .eq("predmet_id", predmet_id).eq("user_id", uid).limit(500).execute()),
+            asyncio.to_thread(lambda: supa.table("rocista").select("datum, vreme")
+                              .eq("predmet_id", predmet_id).eq("user_id", uid).execute()),
+        )
+    except Exception as exc:
+        logger.warning("[ROCISTE/PREDLOZI] čitanje palo predmet=%s: %s", predmet_id, exc)
+        raise HTTPException(status_code=503, detail="Predlozi ročišta nisu učitani. Ovo nije prazan spisak.")
+
+    danas = _danas_beograd()
+    postojeca = [(str(r.get("datum") or "")[:10], _norm_vreme(r.get("vreme"))) for r in (roc_r.data or [])]
+    predlozi: dict = {}
+    bez_teksta = proslih = 0
+    for d in (dok_r.data or []):
+        tekst = d.get("tekst_sadrzaj") or ""
+        if not tekst.strip():
+            bez_teksta += 1
+            continue
+        sud, broj = sud_iz_teksta(tekst), broj_iz_teksta(tekst)
+        for n in nadji_rocista(tekst):
+            if n["datum"] < danas:
+                proslih += 1
+                continue
+            datum = n["datum"].isoformat()
+            if any(pd == datum and (pv is None or n["vreme"] is None or pv == n["vreme"]) for pd, pv in postojeca):
+                continue
+            kljuc = f"{datum}|{n['vreme'] or ''}"
+            p = predlozi.setdefault(kljuc, {"kljuc": kljuc, "datum": datum, "vreme": n["vreme"], "sud": sud,
+                                            "sudnica": n["sudnica"], "broj_predmeta_suda": broj, "izvori": []})
+            for polje, v in (("sud", sud), ("sudnica", n["sudnica"]), ("broj_predmeta_suda", broj)):
+                if not p[polje] and v:
+                    p[polje] = v
+            p["izvori"].append({"dokument_id": d.get("id"), "naziv": d.get("naziv_fajla") or "Dokument", "citat": n["citat"]})
+
+    if predlozi:
+        try:
+            odb = await asyncio.to_thread(
+                lambda: supa.table("audit_immutable").select("resource_id")
+                    .eq("user_id", uid).eq("action", _AKCIJA_PREDLOG_ODBACEN).eq("resource_type", _RESURS_PREDLOG)
+                    .in_("resource_id", [f"{predmet_id}|{k}" for k in predlozi]).execute()
+            )
+        except Exception as exc:
+            logger.warning("[ROCISTE/PREDLOZI] odbacivanja nisu pročitana predmet=%s: %s", predmet_id, exc)
+            raise HTTPException(status_code=503, detail="Predlozi ročišta nisu učitani. Ovo nije prazan spisak.")
+        odbaceni = {str(red.get("resource_id") or "").split("|", 1)[-1] for red in (odb.data or [])}
+        for k in odbaceni:
+            predlozi.pop(k, None)
+        # Odbačen datum SA vremenom gasi i isti datum bez vremena (isto ročište iz drugog dokumenta).
+        for k in [k for k, v in list(predlozi.items()) if v["vreme"] is None]:
+            if any(o.startswith(predlozi[k]["datum"] + "|") and not o.endswith("|") for o in odbaceni):
+                predlozi.pop(k)
+
+    # Isti datum iz dva dokumenta, jednom sa vremenom a jednom bez → JEDAN predlog (sa vremenom), oba izvora.
+    # Posle odbacivanja: odbačen predlog bez vremena se ne vraća kroz spajanje sa novim dokumentom.
+    for kljuc in [k for k, v in predlozi.items() if v["vreme"] is None]:
+        sa_vremenom = [v for v in predlozi.values() if v["datum"] == predlozi[kljuc]["datum"] and v["vreme"]]
+        if len(sa_vremenom) == 1:
+            sa_vremenom[0]["izvori"].extend(predlozi.pop(kljuc)["izvori"])
+
+    return {"predlozi": sorted(predlozi.values(), key=lambda x: (x["datum"], x["vreme"] or "")),
+            "dokumenata_bez_teksta": bez_teksta, "proslih": proslih}
+
+
+class OdbaciPredlogReq(BaseModel):
+    predmet_id: str = Field(..., min_length=1, max_length=64)
+    kljuc:      str = Field(..., min_length=11, max_length=16)
+
+
+@router.post("/api/rocista/predlozi/odbaci")
+@limiter.limit("30/minute")
+async def odbaci_predlog_rocista(
+    body: OdbaciPredlogReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    if not _KLJUC_PREDLOGA.match(body.kljuc):
+        raise HTTPException(status_code=422, detail="Neispravan predlog.")
+    uid  = user["user_id"]
+    supa = _get_supa()
+    await _predmet_pozivaoca(supa, body.predmet_id, uid)
+    from shared.audit_immutable import log_action
+    zapis = await log_action(_AKCIJA_PREDLOG_ODBACEN, user_id=uid, resource_type=_RESURS_PREDLOG,
+                             resource_id=f"{body.predmet_id}|{body.kljuc}")
+    if zapis is None:
+        raise HTTPException(status_code=503, detail="Odbacivanje nije zabeleženo. Predlog ostaje.")
     return {"ok": True}

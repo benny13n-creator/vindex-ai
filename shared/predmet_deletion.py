@@ -87,7 +87,7 @@ class IshodPredmeta:
 TABELE_BEZ_FK: tuple[str, ...] = (
     "ai_corrections", "case_actions", "case_intelligence_summaries",
     "client_portal_tokens", "client_portal_uploads", "commander_analize",
-    "counterfactual_log", "decision_log", "email_notif_log", "events",
+    "counterfactual_log", "decision_log", "email_notif_log", "email_podsetnik_dogadjaj", "events",
     "evidence_grafovi", "hearing_briefovi", "intake_jobs", "lessons_learned",
     "memory_graph_edges", "outcome_log", "portal_status_log", "praceni_predmeti",
     "predictor_analize", "predmet_genome_history", "predmet_saradnici",

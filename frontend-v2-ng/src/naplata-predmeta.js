@@ -13,7 +13,9 @@
  *   POST /billing/faktura {predmet_id, entry_ids, klijent_naziv, pdv_stopa, napomena?} → {faktura{broj_fakture, status:"nacrt"}}
  *        (samo sopstvene stavke tog predmeta; stavka već na fakturi → 409)
  *   GET  /billing/faktura?limit → {fakture[]} — sve fakture korisnika; ovde se filtrira po predmetu.
- * NE izlaže se: slanje fakture mejlom, SEF, promena statusa fakture, PDF, brisanje stavke.
+ *   PATCH /billing/faktura/{id}/status {status, iz_statusa} → {status} — N5: evidencija naplate (izdata / plaćena /
+ *        stornirana); zastareo prikaz → 409; povratak u nacrt nije dozvoljen (server). Ništa se ne šalje klijentu.
+ * NE izlaže se: slanje fakture mejlom, SEF, PDF, brisanje stavke, delimična uplata (ne postoji u modelu).
  * Upisi se nikad ne ponavljaju automatski; prekid posle slanja = ishod nepoznat (lista se ponovo čita).
  */
 (function (root) {
@@ -21,6 +23,12 @@
 
   var LIMIT_FAKTURA = 200;
   var STATUS_FAKTURE = { nacrt: "nacrt", izdata: "izdata", placena: "plaćena", stornirana: "stornirana" };
+  /* N5: dugmad po stanju (isti skup prelaza kao server). */
+  /* Storno se ovde NE nudi: stavke stornirane fakture ostaju obračunate (server), pa bi rad zauvek ostao nenaplativ —
+   * da li storno oslobađa stavke je računovodstvena odluka osnivača (N5). */
+  var AKCIJE_FAKTURE = { nacrt: [["izdata", "Označi kao izdatu"]], izdata: [["placena", "Plaćena"]], placena: [["izdata", "Vrati na neplaćenu"]], stornirana: [] };
+  var PORUKA_FAKTURE = { izdata: "označena kao izdata (nije poslata klijentu ni prijavljena u SEF)", placena: "označena kao plaćena",
+    stornirana: "stornirana" };
   var novac = new Intl.NumberFormat("sr-Latn-RS", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var satiF = new Intl.NumberFormat("sr-Latn-RS", { maximumFractionDigits: 2 });
   function tekst(v) { return String(v == null ? "" : v).trim(); }
@@ -239,8 +247,34 @@
         var li = el("li", "review");
         li.append(el("span", "review__name", (f.is_proforma ? "Predračun " : "Faktura ") + (tekst(f.broj_fakture) || "bez broja") + (tekst(f.klijent_naziv) ? " — " + tekst(f.klijent_naziv) : "")));
         li.append(el("span", "review__meta", [rsd(f.iznos_sa_pdv), STATUS_FAKTURE[tekst(f.status)] || tekst(f.status), datum(f.datum_dospeca) ? "dospeva " + datum(f.datum_dospeca) : ""].filter(Boolean).join(" · ")));
+        var akcije = el("span", "review__actions");
+        (AKCIJE_FAKTURE[tekst(f.status)] || []).forEach(function (a) {
+          var b = el("button", "text-btn", a[1]); b.type = "button";
+          b.setAttribute("aria-label", a[1] + ": faktura " + (tekst(f.broj_fakture) || ""));
+          b.addEventListener("click", function () { promeniStatusFakture(f, a[0], akcije); });
+          akcije.append(b);
+        });
+        if (akcije.children.length && ispravanId(f.id)) li.append(akcije);
         $("np-fakture").append(li);
       });
+    }
+
+    async function promeniStatusFakture(f, novo, akcije) {
+      if (saljeF || !trenutni) return;
+      if (!prijavljen()) { poruka("np-faktura-poruka", "greska", "Niste prijavljeni. Status nije promenjen."); return; }
+      var id = trenutni.id, korisnik = trenutni.korisnik, broj = tekst(f.broj_fakture) || "—";
+      saljeF = true; akcije.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+      poruka("np-faktura-poruka", "ucitavanje", "Beleži se…");
+      var r = await api.send("/billing/faktura/" + encodeURIComponent(tekst(f.id)) + "/status", { metod: "PATCH", telo: { status: novo, iz_statusa: tekst(f.status) },
+        token: sesija.token(), oblik: function (x) { return typeof x.status === "string"; } });
+      saljeF = false;
+      if (!istiPredmet(id, korisnik)) return;
+      var g = r.greska || {};
+      if (r.ok && r.podaci && r.podaci.status === novo) poruka("np-faktura-poruka", "uspeh", "Faktura br. " + broj + " je " + PORUKA_FAKTURE[novo] + ".");
+      else if (r.status === 409 || g.kod === "CONFLICT") poruka("np-faktura-poruka", "nepoznato", "Status fakture br. " + broj + " je u međuvremenu promenjen ili prelaz nije dozvoljen. Ništa nije upisano — spisak je osvežen.");
+      else if (g.ishodNepoznat || r.ok) poruka("np-faktura-poruka", "nepoznato", "Ishod nije poznat. Spisak faktura se ponovo učitava — proverite status pre ponovnog pokušaja.");
+      else poruka("np-faktura-poruka", "greska", greskaUpisa(g, "Status nije promenjen."));
+      ucitajFakture();
     }
 
     async function napraviFakturu() {
@@ -282,6 +316,22 @@
       trenutni.ucitano = true;
       ucitajTarife(); ucitajStavke(); ucitajTajmer(); ucitajFakture();
     }
+
+    /* N6: evidencija naplate (GET /billing/report/csv — sve stavke naloga od 1.1. tekuće godine, sa statusom fakture). */
+    var csvZauzet = false;
+    $("np-csv").addEventListener("click", async function () {
+      if (csvZauzet || !trenutni) return;
+      if (!prijavljen()) { poruka("np-csv-poruka", "greska", "Niste prijavljeni. Ništa nije preuzeto."); return; }
+      var g = new Date().getFullYear();
+      csvZauzet = true; $("np-csv").disabled = true; poruka("np-csv-poruka", "ucitavanje", "Pravljenje evidencije…");
+      var r = await api.preuzmi("/billing/report/csv", { metod: "GET", parametri: { od: g + "-01-01", "do": g + "-12-31" }, token: sesija.token(), tip: "text/csv" });
+      csvZauzet = false; $("np-csv").disabled = false;
+      if (!r.ok) { poruka("np-csv-poruka", "greska", "Evidencija nije preuzeta (" + r.greska.kod + "). Ništa nije preuzeto."); return; }
+      var url = URL.createObjectURL(r.blob), a = d.createElement("a");
+      a.href = url; a.download = r.ime || ("evidencija-naplate-" + g + ".csv"); d.body.append(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      poruka("np-csv-poruka", "uspeh", "Preuzeta je evidencija naplate za " + g + ". (sve stavke vašeg naloga, sa predmetom i statusom fakture).");
+    });
 
     $("np-forma").addEventListener("submit", function (e) { e.preventDefault(); dodajStavku(); });
     $("np-faktura-forma").addEventListener("submit", function (e) { e.preventDefault(); napraviFakturu(); });

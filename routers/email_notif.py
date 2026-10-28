@@ -25,8 +25,10 @@ import asyncio
 import html
 import logging
 import os
+import re
 import smtplib
 import types
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -48,6 +50,7 @@ _SMTP_PORT   = int(os.getenv("EMAIL_SMTP_PORT", "587"))
 _SMTP_USER   = os.getenv("EMAIL_SMTP_USER", "")
 _SMTP_PASS   = os.getenv("EMAIL_SMTP_PASS", "")
 _FROM_ADDR   = os.getenv("EMAIL_FROM", "") or _SMTP_USER
+_SMTP_TIMEOUT = 15
 
 # Operation Lawyer Zero, LZ-001 (2026-08-03) je ovde drzao listu
 # ["kritičan","važan","bitan","kljucan","normalan"], uz obrazlozenje da
@@ -74,7 +77,18 @@ from shared.rokovi import VAZNOST_DOZVOLJENE as _VAZNOST_DOZVOLJENE
 # rok sme da posalje email tek kad ga covek potvrdi. Gejt je fail-closed i
 # ne dira nijednu postojecu `vaznost` vrednost.
 from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
-from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
+from shared.rok_potvrda import STANJE_POTVRDJEN as _POTVRDJEN, odluke as _odluke
+
+
+def _potvrdjeni_ids(rok_ids) -> set:
+    """Isti skup kao `shared.rok_potvrda.potvrdjeni_ids`, ali pad čitanja lanca DIŽE izuzetak.
+
+    S2 (Sektor 2): prazan skup pri padu je ovde izgledao kao „nijedan rok nije potvrđen“ — podsetnik je odlazio
+    samo sa ročištem, predmet se rezervisao za taj prag i posao je bio zelen, a potvrđen rok je tiho izostao.
+    Pozivalac sad zna da potvrde NISU pročitane i to broji kao grešku."""
+    return {rid for rid, s in _odluke(rok_ids, strogo=True).items() if s == _POTVRDJEN}
+
+
 _ACTIONABLE_VAZNOST = [v for v in _VAZNOST_DOZVOLJENE if v != "informativan"]
 _CRON_SECRET = os.getenv("CRON_SECRET", "")
 
@@ -101,22 +115,80 @@ async def _require_cron_or_founder(
 
 # ─── SMTP helper ──────────────────────────────────────────────────────────────
 
+class _NijePredato(Exception):
+    """Poruka sigurno NIJE predata provajderu: veza, TLS ili prijava nisu uspeli, pošiljalac/primalac su odbijeni pre
+    sadržaja, ili je provajder privremeno (4xx) odbio poruku. Sme da se ponovi (S2, odluka D4)."""
+
+
+class _Odbijeno(Exception):
+    """Provajder je izričito i trajno (5xx) odbio poruku. Ne ponavlja se."""
+
+
 def _smtp_send(to_addr: str, subject: str, html: str) -> None:
+    """Šalje jednu poruku. Uspeh = SMTP 250 posle sadržaja (provajder PRIHVATIO, ne prijem u sanduče).
+    `_NijePredato` / `_Odbijeno` su sigurni ishodi; svaki drugi izuzetak (npr. veza pukla posle predaje sadržaja) je
+    NEPOZNAT ishod — poruka je možda isporučena i ne sme se slepo ponoviti."""
     if not _SMTP_HOST:
-        raise RuntimeError("EMAIL_SMTP_HOST nije konfigurisan.")
+        raise _NijePredato("EMAIL_SMTP_HOST nije konfigurisan.")
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = _FROM_ADDR
     msg["To"]      = to_addr
     msg.attach(MIMEText(html, "html", "utf-8"))
-    with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=15) as smtp:
-        smtp.ehlo()
-        smtp.starttls()
-        smtp.login(_SMTP_USER, _SMTP_PASS)
-        smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
+    try:
+        smtp = smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=_SMTP_TIMEOUT)
+    except (OSError, smtplib.SMTPException) as exc:
+        raise _NijePredato(f"veza: {type(exc).__name__}") from exc
+    try:
+        try:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(_SMTP_USER, _SMTP_PASS)
+        except (OSError, smtplib.SMTPException) as exc:
+            raise _NijePredato(f"prijava: {type(exc).__name__}") from exc
+        # Faze kao u `smtplib.SMTP.sendmail`, ali razdvojene da se zna da li je SADRŽAJ predat (noćni sprint S2.6):
+        # MAIL/RCPT i komanda DATA (do odgovora 354) → sadržaj još nije poslat, svaki pad je „sigurno nije predato“
+        # (i istek vremena). Tek posle slanja sadržaja pad bez odgovora je NEPOZNAT ishod.
+        try:
+            smtp.ehlo_or_helo_if_needed()
+            kod, _ = smtp.mail(_FROM_ADDR)
+            if kod != 250:
+                raise _NijePredato(f"pošiljalac odbijen {kod}")
+            kod, _ = smtp.rcpt(to_addr)
+            if kod not in (250, 251):
+                raise _NijePredato(f"primalac odbijen {kod}")
+            kod, _ = smtp.docmd("DATA")
+            if kod != 354:
+                raise _NijePredato(f"DATA odbijen {kod}")
+        except _NijePredato:
+            raise
+        except (OSError, smtplib.SMTPException, ValueError) as exc:   # ValueError: npr. ne-ASCII adresa (UnicodeEncodeError)
+            raise _NijePredato(f"pre sadržaja: {type(exc).__name__}") from exc
+        sadrzaj = re.sub(rb"(?m)^\.", b"..", re.sub(rb"\r\n|\n|\r(?!\n)", b"\r\n", msg.as_bytes()))
+        if not sadrzaj.endswith(b"\r\n"):
+            sadrzaj += b"\r\n"
+        smtp.send(sadrzaj + b".\r\n")                       # pad odavde dalje: ishod NEPOZNAT (propagira)
+        kod, odgovor = smtp.getreply()
+        if kod == 250:
+            return
+        if 400 <= kod < 500:
+            # Server je IZRIČITO odgovorio da poruku nije prihvatio (privremeno) — sme ponovo.
+            raise _NijePredato(f"privremeno odbijeno {kod}")
+        if 500 <= kod < 600:
+            raise _Odbijeno(f"odbijeno {kod}")
+        raise RuntimeError(f"neočekivan SMTP odgovor {kod}")  # nepoznat ishod
+    finally:
+        try:
+            smtp.quit()          # pad QUIT-a posle 250 ne menja ishod (poruka je već prihvaćena)
+        except Exception:
+            try:
+                smtp.close()
+            except Exception:
+                pass
 
 
-def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str = "", test: bool = False) -> str:
+def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str = "", test: bool = False,
+                rocista: Optional[list] = None, nepotpun: bool = False) -> str:
     if dana_pre == 1:
         naslov = "⚠️ Sutra ističe rok!"
         boja   = "#ef4444"
@@ -129,6 +201,11 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
         naslov = "📅 Za 7 dana — kritični rokovi"
         boja   = "#3b82f6"
         opis   = "Sledeći kritični rokovi ističu za <strong>7 dana</strong>:"
+    if rocista:
+        # N4: podsetnik sa ročištem ne sme da kaže samo „ističe rok“.
+        kada = "<strong>SUTRA</strong>" if dana_pre == 1 else f"za <strong>{dana_pre} dana</strong>"
+        naslov = _naslov_podsetnika(dana_pre, bool(rokovi), True).replace("Vindex AI — ", "📅 ")
+        opis = (f"Potvrđeni rokovi i zakazana ročišta {kada}:" if rokovi else f"Zakazana ročišta {kada}:")
 
     rows_html = "".join(
         f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">'
@@ -136,8 +213,21 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
         f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;white-space:nowrap;">'
         f'{html.escape(str(r.get("datum_iso","")))}</td></tr>'
         for r in rokovi
+    ) + "".join(
+        # N4: ročište u istom podsetniku — sud, sudnica i vreme (sve iz zapisa koji je advokat uneo).
+        f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">'
+        f'Ročište — {html.escape(str(r.get("sud") or "Sud"))}'
+        f'{(", sudnica " + html.escape(str(r.get("sudnica")))) if r.get("sudnica") else ""}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;white-space:nowrap;">'
+        f'{html.escape(str(r.get("datum") or ""))}{(" u " + html.escape(str(r.get("vreme"))[:5])) if r.get("vreme") else ""}</td></tr>'
+        for r in (rocista or [])
     )
 
+    # S2: jedan izvor (rokovi ili ročišta) nije pročitan — podsetnik ne sme da izgleda potpun.
+    upozorenje = (
+        '<p style="color:#facc15;font-size:13px;margin:0 0 16px;">Upozorenje: deo podataka za ovaj datum trenutno nije '
+        'mogao da se pročita, pa ovaj podsetnik možda nije potpun. Proverite rokove i ročišta u Vindex AI.</p>'
+    ) if nepotpun else ""
     unsub = f' <a href="{make_unsub_url(user_id, email)}" style="color:#64748b;">Odjavi se</a>' if user_id and email else ""
     # P0 (B10): primer intervala nosi oznaku TEST i izjavu da rok nije stvaran; zakazani podsetnik je nema.
     oznaka_test = (
@@ -153,7 +243,7 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
     <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Vindex AI — Pravni Operativni Sistem</div>
   </div>
   <div style="padding:24px 28px;">
-    <p style="color:#cbd5e1;font-size:14px;margin:0 0 16px;">{opis}</p>
+    <p style="color:#cbd5e1;font-size:14px;margin:0 0 16px;">{opis}</p>{upozorenje}
     <table style="width:100%;border-collapse:collapse;background:#0d1b2a;border-radius:8px;overflow:hidden;">
       <thead>
         <tr style="background:#1e3a5f;">
@@ -174,15 +264,23 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
 </body></html>"""
 
 
-def _naslov_podsetnika(dana_pre: int) -> str:
-    """Jedan izvor naslova za zakazani podsetnik i za njegov TEST primer."""
+def _naslov_podsetnika(dana_pre: int, ima_rokova: bool = True, ima_rocista: bool = False) -> str:
+    """Jedan izvor naslova za zakazani podsetnik i za njegov TEST primer (N4: i za ročišta)."""
+    if ima_rocista:
+        sta = "rok i ročište" if ima_rokova else "ročište"
+        return f"Vindex AI — {'Sutra' if dana_pre == 1 else f'Za {dana_pre} dana'}: {sta}"
     return f"Vindex AI — {'Sutra ističe rok!' if dana_pre == 1 else f'Za {dana_pre} dana — kritični rokovi'}"
 
 
 def _danas_beograd(sada: Optional[datetime] = None) -> date:
-    """Kalendarski dan u Srbiji (CET/CEST po pravilu EU) — bez zavisnosti od tz baze u slim slici.
-    Letnje vreme: od poslednje nedelje marta 01:00 UTC do poslednje nedelje oktobra 01:00 UTC."""
-    sada = (sada or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    """Kalendarski dan u Srbiji (CET/CEST po pravilu EU) — bez zavisnosti od tz baze u slim slici."""
+    return _beograd(sada or datetime.now(timezone.utc)).date()
+
+
+def _beograd(sada: datetime) -> datetime:
+    """Lokalno vreme u Srbiji (naivno). Letnje vreme: od poslednje nedelje marta 01:00 UTC do poslednje nedelje
+    oktobra 01:00 UTC."""
+    sada = sada.astimezone(timezone.utc)
 
     def _poslednja_nedelja(mesec: int) -> datetime:
         d = date(sada.year, mesec, 31)
@@ -190,7 +288,7 @@ def _danas_beograd(sada: Optional[datetime] = None) -> date:
         return datetime(d.year, d.month, d.day, 1, tzinfo=timezone.utc)
 
     letnje = _poslednja_nedelja(3) <= sada < _poslednja_nedelja(10)
-    return (sada + timedelta(hours=2 if letnje else 1)).date()
+    return (sada + timedelta(hours=2 if letnje else 1)).replace(tzinfo=None)
 
 
 # ─── Models ───────────────────────────────────────────────────────────────────
@@ -336,178 +434,610 @@ async def test_email(request: Request, req: Optional[EmailTestReq] = Body(defaul
 
 
 
+# ─── Dnevni podsetnici: rezervacija po DOGAĐAJU (Sektor 2, odluke osnivača D1–D6) ─────────────────────────────
+#
+# Tabela `email_podsetnik_dogadjaj` (migracija 142), ključ (user_id, tip, dogadjaj_id, datum_dogadjaja, svrha):
+#   - redovni podsetnik `prag_N` tačno N dana pre (uključeni pragovi profila, D1 — grupisan po korisniku i pragu);
+#   - `kasni` (D2): kad nijedan uključen prag više ne može da stigne pre događaja, a najkasniji uključen prag za taj
+#     događaj nije poslat (potvrđen/zakazan kasno, ili dnevno slanje izostalo) — jednom po pojavi događaja;
+#   - identitet je događaj, ne predmet (D3): rok B istog predmeta i datuma više ne gasi rok A;
+#   - sigurno nepredata poruka sme ponovo (najviše _MAX_POKUSAJA), nepoznat ishod NE (D4);
+#   - nepotvrđen/odbijen AI rok nikad ne ulazi (D5 — `_filtriraj_izvrsive` + strog lanac potvrda);
+#   - `poslato` znači da je SMTP prihvatio poruku, ne da je stigla u sanduče (D6).
+# Stari `email_notif_log` (021) se samo ČITA: red koji je stari kod upisao pokriva događaj predmeta koji je bio izvršiv
+# pre tog slanja; kasnije izvršiv događaj nije mogao biti u tom emailu i ne smatra se pokrivenim.
+
+_TABELA_DOGADJAJA = "email_podsetnik_dogadjaj"
+_TABELA_POKRETANJA = "email_podsetnik_pokretanje"
+_PRAGOVI = (1, 3, 7)
+_MAX_POKUSAJA = 6
+_RAZMAK_POKUSAJA_MIN = 10        # pokušaj k (k ≥ 1) sme ponovo tek posle 10 · 2^(k−1) min: 10, 20, 40, 80, 160 → ~5 h
+_ZAUZETO = ("rezervisano", "poslato", "nepoznato", "odbijeno")   # predato, možda predato ili trajno odbijeno
+_REDOSLED_SVRHA = ("prag_7", "prag_3", "prag_1", "kasni")
+
+
+def _sada() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _podsetnici_pauzirani() -> bool:
+    """Operativna pauza (runbook: oporavak bez brisanja istorije): `VINDEX_EMAIL_PODSETNICI_PAUZA=1` → dnevno slanje i
+    hitna provera ne šalju ništa; dnevni posao je CRVEN (greska + napomena), da pauza ne izgleda kao „nema rokova“."""
+    return os.getenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "").strip().lower() in ("1", "true", "da", "yes", "on")
+
+
+
+
+def _je_dup(exc: Exception) -> bool:
+    t = str(exc)
+    return "23505" in t or "duplicate key" in t.lower()
+
+
+def _nema_tabele(exc: Exception) -> bool:
+    t = str(exc)
+    return "42P01" in t or "PGRST205" in t or ("does not exist" in t and _TABELA_POKRETANJA in t)
+
+
+def _kao_datum(v) -> Optional[date]:
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _kao_trenutak(v) -> Optional[datetime]:
+    try:
+        t = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def _vreme_rocista(v):
+    try:
+        hh, mm = str(v).split(":")[:2]
+        return int(hh), int(mm)
+    except (TypeError, ValueError):
+        return None
+
+
+def _predstoji_danas(ev: dict, sada_bg: datetime) -> bool:
+    """Događaj DANAS. Rok ima samo zabeležen DATUM (trenutak isteka nije poznat i ne tvrdi se) → šalje se, jer je
+    neposlat podsetnik na dan roka gori od zakasnelog; poruka kaže samo da je zabeleženi datum roka danas. Ročište sa
+    vremenom predstoji samo pre tog vremena; ročište BEZ vremena se ne šalje — ne može se utvrditi da nije već
+    održano (vreme se ne izmišlja)."""
+    if ev["tip"] == "rok":
+        return True
+    hm = _vreme_rocista(ev["red"].get("vreme")) if ev["red"].get("vreme") else None
+    return hm is not None and (sada_bg.hour, sada_bg.minute) < hm
+
+
+def _aktivni_predmeti(supa, uid: str) -> set:
+    # Operation Living System: arhiviran/zatvoren/odbijen predmet se ne podseća. VCR002 T04: predmet u brisanju
+    # (tombstone, migracija 114) se ponaša kao da ne postoji. T07: rezervni upit (bez kolone) SAMO pre migracije 114.
+    try:
+        r = supa.table("predmeti").select("id,brisanje_zapoceto").eq("user_id", uid) \
+            .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+    except Exception as exc:
+        _t = str(exc)
+        if not ("42703" in _t or ("brisanje_zapoceto" in _t and "does not exist" in _t)):
+            raise
+        r = supa.table("predmeti").select("id").eq("user_id", uid) \
+            .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+    return {p["id"] for p in (r.data or []) if not p.get("brisanje_zapoceto")}
+
+
+def _dogadjaji(supa, uid: str, aktivni: set, od: date, do: date):
+    """(događaji, nesigurni_predmeti). Izuzetak ako rokovi ili ročišta NISU pročitani (pozivalac ne rezerviše ništa).
+    Pad lanca potvrda: predmeti sa kandidat-rokom su NESIGURNI i ne šalju se (nijedan njihov događaj)."""
+    rokovi_r = (supa.table("predmet_hronologija")
+                # Migracija 127: gejt traži `id` (ključ odluke) i `izvor`; `akter` nije poreklo.
+                .select("id, izvor, dogadjaj, datum_iso, predmet_id, created_at")
+                .eq("user_id", uid).in_("vaznost", _ACTIONABLE_VAZNOST)
+                .gte("datum_iso", od.isoformat()).lte("datum_iso", do.isoformat()).execute())
+    rocista_r = (supa.table("rocista").select("id, predmet_id, sud, sudnica, datum, vreme, status, created_at, updated_at")
+                 .eq("user_id", uid).gte("datum", od.isoformat()).lte("datum", do.isoformat()).execute())
+    rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in aktivni]
+    nesigurni: set = set()
+    try:
+        # INV-2 / FAZA 6.4.2: NIJEDAN nepotvrđen rok ne šalje email — ni AI ni ručno unet (poreklo ne ovlašćuje).
+        rokovi = _filtriraj_izvrsive(rokovi, _potvrdjeni_ids([r.get("id") for r in rokovi]))
+    except Exception as exc:
+        logger.error("[EMAIL-CRON] potvrde rokova nisu pročitane uid=%.8s: %s", uid, type(exc).__name__)
+        nesigurni = {r.get("predmet_id") for r in rokovi}
+        rokovi = []
+    out = []
+    for r in rokovi:
+        d = _kao_datum(r.get("datum_iso"))
+        if d:
+            out.append({"tip": "rok", "id": str(r.get("id")), "predmet_id": r.get("predmet_id"), "datum": d, "red": r})
+    for r in (rocista_r.data or []):
+        # N4: samo ZAKAZANO ročište; otkazano/odloženo/održano ne šalje.
+        if r.get("predmet_id") not in aktivni or r.get("predmet_id") in nesigurni \
+                or (r.get("status") or "zakazano") != "zakazano":
+            continue
+        d = _kao_datum(r.get("datum"))
+        if d:
+            out.append({"tip": "rociste", "id": str(r.get("id")), "predmet_id": r.get("predmet_id"), "datum": d, "red": r})
+    return out, nesigurni
+
+
+def _postojece_rezervacije(supa, uid: str, od: date) -> dict:
+    r = (supa.table(_TABELA_DOGADJAJA).select("id, tip, dogadjaj_id, datum_dogadjaja, svrha, stanje, pokusaja, "
+                                              "rezervisano_at, azurirano_at")
+         .eq("user_id", uid).gte("datum_dogadjaja", od.isoformat()).execute())
+    return {(x.get("tip"), str(x.get("dogadjaj_id")), str(x.get("datum_dogadjaja"))[:10], x.get("svrha")): x
+            for x in (r.data or [])}
+
+
+def _stari_dnevnik(supa, uid: str, od: date) -> dict:
+    r = (supa.table("email_notif_log").select("predmet_id, datum_roka, dana_pre, poslato_at")
+         .eq("user_id", uid).gte("datum_roka", od.isoformat()).in_("dana_pre", list(_PRAGOVI)).execute())
+    return {(str(x.get("predmet_id")), str(x.get("datum_roka"))[:10], int(x.get("dana_pre") or 0)): x.get("poslato_at")
+            for x in (r.data or [])}
+
+
+def _vremena_potvrda(rok_ids: list) -> dict:
+    """Poslednja potvrda po roku (vreme iz lanca). Pad DIŽE izuzetak — ranije je prazan rezultat značio „pokriveno“
+    i rok potvrđen posle starog slanja je tiho izostajao (revizija S2-F, F3)."""
+    if not rok_ids:
+        return {}
+    from shared.rok_potvrda import AKCIJA_POTVRDA, procitaj_lanac
+    out = {}
+    for red in procitaj_lanac(rok_ids, "action, resource_id, seq, created_at"):
+        if red.get("action") == AKCIJA_POTVRDA:
+            out[str(red.get("resource_id"))] = red.get("created_at")
+    return out
+
+
+def _pokriva_stari_red(ev: dict, prag: int, stari: dict, potvrde: dict) -> bool:
+    """Stari red (predmet, datum, prag) pokriva događaj koji je bio izvršiv PRE tog slanja; kasnije izvršiv NIJE mogao
+    biti u tom emailu. Nepoznato vreme → NIJE pokriveno (noćni sprint S2.2): tiho gašenje nije bezbedno, najviše jedan
+    suvišan podsetnik jeste. Za važeće redove vremena uvek postoje (`rocista.created_at`, `email_notif_log.poslato_at`
+    i `audit_immutable.created_at` su NOT NULL)."""
+    kljuc = (str(ev["predmet_id"]), ev["datum"].isoformat(), prag)
+    if kljuc not in stari:
+        return False
+    poslato_at = _kao_trenutak(stari[kljuc])
+    od = _kao_trenutak(ev["red"].get("created_at")) if ev["tip"] == "rociste" else None
+    if ev["tip"] == "rociste":
+        # Pomeranje i vraćanje (otkazano → zakazano) menjaju red na mestu: `created_at` ostaje star, a ročište na ovom
+        # datumu/u ovom stanju postoji tek od `updated_at` (revizija S2-F, F1). Kozmetička izmena posle starog slanja
+        # daje najviše jedan suvišan podsetnik — bolje nego tiho izgubljen.
+        izm = _kao_trenutak(ev["red"].get("updated_at"))
+        if od and izm:
+            od = max(od, izm)
+    if ev["tip"] == "rok":
+        # Rok je izvršiv tek od potvrde (D5) — potvrda je uvek posle upisa reda.
+        od = _kao_trenutak(potvrde.get(ev["id"]))
+    if poslato_at is None or od is None:
+        return False
+    return od <= poslato_at
+
+
+def _svrha(ev: dict, danas: date, sada_bg: datetime, pragovi: list, vec_poslato, samo_hitno: bool,
+           dnevno_proslo: bool) -> Optional[str]:
+    """Koja poruka (ako ijedna) sada pripada događaju. `vec_poslato(ev, svrha)`."""
+    d = (ev["datum"] - danas).days
+    if d < 0 or (d == 0 and not _predstoji_danas(ev, sada_bg)):
+        return None
+    if d in pragovi:
+        # Hitna provera ne preteče dnevno slanje: današnji prag šalje odmah samo ako je dnevno slanje već prošlo.
+        return f"prag_{d}" if (dnevno_proslo or not samo_hitno) else None
+    najkasniji = min(pragovi)
+    # Već poslat prag bliži od (ili jednak) najkasnijem uključenom pokriva događaj i posle promene pragova (F4).
+    if d < najkasniji and not vec_poslato(ev, "kasni") \
+            and not any(vec_poslato(ev, f"prag_{m}") for m in _PRAGOVI if m <= najkasniji):
+        return "kasni"
+    return None
+
+
+def _koliko(ev: dict, danas: date) -> str:
+    d = (ev["datum"] - danas).days
+    if d == 0:
+        return "DANAS"
+    return "SUTRA" if d == 1 else f"za {d} dana"
+
+
+def _email_html_kasni(stavke: list, danas: date, user_id: str = "", email: str = "", nepotpun: bool = False) -> str:
+    """Dodatni podsetnik (D2): događaj potvrđen ili zakazan kasno — svaka stavka sa STVARNIM brojem dana."""
+    redovi = []
+    for ev in sorted(stavke, key=lambda e: (e["datum"], e["tip"])):
+        r = ev["red"]
+        if ev["tip"] == "rok":
+            opis = html.escape(str(r.get("dogadjaj") or "Rok"))
+            # Samo zabeležen datum — bez tvrdnje kada rok pravno ističe (noćni sprint S2.5).
+            kada = (f"{html.escape(ev['datum'].isoformat())} — zabeleženi datum roka: {_koliko(ev, danas)}"
+                    f" (vreme isteka nije zabeleženo)")
+        else:
+            opis = f'Ročište — {html.escape(str(r.get("sud") or "Sud"))}' + (
+                f', sudnica {html.escape(str(r.get("sudnica")))}' if r.get("sudnica") else "")
+            kada = f"{html.escape(ev['datum'].isoformat())}" + (
+                f' u {html.escape(str(r.get("vreme"))[:5])}' if r.get("vreme") else "") + f" — {_koliko(ev, danas)}"
+        redovi.append(f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">{opis}</td>'
+                      f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;">{kada}</td></tr>')
+    upozorenje = ('<p style="color:#facc15;font-size:13px;margin:0 0 16px;">Upozorenje: deo podataka za ovaj datum '
+                  'trenutno nije mogao da se pročita, pa ovaj podsetnik možda nije potpun. Proverite rokove i ročišta '
+                  'u Vindex AI.</p>') if nepotpun else ""
+    unsub = f' <a href="{make_unsub_url(user_id, email)}" style="color:#64748b;">Odjavi se</a>' if user_id and email else ""
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0d1b2a;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#0f2035;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;">
+  <div style="background:#ef4444;padding:20px 28px;">
+    <div style="font-size:20px;font-weight:700;color:#fff;">Podsetnik: potvrđeno ili zakazano posle redovnog podsetnika</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Vindex AI — Pravni Operativni Sistem</div>
+  </div>
+  <div style="padding:24px 28px;">
+    <p style="color:#cbd5e1;font-size:14px;margin:0 0 16px;">Redovni podsetnik za ove događaje više ne može da stigne pre njih:</p>{upozorenje}
+    <table style="width:100%;border-collapse:collapse;background:#0d1b2a;border-radius:8px;overflow:hidden;"><tbody>{"".join(redovi)}</tbody></table>
+    <div style="margin-top:20px;text-align:center;">
+      <a href="https://vindex.rs" style="display:inline-block;padding:10px 24px;background:#ef4444;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;">Otvori Vindex AI →</a>
+    </div>
+  </div>
+  <div style="padding:14px 28px;border-top:1px solid #1e293b;">
+    <p style="color:#475569;font-size:12px;margin:0;">Prijavili ste se na email podsetnik za rokove u Vindex AI.{unsub}</p>
+  </div>
+</div>
+</body></html>"""
+
+
+def _naslov_kasnog(stavke: list) -> str:
+    ima_rok = any(e["tip"] == "rok" for e in stavke)
+    ima_roc = any(e["tip"] == "rociste" for e in stavke)
+    sta = "rok i ročište" if (ima_rok and ima_roc) else ("ročište" if ima_roc else "rok")
+    return f"Vindex AI — Podsetnik: {sta} uskoro"
+
+
+def _rezervisi(supa, uid: str, ev: dict, svrha: str, postojeci: dict) -> tuple:
+    """('da', id) | ('vec', None) | ('iscrpljeno', None) | ('trka', None) | ('greska', None)."""
+    kljuc = (ev["tip"], ev["id"], ev["datum"].isoformat(), svrha)
+    red = postojeci.get(kljuc)
+    sada = _sada().isoformat()
+    if red is not None:
+        if red.get("stanje") != "neuspeh":
+            return ("vec", None)
+        pokusaja = int(red.get("pokusaja") or 1)
+        if pokusaja >= _MAX_POKUSAJA:
+            return ("iscrpljeno", None)
+        # Završna revizija (M3): periodična provera na 10 min je trošila sve pokušaje za ~20 min kratkog prekida SMTP-a.
+        poslednji = _kao_trenutak(red.get("azurirano_at"))
+        if poslednji and _sada() - poslednji < timedelta(minutes=_RAZMAK_POKUSAJA_MIN * 2 ** (pokusaja - 1)):
+            return ("ceka", None)
+        try:
+            # Uslovno: samo ako je red i dalje `neuspeh` sa istim brojem pokušaja — drugi proces ne može isto.
+            r = (supa.table(_TABELA_DOGADJAJA)
+                 .update({"stanje": "rezervisano", "pokusaja": pokusaja + 1, "greska": None, "azurirano_at": sada})
+                 .eq("id", red["id"]).eq("stanje", "neuspeh").eq("pokusaja", pokusaja).execute())
+        except Exception as exc:
+            logger.error("[EMAIL-CRON] ponovna rezervacija neuspešna uid=%.8s: %s", uid, type(exc).__name__)
+            return ("greska", None)
+        return ("da", red["id"]) if (r.data or []) else ("trka", None)
+    nov_id = str(uuid.uuid4())
+    try:
+        supa.table(_TABELA_DOGADJAJA).insert({
+            "id": nov_id, "user_id": uid, "predmet_id": str(ev["predmet_id"]), "tip": ev["tip"],
+            "dogadjaj_id": ev["id"], "datum_dogadjaja": ev["datum"].isoformat(), "svrha": svrha,
+            "stanje": "rezervisano", "pokusaja": 1, "rezervisano_at": sada, "azurirano_at": sada,
+        }).execute()
+    except Exception as exc:
+        if _je_dup(exc):
+            return ("trka", None)
+        logger.error("[EMAIL-CRON] rezervacija neuspešna uid=%.8s: %s", uid, type(exc).__name__)
+        return ("greska", None)
+    return ("da", nov_id)
+
+
+def _zabelezi_ishod(supa, ids: list, stanje: str, greska: Optional[str] = None, prijavljeno: bool = False) -> bool:
+    """`prijavljeno=True`: ishod je već uračunat u brojače OVOG dnevnog slanja (ne prijavljuje se ponovo)."""
+    sada = _sada().isoformat()
+    polja = {"stanje": stanje, "greska": (greska or None) and str(greska)[:200], "azurirano_at": sada}
+    if prijavljeno:
+        polja["prijavljeno_at"] = sada
+    try:
+        (supa.table(_TABELA_DOGADJAJA).update(polja)
+         .in_("id", ids).eq("stanje", "rezervisano").execute())
+        return True
+    except Exception as exc:
+        # Red ostaje `rezervisano` = nepoznat ishod: ne ponavlja se (nema duplikata), ali se ne tvrdi ni uspeh.
+        logger.error("[EMAIL-CRON] ishod slanja NIJE zabeležen (%s): %s", stanje, type(exc).__name__)
+        return False
+
+
+def _novi_brojaci() -> dict:
+    return {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0, "kasni": 0, "zaostalo_nepoznato": 0}
+
+
+def _prijavi_neprijavljene(supa, sada: datetime) -> int:
+    """Nepoznati ishodi koje još NIJEDNO dnevno slanje nije prijavilo — iz hitne provere, ili `rezervisano` starije od
+    15 min (proces prekinut posred slanja) — za SVE korisnike (i odjavljene, i sa arhiviranim predmetom). Broje se u
+    `neisporuceno` tačno jednom, pa se označe (`prijavljeno_at`). Ne ponavljaju se (D4), ali posao ne sme da bude zelen
+    dok ih niko nije video (revizija S2-F, F2 / N1–N4). Pad upisa oznake → prijava se ponavlja (crveno, nikad zeleno)."""
+    r = (supa.table(_TABELA_DOGADJAJA).select("id, stanje, rezervisano_at")
+         .is_("prijavljeno_at", "null").in_("stanje", ["nepoznato", "rezervisano"]).execute())
+    ids = []
+    for x in (r.data or []):
+        if x.get("stanje") == "rezervisano":
+            t = _kao_trenutak(x.get("rezervisano_at"))
+            if t is not None and t > sada - timedelta(minutes=15):
+                continue                                    # možda je slanje upravo u toku — sledeće slanje ga vidi
+        ids.append(x["id"])
+    if ids:
+        try:
+            (supa.table(_TABELA_DOGADJAJA).update({"prijavljeno_at": sada.isoformat()})
+             .in_("id", ids).is_("prijavljeno_at", "null").execute())
+        except Exception as exc:
+            logger.warning("[EMAIL-CRON] oznaka prijave nepoznatih ishoda nije upisana: %s", type(exc).__name__)
+    return len(ids)
+
+
+def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: datetime, n: dict,
+                      samo_hitno: bool = False, dnevno_proslo: bool = True) -> None:
+    uid = profil["user_id"]
+    pragovi = [p for p in _PRAGOVI if profil.get(f"dan_{p}")]
+    if not pragovi:
+        return
+    try:
+        aktivni = _aktivni_predmeti(supa, uid)
+    except Exception as exc:
+        logger.error("[EMAIL-CRON] aktivni predmeti nisu pročitani uid=%.8s: %s", uid, type(exc).__name__)
+        n["greske"] += 1
+        return
+    if not aktivni:
+        return
+    do = danas + timedelta(days=max(pragovi))
+    try:
+        dogadjaji, nesigurni = _dogadjaji(supa, uid, aktivni, danas, do)
+        postojeci = _postojece_rezervacije(supa, uid, danas)
+        stari = _stari_dnevnik(supa, uid, danas)
+        potvrde = _vremena_potvrda([e["id"] for e in dogadjaji if e["tip"] == "rok"
+                                    and any((str(e["predmet_id"]), e["datum"].isoformat(), p) in stari for p in _PRAGOVI)])
+    except Exception as exc:
+        # Nijedan događaj ovog korisnika se ne rezerviše dok svi izvori nisu pročitani (S2-E F1) → ponovno slanje šalje sve.
+        logger.error("[EMAIL-CRON] izvori nisu pročitani, korisnik preskočen bez rezervacije uid=%.8s: %s",
+                     uid, type(exc).__name__)
+        n["greske"] += 1
+        return
+    if nesigurni:
+        n["greske"] += 1
+
+    def vec_poslato(ev, svrha):
+        red = postojeci.get((ev["tip"], ev["id"], ev["datum"].isoformat(), svrha))
+        if red is not None and red.get("stanje") in _ZAUZETO:
+            return True
+        return svrha.startswith("prag_") and _pokriva_stari_red(ev, int(svrha[5:]), stari, potvrde)
+
+    grupe: dict = {}
+    for ev in dogadjaji:
+        s = _svrha(ev, danas, sada_bg, pragovi, vec_poslato, samo_hitno, dnevno_proslo)
+        if s is None or (s.startswith("prag_") and _pokriva_stari_red(ev, int(s[5:]), stari, potvrde)):
+            continue
+        red = postojeci.get((ev["tip"], ev["id"], ev["datum"].isoformat(), s))
+        if red is not None and red.get("stanje") in _ZAUZETO:
+            continue                                        # već predato / možda predato / trajno odbijeno
+        grupe.setdefault(s, []).append(ev)
+    if not grupe:
+        return
+    # T06: poznat ne-pokušaj (nema adrese / SMTP nije konfigurisan) je GREŠKA bez rezervacije.
+    if not to_addr or not _SMTP_HOST:
+        logger.error("[EMAIL-CRON] slanje nemoguće (%s), rezervacija NIJE upisana uid=%.8s",
+                     "nema adrese" if not to_addr else "SMTP nije konfigurisan", uid)
+        n["greske"] += 1
+        return
+
+    for svrha in _REDOSLED_SVRHA:
+        if svrha not in grupe:
+            continue
+        rezervisani, ids, pad = [], [], False
+        for ev in grupe[svrha]:
+            ishod, rid = _rezervisi(supa, uid, ev, svrha, postojeci)
+            if ishod == "da":
+                rezervisani.append(ev)
+                ids.append(rid)
+            elif ishod == "trka":
+                n["preskoceno"] += 1
+            elif ishod in ("greska", "iscrpljeno", "ceka"):
+                pad = True                                   # „ceka“: sigurno nepredato, sledeći pokušaj kasnije
+        if pad:
+            n["greske"] += 1
+        if not rezervisani:
+            continue
+        if svrha == "kasni":
+            subject = _naslov_kasnog(rezervisani)
+            telo = _email_html_kasni(rezervisani, danas, user_id=uid, email=to_addr, nepotpun=bool(nesigurni))
+        else:
+            dana_pre = int(svrha[5:])
+            rokovi = [e["red"] for e in rezervisani if e["tip"] == "rok"]
+            rocista = [e["red"] for e in rezervisani if e["tip"] == "rociste"]
+            subject = _naslov_podsetnika(dana_pre, bool(rokovi), bool(rocista))
+            telo = _email_html(rokovi, dana_pre, user_id=uid, email=to_addr, rocista=rocista, nepotpun=bool(nesigurni))
+        try:
+            _smtp_send(to_addr, subject, telo)
+        except _NijePredato as exc:
+            logger.error("[EMAIL-CRON] poruka NIJE predata (biće ponovljena) uid=%.8s svrha=%s: %s", uid, svrha, exc)
+            _zabelezi_ishod(supa, ids, "neuspeh", str(exc))
+            n["greske"] += 1
+            continue
+        except _Odbijeno as exc:
+            logger.error("[EMAIL-CRON] provajder ODBIO poruku uid=%.8s svrha=%s: %s", uid, svrha, exc)
+            _zabelezi_ishod(supa, ids, "odbijeno", str(exc))
+            n["greske"] += 1
+            continue
+        except Exception as exc:
+            # Ishod NEPOZNAT (npr. veza pukla posle predaje sadržaja): ne ponavlja se, ne tvrdi se uspeh.
+            logger.error("[EMAIL-CRON] NEISPORUČENO (ishod nepoznat, bez ponavljanja) uid=%.8s svrha=%s: %s",
+                         uid, svrha, type(exc).__name__)
+            _zabelezi_ishod(supa, ids, "nepoznato", type(exc).__name__, prijavljeno=not samo_hitno)
+            n["neisporuceno"] += 1
+            continue
+        n["poslato"] += 1
+        if svrha == "kasni":
+            n["kasni"] += 1
+        if not _zabelezi_ishod(supa, ids, "poslato"):
+            n["greske"] += 1
+        logger.info("[EMAIL-CRON] poslato uid=%.8s svrha=%s stavki=%d", uid, svrha, len(rezervisani))
+
+
 @router.post("/email-notif/send-reminders")
 @limiter.limit("10/minute")
 async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cron_or_founder)):
     """
-    Cron trigger — šalje email podsetnik za kritične rokove.
-    Dostupno: founder račun ILI X-Cron-Key header (Railway/Render cron).
-    Šalje za 7, 3 i 1 dan (samo ako se već nije slao za taj rok+dana).
+    Cron trigger — dnevni email podsetnici za potvrđene rokove i zakazana ročišta (pragovi 7/3/1) i dodatni
+    podsetnik za događaje kojima redovni više ne stiže. Dostupno: founder račun ILI X-Cron-Key header.
+    Brojači (ugovor email-cron.yml): poslato = emailova koje je SMTP prihvatio; greske = nije poslato (ponavlja se gde
+    je bezbedno); preskoceno = drugi proces je već rezervisao; neisporuceno = ishod nepoznat (ručna provera).
     """
-
-    supa    = _get_supa()
-    today   = date.today()
-    targets = {1: today + timedelta(days=1),
-               3: today + timedelta(days=3),
-               7: today + timedelta(days=7)}
+    supa = _get_supa()
 
     def _run():
+        sada = _sada()
+        sada_bg = _beograd(sada)
+        danas = sada_bg.date()
+        n = _novi_brojaci()
+        # Oznaka dnevnog slanja se upisuje i pri pauzi: posle ukidanja pauze periodična provera tada šalje i današnji
+        # prag (dnevno slanje za danas je „prošlo“), umesto da ga tiho izostavi (završna revizija).
+        try:
+            supa.table(_TABELA_POKRETANJA).insert({"dan": danas.isoformat(), "pokrenuto_at": sada.isoformat()}).execute()
+        except Exception as exc:
+            if _nema_tabele(exc):
+                logger.error("[EMAIL-CRON] migracija 142 nije primenjena — podsetnici NISU poslati")
+                return {**n, "greske": 1, "napomena": "Migracija 142 nije primenjena — podsetnici nisu poslati"}
+            if not _je_dup(exc):
+                logger.warning("[EMAIL-CRON] oznaka dnevnog slanja nije upisana: %s", type(exc).__name__)
+        if _podsetnici_pauzirani():
+            logger.error("[EMAIL-CRON] dnevni podsetnici PAUZIRANI (VINDEX_EMAIL_PODSETNICI_PAUZA) — ništa nije poslato")
+            return {**n, "greske": 1, "napomena": "Podsetnici su pauzirani — ništa nije poslato"}
+        try:
+            z = _prijavi_neprijavljene(supa, sada)
+            n["neisporuceno"] += z
+            n["zaostalo_nepoznato"] += z
+        except Exception as exc:
+            logger.error("[EMAIL-CRON] nepoznati ishodi nisu provereni: %s", type(exc).__name__)
+            n["greske"] += 1
+
         profili_r = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute()
-        profili   = profili_r.data or []
+        profili = profili_r.data or []
         if not profili:
             # Isti brojači kao uobičajen odgovor — cron (email-cron.yml) odbija odgovor bez njih.
-            return {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0,
-                    "napomena": "Nema aktivnih profila"}
-
-        # Get user emails from Supabase auth via profiles (or use billing pattern)
-        # We fetch user emails from profiles table which has email
+            return {**n, "napomena": "Nema aktivnih profila"}
         emails_r = supa.table("profiles").select("id, email").execute()
         email_map = {str(p["id"]): p.get("email", "") for p in (emails_r.data or [])}
-
-        poslato = 0
-        greske  = 0
-        preskoceno = 0      # drugi proces je već rezervisao isti podsetnik
-        neisporuceno = 0    # rezervisano, isporuka nepotvrđena → ručna provera
-
         for profil in profili:
-            uid        = profil["user_id"]
-            to_addr    = email_map.get(uid, "")
+            _obradi_korisnika(supa, profil, email_map.get(profil["user_id"], ""), danas, sada_bg, n)
+        return n
 
-            # Operation Living System (Wave 3, Portfolio Scale team, REPRODUCED CRITICAL): this
-            # cron never filtered by predmeti.status -- a deadline belonging to an archived/
-            # closed case (predmeti.status in "zatvoren"/"arhiviran"/"odbijen", same set
-            # routers/dashboard.py already uses) was emailed exactly like an active one. Unlike
-            # a dashboard the lawyer chooses to open, this is a proactive push straight to their
-            # inbox -- the single most trust-damaging instance of this bug class. Fetched once
-            # per user (not per dana_pre) to avoid 3x the query cost.
-            # VCR002 T04: predmet u brisanju (BETA-DEL-001 tombstone, migracija 114) se ponaša kao da ne postoji —
-            # isto kao `api.py::_je_u_brisanju`. Bez kolone (pre 114) tombstone ne može ni da postoji.
-            try:
-                _aktivni_r = supa.table("predmeti").select("id,brisanje_zapoceto").eq("user_id", uid) \
-                    .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
-            except Exception as exc:
-                # T07: rezervni upit (bez kolone) SAMO kada kolona ne postoji (pre migracije 114). Bilo koja
-                # druga greška bi ga pretvorila u dozvolu za predmet u brisanju → fail-closed: korisnik se
-                # preskače i greška je vidljiva u `greske`.
-                _t = str(exc)
-                if not ("42703" in _t or ("brisanje_zapoceto" in _t and "does not exist" in _t)):
-                    logger.error("[EMAIL-CRON] provera aktivnih predmeta neuspešna, podsetnici preskočeni uid=%.8s: %s",
-                                 uid, type(exc).__name__)
-                    greske += 1
-                    continue
-                _aktivni_r = supa.table("predmeti").select("id").eq("user_id", uid) \
-                    .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
-            _aktivni_ids = {p["id"] for p in (_aktivni_r.data or []) if not p.get("brisanje_zapoceto")}
-            if not _aktivni_ids:
-                continue
+    return await asyncio.to_thread(_run)
 
-            for dana_pre, target_date in targets.items():
-                col = f"dan_{dana_pre}"
-                if not profil.get(col, False):
-                    continue
 
-                target_iso = target_date.isoformat()
+def proveri_hitne_podsetnike(uid: str) -> dict:
+    """Hitna provera posle advokatove radnje (potvrda/ispravka roka, zakazano/izmenjeno ročište) — D2.
 
-                # Check if already sent
-                dup = supa.table("email_notif_log").select("id").eq("user_id", uid).eq("datum_roka", target_iso).eq("dana_pre", dana_pre).limit(1).execute()
-                if dup.data:
-                    continue
+    Pokreće se KAO POZADINSKI ZADATAK posle odgovora: radnja je već sačuvana i ne čeka SMTP. Šalje samo ono što ne sme
+    da čeka sledeće dnevno slanje: `kasni`, i današnji prag ako je današnje dnevno slanje već prošlo. Isti ključevi kao
+    dnevno slanje → nema duplikata ni u trci. Samo za `uid` pozivaoca (ruta je već proverila vlasništvo)."""
+    n = _novi_brojaci()
+    if _podsetnici_pauzirani():
+        return {**n, "pauzirano": True}
+    try:
+        supa = _get_supa()
+        sada = _sada()
+        sada_bg = _beograd(sada)
+        danas = sada_bg.date()
+        r = supa.table("korisnik_email_notif").select("*").eq("user_id", uid).eq("aktivan", True).execute()
+        profil = (r.data or [None])[0]
+        if not profil:
+            return n
+        try:
+            m = supa.table(_TABELA_POKRETANJA).select("dan").eq("dan", danas.isoformat()).execute()
+            dnevno_proslo = bool(m.data)
+        except Exception:
+            dnevno_proslo = True     # bez oznake: pošalji odmah — isti ključ sprečava duplikat sa dnevnim slanjem
+        _obradi_korisnika(supa, profil, _adresa_primaoca(supa, uid), danas, sada_bg, n,
+                          samo_hitno=True, dnevno_proslo=dnevno_proslo)
+    except Exception as exc:
+        logger.error("[EMAIL-HITNO] provera nije izvršena uid=%.8s: %s", uid, type(exc).__name__)
+        n["greske"] += 1
+    if any(n[k] for k in ("poslato", "greske", "neisporuceno")):
+        logger.info("[EMAIL-HITNO] uid=%.8s %s", uid, n)
+    return n
 
-                rokovi_r = (
-                    supa.table("predmet_hronologija")
-                    # Migracija 127: gejt trazi `id` (kljuc odluke) i `izvor`
-                    # (kanonska provenijencija). `akter` se vise NE cita kao
-                    # poreklo -- on nosi ime stranke u dogadjaju.
-                    .select("id, izvor, dogadjaj, datum_iso, predmet_id")
-                    .eq("user_id", uid)
-                    .in_("vaznost", _ACTIONABLE_VAZNOST)
-                    .eq("datum_iso", target_iso)
-                    .execute()
-                )
-                rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in _aktivni_ids]
-                # INV-2 / FAZA 6.4.2: NIJEDAN nepotvrdjen rok ne sme da posalje
-                # email -- ni AI ni rucno unet (poreklo ne ovlascuje). Skup
-                # potvrda se cita za sve redove (NS3-N10: raniji komentar je
-                # tvrdio da se cita samo za AI redove).
-                rokovi = _filtriraj_izvrsive(rokovi, _potvrdjeni_ids([r.get("id") for r in rokovi]))
-                if not rokovi:
-                    continue
-                if not rokovi:
-                    continue
 
-                # T06: poznat ne-pokušaj (nema adrese / SMTP nije konfigurisan) je GREŠKA bez rezervacije —
-                # ne `neisporuceno` (nepoznat ishod) i ne sme trajno da potroši podsetnik. Ranije se profil bez
-                # adrese preskakao bez traga, a bez SMTP-a se rezervacija upisivala pa slanje padalo.
-                if not to_addr or not _SMTP_HOST:
-                    logger.error("[EMAIL-CRON] slanje nemoguće (%s), rezervacija NIJE upisana uid=%.8s dana_pre=%d datum=%s",
-                                 "nema adrese" if not to_addr else "SMTP nije konfigurisan", uid, dana_pre, target_iso)
-                    greske += 1
-                    continue
+_PERIOD_HITNE_S = 600
 
-                # ── TASK 1: TRAJNI CLAIM PRE SLANJA ──────────────────────────
-                # Ranije: `_smtp_send` pa upis u log, i to u `except: pass`.
-                # Dva prozora duplikata:
-                #   (a) slanje uspe, upis padne → sledeći cron šalje PONOVO;
-                #   (b) dva paralelna cron poziva prođu istu `dup` proveru
-                #       (nema zaključavanja) → OBA pošalju isti email.
-                #
-                # Popravka koristi POSTOJEĆU šemu — bez nove kolone i tabele:
-                # `email_notif_log` već ima UNIQUE(user_id, predmet_id,
-                # datum_roka, dana_pre) (migracija 021:31). Upis se pomera PRE
-                # slanja i time postaje trajna rezervacija: drugi proces udari
-                # u UNIQUE i odustane.
-                #
-                # ŠTA OVO JESTE:  at-most-once POKUŠAJ SLANJA.
-                # ŠTA NIJE:       exactly-once ISPORUKA. Baza i SMTP ne mogu
-                #                 biti u istoj transakciji i to se ovde ne
-                #                 tvrdi. Ako slanje padne POSLE rezervacije,
-                #                 automatskog ponavljanja NEMA — ono bi vratilo
-                #                 tačno onaj prozor duplikata koji se zatvara.
-                #                 Takav ishod je `neisporuceno` i traži ručnu
-                #                 proveru, jer je NEPOZNAT, ne neuspešan.
-                # VCR002 T04: JEDNA rezervacija po predmetu. UNIQUE iz 021 važi i unutar jednog višerednog INSERT-a,
-                # pa su dva roka istog dana u istom predmetu obarala ceo iskaz (23505) — što se ispod čitalo kao
-                # „već rezervisano“ i podsetnik se tiho nikad nije slao. Email i dalje navodi SVE rokove.
-                claim_rows = [{
-                    "user_id":    uid,
-                    "predmet_id": pid,
-                    "datum_roka": target_iso,
-                    "dana_pre":   dana_pre,
-                } for pid in dict.fromkeys(rok.get("predmet_id", "") for rok in rokovi)]
-                try:
-                    supa.table("email_notif_log").insert(claim_rows).execute()
-                except Exception as exc:
-                    _t = str(exc)
-                    if "23505" in _t or "duplicate key" in _t.lower():
-                        logger.info("[EMAIL-CRON] preskočeno (već rezervisano) uid=%.8s dana_pre=%d datum=%s",
-                                    uid, dana_pre, target_iso)
-                        preskoceno += 1
-                        continue
-                    # Rezervacija nije uspela iz drugog razloga → NE ŠALJEMO.
-                    # Fail-closed: bolje neposlato nego poslato bez evidencije.
-                    logger.error("[EMAIL-CRON] rezervacija neuspešna, slanje preskočeno uid=%.8s: %s", uid, exc)
-                    greske += 1
-                    continue
 
-                subject = _naslov_podsetnika(dana_pre)
-                html    = _email_html(rokovi, dana_pre, user_id=uid, email=to_addr)
+def proveri_hitne_svima() -> dict:
+    """Periodična hitna provera za SVE uključene profile (revizija S2-N F2/F3): ono što trajni okidač ili pozadinski
+    zadatak nisu mogli da pošalju (prolazna greška baze/SMTP-a, restart, pauza koja je u međuvremenu ukinuta) šalje se
+    najkasnije u sledećem krugu — ne tek sledećeg dnevnog slanja. Isti ključevi rezervacije → nema duplikata; sigurno
+    nepredate poruke najviše _MAX_POKUSAJA puta; nepoznat ishod se ne ponavlja (D4)."""
+    n = _novi_brojaci()
+    if _podsetnici_pauzirani():
+        return {**n, "pauzirano": True}
+    try:
+        supa = _get_supa()
+        sada = _sada()
+        sada_bg = _beograd(sada)
+        danas = sada_bg.date()
+        profili = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute().data or []
+        if not profili:
+            return n
+        try:
+            dnevno_proslo = bool(supa.table(_TABELA_POKRETANJA).select("dan").eq("dan", danas.isoformat()).execute().data)
+        except Exception:
+            dnevno_proslo = True
+        emails = {str(p["id"]): p.get("email", "") for p in (supa.table("profiles").select("id, email").execute().data or [])}
+        for profil in profili:
+            _obradi_korisnika(supa, profil, emails.get(profil["user_id"], ""), danas, sada_bg, n,
+                              samo_hitno=True, dnevno_proslo=dnevno_proslo)
+    except Exception as exc:
+        logger.error("[EMAIL-HITNO] periodična provera nije izvršena: %s", type(exc).__name__)
+        n["greske"] += 1
+    if any(n[k] for k in ("poslato", "greske", "neisporuceno")):
+        logger.info("[EMAIL-HITNO] periodično %s", n)
+    return n
 
-                try:
-                    _smtp_send(to_addr, subject, html)
-                    poslato += 1
-                    logger.info("[EMAIL-CRON] poslato uid=%.8s dana_pre=%d datum=%s", uid, dana_pre, target_iso)
-                except Exception as exc:
-                    # Rezervacija POSTOJI, isporuka NIJE potvrđena. Ne briše se
-                    # i ne ponavlja se automatski — ishod je nepoznat.
-                    logger.error("[EMAIL-CRON] NEISPORUČENO (rezervisano, bez automatskog ponavljanja) "
-                                 "uid=%.8s dana_pre=%d datum=%s: %s", uid, dana_pre, target_iso, exc)
-                    neisporuceno += 1
 
-        return {"poslato": poslato, "greske": greske,
-                "preskoceno": preskoceno, "neisporuceno": neisporuceno}
+_petlja_hitnih: Optional[asyncio.Task] = None
 
-    result = await asyncio.to_thread(_run)
-    return result
+
+async def _petlja_hitnih_podsetnika() -> None:
+    while True:
+        await asyncio.sleep(_PERIOD_HITNE_S)
+        try:
+            await asyncio.to_thread(proveri_hitne_svima)
+        except Exception as exc:                       # petlja nikad ne sme da stane
+            logger.error("[EMAIL-HITNO] krug periodične provere pao: %s", type(exc).__name__)
+
+
+def _petlja_ukljucena() -> bool:
+    """Podrazumevano SAMO na Render-u (Render postavlja `RENDER`): lokalni `uvicorn` sa produkcionim `.env` ne sme sam da
+    šalje podsetnike (završna revizija). Izričito: VINDEX_PODSETNICI_PETLJA=1 uključuje, =0 isključuje."""
+    izricito = os.getenv("VINDEX_PODSETNICI_PETLJA", "").strip()
+    if izricito in ("0", "1"):
+        return izricito == "1"
+    return bool(os.getenv("RENDER", "").strip())
+
+
+def pokreni_petlju_hitnih() -> None:
+    """Startup (api.py)."""
+    global _petlja_hitnih
+    if not _petlja_ukljucena():
+        logger.info("[EMAIL-HITNO] periodična provera NIJE pokrenuta (nije Render, VINDEX_PODSETNICI_PETLJA nije 1)")
+        return
+    if _petlja_hitnih and not _petlja_hitnih.done() and not _petlja_hitnih.get_loop().is_closed():
+        return
+    _petlja_hitnih = asyncio.get_running_loop().create_task(_petlja_hitnih_podsetnika())
+    logger.info("[EMAIL-HITNO] periodična provera pokrenuta (na %d s)", _PERIOD_HITNE_S)
+
+
+async def zaustavi_petlju_hitnih() -> None:
+    global _petlja_hitnih
+    if _petlja_hitnih and not _petlja_hitnih.done():
+        _petlja_hitnih.cancel()
+        try:
+            await _petlja_hitnih
+        except (asyncio.CancelledError, Exception):
+            pass
+    _petlja_hitnih = None
 
 
 # ─── Weekly Digest ────────────────────────────────────────────────────────────
@@ -712,9 +1242,14 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
             # takodje email koji odlazi advokatu, pa nepotvrdjen AI rok ne sme
             # ni u njega, ni u brojac "hitnih". Jedan upit pokriva oba skupa.
             _kandidati = list(rokovi_r.data or []) + list(hitnih_r.data or [])
-            _potvrdjeni = _potvrdjeni_ids([r.get("id") for r in _kandidati])
+            try:
+                _potvrdjeni = _potvrdjeni_ids([r.get("id") for r in _kandidati])
+            except Exception:
+                _potvrdjeni = set()      # nepromenjeno ponašanje pregleda: nepročitana potvrda = nijedan rok
             rokovi     = _filtriraj_izvrsive(rokovi_r.data or [], _potvrdjeni)
-            rocista    = [{"datum_iso": r.get("datum", ""), "dogadjaj": r.get("sud", "Sud"), "tip": "rociste"} for r in (rocista_r.data or [])]
+            # N4: otkazano / odloženo / održano ročište ne ide u nedeljni pregled kao predstojeće.
+            rocista    = [{"datum_iso": r.get("datum", ""), "dogadjaj": r.get("sud", "Sud"), "tip": "rociste"} for r in (rocista_r.data or [])
+                          if (r.get("status") or "zakazano") == "zakazano"]
             neplaceno  = sum(float(r.get("iznos_rsd", 0) or 0) for r in (billing_r.data or []))
             hitnih     = len(set(r.get("predmet_id")
                                  for r in _filtriraj_izvrsive(hitnih_r.data or [], _potvrdjeni)))

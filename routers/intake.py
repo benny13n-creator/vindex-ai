@@ -52,6 +52,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 # the same instant; narrowing that further needs the idempotency-key
 # approach and is left as a named follow-up, not guessed at further here.
 _DUPLICATE_CASE_WINDOW_SECONDS = 5
+# N2: (uid, naziv) čije je otvaranje u toku u OVOM procesu. Provera i upis su odvojeni `await`-om, pa su dva
+# istovremena zahteva (dva taba) oba prolazila proveru ispod i pravila dva predmeta — izmereno. Dodavanje u skup
+# je sinhrono (bez `await` između provere i dodavanja), pa drugi zahtev dobija isti 409. Produkcija je jedan
+# uvicorn proces (Dockerfile); više procesa bi i dalje tražilo ključ idempotencije iz napomene iznad.
+_OTVARANJE_U_TOKU: set = set()
 
 _EKSTRAKCIJA_SYSTEM = """Ti si pravni asistent za srpske advokate. Na osnovu opisa problema i opcionalnih nalaza iz analize dokumenta, ekstrahuj ključne podatke za otvaranje novog predmeta.
 
@@ -215,33 +220,43 @@ async def intake_kreiraj(
         opis_delovi.append(f"Vrednost spora: {body.vrednost_spora}")
     full_opis = "\n".join(opis_delovi)
 
-    cutoff_iso = (datetime.now(timezone.utc) - timedelta(seconds=_DUPLICATE_CASE_WINDOW_SECONDS)).isoformat()
-    dup_check = await asyncio.to_thread(
-        lambda: supa.table("predmeti")
-            .select("id, created_at")
-            .eq("user_id", uid).eq("naziv", body.naziv)
-            .gte("created_at", cutoff_iso)
-            .limit(1).execute()
-    )
-    if dup_check.data:
-        logger.warning(
-            "[INTAKE] dupliran zahtev odbijen — uid=%.8s naziv=%r već kreiran pre <%ds (predmet=%s)",
-            uid, body.naziv, _DUPLICATE_CASE_WINDOW_SECONDS, dup_check.data[0]["id"],
-        )
+    _kljuc_otvaranja = (uid, body.naziv)
+    if _kljuc_otvaranja in _OTVARANJE_U_TOKU:
         raise HTTPException(
             status_code=409,
             detail="Predmet sa ovim nazivom je upravo kreiran. Ako ovo nije duplikat, sačekajte par sekundi i pokušajte ponovo.",
         )
+    _OTVARANJE_U_TOKU.add(_kljuc_otvaranja)
+    try:
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(seconds=_DUPLICATE_CASE_WINDOW_SECONDS)).isoformat()
+        dup_check = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id, created_at")
+                .eq("user_id", uid).eq("naziv", body.naziv)
+                .gte("created_at", cutoff_iso)
+                .limit(1).execute()
+        )
+        if dup_check.data:
+            logger.warning(
+                "[INTAKE] dupliran zahtev odbijen — uid=%.8s naziv=%r već kreiran pre <%ds (predmet=%s)",
+                uid, body.naziv, _DUPLICATE_CASE_WINDOW_SECONDS, dup_check.data[0]["id"],
+            )
+            raise HTTPException(
+                status_code=409,
+                detail="Predmet sa ovim nazivom je upravo kreiran. Ako ovo nije duplikat, sačekajte par sekundi i pokušajte ponovo.",
+            )
 
-    pred_r = await asyncio.to_thread(
-        lambda: supa.table("predmeti").insert({
-            "user_id": uid,
-            "naziv":   body.naziv,
-            "opis":    full_opis,
-            "tip":     body.tip,
-            "status":  "aktivan",
-        }).execute()
-    )
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").insert({
+                "user_id": uid,
+                "naziv":   body.naziv,
+                "opis":    full_opis,
+                "tip":     body.tip,
+                "status":  "aktivan",
+            }).execute()
+        )
+    finally:
+        _OTVARANJE_U_TOKU.discard(_kljuc_otvaranja)
     if not pred_r.data:
         raise HTTPException(status_code=500, detail="Kreiranje predmeta nije uspelo.")
     predmet    = pred_r.data[0]

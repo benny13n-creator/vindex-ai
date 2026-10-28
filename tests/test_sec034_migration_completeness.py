@@ -60,6 +60,8 @@ MIGRATIONS_DIR = REPO_ROOT / "migrations"
 # must be a conscious act, not a silent side effect of a missing policy.
 SERVICE_ROLE_ONLY_TABLES: dict[str, str] = {
     "email_notif_log": "migrations/021_email_notif.sql — GRANT ... TO service_role, no user policy (notification delivery log)",
+    "email_podsetnik_dogadjaj": "migrations/142_email_podsetnik_dogadjaj.sql — GRANT ... TO service_role, no user policy (per-event reminder reservations, cron only)",
+    "email_podsetnik_pokretanje": "migrations/142_email_podsetnik_dogadjaj.sql — GRANT ... TO service_role, no user policy (daily dispatch marker, cron only)",
     "kancelarija_clanovi": "migrations/018_kancelarija.sql — 'Backend has full access', membership reads are API-mediated",
     "law_docs": "migrations/020_law_docs.sql — 'Samo service_role (backend) ima pristup — admini pristupaju via API'",
     "security_events": "migrations/043_security_bulletproof.sql — 'Nema user pristupa — samo admin čita kroz service_role'",
