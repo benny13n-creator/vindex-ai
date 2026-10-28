@@ -136,6 +136,11 @@ class LokalniSmtp:
 
     def zatvori(self):
         self._radi = False
+        try:
+            # Linux: samo close() ne prekida nit blokiranu u accept() — utičnica i dalje prima veze (CI PR #59)
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass                                    # Windows: shutdown na utičnici koja sluša nije dozvoljen
         self.sock.close()
 
 
@@ -273,6 +278,8 @@ def test_554_posle_sadrzaja_je_trajno_odbijeno_bez_ponavljanja(cert):
 def test_server_nedostupan_nije_predato_ponavlja_se(cert):
     s = LokalniSmtp(*cert)
     s.zatvori()                                                              # port više ne prima veze
+    with pytest.raises(OSError):                                             # preduslov testa, ne pretpostavka
+        socket.create_connection(("127.0.0.1", s.port), timeout=2).close()
     b = _baza([_rok("r1", _dan(1))])
     rez = _pokreni_stvarno(b, s)
     assert rez["poslato"] == 0 and rez["greske"] == 1 and rez["neisporuceno"] == 0
