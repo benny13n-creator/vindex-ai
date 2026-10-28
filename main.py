@@ -4111,8 +4111,7 @@ def _tvrdnje_o_primeni(tekst: str) -> set:
 
 # Tekst čl. 55a PRE izmene 63/2026: „iznad polovine raspona propisane kazne, pod sledećim uslovima“ (bez „polazeći od
 # najmanje mere te kazne“) i ranije osude „za krivična dela učinjena sa umišljajem“ (bez „ista ili istovrsna“).
-_STARI_55A_RE = re.compile(r"iznad\s+polovine\s+raspona\s+propisane\s+kazne,?\s+pod\s+sledećim\s+uslovima"
-                           r"|osuđen\s+za\s+krivična\s+dela\s+učinjena\s+sa\s+umišljajem", re.I)
+_STARI_55A_RE = re.compile(r"iznad\s+polovine\s+raspona\s+propisane\s+kazne,?\s+pod\s+sledećim\s+uslovima", re.I)
 _OZNAKA_STARI_55A = "[TEKST ČL. 55a PRE IZMENE 63/2026 — za dela izvršena od 18.07.2026 važi tekst iz PRORAČUNA] "
 
 

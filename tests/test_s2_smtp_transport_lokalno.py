@@ -139,6 +139,14 @@ class LokalniSmtp:
         self.sock.close()
 
 
+def _ostari(b, minuta=600):
+    """Pomeri `azurirano_at` neuspelih rezervacija unazad — ponovni pokušaj čeka razmak (10·2^(k−1) min)."""
+    from datetime import datetime, timedelta, timezone
+    for r in b.log:
+        if r.get("stanje") == "neuspeh":
+            r["azurirano_at"] = (datetime.now(timezone.utc) - timedelta(minutes=minuta)).isoformat()
+
+
 def _pokreni_stvarno(b, server):
     import routers.email_notif as en
     from shared.rate import limiter
@@ -193,7 +201,8 @@ def test_odbijen_primalac_jednog_korisnika_ne_gasi_drugog_i_ponavlja_se_ogranice
         assert [m["za"] for m in s.primljeno] == [[b10.MAIL]]
         drugi = next(r for r in b.log if r["user_id"] == "u-2")
         assert (drugi["stanje"], drugi["pokusaja"]) == ("neuspeh", 1)
-        for _ in range(5):                                                  # ponovljena slanja istog dana
+        for _ in range(8):                                                  # ponovljena slanja istog dana
+            _ostari(b)
             _pokreni_stvarno(b, s)
     finally:
         s.zatvori()
@@ -210,6 +219,7 @@ def test_pad_prijave_na_smtp_nije_predato_pa_ponovno_slanje_isporucuje_jednom(ce
         assert rez["poslato"] == 0 and rez["greske"] == 1 and rez["neisporuceno"] == 0 and s.primljeno == []
         assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)]
         s.auth_pada = False                                                  # lozinka ispravljena
+        _ostari(b)
         rez2 = _pokreni_stvarno(b, s)
         rez3 = _pokreni_stvarno(b, s)
     finally:
@@ -226,6 +236,7 @@ def test_421_posle_sadrzaja_je_izricito_neprihvatanje_i_ponavlja_se(cert):
         rez = _pokreni_stvarno(b, s)
         assert rez["greske"] == 1 and rez["neisporuceno"] == 0 and s.primljeno == []
         s.posle_data = "ok"
+        _ostari(b)
         rez2 = _pokreni_stvarno(b, s)
     finally:
         s.zatvori()
@@ -269,7 +280,7 @@ def test_server_nedostupan_nije_predato_ponavlja_se(cert):
     s2 = LokalniSmtp(*cert)
     try:
         b2 = b
-        import routers.email_notif as en
+        _ostari(b2)
         rez2 = _pokreni_stvarno(b2, s2)
     finally:
         s2.zatvori()
@@ -308,6 +319,7 @@ def test_istek_vremena_pre_sadrzaja_nije_predato_i_ponavlja_se(cert, kratak_time
         assert rez["greske"] == 1 and rez["neisporuceno"] == 0, rez
         assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)]
         s.posle_data = "ok"
+        _ostari(b)
         rez2 = _pokreni_stvarno(b, s)
     finally:
         s.zatvori()

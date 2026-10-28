@@ -450,7 +450,8 @@ async def test_email(request: Request, req: Optional[EmailTestReq] = Body(defaul
 _TABELA_DOGADJAJA = "email_podsetnik_dogadjaj"
 _TABELA_POKRETANJA = "email_podsetnik_pokretanje"
 _PRAGOVI = (1, 3, 7)
-_MAX_POKUSAJA = 3
+_MAX_POKUSAJA = 6
+_RAZMAK_POKUSAJA_MIN = 10        # pokušaj k (k ≥ 1) sme ponovo tek posle 10 · 2^(k−1) min: 10, 20, 40, 80, 160 → ~5 h
 _ZAUZETO = ("rezervisano", "poslato", "nepoznato", "odbijeno")   # predato, možda predato ili trajno odbijeno
 _REDOSLED_SVRHA = ("prag_7", "prag_3", "prag_1", "kasni")
 
@@ -698,6 +699,10 @@ def _rezervisi(supa, uid: str, ev: dict, svrha: str, postojeci: dict) -> tuple:
         pokusaja = int(red.get("pokusaja") or 1)
         if pokusaja >= _MAX_POKUSAJA:
             return ("iscrpljeno", None)
+        # Završna revizija (M3): periodična provera na 10 min je trošila sve pokušaje za ~20 min kratkog prekida SMTP-a.
+        poslednji = _kao_trenutak(red.get("azurirano_at"))
+        if poslednji and _sada() - poslednji < timedelta(minutes=_RAZMAK_POKUSAJA_MIN * 2 ** (pokusaja - 1)):
+            return ("ceka", None)
         try:
             # Uslovno: samo ako je red i dalje `neuspeh` sa istim brojem pokušaja — drugi proces ne može isto.
             r = (supa.table(_TABELA_DOGADJAJA)
@@ -830,8 +835,8 @@ def _obradi_korisnika(supa, profil: dict, to_addr: str, danas: date, sada_bg: da
                 ids.append(rid)
             elif ishod == "trka":
                 n["preskoceno"] += 1
-            elif ishod in ("greska", "iscrpljeno"):
-                pad = True
+            elif ishod in ("greska", "iscrpljeno", "ceka"):
+                pad = True                                   # „ceka“: sigurno nepredato, sledeći pokušaj kasnije
         if pad:
             n["greske"] += 1
         if not rezervisani:
@@ -888,9 +893,8 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         sada_bg = _beograd(sada)
         danas = sada_bg.date()
         n = _novi_brojaci()
-        if _podsetnici_pauzirani():
-            logger.error("[EMAIL-CRON] dnevni podsetnici PAUZIRANI (VINDEX_EMAIL_PODSETNICI_PAUZA) — ništa nije poslato")
-            return {**n, "greske": 1, "napomena": "Podsetnici su pauzirani — ništa nije poslato"}
+        # Oznaka dnevnog slanja se upisuje i pri pauzi: posle ukidanja pauze periodična provera tada šalje i današnji
+        # prag (dnevno slanje za danas je „prošlo“), umesto da ga tiho izostavi (završna revizija).
         try:
             supa.table(_TABELA_POKRETANJA).insert({"dan": danas.isoformat(), "pokrenuto_at": sada.isoformat()}).execute()
         except Exception as exc:
@@ -899,6 +903,9 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 return {**n, "greske": 1, "napomena": "Migracija 142 nije primenjena — podsetnici nisu poslati"}
             if not _je_dup(exc):
                 logger.warning("[EMAIL-CRON] oznaka dnevnog slanja nije upisana: %s", type(exc).__name__)
+        if _podsetnici_pauzirani():
+            logger.error("[EMAIL-CRON] dnevni podsetnici PAUZIRANI (VINDEX_EMAIL_PODSETNICI_PAUZA) — ništa nije poslato")
+            return {**n, "greske": 1, "napomena": "Podsetnici su pauzirani — ništa nije poslato"}
         try:
             z = _prijavi_neprijavljene(supa, sada)
             n["neisporuceno"] += z
@@ -1001,12 +1008,25 @@ async def _petlja_hitnih_podsetnika() -> None:
             logger.error("[EMAIL-HITNO] krug periodične provere pao: %s", type(exc).__name__)
 
 
+def _petlja_ukljucena() -> bool:
+    """Podrazumevano SAMO na Render-u (Render postavlja `RENDER`): lokalni `uvicorn` sa produkcionim `.env` ne sme sam da
+    šalje podsetnike (završna revizija). Izričito: VINDEX_PODSETNICI_PETLJA=1 uključuje, =0 isključuje."""
+    izricito = os.getenv("VINDEX_PODSETNICI_PETLJA", "").strip()
+    if izricito in ("0", "1"):
+        return izricito == "1"
+    return bool(os.getenv("RENDER", "").strip())
+
+
 def pokreni_petlju_hitnih() -> None:
-    """Startup (api.py). Isključuje se sa VINDEX_PODSETNICI_PETLJA=0 (npr. lokalni alati)."""
+    """Startup (api.py)."""
     global _petlja_hitnih
-    if os.getenv("VINDEX_PODSETNICI_PETLJA", "1").strip() == "0" or (_petlja_hitnih and not _petlja_hitnih.done()):
+    if not _petlja_ukljucena():
+        logger.info("[EMAIL-HITNO] periodična provera NIJE pokrenuta (nije Render, VINDEX_PODSETNICI_PETLJA nije 1)")
+        return
+    if _petlja_hitnih and not _petlja_hitnih.done() and not _petlja_hitnih.get_loop().is_closed():
         return
     _petlja_hitnih = asyncio.get_running_loop().create_task(_petlja_hitnih_podsetnika())
+    logger.info("[EMAIL-HITNO] periodična provera pokrenuta (na %d s)", _PERIOD_HITNE_S)
 
 
 async def zaustavi_petlju_hitnih() -> None:

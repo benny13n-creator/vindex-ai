@@ -400,25 +400,9 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     if novo:
         out["novo_delo_umisljaj"] = _krivica(novo)
 
-    # S3 (63/2026): istovrsnost ranijih dela — samo izričit navod; oba smera ili negacija nejasna → None
-    _da = re.search(r"(?<!ne)(?<!nisu )(?<!nije )\bistovrsn\w*|\b(?:ista|isto)\s+(?:takv\w*\s+)?(?:krivicn\w*\s+)?del\w*", q)
-    _ne = re.search(r"\b(?:nisu|nije|ni)\s+(?:bil[aio]\s+)?(?:ista|isto|istovrsn\w*)|\bneistovrsn\w*|"
-                    r"\brazlicit\w*\s+(?:vrst\w*\s+)?(?:krivicn\w*\s+)?del|\bdrug\w*\s+vrst\w*\s+(?:krivicn\w*\s+)?del", q)
-    if _da and not _ne:
-        out["istovrsna"] = True
-    elif _ne and not re.search(r"(?<!ne)\bistovrsn\w*", re.sub(r"\b(?:nisu|nije|ni)\s+(?:bil[aio]\s+)?istovrsn\w*", " ", q)):
-        out["istovrsna"] = False
-    if out["istovrsna"] is None and m_osude and novo:
-        # „Ista“ krivična dela: isti naziv dela u osudi i u novom delu („za krađe“ … „izvršio krađu“). Odrednica ispred
-        # novog dela („tešku krađu“) ili bilo šta nejasno → bez zaključka (istovrsnost ostaje sudu).
-        _ne_naziv = r"(?:umisljaj|nehat|krivicn|del[aoiu]?\b|ist|po\b|zatvor|kazn)"
-        _r = re.search(r"\bza\s+([a-z]{4,})", q[m_osude.start():granica] if granica is not None else "")
-        _n = re.search(r"\b(?:izvrsi\w*|ucini\w*|pocini\w*)\s+(?:je\s+)?(?:sa\s+umisljajem\s+|iz\s+nehata\s+)?([a-z]{4,})", novo)
-        if _r and _n and not re.match(_ne_naziv, _r.group(1)) and not re.match(_ne_naziv, _n.group(1)) \
-                and _r.group(1)[:5] == _n.group(1)[:5]:
-            out["istovrsna"] = True
-            napomene.append(f"Ranija i novo delo nose isti naziv („{_r.group(1)}“ / „{_n.group(1)}“) — uzeto kao ista "
-                            "krivična dela; ako to nije tačno, uslov ostaje na oceni suda.")
+    # S3 (63/2026): istovrsnost ranijih dela — samo IZRIČIT, izjavni navod. Završna revizija (M1): prefiks naziva dela
+    # („nasilje“/„nasilničko“) i rečenice sa negacijom, pitanjem ili spornom tvrdnjom su davale lažno DA → uklonjeno.
+    out["istovrsna"] = _istovrsnost_iz_navoda(pitanje)
     if re.search(r"stran\w*\s+(?:sud|drzav)|inostran\w*|u\s+inostranstvu", q):
         napomene.append("Pitanje pominje osudu stranog suda — po važećem tekstu (st. 2) i ona je ranija osuda; za delo pre "
                         "18.07.2026 koji je zakon blaži procenjuje sud (čl. 5 st. 2).")
@@ -515,6 +499,33 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     elif len(pomeni) > 1:
         napomene.append("Otpust se pominje više puta — za uslov od pet godina potreban je jedan datum otpusta sa izdržavanja kazne.")
     return out, napomene
+
+
+_ISTOVRSNO_RE = re.compile(r"\bistovrsn\w*|\b(?:ista|isto)\s+(?:takv\w*\s+)?(?:krivicn\w*\s+)?del\w*")
+_NEGACIJA_RE = re.compile(r"\b(?:ne|nije|nisu|ni|nema|nijedno|nikako)\b|\bneistovrsn")
+_OGRADA_RE = re.compile(r"\bda\s+li\b|\bsva\b|\bsvi\b|\bsve\b|osporav|tvrd\w*|navodn|mozda|verovatn|sporn|ali\b|"
+                        r"\bili\b|nejasn|nije\s+poznat")
+_CISTA_NEGACIJA_RE = re.compile(r"^(?:\w+\s+){0,4}?(?:nisu|nije|ne\s+radi\s+se\s+o|nije\s+rec\s+o)\s+(?:bil[aio]\s+)?"
+                                r"(?:ista|isto|istovrsn\w*)\b")
+
+
+def _istovrsnost_iz_navoda(pitanje: str) -> Optional[bool]:
+    """DA samo iz izjavne rečenice bez negacije i ograde („Ranija dela su istovrsna sa novim.“); NE samo iz čiste negacije
+    („Ranija dela nisu istovrsna.“); pitanje, sporna tvrdnja, delimičnost ili više rečenica koje se ne slažu → None."""
+    q = _norm(pitanje)
+    ishodi = set()
+    for rec in re.split(r"(?<=[.?!;])\s+", q):
+        if not _ISTOVRSNO_RE.search(rec):
+            continue
+        if rec.rstrip().endswith("?") or _OGRADA_RE.search(rec):
+            return None
+        if _NEGACIJA_RE.search(rec):
+            if not _CISTA_NEGACIJA_RE.search(re.sub(r"^\W+", "", rec)) and not re.search(r"\bneistovrsn", rec):
+                return None
+            ishodi.add(False)
+        else:
+            ishodi.add(True)
+    return ishodi.pop() if len(ishodi) == 1 else None
 
 
 def iz_pitanja(pitanje: str) -> dict:

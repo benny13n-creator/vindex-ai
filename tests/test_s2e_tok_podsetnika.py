@@ -50,13 +50,13 @@ def _poruke(s, od=0):
     return out
 
 
-def _cron(pomak_dana=0):
+def _cron(pomak_dana=0, pomak_min=0):
     import asyncio
     import routers.email_notif as en
     from shared.rate import limiter
     from tests import test_b10_reminder_claim as b10
     limiter.reset()
-    sada = datetime.now(timezone.utc) + timedelta(days=pomak_dana)
+    sada = datetime.now(timezone.utc) + timedelta(days=pomak_dana, minutes=pomak_min)
     with patch.object(en, "_sada", lambda: sada):
         return asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
 
@@ -113,11 +113,11 @@ def test_s2e_integrisani_tok_redovno_kasno_pad_oporavak_otkazivanje(lanac, smtp)
                                         "vreme": "23:58"}, headers=A).status_code == 200
     assert len(smtp.primljeno) == 3
     smtp.auth_pada = False
-    rez = _cron()
+    rez = _cron(pomak_min=15)                                                 # posle razmaka ponovnog pokušaja (10 min)
     assert rez["poslato"] == 1 and rez["kasni"] == 1, rez
     (za, naslov, telo), = _poruke(smtp, 3)
     assert "Prekršajni sud" in telo and "Viši sud" not in telo
-    assert _cron()["poslato"] == 0
+    assert _cron(pomak_min=16)["poslato"] == 0
 
     # 5) Otkazivanje i pomeranje pre sutrašnjeg slanja.
     h4 = k.post("/api/rocista", json={"predmet_id": p1, "sud": "Otkazano ročište", "datum": _d(2)}, headers=A).json()["rociste"]

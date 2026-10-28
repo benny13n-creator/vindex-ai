@@ -202,6 +202,7 @@ def test_hitna_provera_tudjeg_korisnika_ne_dira_prvog():
 def _neuspeh_pa(b, izmena):
     import routers.email_notif as en
     _cron(b, _t(DAN, 8), potvrdjeni=("r1",), smtp=_Smtp(puca=en._NijePredato("prijava: SMTPAuthenticationError")))
+    # ponovni pokušaj u 09:00 je posle razmaka od 10 min
     assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)]
     izmena(b)
     return _cron(b, _t(DAN, 9), potvrdjeni=("r1",))
@@ -254,9 +255,11 @@ def test_otkazano_rociste_posle_neuspeha_se_ne_ponavlja():
 def test_iscrpljeni_pokusaji_su_vidljiva_greska():
     import routers.email_notif as en
     b = _baza([_rok("r1", _d(1))])
-    for sat in range(8, 8 + en._MAX_POKUSAJA):
-        _cron(b, _t(DAN, sat), potvrdjeni=("r1",), smtp=_Smtp(puca=en._NijePredato("veza")))
-    rez, poslati = _cron(b, _t(DAN, 20), potvrdjeni=("r1",))
+    t = _t(DAN, 6)
+    for k in range(en._MAX_POKUSAJA):                                       # svaki pokušaj posle punog razmaka
+        _cron(b, t, potvrdjeni=("r1",), smtp=_Smtp(puca=en._NijePredato("veza")))
+        t += timedelta(minutes=en._RAZMAK_POKUSAJA_MIN * 2 ** k + 1)
+    rez, poslati = _cron(b, _t(DAN, 21), potvrdjeni=("r1",))          # 22:00 Beograd, isti dan
     assert poslati == [] and rez["greske"] == 1 and b.log[0]["pokusaja"] == en._MAX_POKUSAJA
 
 
@@ -552,3 +555,40 @@ def test_bez_baze_nove_pozadinske_putanje_ne_dosezu_bazu(monkeypatch):
     monkeypatch.setattr("supabase.create_client", lambda *a, **k: pozvano.append(a) or (_ for _ in ()).throw(AssertionError))
     assert en.proveri_hitne_svima()["greske"] == 1 and en.proveri_hitne_podsetnike("u-1")["greske"] == 1
     assert pozvano == []
+
+
+# ── završna revizija: M3 (razmak pokušaja), pauza i oznaka dnevnog slanja, petlja samo na Render-u ─────────────
+
+def test_rev_m3_kratak_prekid_smtp_ne_trosi_sve_pokusaje():
+    """SMTP ne radi 08:00–08:35; dnevno slanje u 08:00 i periodične provere na 10 min. Ranije: 3 pokušaja za 20 min →
+    iscrpljeno, prag 1 zauvek izgubljen. Sada razmak 10·2^(k−1) min: posle oporavka podsetnik stiže istog dana, jednom."""
+    import routers.email_notif as en
+    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    pad = _Smtp(puca=en._NijePredato("veza"))
+    _cron(b, _t(DAN, 8), potvrdjeni=("r1",), smtp=pad)
+    for m in (10, 20, 30):
+        _svima(b, _t(DAN, 8, m), potvrdjeni=("r1",), smtp=_Smtp(puca=en._NijePredato("veza")))
+    assert b.log[0]["stanje"] == "neuspeh" and b.log[0]["pokusaja"] <= 3
+    poslato = []
+    for minuta in range(40, 130, 10):                                       # 08:40 … 10:00 na svakih 10 min
+        poslato += _svima(b, _t(DAN, 8) + timedelta(minutes=minuta), potvrdjeni=("r1",))[1]
+    assert len(poslato) == 1 and b.log[0]["stanje"] == "poslato" and b.log[0]["pokusaja"] == 4   # 08:00, :10, :30, 09:10
+
+
+def test_rev_pauza_upisuje_oznaku_pa_se_posle_ukidanja_salje_i_danasnji_prag(monkeypatch):
+    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    monkeypatch.setenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "1")
+    rez, poslati = _cron(b, _t(DAN, 8), potvrdjeni=("r1",))
+    assert poslati == [] and rez["greske"] == 1 and b.tabele["email_podsetnik_pokretanje"]
+    monkeypatch.delenv("VINDEX_EMAIL_PODSETNICI_PAUZA")
+    _, poslati = _svima(b, _t(DAN, 9), potvrdjeni=("r1",))
+    assert len(poslati) == 1 and poslati[0][1] == "Vindex AI — Sutra ističe rok!"
+
+
+@pytest.mark.parametrize("render,izricito,ukljucena", [("", "", False), ("true", "", True), ("", "1", True),
+                                                      ("true", "0", False)])
+def test_rev_petlja_podrazumevano_samo_na_renderu(monkeypatch, render, izricito, ukljucena):
+    import routers.email_notif as en
+    monkeypatch.setenv("RENDER", render)
+    monkeypatch.setenv("VINDEX_PODSETNICI_PETLJA", izricito)
+    assert en._petlja_ukljucena() is ukljucena

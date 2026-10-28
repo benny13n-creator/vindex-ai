@@ -652,10 +652,10 @@ def _tokenizuj(query: str) -> list[str]:
 # vanparnični, ustavna žalba, pravni lekovi) ostaju na starom toku.
 _NADLEZNOST_RE = re.compile(
     r"\b(?:mesn\w*\s+nadlez\w*|mesno\s+nadlez\w*|stvarn\w*\s+nadlez\w*|stvarno\s+nadlez\w*"
-    r"|nadlez\w*\s+(?:je\s+|bi\s+bio\s+)?(?:\w+\s+){0,3}sud\w*"
-    # S3: „koji konkretan osnovni sud u Beogradu je nadležan“ — do dve reči pre i do tri posle reči „sud“
-    r"|sud\w*\s+(?:\w+\s+){0,3}?(?:je\s+|bi\s+bio\s+)?(?:mesno\s+|stvarno\s+)?nadlez\w*"
-    r"|nadleznost\w*\s+(?:\w+\s+)?sud\w*|koji\s+(?:je\s+)?(?:\w+\s+){0,2}sud\b|kom\s+sudu|kojem\s+sudu|kojim\s+sudom|pred\s+kojim\s+sudom"
+    r"|nadlez\w*\s+(?:je\s+|bi\s+bio\s+)?(?:\w+\s+){0,3}sud\w*|sud\w*\s+(?:je\s+|bi\s+bio\s+)?(?:mesno\s+|stvarno\s+)?nadlez\w*"
+    r"|nadleznost\w*\s+(?:\w+\s+)?sud\w*|koji\s+(?:je\s+)?sud\b|kom\s+sudu|kojem\s+sudu|kojim\s+sudom|pred\s+kojim\s+sudom"
+    # S3 (usko, posle završne revizije M2): „koji (konkretan) osnovni/viši/privredni sud … je nadležan“ — sa rečju nadležan
+    r"|koji\s+(?:konkret\w*\s+)?(?:osnovni|visi|privredni)\s+sud\w*\s+(?:\w+\s+){0,3}?(?:je\s+)?(?:mesno\s+|stvarno\s+)?nadlez\w*"
     r"|gde\s+(?:da\s+|mogu\s+da\s+|treba\s+da\s+|se\s+)?(?:podnesem|podnese|podnosi|tuzim|tuzi)\w*(?:\s+\w+)?\s+tuzb\w*"
     r"|gde\s+(?:da\s+|mogu\s+da\s+)?tuzim)")
 _NADLEZNOST_DRUGA_RE = re.compile(r"krivic|upravn|prekrsaj|ustavn|zalb|izvrsn\w*\s+postup|izvrsitelj|predlog\w*\s+za\s+izvrs|"

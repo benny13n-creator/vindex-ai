@@ -69,7 +69,11 @@ Ručno pokretanje `send-reminders` ili `/api/cron/daily` tokom prelaza: NE (prav
 ## 5. Pozadinski poslovi novog koda
 
 - Hitna provera posle radnje: pozadinski zadatak rute + trajna posledica `email_podsetnik_hitno` (red `events`).
-- Periodična hitna provera na 10 min (startup petlja u `api.py`); isključenje: `VINDEX_PODSETNICI_PETLJA=0`.
+- Periodična hitna provera na 10 min (startup petlja u `api.py`). Podrazumevano radi SAMO kad postoji env `RENDER`
+  (Render ga postavlja sam); lokalno je isključena. Izričito: `VINDEX_PODSETNICI_PETLJA=1` / `=0`. Smoke: u logu
+  „[EMAIL-HITNO] periodična provera pokrenuta“ posle deploy-a — ako ga nema, postaviti `VINDEX_PODSETNICI_PETLJA=1`.
+- Sigurno nepredata poruka: najviše 6 pokušaja, razmak 10 · 2^(k−1) min (10, 20, 40, 80, 160) — pokriva ~5 h prekida
+  SMTP-a; posle toga vidljiva greška u dnevnom poslu.
 - Svi koriste isti ključ rezervacije → bez duplikata i kod više procesa (`/health` workers=1).
 
 ## 6. Smoke posle puštanja (samo čitanje + jedan kontrolisan test)
@@ -90,7 +94,7 @@ broj događaja `events` u dead-letter-u za `rociste_zakazano` / `ManualCorrectio
 
 | Situacija | Radnja |
 |---|---|
-| Sumnja na pogrešno slanje | Render env `VINDEX_EMAIL_PODSETNICI_PAUZA=1` (redeploy env-a): dnevno slanje i hitne provere ne šalju; dnevni posao CRVEN „pauzirani“. Istorija ostaje. Posle ukidanja periodična provera nadoknađuje dodatne podsetnike. |
+| Sumnja na pogrešno slanje | Render env `VINDEX_EMAIL_PODSETNICI_PAUZA=1` (redeploy env-a): dnevno slanje i hitne provere ne šalju; dnevni posao CRVEN „pauzirani“ (oznaka dnevnog slanja se i tada upisuje). Istorija ostaje. Posle ukidanja periodična provera (≤10 min) šalje i današnji prag i dodatne podsetnike. |
 | Vraćanje koda | Tek POSLE današnjeg dnevnog slanja (ili sutra pre njega). Stari kod ignoriše nove tabele; vraćanje istog dana posle slanja novog koda = mogući 1 duplikat po predmetu/datumu/pragu. Tabele OSTAJU. |
 | `nepoznato` / zaglavljeno `rezervisano` | Ne ponavlja se automatski (D4); dnevni posao ga prijavi jednom (`zaostalo_nepoznato`). Operater proverava kod provajdera da li je poruka otišla. |
 | Odustajanje od 142 | Samo ako nijedan zapis ne postoji — zaštićen blok `[ODUSTAJANJE]` u migraciji (zaključava tabele i odbija brisanje čim postoji zapis). |

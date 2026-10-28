@@ -53,7 +53,12 @@ def test_bez_navoda_o_istovrsnosti_uslov_je_nepoznat_a_uslovni_raspon_se_daje():
     (" Ranija dela su istovrsna sa novim delom.", V.DA),
     (" Ranija dela su ista krivična dela kao novo.", V.DA),
     (" Ranija dela nisu istovrsna sa novim.", V.NE),
-    (" Ranija dela su različita krivična dela od novog.", V.NE),
+    (" Ranija dela su različita krivična dela od novog.", V.NEPOZNATO),     # različita ≠ neistovrsna (ocenjuje sud)
+    (" Ne radi se o istovrsnim delima.", V.NE),
+    (" Nije reč o istovrsnim delima.", V.NE),
+    (" Ranija dela nisu sva istovrsna sa novim.", V.NEPOZNATO),
+    (" Tužilac tvrdi da su dela istovrsna, odbrana to osporava.", V.NEPOZNATO),
+    (" Da li su ranija dela istovrsna?", V.NEPOZNATO),
     (" Ranija dela nisu ista, ali jesu istovrsna.", V.NEPOZNATO),            # oba smera → bez zaključka
 ])
 def test_izricit_navod_istovrsnosti(dodatak, ocekivano):
@@ -62,13 +67,16 @@ def test_izricit_navod_istovrsnosti(dodatak, ocekivano):
 
 @pytest.mark.parametrize("q,ocekivano", [
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, otpušten je pre tri godine, a "
-     "sada je sa umišljajem izvršio krađu, propisan zatvor od jedne do osam godina.", V.DA),          # isti naziv dela
+     "sada je sa umišljajem izvršio krađu, propisan zatvor od jedne do osam godina.", V.NEPOZNATO),   # završna revizija M1:
+    # sistem ne izvodi istovrsnost iz naziva (prefiks je spajao „nasilje u porodici“ i „nasilničko ponašanje“)
+    ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za nasilje u porodici učinjeno sa umišljajem, otpušten je pre "
+     "tri godine, a sada je sa umišljajem izvršio nasilničko ponašanje, propisan zatvor od jedne do osam godina.", V.NEPOZNATO),
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, otpušten je pre tri godine, a "
      "sada je sa umišljajem izvršio tešku krađu, propisan zatvor od jedne do osam godina.", V.NEPOZNATO),   # drugo delo
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za prevare učinjene sa umišljajem, otpušten je pre tri godine, "
      "a sada je sa umišljajem izvršio krađu, propisan zatvor od jedne do osam godina.", V.NEPOZNATO),   # istovrsnost: sud
 ])
-def test_isti_naziv_dela_je_isto_delo_drugi_naziv_ostaje_sudu(q, ocekivano):
+def test_istovrsnost_se_ne_izvodi_iz_naziva_dela(q, ocekivano):
     assert _ishod(q) == ocekivano
 
 
@@ -151,6 +159,33 @@ def test_stari_tekst_55a_iz_baze_se_oznacava_u_odgovoru():
           "zatvora, sud će izreći kaznu iznad polovine raspona propisane kazne, pod sledećim uslovima: 1) ako je učinilac ranije "
           "dva puta osuđen za krivična dela učinjena sa umišljajem na zatvor od najmanje jednu godinu\"")
     v = M._dodaj_proracun_povrata(q, {"status": "success", "data": ai})
-    assert v["data"].count("[TEKST ČL. 55a PRE IZMENE 63/2026") == 2
+    assert v["data"].count("[TEKST ČL. 55a PRE IZMENE 63/2026") == 1       # samo statutarna fraza
+    cinjenice = M._dodaj_proracun_povrata(q, {"status": "success", "data": "Okrivljeni je osuđen za krivična dela učinjena "
+                                                                         "sa umišljajem, i to dva puta."})
+    assert "PRE IZMENE" not in cinjenice["data"]                             # činjenični tekst se ne označava
     blok = v["data"].split("\n\n--- CITAT ZAKONA")[0]
     assert "PRE IZMENE" not in blok and "polazeći od najmanje mere te kazne" in blok    # važeći tekst u proračunu
+
+
+@pytest.mark.parametrize("q,ocekivano", [
+    ("Koji konkretan osnovni sud u Beogradu je nadležan za tužbu za dug?", True),
+    ("Koji je Vrhovni sud zauzeo stav o zastarelosti potraživanja iz ugovora o zajmu?", False),   # sudska praksa
+    ("Koji je viši sud doneo presudu u predmetu o naknadi štete?", False),
+    ("Koji apelacioni sud je ukinuo presudu o razvodu braka?", False),
+    ("Sud za maloletnike je nadležan za koje učinioce?", False),                                     # krivično
+    ("Koja sudska veća su nadležna za maloletnike?", False),
+    ("Koji je disciplinski sud advokatske komore nadležan?", False),
+])
+def test_detektor_gradjanske_nadleznosti_posle_zavrsne_revizije(q, ocekivano):
+    from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
+    assert je_pitanje_gradjanske_nadleznosti(q) is ocekivano
+
+
+def test_napomena_o_preuzimanju_predmeta_ima_izvor_u_prelaznoj_odredbi():
+    """Čl. 4 st. 3 zakona 9/2026 (PIS, „Одредбе које нису унете у пречишћен текст“): „Предмети који до дана почетка
+    примене овог закона нису окончани пред Трећим основним судом у Београду … преузимају месно надлежни судови … основани
+    овим законом.“ Primena: čl. 8 (izmenjen 56/2026) — „примењује се од 1. марта 2027. године“."""
+    import main as M
+    assert "Predmete koji do tada nisu okončani pred dosadašnjim Trećim osnovnim sudom u Beogradu preuzimaju mesno " \
+           "nadležni sudovi osnovani tim izmenama" in M._NAPOMENA_SEDISTA
+    assert "od 1. marta 2027. godine" in M._NAPOMENA_SEDISTA
