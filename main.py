@@ -3608,6 +3608,17 @@ ZUS_27_1_1 = ("u sporu između domaćeg i stranog privrednog društva, preduzeć
               "(privredni subjekti), u sporu koji nastane između privrednog subjekta i drugog pravnog lica u obavljanju delatnosti "
               "privrednog subjekta, kao i ako je u navedenom sporu jedna od stranaka fizičko lice ako je sa strankom u odnosu "
               "materijalnog suparničarstva;")
+# Bojan beta (živo merenje D2): uz samo napomenu ispod, AI deo je stvarnu nadležnost pripisivao ZPP-u (čl. 40) jer u
+# kontekstu nije bilo ZUS-a. Isti proveren tekst ulazi u kontekst kao izvor (zaglavlje kao iz korpusa), pa ga model
+# može citirati, a provera citata ga priznaje.
+_ZUS_KONTEKST = [
+    f"ZAKON: Zakon o uređenju sudova\nČLAN: Član {clan}\n\nCITABILNI TEKST: Član {clan} {tekst}\n[Izvor: {ZUS_IZVOR}.]\n"
+    for clan, tekst in (
+        ("24", f"(2) {ZUS_24_2} (3) {ZUS_24_3}"),
+        ("25", f"(1) [viši sud u prvom stepenu] … 7) {ZUS_25_1_7} …"),
+        ("27", f"(1) [privredni sud u prvom stepenu] 1) {ZUS_27_1_1} …"),
+    )
+]
 _NAPOMENA_STVARNA = (
     "\n\n--- STVARNA NADLEŽNOST (" + ZUS_IZVOR + "; zakon nije u bazi Vindex)\n"
     "Čl. 24 st. 2: „" + ZUS_24_2 + "“\n"
@@ -4095,6 +4106,7 @@ _TVRDNJA_DA_RE = re.compile(
     r"|primenjuje\s+se\s+(?:cl\w*\.?\s+)?55\s?a|55\s?a\s+(?:kz\s+)?se\s+primenjuje|(?<![a-z])primenjuje\s+se\s+visestruk")
 _TVRDNJA_NE_RE = re.compile(r"nisu\s+ispunjeni|nije\s+ispunjen|ne\s+primenjuje\s+se|se\s+ne\s+primenjuje|ne\s+moze\s+(?:se\s+)?primeniti")
 _USLOVNO_RE = re.compile(r"\b(?:ako|ukoliko|kada|kad|ne|nisu|nije|samo\s+ako)\b")
+_USLOVNO_NE_RE = re.compile(r"\b(?:ako|ukoliko|kada|kad|da\s+li|smatra\w*|ospor\w*|tvrdi\w*)\b")
 
 
 def _tvrdnje_o_primeni(tekst: str) -> set:
@@ -4104,8 +4116,10 @@ def _tvrdnje_o_primeni(tekst: str) -> set:
     for m in _TVRDNJA_DA_RE.finditer(t):
         if not _USLOVNO_RE.search(t[max(0, m.start() - 25): m.start()]):
             out.add("DA")
-    if _TVRDNJA_NE_RE.search(t):
-        out.add("NE")
+    for m in _TVRDNJA_NE_RE.finditer(t):
+        # „može da ospori ako smatra da uslovi nisu ispunjeni“ nije tvrdnja (izmereno: lažno UPOZORENJE, Bojan beta)
+        if not _USLOVNO_NE_RE.search(t[max(0, m.start() - 30): m.start()]):
+            out.add("NE")
     return out
 
 
@@ -4463,6 +4477,12 @@ def ask_agent(
             filtrirani = [d for d in _ref_docs if len(d.strip()) > 50] + [
                 d for d in filtrirani if d not in _ref_set
             ]
+        try:
+            from app.services.retrieve import je_pitanje_gradjanske_nadleznosti as _je_nadl_ctx
+            if filtrirani and _je_nadl_ctx(pitanje_api):
+                filtrirani = filtrirani + _ZUS_KONTEKST   # Bojan beta: stvarna nadležnost iz ZUS-a, ne iz ZPP-a
+        except Exception as _ze:
+            logger.debug("[N8] ZUS nije dodat u kontekst: %s", _ze)
         if not filtrirani:
             odgovor = _format_low_response(top_score)
             return {

@@ -123,7 +123,7 @@ def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional
     elif novo_delo_umisljaj is False:
         uslovi.append(Uslov("novo delo učinjeno sa umišljajem", NE, "navedeno je da je delo učinjeno iz nehata"))
     else:
-        uslovi.append(Uslov("novo delo učinjeno sa umišljajem", NEPOZNATO, "nije navedeno"))
+        uslovi.append(Uslov("novo delo učinjeno sa umišljajem", NEPOZNATO, "nije navedeno ili nije prepoznato iz pitanja"))
         nedostaje.append("da li je novo delo učinjeno sa umišljajem")
 
     if propisan_max_dana is not None:
@@ -180,7 +180,7 @@ def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional
             nedostaje.append("tačan datum otpuštanja sa izdržavanja kazne i datum izvršenja novog dela")
     else:
         uslovi.append(Uslov("2) od otpuštanja sa izdržavanja kazne do novog dela nije proteklo pet godina", NEPOZNATO,
-                            "nije naveden datum ili vreme otpuštanja sa izdržavanja kazne"))
+                            "datum ili vreme otpuštanja sa izdržavanja kazne nije naveden ili nije prepoznat iz pitanja"))
         nedostaje.append("datum otpuštanja sa izdržavanja kazne i datum izvršenja novog dela")
 
     # Uslov 1b (važeći tekst, 63/2026): ranija dela ISTA ili ISTOVRSNA kao novo. KZ istovrsnost ne definiše — sistem je

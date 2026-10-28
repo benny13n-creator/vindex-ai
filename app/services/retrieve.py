@@ -950,6 +950,24 @@ def _log_rag_error(reason: str, namespace: str, detail: str) -> None:
 
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
 
+def _vazeci_tekst_clanova(matches):
+    """Bojan beta (63/2026): korpus ima KZ zaključno sa 94/2024, pa za čl. 55a vraća tekst PRE izmene i model ga je
+    navodio kao važeći (izmereno: „PRAVNA DEFINICIJA“ i „CITAT ZAKONA [RAG]“ bez „ista ili istovrsna“). Dok se korpus ne
+    ažurira (poseban, odobren upis u Pinecone), tekst tog člana se pri čitanju zamenjuje proverenim važećim tekstom;
+    stari tekst ostaje u punom tekstu člana, označen kao istorijski (čl. 5 KZ — vremensko važenje)."""
+    from shared.visestruki_povrat import CITAT_55A, CITAT_55A_DO_63_2026, IZVOR_55A
+    for m in matches or []:
+        md = getattr(m, "metadata", None)
+        if not isinstance(md, dict) or md.get("law") != "KZ" or str(md.get("article") or "").strip() != "Član 55a":
+            continue
+        vazeci = f"Član 55a {CITAT_55A}"
+        md.update(text=vazeci, tekst_preview=vazeci[:300], verzija_teksta="63/2026",
+                  parent_text=(f"{vazeci}\n[Izvor: {IZVOR_55A}.]\n"
+                               f"[ISTORIJSKI TEKST — važio do 17.07.2026, pre izmene 63/2026; primenjuje se samo ako je blaži "
+                               f"za učinioca dela izvršenog pre 18.07.2026 (čl. 5 KZ): {CITAT_55A_DO_63_2026}]"))
+    return matches
+
+
 def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None,
                          *, neuspeh: Optional[list] = None) -> list:
     """`neuspeh`: opciona lista u koju se, ako upit PADNE, upisuje `IZVOR_ZAKON`.
@@ -970,7 +988,7 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
         matches = index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
         if not matches:
             logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
-        return matches
+        return _vazeci_tekst_clanova(matches)
     except Exception as exc:
         _sentry_capture(exc)
         logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
@@ -986,7 +1004,8 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
     index = _get_index()
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
-        return index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
+        return _vazeci_tekst_clanova(
+            index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches)
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u pretraga_vec")
@@ -1135,13 +1154,13 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None, raise_o
     try:
         vektor = _ugradi_query(f"{label_clana} {zakon or ''}")
         index = _get_index()
-        return index.query(
+        return _vazeci_tekst_clanova(index.query(
             vector=vektor,
             top_k=10,
             namespace=_ZAKONI_NS,
             include_metadata=True,
             filter=filter_dict,
-        ).matches
+        ).matches)
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u direktnom fetchu člana %s", label_clana)

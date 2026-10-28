@@ -189,3 +189,86 @@ def test_napomena_o_preuzimanju_predmeta_ima_izvor_u_prelaznoj_odredbi():
     assert "Predmete koji do tada nisu okončani pred dosadašnjim Trećim osnovnim sudom u Beogradu preuzimaju mesno " \
            "nadležni sudovi osnovani tim izmenama" in M._NAPOMENA_SEDISTA
     assert "od 1. marta 2027. godine" in M._NAPOMENA_SEDISTA
+
+
+class _Match:
+    def __init__(self, md, mid="x"):
+        self.id, self.metadata, self.score = mid, md, 0.9
+
+
+class _Indeks:
+    """Lažan Pinecone indeks: vraća dva stara vektora čl. 55a (tekst baze do 94/2024) i jedan čl. 55."""
+    def __init__(self):
+        self.upiti = []
+
+    def query(self, **kw):
+        self.upiti.append(kw)
+        stari = f"Član 55a {V.CITAT_55A_DO_63_2026}"
+        ms = [_Match({"law": "KZ", "article": "Član 55a", "zakon": "KZ", "clan": 55, "text": stari, "parent_text": stari}),
+              _Match({"law": "KZ", "article": "Član 55", "zakon": "KZ", "clan": 55, "text": "Član 55 (1) Ako je učinilac …"}),
+              _Match({"law": "ZKP", "article": "Član 55a", "text": "Član 55a drugi zakon"})]
+        return type("R", (), {"matches": ms})()
+
+
+@pytest.mark.parametrize("putanja", ["direktan", "vec", "semanticka"])
+def test_korpus_cl_55a_se_cita_kao_vazeci_tekst_a_stari_je_oznacen_istorijski(monkeypatch, putanja):
+    """Bojan beta: AI deo odgovora je iz baze navodio tekst čl. 55a PRE 63/2026 kao važeći. Svaka tačka čitanja zakonskog
+    korpusa mora dati važeći tekst kao citabilni; stari ostaje samo označen kao istorijski. Drugi članovi i zakoni ne smeju
+    da se menjaju."""
+    from app.services import retrieve as R
+    ix = _Indeks()
+    monkeypatch.setattr(R, "_get_index", lambda: ix)
+    monkeypatch.setattr(R, "_ugradi_query", lambda q: [0.0])
+    ms = {"direktan": lambda: R._direktan_fetch_clana("Član 55a", "KZ"),
+          "vec": lambda: R._pretraga_vec([0.0], 5),
+          "semanticka": lambda: R._semanticka_pretraga("visestruki povrat", 5)}[putanja]()
+    cl55a, cl55, zkp = ms
+    assert cl55a.metadata["text"] == f"Član 55a {V.CITAT_55A}"
+    assert "ista ili istovrsna" in R._formatiraj_match(cl55a).split("[ISTORIJSKI TEKST")[0]
+    assert "CITABILNI TEKST: Član 55a (1) Za krivično delo" in R._formatiraj_match(cl55a)
+    istorijski = cl55a.metadata["parent_text"].split("[ISTORIJSKI TEKST", 1)
+    assert V.CITAT_55A_DO_63_2026 not in istorijski[0] and V.CITAT_55A_DO_63_2026 in istorijski[1]
+    assert "do 17.07.2026" in istorijski[1] and "čl. 5 KZ" in istorijski[1]
+    assert cl55.metadata["text"] == "Član 55 (1) Ako je učinilac …" and "parent_text" not in cl55.metadata
+    assert zkp.metadata["text"] == "Član 55a drugi zakon"
+
+
+def test_oznaka_starog_teksta_ne_pogadja_vazeci_citat_iz_korpusa():
+    import main as M
+    assert not M._STARI_55A_RE.search(f"Član 55a {V.CITAT_55A}")
+    assert M._STARI_55A_RE.search(V.CITAT_55A_DO_63_2026)
+
+
+@pytest.mark.parametrize("tekst, ocekivano", [
+    ("Okrivljeni može pokušati da ospori primenu člana 55a ako smatra da uslovi nisu ispunjeni.", set()),
+    ("Odbrana tvrdi da uslovi nisu ispunjeni.", set()),
+    ("U ovom slučaju uslovi iz člana 55a nisu ispunjeni.", {"NE"}),
+    ("Čl. 55a se ne primenjuje jer dela nisu istovrsna.", {"NE"}),
+])
+def test_uslovna_negacija_nije_tvrdnja_o_primeni(tekst, ocekivano):
+    """Živo merenje (Bojan beta, D3): uslovi DA, a AI rečenica „ako smatra da uslovi nisu ispunjeni“ je davala lažno
+    UPOZORENJE da AI tvrdi suprotno."""
+    import main as M
+    assert M._tvrdnje_o_primeni(tekst) == ocekivano
+
+
+def test_zus_u_kontekstu_je_izvor_koji_provera_citata_priznaje():
+    """Bojan beta (D2): AI deo je stvarnu nadležnost pripisivao ZPP čl. 40 jer ZUS nije bio u kontekstu. Proveren tekst ZUS-a
+    ulazi u kontekst sa zaglavljem kao iz korpusa; citat „čl. 27 Zakona o uređenju sudova“ je tada potvrđen, a izmišljen
+    član istog zakona nije."""
+    import main as M
+    izvori = M._izvori_iz_konteksta(M._ZUS_KONTEKST)
+    (ident,) = izvori
+    assert set(izvori[ident]) == {"24", "25", "27"}
+    ok = M._klasifikuj_citate("Stvarno je nadležan privredni sud (čl. 27 Zakona o uređenju sudova).", M._ZUS_KONTEKST)
+    lose = M._klasifikuj_citate("Nadležan je privredni sud (čl. 29 Zakona o uređenju sudova).", M._ZUS_KONTEKST)
+    assert [c["nivo"] for c in ok] == [M.CITAT_SOURCE_MATCHED]
+    assert [c["nivo"] for c in lose] == [M.CITAT_UNVERIFIED]
+    assert all(M.ZUS_IZVOR in d for d in M._ZUS_KONTEKST)
+
+
+def test_ozicenje_zus_konteksta_u_ask_agent():
+    import inspect
+    import main as M
+    izvor = inspect.getsource(M.ask_agent)
+    assert "filtrirani = filtrirani + _ZUS_KONTEKST" in izvor and "_je_nadl_ctx(pitanje_api)" in izvor
