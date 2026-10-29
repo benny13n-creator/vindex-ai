@@ -613,7 +613,8 @@ def _ucesnik(clan: dict, dokazi_po_id: dict, raz: Razresavac) -> dict:
 
 
 def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokazi: Optional[list],
-                          dokumenti: Optional[list], izvori: Optional[dict] = None) -> dict:
+                          dokumenti: Optional[list], izvori: Optional[dict] = None,
+                          observation_version: Any = None) -> dict:
     izvori = dict(izvori or {})
     if v2 is None or izvori.get("kontradikcije", "OK") != "OK":
         return {"stanje": DEGRADIRANO, "izvor": None, "aktivne": [], "za_pregled": [], "zatvorene": [],
@@ -643,6 +644,42 @@ def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokaz
     zatvorene = [s for s in v2_stavke if s["stanje"] not in ("AKTIVNA", "ZA_PREGLED")]
 
     legacy_sirove = (case_dna or {}).get("kontradikcije") if isinstance(case_dna, dict) and "greska" not in (case_dna or {}) else None
+
+    # CG001: najnovija analiza čije tvrdnje domen ne može da veže za aktivnu spornu tačku (REVIEW_REQUIRED se ne
+    # upisuje). Sačuvana veza ostaje aktivna i netaknuta, ali nosi oznaku; novije opažanje ide među „traži pregled“.
+    if aktivne_v2 and isinstance(legacy_sirove, list):
+        from shared.issue_v2 import KONTINUITET_NEPOZNAT, status_kontinuiteta
+        # Žive tvrdnje filtriraju opažanje samo ako su zaista pročitane; nepročitane ne smeju tiho ugasiti oznaku.
+        zive = set(po_id) if dokazi is not None and izvori.get("dokazi", "OK") == "OK" else None
+        st = status_kontinuiteta(v2, case_dna, observation_version, zive) or {"oznake": {}, "nerazreseno": []}
+        nerazreseno = st["nerazreseno"]
+        for s in aktivne_v2:
+            if s["id"] not in st["oznake"]:
+                continue
+            s["kontinuitet"] = st["oznake"][s["id"]]
+            s["napomena"] = (
+                "Najnovija sačuvana analiza nije ona iz koje je nastalo ovo stanje sporne tačke (osvežavanje je u toku "
+                "ili kasniji upis nije uspeo) — kontinuitet nije proveren." if s["kontinuitet"] == KONTINUITET_NEPOZNAT
+                else "Sačuvana veza iz ranije analize. Najnovija analiza ovu spornu tačku vezuje za druge "
+                     "tvrdnje, pa nije potvrđeno da je reč o istoj spornoj tački — proverite pod „traži vaš pregled“.")
+        for n in nerazreseno:
+            k = n["stavka"]
+            ucesnici = [_ucesnik({"dokaz_id": c}, po_id, raz) for c in n["claim_ids"]]
+            za_pregled.append({
+                "id": kljuc_sadrzaja("kontradikcija.opazanje", k.get("relation_type"), *n["claim_ids"]),
+                "id_vrsta": "sadrzaj", "poreklo": AI_ANALYSIS, "reference_proverene": True,
+                "sporna_tacka": _tekst(k.get("issue_label"), 300) or _tekst(k.get("opis"), 300),
+                "opis": _tekst(k.get("opis"), 1200),
+                "relacija": k.get("relation_type") if k.get("relation_type") in _RELACIJE else None,
+                "tezina": k.get("tezina") if k.get("tezina") in _TEZINE else None,
+                "stanje": "ZA_PREGLED", "razlog_stanja": None, "kontinuitet": "NIJE_POTVRDJEN",
+                "ucesnici": ucesnici, "povuceni_ucesnici": 0,
+                "dokumenti": sorted({u["dokument_id"] for u in ucesnici if u["dokument_id"]}),
+                "bez_izvora": [u["tvrdnja_id"] for u in ucesnici if not u["dokument_id"]],
+                "povezane_aktivne": n["kontradikcije"],
+                "napomena": ("Najnovija analiza. Nije sačuvana kao nastavak aktivne sporne tačke jer povezane tvrdnje "
+                             "nisu iste niti prošireni skup ranijih — kontinuitet nije potvrđen."),
+            })
     legacy = []
     if not aktivne_v2 and isinstance(legacy_sirove, list):
         for i, k in enumerate(legacy_sirove):
@@ -738,13 +775,66 @@ def promene_genome(stari: Optional[dict], novi: Optional[dict]) -> dict:
     if sk or nk:
         if identitet_seme_stabilna(sk, nk):
             r = razdvoji_kontradikcije(sk, nk, contradiction_identity_stable)
-            for k in r["nove"]:
-                rel, ids = contradiction_identity_stable(k)
+            # CG001: neuparena stara i nova stavka ISTE relacije koje dele tvrdnju, a nijedna ne sadrži drugu, nisu
+            # „nova + nestala“ — sistem zna samo da kontinuitet nije dokaziv (A008: preklapanje = pregled, nikad
+            # identitet). Prijavljuju se kao jedna nerazrešena promena, bez spajanja i bez tvrdnje o razrešenju.
+            # PR #60 (višestrukost): preklapanja čine komponente (stare ↔ nove iste relacije sa zajedničkom tvrdnjom).
+            # Komponenta 1↔1 je jedna nerazrešena promena staro→novo. Komponenta sa više starih ili više novih ne sme
+            # da sugeriše spajanje ni uparivanje: jedna stavka, skupovi navedeni ZASEBNO (bez unije), „nije utvrđeno“.
+            stare_skup = [(contradiction_identity_stable(k), k) for k in r["eliminisane"]]
+            nove_skup = [(contradiction_identity_stable(k), k) for k in r["nove"]]
+            komp = list(range(len(stare_skup) + len(nove_skup)))
+
+            def _koren(x):
+                while komp[x] != x:
+                    komp[x] = komp[komp[x]]
+                    x = komp[x]
+                return x
+            for i, ((rel_s, ids_s), _) in enumerate(stare_skup):
+                for j, ((rel_n, ids_n), _) in enumerate(nove_skup):
+                    if rel_n == rel_s and set(ids_n) & set(ids_s):
+                        komp[_koren(i)] = _koren(len(stare_skup) + j)
+            clanovi_komp: dict[int, tuple[list[int], list[int]]] = {}
+            for i in range(len(stare_skup)):
+                clanovi_komp.setdefault(_koren(i), ([], []))[0].append(i)
+            for j in range(len(nove_skup)):
+                clanovi_komp.setdefault(_koren(len(stare_skup) + j), ([], []))[1].append(j)
+            uparene_nove: set[int] = set()
+            prijavljene: set[int] = set()
+            for i, ((rel, ids), k) in enumerate(stare_skup):
+                kor = _koren(i)
+                si, nj = clanovi_komp[kor]
+                if not nj:
+                    dodaj(promene, "kontradikcija_nestala", "✓", "Kontradikcija se više ne opaža: " + (_tekst(k.get("issue_label"), 200) or "sporna tačka"),
+                          "kontradikcija:" + rel + ":" + ",".join(ids), AI_ANALYSIS, tvrdnje=list(ids))
+                    continue
+                if kor in prijavljene:
+                    continue
+                prijavljene.add(kor)
+                uparene_nove.update(nj)
+                if len(si) == 1 and len(nj) == 1:
+                    novi_ids = list(nove_skup[nj[0]][0][1])
+                    dodaj(promene, "kontradikcija_promenjena", "!",
+                          "Povezane tvrdnje su se promenile; kontinuitet sporne tačke nije potvrđen: "
+                          + (_tekst(k.get("issue_label"), 200) or "sporna tačka"),
+                          "kontradikcija:" + rel + ":" + ",".join(ids) + "->" + ",".join(novi_ids), AI_ANALYSIS,
+                          list(ids), novi_ids, tvrdnje=sorted(set(ids) | set(novi_ids)))
+                    continue
+                stari_sk = sorted(list(stare_skup[x][0][1]) for x in si)
+                novi_sk = sorted(list(nove_skup[x][0][1]) for x in nj)
+                nazivi = list(dict.fromkeys(_tekst(stare_skup[x][1].get("issue_label"), 200) or "sporna tačka" for x in si))
+                nazivi += [n for n in dict.fromkeys(_tekst(nove_skup[x][1].get("issue_label"), 200) or "sporna tačka"
+                                                    for x in nj) if n not in nazivi]
+                dodaj(promene, "kontradikcija_promenjena", "!",
+                      f"Povezane tvrdnje su se promenile; nije utvrđeno koja ranija sporna tačka ({len(si)}) odgovara kojoj "
+                      f"novoj ({len(nj)}) — ništa nije spojeno: " + "; ".join(nazivi),
+                      "kontradikcija:" + rel + ":" + "|".join(",".join(x) for x in stari_sk) + "->"
+                      + "|".join(",".join(x) for x in novi_sk), AI_ANALYSIS,
+                      stari_sk, novi_sk, tvrdnje=sorted({c for x in stari_sk + novi_sk for c in x}))
+            for j, ((rel, ids), k) in enumerate(nove_skup):
+                if j in uparene_nove:
+                    continue
                 dodaj(promene, "kontradikcija_dodata", "+", "Nova kontradikcija: " + (_tekst(k.get("issue_label"), 200) or "sporna tačka"),
-                      "kontradikcija:" + rel + ":" + ",".join(ids), AI_ANALYSIS, tvrdnje=list(ids))
-            for k in r["eliminisane"]:
-                rel, ids = contradiction_identity_stable(k)
-                dodaj(promene, "kontradikcija_nestala", "✓", "Kontradikcija se više ne opaža: " + (_tekst(k.get("issue_label"), 200) or "sporna tačka"),
                       "kontradikcija:" + rel + ":" + ",".join(ids), AI_ANALYSIS, tvrdnje=list(ids))
         else:
             nepoznato.append({"oblast": "kontradikcije",

@@ -46,7 +46,7 @@ import logging
 from typing import Any, Optional
 
 from shared.claim_catalog import GreskaKataloga, razresi_reference
-from shared.issue_v2 import MIN_TVRDNJI, RELACIJE
+from shared.issue_v2 import MIN_TVRDNJI, RELACIJA_CINJENICA_CINJENICA, RELACIJE
 
 logger = logging.getLogger("vindex.contradiction_materializer")
 
@@ -55,10 +55,39 @@ ODBIJEN_OBLIK = "MALFORMED"
 ODBIJEN_RELACIJA = "UNKNOWN_RELATION"
 ODBIJEN_REFERENCA = "UNRESOLVED_CLAIM_REF"
 ODBIJEN_MALO_TVRDNJI = "TOO_FEW_CLAIMS"
+ODBIJEN_IZVORI = "CLAIM_SOURCE_MISMATCH"
 
 
 def _tekst(v: Any) -> Optional[str]:
     return v.strip() if isinstance(v, str) and v.strip() else None
+
+
+def izvori_nedosledni(k: dict, claim_ids: list[str], poznati_dokazi: Optional[dict[str, dict]]) -> Optional[str]:
+    """CG001 — izabrane tvrdnje ne pokrivaju dokumente koje ista kontradikcija navodi kao svoje strane.
+
+    Incident 28.10.2026: Genome je video tekst oba dokumenta, ali katalog je imao tvrdnje samo prvog (tvrdnje drugog
+    još nisu bile izdvojene). Model je opisao spor DOK-01 ↔ DOK-02, a izabrao dve tvrdnje DOK-01 — reference su
+    postojale, pa je pogrešan par postao V2 sporna tačka.
+
+    Ovo je PROVERA DOSLEDNOSTI provenijencije, ne identitet: dokumenti ne odlučuju koje su tvrdnje članovi, samo
+    da li izbor može biti onaj spor koji kandidat opisuje. Odlučuje SAMO kada je to dokazivo:
+      - relacija činjenica–činjenica (kod norme druga strana nije dokument);
+      - `dokument_id_1/2` razrešeni sistemski (A002, `redni_broj`) i različiti — isti dokument = unutrašnji spor;
+      - svaka izabrana tvrdnja ima poznat dokument (tvrdnja advokata nema — ne zna se da nije „druga strana“).
+    Tada svaki navedeni dokument mora imati bar jednu izabranu tvrdnju. Vraća opis neslaganja ili `None`."""
+    if k.get("relation_type") != RELACIJA_CINJENICA_CINJENICA or not poznati_dokazi:
+        return None
+    navedeni = {k.get("dokument_id_1"), k.get("dokument_id_2")}
+    if len(navedeni) != 2 or not all(isinstance(d, str) and d for d in navedeni):
+        return None
+    dok_tvrdnji = [(poznati_dokazi.get(c) or {}).get("dokument_id") for c in claim_ids]
+    if not dok_tvrdnji or not all(dok_tvrdnji):
+        return None
+    bez_tvrdnje = navedeni - set(dok_tvrdnji)
+    if not bez_tvrdnje:
+        return None
+    return (f"navedeni izvor bez ijedne izabrane tvrdnje (dokumenti {sorted(bez_tvrdnje)}; "
+            f"tvrdnje su iz {sorted(set(dok_tvrdnji))})")
 
 
 def materializuj(
@@ -112,6 +141,14 @@ def materializuj(
         if len(set(razresene)) < MIN_TVRDNJI:
             odbijeni.append({"indeks": i, "razlog": ODBIJEN_MALO_TVRDNJI,
                              "detalj": f"{len(set(razresene))} razlicitih tvrdnji",
+                             "opis": _tekst(k.get("opis"))})
+            continue
+
+        nedoslednost = izvori_nedosledni(k, razresene, poznati_dokazi)
+        if nedoslednost:
+            # Odbijen = opažanje nije kompletno (services/v2_observation.py), pa se ništa ne zatvara; kontradikcija
+            # ostaje u analizi kao „nije vezana za tvrdnje“ (shared/genome_contract.py), ne nestaje.
+            odbijeni.append({"indeks": i, "razlog": ODBIJEN_IZVORI, "detalj": nedoslednost,
                              "opis": _tekst(k.get("opis"))})
             continue
 

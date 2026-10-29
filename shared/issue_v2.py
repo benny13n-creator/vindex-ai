@@ -386,6 +386,104 @@ def razresi_paket(
     return rezultati
 
 
+def nepotvrdjen_kontinuitet(opazanja: Iterable[frozenset], postojece_teme: Iterable[dict]) -> list[dict]:
+    """CG001 — koja opažanja (skupovi tvrdnji) domen NE BI mogao da veže za postojeće otvorene teme.
+
+    `REVIEW_REQUIRED` se ne upisuje (services/v2_contradiction_persistence.py, GAP-2), pa se posle refresh-a nigde ne
+    vidi da najnovije opažanje ne potvrđuje sačuvanu vezu. Ovde se ISTI ishod rekonstruiše iz onoga što jeste
+    sačuvano (najnoviji `case_dna.kontradikcije[].claim_ids` i tekuće V2 članstvo), ISTOM funkcijom
+    `razresi_kontinuitet` — nema drugog pravila. Vraća `[{"indeks", "kandidati": [issue_id, …]}]` samo za
+    `REVIEW_REQUIRED`; nastavak i nova tema nemaju šta da se označi. Ništa se ne spaja i ništa ne upisuje."""
+    teme = list(postojece_teme)
+    out = []
+    for i, skup in enumerate(opazanja):
+        if not skup or len(skup) < MIN_TVRDNJI:
+            continue
+        r = razresi_kontinuitet(frozenset(skup), teme)
+        if r["odluka"] == ODLUKA_PREGLED and r["kandidati"]:
+            out.append({"indeks": i, "kandidati": r["kandidati"]})
+    return out
+
+
+def nerazreseno_prema_opazanju(v2_otvorene: Iterable[dict], opazanje: Any,
+                               zive_tvrdnje: Optional[set] = None) -> list[dict]:
+    """`nepotvrdjen_kontinuitet` nad oblicima koje imaju čitači: V2 kontradikcije (`id`, `issue_id`, `issue_status`,
+    `state`, `claim_ids` = aktivni članovi) i `case_dna.kontradikcije` (trajni `claim_ids`, NS006 Task 6).
+
+    Tema = unija aktivnih članova OTVORENIH kontradikcija iste sporne tačke — isto kao
+    `services/v2_contradiction_persistence.py::_ucitaj_postojece_teme`. Opažanje bez trajnih veza se preskače (ne
+    izmišlja se). `zive_tvrdnje` (ako je poznat) izbacuje povučene tvrdnje iz opažanja, kao `validiraj_claim_ref`.
+
+    Vraća `[{"stavka": dict iz case_dna, "claim_ids": [...], "kontradikcije": [contradiction_id, …]}]`."""
+    po_temi, kontr_po_temi, stavke = _teme_i_opazanje(v2_otvorene, opazanje, zive_tvrdnje)
+    if not po_temi:
+        return []
+    out = []
+    for r in nepotvrdjen_kontinuitet([skup for _, skup in stavke], po_temi.values()):
+        s, skup = stavke[r["indeks"]]
+        out.append({"stavka": s, "claim_ids": sorted(skup),
+                    "kontradikcije": sorted(c for t in r["kandidati"] for c in kontr_po_temi.get(t, []))})
+    return out
+
+
+def _teme_i_opazanje(v2_otvorene: Iterable[dict], opazanje: Any, zive_tvrdnje: Optional[set]):
+    """Teme (unija aktivnih članova OTVORENIH kontradikcija po spornoj tački), contradiction id-jevi po temi i stavke
+    opažanja sa skupom živih tvrdnji — jedan oblik za `nerazreseno_prema_opazanju` i `status_kontinuiteta`."""
+    po_temi: dict[str, dict] = {}
+    kontr_po_temi: dict[str, list[str]] = {}
+    for k in v2_otvorene or []:
+        if k.get("state") != STANJE_OTVORENA or not k.get("issue_id"):
+            continue
+        tid = str(k["issue_id"])
+        t = po_temi.setdefault(tid, {"issue_id": tid, "status": k.get("issue_status") or STATUS_OTKRIVENA,
+                                     "claim_set": frozenset()})
+        t["claim_set"] = t["claim_set"] | frozenset(str(c) for c in (k.get("claim_ids") or []))
+        kontr_po_temi.setdefault(tid, []).append(str(k["id"]))
+    stavke = []
+    for s in opazanje if isinstance(opazanje, list) else []:
+        ids = s.get("claim_ids") if isinstance(s, dict) else None
+        if not isinstance(ids, list):
+            continue
+        stavke.append((s, frozenset(str(c) for c in ids if c and (zive_tvrdnje is None or str(c) in zive_tvrdnje))))
+    return po_temi, kontr_po_temi, stavke
+
+
+KONTINUITET_NIJE_POTVRDJEN = "NIJE_POTVRDJEN"   # najnovije opažanje domen ne bi vezao (REVIEW_REQUIRED)
+KONTINUITET_NEPOZNAT = "NEPOZNAT"               # `case_dna` nije opažanje koje je proizvelo tekuću V2 sliku
+
+# Ključ u `case_dna`: `predmeti.observation_version` paketa koji je upisan ZAJEDNO sa tim opažanjem.
+KLJUC_VERZIJE_OPAZANJA = "_v2_observation_version"
+
+
+def status_kontinuiteta(v2_otvorene: Iterable[dict], case_dna: Any, observation_version: Any,
+                        zive_tvrdnje: Optional[set] = None) -> Optional[dict]:
+    """CG001 — JEDINA odluka čitača o kontinuitetu otvorenih V2 kontradikcija prema `case_dna`.
+
+    Vraća `None` kad nema opažanja nad kojim se može odlučivati (nema `case_dna.kontradikcije` ili je analiza pala) —
+    tada se ništa ne tvrdi. Inače `{"oznake": {contradiction_id: status}, "nerazreseno": [...]}`:
+
+      * `case_dna` nosi verziju opažanja različitu od `predmeti.observation_version` (ili ta nije pročitana) —
+        V2 slika je nastala iz DRUGOG opažanja (osvežavanje u toku, kasniji upis nije uspeo, trka dva osvežavanja).
+        Staro opažanje se ne koristi ni za oznaku ni za „pregled“: sve otvorene su `NEPOZNAT`.
+      * inače `nerazreseno_prema_opazanju`: `NIJE_POTVRDJEN` samo za ono što bi domen poslao na pregled — osim teme koju
+        neka DRUGA stavka istog opažanja domen nastavlja (dokazan kontinuitet; preklopna stavka i dalje ide u „pregled“).
+        Bez oznake = najnovije opažanje je nastavak ili ne dodiruje tu spornu tačku.
+      * `case_dna` bez zapisa verzije (upisan pre CG001): odlučuje se kao ranije; verzija se ne može proveriti."""
+    if not isinstance(case_dna, dict) or "greska" in case_dna or not isinstance(case_dna.get("kontradikcije"), list):
+        return None
+    otvorene = [k for k in (v2_otvorene or []) if k.get("state") == STANJE_OTVORENA and k.get("id")]
+    verzija = case_dna.get(KLJUC_VERZIJE_OPAZANJA)
+    if verzija is not None and str(verzija) != str(observation_version):   # nepročitana verzija (None) nije jednaka
+        return {"oznake": {str(k["id"]): KONTINUITET_NEPOZNAT for k in otvorene}, "nerazreseno": []}
+    nerazreseno = nerazreseno_prema_opazanju(otvorene, case_dna["kontradikcije"], zive_tvrdnje)
+    po_temi, kontr_po_temi, stavke = _teme_i_opazanje(otvorene, case_dna["kontradikcije"], zive_tvrdnje)
+    nastavljene = {c for _, skup in stavke if len(skup) >= MIN_TVRDNJI
+                   for r in [razresi_kontinuitet(skup, po_temi.values())] if r["odluka"] == ODLUKA_NASTAVAK
+                   for c in kontr_po_temi.get(r["issue_id"], [])}
+    return {"oznake": {c: KONTINUITET_NIJE_POTVRDJEN for n in nerazreseno for c in n["kontradikcije"] if c not in nastavljene},
+            "nerazreseno": nerazreseno}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. PROMENA ČLANSTVA — šta je izostalo, a šta je razrešeno
 # ═══════════════════════════════════════════════════════════════════════════

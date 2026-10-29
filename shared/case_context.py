@@ -243,7 +243,7 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
         ),
         asyncio.to_thread(
             lambda: supa.table("case_actions")
-                .select("tip, razlog, dokaz, prioritet, rok, dedupe_key, status")
+                .select("predmet_id, tip, razlog, dokaz, prioritet, rok, dedupe_key, status")
                 .eq("predmet_id", predmet_id)
                 .eq("status", "open")
                 .execute()
@@ -283,12 +283,20 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
         return_exceptions=True,
     )
 
+    # CG001: AI kontekst (active_actions / top_open_action → case_intelligence, court_predictor, hearing_cc,
+    # digital_twin, morning_briefing) vidi radnju sa istim statusom kontinuiteta kao radna lista i analiza — jedna
+    # granica umesto zakrpe po agentu. Samo čitanje; trajni red se ne menja.
+    akcije = _safe(actions_r)
+    if akcije:
+        from services.v2_projection import uz_trenutni_kontinuitet
+        akcije = await uz_trenutni_kontinuitet(supa, akcije)
+
     return {
         "predmet":      predmet,
         "dokumenti":    _safe(dok_r),
         "dokazi":       _safe(dokazi_r),
         "rocista":      _safe(rocista_r),
-        "case_actions": _safe(actions_r),
+        "case_actions": akcije,
         "hronologija":  _safe(hron_r),
         "komentari":    _safe(kom_r),
     }

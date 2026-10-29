@@ -445,7 +445,10 @@ async def persist_observation_package(
             -1, "PACKAGE",
             f"{_RPC_PAKET} nije vratio nijedan red za {len(stavke)} stavki")
 
-    nova_verzija = verzija
+    # CG001: uspešan poziv UVEK podiže verziju na `verzija + 1` (migracija 125: `p_expected_version = verzija` je
+    # proveren pod `FOR UPDATE`, pa `v_nova = verzija + 1`) — i kad paket nema nijednu stavku (sve REVIEW_REQUIRED),
+    # pa RPC ne vrati red. Ranije je tada prijavljivana STARA verzija.
+    nova_verzija = verzija + 1
     for red in redovi:
         idx = int(red["out_indeks"])
         nova_verzija = int(red["out_version"])

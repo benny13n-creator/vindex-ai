@@ -51,6 +51,7 @@ from shared.contradiction_identity import (contradiction_identity,
 # pravila o tome sta model sme da referise.
 from shared.claim_catalog import MAKS_TVRDNJI as _MAKS_TVRDNJI, napravi_katalog, redovi_za_prompt
 from shared.claim_catalog import GreskaKataloga, razresi_reference
+from shared.contradiction_materializer import izvori_nedosledni
 from services.v2_observation import upisi_v2_opazanje
 from services.v2_contradiction_persistence import (
     V2PackageRejected, V2StaleObservation)
@@ -239,7 +240,7 @@ async def _fetch_dokazi_kontekst(supa, predmet_id: str) -> list[dict]:
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
-                .select("id,predmet_id,tvrdnja,kategorija,pravni_element,deleted_at")
+                .select("id,predmet_id,dokument_id,tvrdnja,kategorija,pravni_element,deleted_at")
                 .eq("predmet_id", predmet_id)
                 .is_("deleted_at", "null")
                 .order("id")
@@ -540,6 +541,10 @@ async def _extract_genome(
             try:
                 _ids = razresi_reference(_k.get("claim_refs"), _katalog_k, predmet_id, _poznati_k) if _katalog_k else None
             except GreskaKataloga:
+                _ids = None
+            # CG001: veza koju V2 materijalizacija odbija (tvrdnje ne pokrivaju navedene izvore) nije ni trajna veza
+            # za poređenje verzija — isti vlasnik pravila, isti ishod.
+            if _ids and izvori_nedosledni(_k, _ids, _poznati_k):
                 _ids = None
             _k["claim_ids"] = sorted(_ids) if _ids and len(set(_ids)) >= 2 else None
         return result
@@ -1210,6 +1215,10 @@ async def _do_genome_refresh(
         logger.info("[A017] V2 opazanje upisano predmet=%s kandidata=%d odbijeno=%d "
                     "kompletno=%s v_obs=%s", predmet_id, _v2["kandidata"],
                     _v2["odbijeno"], _v2["kompletno"], _v2["observation_version"])
+        # CG001: `case_dna` pamti verziju V2 paketa upisanog iz OVOG opažanja — čitač tako zna da li tekuća V2 slika
+        # potiče iz njega (shared/issue_v2.status_kontinuiteta), a ne iz kasnijeg/ranijeg osvežavanja.
+        from shared.issue_v2 import KLJUC_VERZIJE_OPAZANJA
+        genome[KLJUC_VERZIJE_OPAZANJA] = _v2["observation_version"]
 
         await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
 
@@ -1479,6 +1488,8 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
         logger.info("[A017] V2 opazanje upisano (manual) predmet=%s kandidata=%d "
                     "odbijeno=%d kompletno=%s", predmet_id, _v2["kandidata"],
                     _v2["odbijeno"], _v2["kompletno"])
+        from shared.issue_v2 import KLJUC_VERZIJE_OPAZANJA
+        genome[KLJUC_VERZIJE_OPAZANJA] = _v2["observation_version"]   # CG001, isto kao pozadinski put
     except Exception as _v2_exc:
         logger.warning("[A017] V2 opazanje NEUSPESNO (manual) predmet=%s: %s -- "
                        "case_dna se NE upisuje", predmet_id, _v2_exc)
@@ -1649,7 +1660,7 @@ async def _zp_vlasnistvo(supa, predmet_id: str, uid: str) -> dict:
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("predmeti")
-                .select("id,naziv,tip,status,tuzilac,tuzeni,case_dna")
+                .select("id,naziv,tip,status,tuzilac,tuzeni,case_dna,observation_version")
                 .eq("id", predmet_id).eq("user_id", uid).limit(1).execute()
         )
     except Exception as exc:
@@ -1709,6 +1720,7 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
         if isinstance(r, Exception):
             logger.warning("[ZIVI_PREDMET] izvor '%s' NIJE pročitan predmet=%s: %s", ime, predmet_id, r)
     case_dna = predmet.pop("case_dna", None)
+    observation_version = predmet.pop("observation_version", None)
     if case_dna is not None and not isinstance(case_dna, dict):
         izvori["genome"] = "GRESKA"
         case_dna = None
@@ -1728,6 +1740,7 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
         "rocista": [] if isinstance(roc_r, Exception) else list(roc_r.data or []),
         "akcije": [] if isinstance(akc_r, Exception) else list(akc_r.data or []),
         "v2_kontradikcije": None if isinstance(kon_r, Exception) else kon_r,
+        "observation_version": observation_version,
         "izvori": izvori, "osvezeno": osvezeno,
         "skraceno": {"dokumenti": len(dokumenti) >= _ZP_MAKS_REDOVA, "dokazi": len(dokazi) >= _ZP_MAKS_REDOVA},
     }
@@ -1745,7 +1758,8 @@ def sastavi_zivi_predmet(izv: dict) -> dict:
                                     v2_kontradikcije=None if v2 is None else [k for k in v2 if k.get("state") == "OPEN"],
                                     izvori=izv["izvori"], legacy_kontradikcija=legacy)
     ugovor["kontradikcije"] = sastavi_kontradikcije(v2=v2, case_dna=izv["case_dna"], dokazi=izv["dokazi"],
-                                                    dokumenti=izv["dokumenti"], izvori=izv["izvori"])
+                                                    dokumenti=izv["dokumenti"], izvori=izv["izvori"],
+                                                    observation_version=izv.get("observation_version"))
     from shared.case_readiness import pregled_spremnosti
     cd = izv["case_dna"] if isinstance(izv["case_dna"], dict) else {}
     ugovor["spremnost"] = pregled_spremnosti(
