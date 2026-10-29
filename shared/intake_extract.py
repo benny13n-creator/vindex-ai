@@ -76,8 +76,11 @@ _COURT_TIP_BEZ_GRADA = r"(?:Vrhovni\s+kasacioni|Privredni\s+apelacioni|Prekršaj
 # početi velikim slovom (van dometa (?i:...)) da bi regex ostao selektivan —
 # globalni re.IGNORECASE bi ovaj zahtev poništio i dozvolio da bilo koja
 # sledeća reč (npr. običan glagol) bude pogrešno pročitana kao deo naziva.
+# BA-01: naziv grada (i druga reč, „Novom Sadu“) sme biti samo u ISTOM redu. Sa `\s+` je regex prelazio u sledeći
+# red zaglavlja i vraćao „OSNOVNI SUD U BEOGRADU Posl“ sa pouzdanošću 0.90 — iznad praga pregleda. Kad ovde nema
+# poklapanja, sud ostaje na LLM ekstrakciji (extract_all_entities), pa promašaj nije gubitak, a izmišljen sud jeste.
 _COURT_RE = re.compile(
-    rf"\b(?i:{_COURT_TIP_SA_GRADOM}\s+sud\s+u)\s+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*(?:\s+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*)?"
+    rf"\b(?i:{_COURT_TIP_SA_GRADOM}[ \t]+sud[ \t]+u)[ \t]+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*(?:[ \t]+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*)?"
     rf"|\b(?i:{_COURT_TIP_BEZ_GRADA}\s+sud)\b"
 )
 
