@@ -20,7 +20,9 @@ jobs:
       matrix:
         python-version: ["3.11", "3.13"]
     name: pytest (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    # ubuntu-latest = ubuntu-26.04 od slike 20261025: `playwright install --with-deps chromium` (requirements-browser.txt)
+    # tamo pada pre ijednog testa ("Playwright does not support chromium on ubuntu26.04-x64"). Fiksna podržana slika.
+    runs-on: ubuntu-24.04
     env:
       # Fake credentials — the test suite mocks Supabase/OpenAI/Pinecone throughout
       # and does not hit live services. Real secrets are never needed here.
