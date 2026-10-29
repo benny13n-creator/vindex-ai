@@ -275,9 +275,11 @@ def test_bez_odlucivog_opazanja_red_ostaje_kakav_je_upisan(lanac, case_dna):
         assert (a["razlog"], a["dokaz"]) == (upisan["razlog"], upisan["dokaz"])
 
 
-def test_nedostupan_izvor_ne_menja_red_i_ne_rusi_tablu(lanac, monkeypatch):
+def test_nedostupan_izvor_kaze_nije_provereno_ne_menja_red_i_ne_rusi_tablu(lanac, monkeypatch):
+    """PR #60 Task A: neuspelo čitanje nikad ne izgleda kao potvrđen kontinuitet (ranije: red bez oznake)."""
     otvori, _ = lanac
     k, baza = _zateceno(otvori, _g(2, [A, C, D], "kriticna"))
+    upisan = copy.deepcopy(baza.tabele["case_actions"][0])
     import services.v2_projection as vp
 
     async def _pad(*a, **kw):
@@ -285,8 +287,10 @@ def test_nedostupan_izvor_ne_menja_red_i_ne_rusi_tablu(lanac, monkeypatch):
     monkeypatch.setattr(vp, "ucitaj_v2_kontradikcije", _pad)
     pred, wl_akc, ws_akc, _ = _sve_povrsine(k)
     [a] = pred.json()["akcije"]
-    assert a["razlog"] == baza.tabele["case_actions"][0]["razlog"] and "kontinuitet" not in a["dokaz"]
-    assert len(wl_akc) == 1 and len(ws_akc) == 1
+    assert a["razlog"].startswith(upisan["razlog"]) and "kontinuitet nije proveren" in a["razlog"]
+    assert a["dokaz"]["kontinuitet"] == "NEPOZNAT" and a["prioritet"] == "medium" and a["id"] == upisan["id"]
+    assert len(wl_akc) == 1 and len(ws_akc) == 1 and "kontinuitet nije proveren" in ws_akc[0]["naslov"]
+    assert baza.tabele["case_actions"][0] == upisan
 
 
 def test_drugi_korisnik_ne_dobija_radnju_predmeta(lanac):

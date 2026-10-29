@@ -70,7 +70,7 @@ _PODRAZUMEVANI_PRIORITET = "high"
 # CG001: dodatak razlogu po statusu kontinuiteta (shared/issue_v2.status_kontinuiteta) — jedan tekst za upis i čitanje.
 _KONTINUITET_RAZLOG = {
     "NIJE_POTVRDJEN": " — najnovija analiza vezuje druge tvrdnje; kontinuitet nije potvrđen, proverite povezane tvrdnje",
-    "NEPOZNAT": " — analiza predmeta se osvežava ili poslednji upis nije uspeo; kontinuitet nije proveren",
+    "NEPOZNAT": " — kontinuitet nije proveren (analiza se osvežava ili izvor trenutno nije pročitan)",
 }
 
 
@@ -265,10 +265,12 @@ async def predmet_ima_v2(supa, predmet_id: str) -> bool:
 
 
 async def oznacene_kontradikcije(supa, predmet_id: str, kontradikcije: list[dict], case_dna: Any,
-                                 observation_version: Any = None) -> Optional[dict]:
+                                 observation_version: Any = None, uid: Optional[str] = None) -> Optional[dict]:
     """CG001 — `{contradiction_id: status kontinuiteta}` za OTVORENE V2 kontradikcije, iz ISTE odluke koju koristi
     analiza (`shared/issue_v2.status_kontinuiteta`). `None` = nema opažanja nad kojim se odlučuje — ništa se ne tvrdi.
-    Tvrdnje koje se ne mogu pročitati ne filtriraju opažanje (kao u prikazu): nepročitano ne gasi oznaku."""
+    Tvrdnje koje se ne mogu pročitati ne filtriraju opažanje (kao u prikazu): nepročitano ne gasi oznaku. `uid`: žive su
+    samo tvrdnje vlasnika predmeta, kao u prikazu (`routers/case_dna._zp_dokazi`) — red istog predmeta drugog korisnika
+    ne utiče na odluku."""
     import asyncio
     from shared.issue_v2 import status_kontinuiteta
     opazanje = case_dna.get("kontradikcije") if isinstance(case_dna, dict) else None
@@ -277,11 +279,11 @@ async def oznacene_kontradikcije(supa, predmet_id: str, kontradikcije: list[dict
     zive: Optional[set] = set()
     if ids:
         # Isto kao prikaz: povučena tvrdnja nije član opažanja. Opseg je predmet.
+        def _zive():
+            q = supa.table("predmet_dokazi").select("id,deleted_at").eq("predmet_id", predmet_id)
+            return (q.eq("user_id", uid) if uid else q).in_("id", ids).execute()
         try:
-            zr = await asyncio.to_thread(
-                lambda: supa.table("predmet_dokazi").select("id,deleted_at")
-                           .eq("predmet_id", predmet_id).in_("id", ids).execute()
-            )
+            zr = await asyncio.to_thread(_zive)
             zive = {str(d["id"]) for d in ((zr.data if zr else None) or []) if not d.get("deleted_at")}
         except Exception as exc:
             logger.warning("[V2-PROJ] tvrdnje opažanja nisu pročitane predmet=%s: %s", predmet_id, exc)
@@ -291,14 +293,15 @@ async def oznacene_kontradikcije(supa, predmet_id: str, kontradikcije: list[dict
 
 
 async def v2_akcije_za_predmet(supa, predmet_id: str, case_dna: Optional[dict] = None,
-                               observation_version: Any = None) -> list[dict]:
+                               observation_version: Any = None, uid: Optional[str] = None) -> list[dict]:
     """Ceo put: baza -> akcije. Prazna lista znači „ovaj predmet nema V2".
 
-    `case_dna` (CG001): najnovije opažanje; ako ga domen ne može vezati za aktivnu spornu tačku, akcija to kaže."""
-    kontradikcije = await ucitaj_v2_kontradikcije(supa, predmet_id)
+    `case_dna` (CG001): najnovije opažanje; ako ga domen ne može vezati za aktivnu spornu tačku, akcija to kaže.
+    `uid` (vlasnik predmeta): sporne tačke i tvrdnje samo vlasnika — ista odluka kao prikaz i read-model."""
+    kontradikcije = await ucitaj_v2_kontradikcije(supa, predmet_id, uid=uid)
     if not kontradikcije:
         return []
-    oznake = await oznacene_kontradikcije(supa, predmet_id, kontradikcije, case_dna, observation_version)
+    oznake = await oznacene_kontradikcije(supa, predmet_id, kontradikcije, case_dna, observation_version, uid=uid)
     if oznake:
         kontradikcije = [{**k, "kontinuitet": oznake[str(k.get("id"))]} if str(k.get("id")) in oznake else k
                          for k in kontradikcije]
@@ -329,8 +332,9 @@ async def uz_trenutni_kontinuitet(supa, akcije: list[dict]) -> list[dict]:
     predmeta prikazuju A/B radnju bez informacije da je aktuelna analiza osporava, dok `/genome-v2` to već kaže.
 
     Samo čitanje: ne piše, ne pokreće reconcile, ne menja ključ/prioritet/status. Pozivalac je već ograničio akcije na
-    predmete korisnika; ovde se čita samo po tim `predmet_id`. Predmet za koji se nešto ne može pročitati ostaje
-    tačno kako je upisan (poslednje usklađeno stanje) — nedostupnost nikad ne skida ni ne dodaje oznaku."""
+    predmete korisnika; ovde se čita samo po tim `predmet_id`. Predmet za koji se izvor ne može pročitati: SVE njegove
+    V2 radnje nose `NEPOZNAT` („kontinuitet nije proveren“) — neuspelo čitanje nikad ne izgleda kao potvrđen kontinuitet.
+    Predmet bez opažanja nad kojim se odlučuje (`None`) ostaje kakav je upisan, kao i u analizi."""
     import asyncio
     po_predmetu: dict[str, list[int]] = {}
     for i, a in enumerate(akcije or []):
@@ -347,9 +351,10 @@ async def uz_trenutni_kontinuitet(supa, akcije: list[dict]) -> list[dict]:
         )
         red = pr.data if pr else None
         if not isinstance(red, dict) or not red.get("user_id"):
-            return None
+            raise LookupError("predmet nije pročitan")
         kontradikcije = await ucitaj_v2_kontradikcije(supa, pid, uid=red["user_id"])
-        return await oznacene_kontradikcije(supa, pid, kontradikcije, red.get("case_dna"), red.get("observation_version"))
+        return await oznacene_kontradikcije(supa, pid, kontradikcije, red.get("case_dna"), red.get("observation_version"),
+                                            uid=red["user_id"])
 
     pids = sorted(po_predmetu)
     rezultati = await asyncio.gather(*(_jedan(p) for p in pids), return_exceptions=True)
@@ -357,7 +362,7 @@ async def uz_trenutni_kontinuitet(supa, akcije: list[dict]) -> list[dict]:
     for pid, oznake in zip(pids, rezultati):
         if isinstance(oznake, Exception):
             logger.warning("[V2-PROJ] kontinuitet akcija nije proveren predmet=%s: %s", pid, oznake)
-            continue
+            oznake = {str(out[i]["dokaz"].get("source_id")): "NEPOZNAT" for i in po_predmetu[pid]}
         if oznake is None:
             continue
         for i in po_predmetu[pid]:
