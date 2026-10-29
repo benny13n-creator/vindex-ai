@@ -50,8 +50,11 @@ _CASE_NUMBER_RE = re.compile(
 # Novčani iznos sa hiljadama-separatorom i valutom (RSD/din/EUR/€/$/USD) —
 # valuta je OBAVEZNA u match-u, bez nje je prevelik rizik lažnog pozitiva
 # (bilo koji broj bi inače "izgledao" kao iznos).
+# BA-01: „dinara“/„динара“ (najčešći oblik u presudama) nije bio prepoznat — `din\.?` + `\b` traži granicu reči
+# posle „din“. Duži oblik ide PRE kraćeg. `(?<![\d.,])`: broj ne sme biti rep većeg, pogrešno zapisanog broja
+# („350.00,00 dinara“ je davao „00,00 dinara“).
 _AMOUNT_RE = re.compile(
-    r"\b(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s?(РСД|RSD|дин\.?|din\.?|€|EUR|евра|eura|\$|USD)\b",
+    r"(?<![\d.,])\b(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s?(РСД|RSD|динара|дин\.?|dinara|din\.?|€|EUR|евра|eura|\$|USD)\b",
     re.IGNORECASE,
 )
 
