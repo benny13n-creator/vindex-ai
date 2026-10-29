@@ -41,21 +41,21 @@ const DOKUMENTI = () => ({ [P]: [D1, D2].map((id, i) => ({ id, predmet_id: P, us
   naziv_fajla: ["Vindex_TEST_01_Beleska_klijenta.pdf", "Vindex_TEST_02_Interna_evidencija.pdf"][i], status: "indeksirano",
   velicina_kb: 20, redni_broj: i + 1, tip_dokaza: "dopis", created_at: "2026-10-28T21:58:00Z", tekst_sadrzaj: "TEKST-" + i })) });
 
-function ziviRuta() {
+function ziviRuta(odgovori = STVARNO.odgovori) {
   const tok = { [TA]: "A", [TB]: "B" };
   return async (req, url, res) => {
-    if (!/^\/api\/(predmeti\/[^/]+\/genome-v2(\/promene)?|case-actions\/predmeti\/[^/]+)$/.test(url.pathname)) return false;
+    if (!/^\/api\/(predmeti\/[^/]+\/genome-v2(\/promene)?|case-actions\/predmeti\/[^/]+|case-actions\/worklist|workspace)$/.test(url.pathname)) return false;
     const k = tok[(req.headers.authorization || "").slice(7)];
     if (!k) { json(res, 401, { detail: "Prijava je obavezna" }); return true; }
-    const o = STVARNO.odgovori[`${k}|${url.pathname}`] || STVARNO.odgovori[`B|/api/predmeti/${P}/genome-v2`];
+    const o = odgovori[`${k}|${url.pathname}`] || STVARNO.odgovori[`B|/api/predmeti/${P}/genome-v2`];
     json(res, o.status, o.telo);
     return true;
   };
 }
 
-async function scenario({ hash, tema = "dark", token = TA, korisnik = "kA", w = 1440, h = 900 }) {
+async function scenario({ hash, tema = "dark", token = TA, korisnik = "kA", w = 1440, h = 900, odgovori }) {
   const KOR = korisnici();
-  const f = await pokreniFixture(kombinuj(ziviRuta(), predmetiRuta(KOR), predmetDetaljRuta(KOR, DOKUMENTI())));
+  const f = await pokreniFixture(kombinuj(ziviRuta(odgovori), predmetiRuta(KOR), predmetDetaljRuta(KOR, DOKUMENTI())));
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce", colorScheme: tema });
   const spoljni = [];
   await ctx.route("**/*", rr => { const u = new URL(rr.request().url()); if (u.hostname === "127.0.0.1") return rr.continue(); spoljni.push(u.href); return rr.abort(); });
@@ -122,6 +122,47 @@ for (const [tema, w] of [["dark", 1440], ["light", 1440], ["dark", 390]]) {
   zapisi("pregled", "promene: nerazrešena, ne „nestala“", e.promene.some(t => /kontinuitet sporne tačke nije potvrđen/.test(t))
     && !e.promene.some(t => /više ne opaža/.test(t)), JSON.stringify(e.promene));
   await s.zatvori();
+}
+
+// ── 2b. Odmah posle deploy-a, BEZ događaja i reconcile-a: radnja upisana starim kodom (CG001 Task 1) ──────────────
+{
+  const BEZ = STVARNO.bez_dogadjaja;
+  zapisi("posle deploy-a", "zatečen red nema oznaku; čitanje ništa ne upisuje i ne zove model",
+    !/kontinuitet/.test(BEZ.upisan_razlog) && BEZ.citanje_upisalo === false && BEZ.model_pozvan === 0, BEZ.upisan_razlog);
+  const PAT = /kontinuitet nije potvrđen/;
+  {
+    const s = await scenario({ hash: "#/danas", odgovori: BEZ.odgovori });
+    await cekaj(s.p, () => document.querySelectorAll("#rl-korpe li[data-vrsta='case_action']").length > 0);
+    const e = await s.p.evaluate(() => [...document.querySelectorAll("#rl-korpe li[data-vrsta='case_action']")]
+      .map(x => [x.dataset.prioritet, x.innerText.replace(/\s+/g, " ")]));
+    const r = e.filter(([, t]) => /Razlika u iznosu uplate/.test(t));
+    zapisi("posle deploy-a", "Danas/radna lista: A/B radnja kaže da kontinuitet nije potvrđen, prioritet srednji",
+      r.length === 1 && PAT.test(r[0][1]) && r[0][0] === "medium", JSON.stringify(e));
+    await s.zatvori();
+  }
+  {
+    const s = await scenario({ hash: `#/predmeti/${P}`, odgovori: BEZ.odgovori });
+    await cekaj(s.p, () => !document.getElementById("zp-blok").hidden && document.getElementById("zp-sledece").children.length > 0);
+    const e = await s.p.evaluate(() => [...document.querySelectorAll("#zp-paznja > li, #zp-sledece > li")]
+      .map(x => [x.dataset.prioritet, x.innerText.replace(/\s+/g, " ")]));
+    const r = e.filter(([, t]) => /Razlika u iznosu uplate/.test(t));
+    zapisi("posle deploy-a", "detalj predmeta: radnja (ako je prikazana) nosi oznaku i nije eskalirana",
+      r.every(([pr, t]) => PAT.test(t) && pr !== "critical" && pr !== "high"), JSON.stringify(e));
+    await s.zatvori();
+  }
+  for (const ruta of [`/api/case-actions/predmeti/${P}`, "/api/case-actions/worklist", "/api/workspace"]) {
+    const t = BEZ.odgovori[`A|${ruta}`].telo;
+    const akc = ruta === "/api/workspace" ? ["danas", "kriticno", "predstojece"].flatMap(k => t[k]).filter(x => x.predmet_id === P).map(x => ({ prioritet: x.prioritet, razlog: x.naslov }))
+      : ruta.endsWith("worklist") ? t.predmeti.filter(c => c.predmet_id === P).flatMap(c => c.akcije) : t.akcije;
+    zapisi("posle deploy-a", `${ruta}: jedna radnja, medium, sa oznakom`, akc.length === 1 && akc[0].prioritet === "medium" && PAT.test(akc[0].razlog),
+      JSON.stringify(akc.map(a => [a.prioritet, a.razlog])));
+    const tb = BEZ.odgovori[`B|${ruta}`];
+    zapisi("posle deploy-a", `${ruta}: korisnik B ne dobija predmet A`, ruta.includes("/predmeti/") ? tb.status === 404
+      : !JSON.stringify(tb.telo).includes(P), String(tb.status));
+  }
+  const kon = BEZ.odgovori[`A|/api/predmeti/${P}/genome-v2`].telo.kontradikcije;
+  zapisi("posle deploy-a", "analiza: A/B označena, A/C/D za pregled — isto što i radnja",
+    kon.aktivne.length === 1 && kon.aktivne[0].kontinuitet === "NIJE_POTVRDJEN" && kon.za_pregled.length === 1);
 }
 
 // ── 3. Drugi korisnik ────────────────────────────────────────────────────────────────────────

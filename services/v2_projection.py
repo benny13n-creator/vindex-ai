@@ -67,6 +67,9 @@ TIP_AKCIJE = "RAZRESITI_KONTRADIKCIJU"
 _TEZINA_PRIORITET = {"kriticna": "critical", "vazna": "high", "manja": "medium"}
 _PODRAZUMEVANI_PRIORITET = "high"
 
+# CG001: dodatak razlogu kad najnovije opažanje ne potvrđuje sačuvano članstvo (jedan tekst za upis i za čitanje).
+_KONTINUITET_RAZLOG = " — najnovija analiza vezuje druge tvrdnje; kontinuitet nije potvrđen, proverite povezane tvrdnje"
+
 
 def projekcioni_kljuc(contradiction_id: Any) -> str:
     """`v2:contradiction:{uuid}` — jedini dozvoljeni ključ za V2 akciju."""
@@ -111,7 +114,7 @@ def u_akciju(kontradikcija: dict) -> dict:
         # CG001: isti signal kao analiza (shared/genome_contract.py). Ključ i prioritet se NE menjaju — prioritet
         # prati sačuvanu težinu, ne nepotvrđeni predlog modela; menja se samo ono što advokat čita.
         dokaz["kontinuitet"] = "NIJE_POTVRDJEN"
-        razlog += " — najnovija analiza vezuje druge tvrdnje; kontinuitet nije potvrđen, proverite povezane tvrdnje"
+        razlog += _KONTINUITET_RAZLOG
 
     return {
         "tip": TIP_AKCIJE,
@@ -257,6 +260,28 @@ async def predmet_ima_v2(supa, predmet_id: str) -> bool:
     return bool((r.data if r else None) or [])
 
 
+async def oznacene_kontradikcije(supa, predmet_id: str, kontradikcije: list[dict], case_dna: Any) -> Optional[set]:
+    """CG001 — id-jevi OTVORENIH V2 kontradikcija koje najnovije opažanje (`case_dna`) ne može da veže
+    (`nerazreseno_prema_opazanju`, isti `razresi_kontinuitet`). `None` = nije moguće odlučiti (nema opažanja ili
+    analiza nije uspela) — tada se ništa ne označava i ništa ne skida. Greška čitanja tvrdnji se propagira."""
+    opazanje = case_dna.get("kontradikcije") if isinstance(case_dna, dict) and "greska" not in case_dna else None
+    if not isinstance(opazanje, list):
+        return None
+    import asyncio
+    from shared.issue_v2 import nerazreseno_prema_opazanju
+    ids = sorted({str(c) for s in opazanje if isinstance(s, dict) and isinstance(s.get("claim_ids"), list)
+                  for c in s["claim_ids"] if c})
+    zive: set = set()
+    if ids:
+        # Isto kao prikaz: povučena tvrdnja nije član opažanja. Opseg je predmet.
+        zr = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokazi").select("id,deleted_at")
+                       .eq("predmet_id", predmet_id).in_("id", ids).execute()
+        )
+        zive = {str(d["id"]) for d in ((zr.data if zr else None) or []) if not d.get("deleted_at")}
+    return {c for n in nerazreseno_prema_opazanju(kontradikcije, opazanje, zive) for c in n["kontradikcije"]}
+
+
 async def v2_akcije_za_predmet(supa, predmet_id: str, case_dna: Optional[dict] = None) -> list[dict]:
     """Ceo put: baza -> akcije. Prazna lista znači „ovaj predmet nema V2".
 
@@ -264,23 +289,62 @@ async def v2_akcije_za_predmet(supa, predmet_id: str, case_dna: Optional[dict] =
     kontradikcije = await ucitaj_v2_kontradikcije(supa, predmet_id)
     if not kontradikcije:
         return []
-    opazanje = case_dna.get("kontradikcije") if isinstance(case_dna, dict) and "greska" not in case_dna else None
-    if isinstance(opazanje, list):
-        import asyncio
-        from shared.issue_v2 import nerazreseno_prema_opazanju
-        ids = sorted({str(c) for s in opazanje if isinstance(s, dict) and isinstance(s.get("claim_ids"), list)
-                      for c in s["claim_ids"] if c})
-        zive: set = set()
-        if ids:
-            # Isto kao prikaz: povučena tvrdnja nije član opažanja. Opseg je predmet.
-            zr = await asyncio.to_thread(
-                lambda: supa.table("predmet_dokazi").select("id,deleted_at")
-                           .eq("predmet_id", predmet_id).in_("id", ids).execute()
-            )
-            zive = {str(d["id"]) for d in ((zr.data if zr else None) or []) if not d.get("deleted_at")}
-        oznacene = {c for n in nerazreseno_prema_opazanju(kontradikcije, opazanje, zive) for c in n["kontradikcije"]}
+    oznacene = await oznacene_kontradikcije(supa, predmet_id, kontradikcije, case_dna)
+    if oznacene:
         kontradikcije = [{**k, "kontinuitet": "NIJE_POTVRDJEN"} if str(k.get("id")) in oznacene else k
                          for k in kontradikcije]
     akcije = u_akcije(kontradikcije)
     logger.info("[V2-PROJ] predmet=%s projektovano %d V2 kontradikcija", predmet_id, len(akcije))
     return akcije
+
+
+def _uz_kontinuitet(akcija: dict, oznacene: set) -> dict:
+    """Otvoren `case_actions` red (V2 izvor) -> isti red sa razlogom/dokazom kakve bi `u_akciju` dala za TRENUTNO
+    opažanje. Menjaju se samo `razlog` i `dokaz.kontinuitet`; id, ključ, prioritet, članovi ostaju kakvi su upisani."""
+    dokaz = akcija.get("dokaz") if isinstance(akcija.get("dokaz"), dict) else None
+    if not dokaz or dokaz.get("source_type") != IZVOR_TIP:
+        return akcija
+    razlog = akcija.get("razlog") or ""
+    osnov = razlog[:-len(_KONTINUITET_RAZLOG)] if razlog.endswith(_KONTINUITET_RAZLOG) else razlog
+    if str(dokaz.get("source_id")) in oznacene:
+        return {**akcija, "razlog": osnov + _KONTINUITET_RAZLOG, "dokaz": {**dokaz, "kontinuitet": "NIJE_POTVRDJEN"}}
+    return {**akcija, "razlog": osnov, "dokaz": {k: v for k, v in dokaz.items() if k != "kontinuitet"}}
+
+
+async def uz_trenutni_kontinuitet(supa, akcije: list[dict]) -> list[dict]:
+    """CG001 Task 1 — read-model: otvorene V2 akcije nose kontinuitet prema TRENUTNOM Genome-u, ne prema poslednjem
+    usklađivanju. Bez ovoga, posle deploy-a (ili između novog opažanja i reconcile-a) radna lista, Danas i pregled
+    predmeta prikazuju A/B radnju bez informacije da je aktuelna analiza osporava, dok `/genome-v2` to već kaže.
+
+    Samo čitanje: ne piše, ne pokreće reconcile, ne menja ključ/prioritet/status. Pozivalac je već ograničio akcije na
+    predmete korisnika; ovde se čita samo po tim `predmet_id`. Predmet za koji se nešto ne može pročitati ostaje
+    tačno kako je upisan (poslednje usklađeno stanje) — nedostupnost nikad ne skida ni ne dodaje oznaku."""
+    import asyncio
+    po_predmetu: dict[str, list[int]] = {}
+    for i, a in enumerate(akcije or []):
+        d = a.get("dokaz")
+        if isinstance(d, dict) and d.get("source_type") == IZVOR_TIP and a.get("predmet_id"):
+            po_predmetu.setdefault(str(a["predmet_id"]), []).append(i)
+    if not po_predmetu:
+        return akcije
+
+    async def _jedan(pid: str):
+        pr = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id,case_dna").eq("id", pid).maybe_single().execute()
+        )
+        red = pr.data if pr else None
+        case_dna = red.get("case_dna") if isinstance(red, dict) else None
+        return await oznacene_kontradikcije(supa, pid, await ucitaj_v2_kontradikcije(supa, pid), case_dna)
+
+    pids = sorted(po_predmetu)
+    rezultati = await asyncio.gather(*(_jedan(p) for p in pids), return_exceptions=True)
+    out = list(akcije)
+    for pid, oznacene in zip(pids, rezultati):
+        if isinstance(oznacene, Exception):
+            logger.warning("[V2-PROJ] kontinuitet akcija nije proveren predmet=%s: %s", pid, oznacene)
+            continue
+        if oznacene is None:
+            continue
+        for i in po_predmetu[pid]:
+            out[i] = _uz_kontinuitet(out[i], oznacene)
+    return out

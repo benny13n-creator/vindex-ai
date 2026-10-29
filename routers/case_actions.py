@@ -56,7 +56,10 @@ async def _fetch_open_actions(supa, predmet_ids: list[str]) -> list[dict]:
             .eq("status", "open")
             .execute()
     )
-    return list(res.data or [])
+    # CG001: jedina tačka čitanja otvorenih akcija za radnu listu, Danas i pregled predmeta — kontinuitet V2 sporne
+    # tačke se prikazuje prema trenutnom Genome-u, bez upisa i bez čekanja sledećeg usklađivanja.
+    from services.v2_projection import uz_trenutni_kontinuitet
+    return await uz_trenutni_kontinuitet(supa, list(res.data or []))
 
 
 @router.get("/worklist")

@@ -52,6 +52,39 @@ def main() -> dict:
                     telo.pop("procitano", None)
                 out["odgovori"][f"{kor}|{ruta.format(p=P)}"] = {"status": r.status_code, "telo": telo}
         out["model_pozvan_pri_citanju"] = len(pozivi) - n_poziva
+    finally:
+        ocisti()
+        mp.undo()
+    out["bez_dogadjaja"] = bez_dogadjaja()
+    return out
+
+
+def bez_dogadjaja() -> dict:
+    """CG001 Task 1 — odmah posle deploy-a: `case_dna` je već v2 {A,C,D}, radnja upisana STARIM kodom, nijedan
+    događaj ni reconcile. Odgovori svih primarnih površina, i dokaz da čitanje ništa nije upisalo."""
+    import copy
+    mp = pytest.MonkeyPatch()
+    try:
+        import routers.case_dna as cd
+        pozivi = []
+
+        def otvori(tabele):
+            k, baza = pripremi(mp, tabele)
+            mp.setattr(cd, "_pozovi_genome_api", L._model(pozivi))
+            return k, baza, cd
+        k, baza = L._zateceno(otvori, L._g(2, [L.A, L.C, L.D], "kriticna"))
+        pre = copy.deepcopy({t: r for t, r in baza.tabele.items() if r})
+        out = {"upisan_razlog": baza.tabele["case_actions"][0]["razlog"], "odgovori": {}}
+        for kor in ("A", "B"):
+            for ruta in ("/api/predmeti/{p}/genome-v2", "/api/predmeti/{p}/genome-v2/promene", "/api/case-actions/predmeti/{p}",
+                         "/api/case-actions/worklist", "/api/workspace"):
+                r = k.get(ruta.format(p=P), headers=zaglavlje(kor))
+                telo = r.json()
+                if isinstance(telo, dict):
+                    telo.pop("procitano", None)
+                out["odgovori"][f"{kor}|{ruta.format(p=P)}"] = {"status": r.status_code, "telo": telo}
+        out["citanje_upisalo"] = {t: r for t, r in baza.tabele.items() if r} != pre
+        out["model_pozvan"] = len(pozivi)
         return out
     finally:
         ocisti()

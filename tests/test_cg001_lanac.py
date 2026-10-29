@@ -192,3 +192,110 @@ def test_citanje_analize_ne_poziva_model(lanac):
     _gv2(k)
     _promene(k)
     assert pozivi == []
+
+
+# ═══ CG001 Task 1 — šta advokat vidi ODMAH posle deploy-a, bez novog događaja i bez reconcile-a ═══
+
+def _g(verzija, claim_ids, tezina):
+    return {"verzija": verzija, "_analiza_osnov": {"cinjenica": 15, "dokumenata": 2}, "kontradikcije": [{
+        "opis": "TEST 01 navodi uplatu od 40.000 RSD, dok TEST 02 prikazuje 30.000 RSD.", "tezina": tezina,
+        "claim_ids": sorted(claim_ids), "lokacija_1": "DOK-01", "lokacija_2": "DOK-02", "issue_label": LABEL,
+        "dokument_id_1": D1, "dokument_id_2": D2, "relation_type": "cinjenica_cinjenica"}]}
+
+
+def _zateceno(otvori, case_dna, *, razlog_sa_oznakom=False):
+    """Produkcija u trenutku deploy-a: V2 {A,B} OPEN, `case_dna` već v2, radnja upisana STARIM kodom (bez oznake)."""
+    k, baza, cd = otvori(_tabele(dokazi_v2(), v2_ab=True, case_dna=case_dna))
+    from services.v2_projection import u_akcije, ucitaj_v2_kontradikcije
+    kontr = asyncio.run(ucitaj_v2_kontradikcije(baza, P))
+    if razlog_sa_oznakom:
+        kontr = [{**x, "kontinuitet": "NIJE_POTVRDJEN"} for x in kontr]
+    baza.tabele["case_actions"] = [{**a, "id": "akc-1", "predmet_id": P, "status": "open", "kreirao": "system",
+                                    "event_id": None, "correlation_id": None, "confidence": None,
+                                    "created_at": "2026-10-28T21:58:26Z", "updated_at": "2026-10-28T21:58:47Z"}
+                                   for a in u_akcije(kontr)]
+    return k, baza
+
+
+def _sve_povrsine(k, kor="A"):
+    h = zaglavlje(kor)
+    pred = k.get(f"/api/case-actions/predmeti/{P}", headers=h)
+    wl = k.get("/api/case-actions/worklist", headers=h)
+    ws = k.get("/api/workspace", headers=h)
+    gv = k.get(f"/api/predmeti/{P}/genome-v2", headers=h)
+    assert wl.status_code == 200 and ws.status_code == 200, (wl.text, ws.text)
+    wl_akc = [a for c in wl.json()["predmeti"] if c["predmet_id"] == P for a in c["akcije"]]
+    ws_akc = [s for kanta in ("danas", "kriticno", "predstojece") for s in ws.json().get(kanta) or []
+              if s.get("predmet_id") == P and s.get("vrsta") == "case_action"]
+    return pred, wl_akc, ws_akc, gv
+
+
+def test_posle_deploya_bez_dogadjaja_sve_povrsine_nose_kontinuitet(lanac):
+    otvori, pozivi = lanac
+    k, baza = _zateceno(otvori, _g(2, [A, C, D], "kriticna"))
+    assert "kontinuitet" not in baza.tabele["case_actions"][0]["razlog"]          # upisano starim kodom
+    pre = copy.deepcopy(baza.tabele)
+
+    pred, wl_akc, ws_akc, gv = _sve_povrsine(k)
+    assert pred.status_code == 200
+    [a_pred], [a_wl], [a_ws] = pred.json()["akcije"], wl_akc, ws_akc
+    for a in (a_pred, a_wl):
+        assert a["id"] == "akc-1" and a["prioritet"] == "medium"                     # isti red, prioritet se ne penje
+        assert a["razlog"].startswith(LABEL) and "kontinuitet nije potvrđen" in a["razlog"]
+        assert a["dokaz"]["kontinuitet"] == "NIJE_POTVRDJEN" and a["dokaz"]["claim_ids"] == sorted([A, B])
+    assert a_ws["id"] == "akc-1" and a_ws["prioritet"] == "medium" and "kontinuitet nije potvrđen" in a_ws["naslov"]
+    assert a_ws["izvor"]["dokaz"]["kontinuitet"] == "NIJE_POTVRDJEN"
+    # Analiza kaže isto: A/B aktivna sa oznakom, A/C/D za pregled
+    kon = gv.json()["kontradikcije"]
+    assert kon["aktivne"][0]["kontinuitet"] == "NIJE_POTVRDJEN" and len(kon["za_pregled"]) == 1
+
+    # GET ništa ne upisuje (lažna baza pri čitanju napravi praznu tabelu koju ne poznaje — to nije red)
+    assert {t: r for t, r in baza.tabele.items() if r} == {t: r for t, r in pre.items() if r}
+    assert pozivi == []                                                            # ni model, ni reconcile
+    assert not baza.tabele.get("events")                                           # nijedan događaj
+
+
+def test_posle_deploya_kontinuitet_potvrdjen_skida_staru_oznaku(lanac):
+    """Obrnuto: red nosi oznaku iz ranijeg usklađivanja, a najnovije opažanje je nastavak (A/B → A/B/C)."""
+    otvori, _ = lanac
+    k, baza = _zateceno(otvori, _g(3, [A, B, C], "manja"), razlog_sa_oznakom=True)
+    assert "kontinuitet nije potvrđen" in baza.tabele["case_actions"][0]["razlog"]
+    [a] = _sve_povrsine(k)[0].json()["akcije"]
+    assert a["razlog"] == LABEL and "kontinuitet" not in a["dokaz"]
+
+
+@pytest.mark.parametrize("case_dna", [{}, {"verzija": 2, "greska": "model nije odgovorio"},
+                                      {"verzija": 2, "kontradikcije": "nije lista"}])
+def test_bez_odlucivog_opazanja_red_ostaje_kakav_je_upisan(lanac, case_dna):
+    otvori, _ = lanac
+    for sa_oznakom in (False, True):
+        k, baza = _zateceno(otvori, case_dna, razlog_sa_oznakom=sa_oznakom)
+        upisan = baza.tabele["case_actions"][0]
+        [a] = _sve_povrsine(k)[0].json()["akcije"]
+        assert (a["razlog"], a["dokaz"]) == (upisan["razlog"], upisan["dokaz"])
+
+
+def test_nedostupan_izvor_ne_menja_red_i_ne_rusi_tablu(lanac, monkeypatch):
+    otvori, _ = lanac
+    k, baza = _zateceno(otvori, _g(2, [A, C, D], "kriticna"))
+    import services.v2_projection as vp
+
+    async def _pad(*a, **kw):
+        raise RuntimeError("predmet_contradictions nedostupan")
+    monkeypatch.setattr(vp, "ucitaj_v2_kontradikcije", _pad)
+    pred, wl_akc, ws_akc, _ = _sve_povrsine(k)
+    [a] = pred.json()["akcije"]
+    assert a["razlog"] == baza.tabele["case_actions"][0]["razlog"] and "kontinuitet" not in a["dokaz"]
+    assert len(wl_akc) == 1 and len(ws_akc) == 1
+
+
+def test_drugi_korisnik_ne_dobija_radnju_predmeta(lanac):
+    otvori, _ = lanac
+    k, _ = _zateceno(otvori, _g(2, [A, C, D], "kriticna"))
+    assert k.get(f"/api/case-actions/predmeti/{P}", headers=zaglavlje("B")).status_code == 404
+    h = zaglavlje("B")
+    wl = k.get("/api/case-actions/worklist", headers=h).json()
+    ws = k.get("/api/workspace", headers=h).json()
+    assert all(c["predmet_id"] != P for c in wl["predmeti"])
+    assert all(s.get("predmet_id") != P for kanta in ("danas", "kriticno", "predstojece") for s in ws.get(kanta) or [])
+    assert k.get(f"/api/case-actions/predmeti/{P}").status_code == 401
