@@ -165,6 +165,26 @@ for (const [tema, w] of [["dark", 1440], ["light", 1440], ["dark", 390]]) {
     kon.aktivne.length === 1 && kon.aktivne[0].kontinuitet === "NIJE_POTVRDJEN" && kon.za_pregled.length === 1);
 }
 
+// ── 2c. Čitanje usred osvežavanja (CG001 Task 3): kontinuitet NIJE PROVEREN, ne „potvrđen“ i ne iz ustajalog opažanja ──
+{
+  const US = STVARNO.usred_osvezavanja;
+  const s = await scenario({ hash: `#/predmeti/${P}/analiza`, odgovori: US.odgovori });
+  await cekaj(s.p, () => !document.getElementById("an-sadrzaj").hidden);
+  const e = await s.p.evaluate(() => ({
+    akt: [...document.querySelectorAll("#an-kontr-aktivne > li")].map(x => x.innerText.replace(/\s+/g, " ")),
+    pr: [...document.querySelectorAll("#an-kontr-pregled > li")].length,
+    sekcija: document.getElementById("an-kontr-naslov").closest("section").innerText,
+  }));
+  zapisi("usred osvežavanja", "aktivna veza: „kontinuitet nije proveren“, bez „traži pregled“ iz starog opažanja",
+    e.akt.length === 1 && /kontinuitet nije proveren/.test(e.akt[0]) && !/kontinuitet nije potvrđen/.test(e.akt[0]) && e.pr === 0, JSON.stringify(e.akt));
+  zapisi("usred osvežavanja", "bez internih stanja na ekranu", !/NEPOZNAT|NIJE_POTVRDJEN/.test(e.sekcija));
+  await s.zatvori();
+  const akc = US.odgovori[`A|/api/case-actions/predmeti/${P}`].telo.akcije;
+  zapisi("usred osvežavanja", "radnja: ista, medium, „kontinuitet nije proveren“", akc.length === 1 && akc[0].prioritet === "medium"
+    && /kontinuitet nije proveren/.test(akc[0].razlog), JSON.stringify(akc.map(a => a.razlog)));
+  zapisi("usred osvežavanja", "čitanje ništa ne upisuje", US.citanje_upisalo === false && US.model_pozvan === 0);
+}
+
 // ── 3. Drugi korisnik ────────────────────────────────────────────────────────────────────────
 {
   const s = await scenario({ hash: `#/predmeti/${P}/analiza`, token: TB, korisnik: "kB" });

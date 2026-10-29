@@ -445,6 +445,37 @@ def nerazreseno_prema_opazanju(v2_otvorene: Iterable[dict], opazanje: Any,
     return out
 
 
+KONTINUITET_NIJE_POTVRDJEN = "NIJE_POTVRDJEN"   # najnovije opažanje domen ne bi vezao (REVIEW_REQUIRED)
+KONTINUITET_NEPOZNAT = "NEPOZNAT"               # `case_dna` nije opažanje koje je proizvelo tekuću V2 sliku
+
+# Ključ u `case_dna`: `predmeti.observation_version` paketa koji je upisan ZAJEDNO sa tim opažanjem.
+KLJUC_VERZIJE_OPAZANJA = "_v2_observation_version"
+
+
+def status_kontinuiteta(v2_otvorene: Iterable[dict], case_dna: Any, observation_version: Any,
+                        zive_tvrdnje: Optional[set] = None) -> Optional[dict]:
+    """CG001 — JEDINA odluka čitača o kontinuitetu otvorenih V2 kontradikcija prema `case_dna`.
+
+    Vraća `None` kad nema opažanja nad kojim se može odlučivati (nema `case_dna.kontradikcije` ili je analiza pala) —
+    tada se ništa ne tvrdi. Inače `{"oznake": {contradiction_id: status}, "nerazreseno": [...]}`:
+
+      * `case_dna` nosi verziju opažanja različitu od `predmeti.observation_version` (ili ta nije pročitana) —
+        V2 slika je nastala iz DRUGOG opažanja (osvežavanje u toku, kasniji upis nije uspeo, trka dva osvežavanja).
+        Staro opažanje se ne koristi ni za oznaku ni za „pregled“: sve otvorene su `NEPOZNAT`.
+      * inače `nerazreseno_prema_opazanju`: `NIJE_POTVRDJEN` samo za ono što bi domen poslao na pregled.
+        Bez oznake = najnovije opažanje je nastavak ili ne dodiruje tu spornu tačku.
+      * `case_dna` bez zapisa verzije (upisan pre CG001): odlučuje se kao ranije; verzija se ne može proveriti."""
+    if not isinstance(case_dna, dict) or "greska" in case_dna or not isinstance(case_dna.get("kontradikcije"), list):
+        return None
+    otvorene = [k for k in (v2_otvorene or []) if k.get("state") == STANJE_OTVORENA and k.get("id")]
+    verzija = case_dna.get(KLJUC_VERZIJE_OPAZANJA)
+    if verzija is not None and str(verzija) != str(observation_version):   # nepročitana verzija (None) nije jednaka
+        return {"oznake": {str(k["id"]): KONTINUITET_NEPOZNAT for k in otvorene}, "nerazreseno": []}
+    nerazreseno = nerazreseno_prema_opazanju(otvorene, case_dna["kontradikcije"], zive_tvrdnje)
+    return {"oznake": {c: KONTINUITET_NIJE_POTVRDJEN for n in nerazreseno for c in n["kontradikcije"]},
+            "nerazreseno": nerazreseno}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. PROMENA ČLANSTVA — šta je izostalo, a šta je razrešeno
 # ═══════════════════════════════════════════════════════════════════════════

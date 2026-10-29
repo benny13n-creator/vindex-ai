@@ -613,7 +613,8 @@ def _ucesnik(clan: dict, dokazi_po_id: dict, raz: Razresavac) -> dict:
 
 
 def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokazi: Optional[list],
-                          dokumenti: Optional[list], izvori: Optional[dict] = None) -> dict:
+                          dokumenti: Optional[list], izvori: Optional[dict] = None,
+                          observation_version: Any = None) -> dict:
     izvori = dict(izvori or {})
     if v2 is None or izvori.get("kontradikcije", "OK") != "OK":
         return {"stanje": DEGRADIRANO, "izvor": None, "aktivne": [], "za_pregled": [], "zatvorene": [],
@@ -647,16 +648,20 @@ def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokaz
     # CG001: najnovija analiza čije tvrdnje domen ne može da veže za aktivnu spornu tačku (REVIEW_REQUIRED se ne
     # upisuje). Sačuvana veza ostaje aktivna i netaknuta, ali nosi oznaku; novije opažanje ide među „traži pregled“.
     if aktivne_v2 and isinstance(legacy_sirove, list):
-        from shared.issue_v2 import nerazreseno_prema_opazanju
+        from shared.issue_v2 import KONTINUITET_NEPOZNAT, status_kontinuiteta
         # Žive tvrdnje filtriraju opažanje samo ako su zaista pročitane; nepročitane ne smeju tiho ugasiti oznaku.
         zive = set(po_id) if dokazi is not None and izvori.get("dokazi", "OK") == "OK" else None
-        nerazreseno = nerazreseno_prema_opazanju(v2, legacy_sirove, zive)
-        oznacene = {c for n in nerazreseno for c in n["kontradikcije"]}
+        st = status_kontinuiteta(v2, case_dna, observation_version, zive) or {"oznake": {}, "nerazreseno": []}
+        nerazreseno = st["nerazreseno"]
         for s in aktivne_v2:
-            if s["id"] in oznacene:
-                s["kontinuitet"] = "NIJE_POTVRDJEN"
-                s["napomena"] = ("Sačuvana veza iz ranije analize. Najnovija analiza ovu spornu tačku vezuje za druge "
-                                 "tvrdnje, pa nije potvrđeno da je reč o istoj spornoj tački — proverite pod „traži vaš pregled“.")
+            if s["id"] not in st["oznake"]:
+                continue
+            s["kontinuitet"] = st["oznake"][s["id"]]
+            s["napomena"] = (
+                "Najnovija sačuvana analiza nije ona iz koje je nastalo ovo stanje sporne tačke (osvežavanje je u toku "
+                "ili kasniji upis nije uspeo) — kontinuitet nije proveren." if s["kontinuitet"] == KONTINUITET_NEPOZNAT
+                else "Sačuvana veza iz ranije analize. Najnovija analiza ovu spornu tačku vezuje za druge "
+                     "tvrdnje, pa nije potvrđeno da je reč o istoj spornoj tački — proverite pod „traži vaš pregled“.")
         for n in nerazreseno:
             k = n["stavka"]
             ucesnici = [_ucesnik({"dokaz_id": c}, po_id, raz) for c in n["claim_ids"]]

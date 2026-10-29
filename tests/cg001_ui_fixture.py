@@ -56,12 +56,16 @@ def main() -> dict:
         ocisti()
         mp.undo()
     out["bez_dogadjaja"] = bez_dogadjaja()
+    out["usred_osvezavanja"] = bez_dogadjaja(usred=True)
     return out
 
 
-def bez_dogadjaja() -> dict:
+def bez_dogadjaja(usred: bool = False) -> dict:
     """CG001 Task 1 — odmah posle deploy-a: `case_dna` je već v2 {A,C,D}, radnja upisana STARIM kodom, nijedan
-    događaj ni reconcile. Odgovori svih primarnih površina, i dokaz da čitanje ništa nije upisalo."""
+    događaj ni reconcile. Odgovori svih primarnih površina, i dokaz da čitanje ništa nije upisalo.
+
+    `usred=True` (Task 3): V2 paket sledećeg osvežavanja je upisan (`observation_version` 2), a `case_dna` je još
+    opažanje verzije 1 — stanje između upisa paketa i upisa `case_dna`."""
     import copy
     mp = pytest.MonkeyPatch()
     try:
@@ -72,7 +76,13 @@ def bez_dogadjaja() -> dict:
             k, baza = pripremi(mp, tabele)
             mp.setattr(cd, "_pozovi_genome_api", L._model(pozivi))
             return k, baza, cd
-        k, baza = L._zateceno(otvori, L._g(2, [L.A, L.C, L.D], "kriticna"))
+        g = L._g(2, [L.A, L.C, L.D], "kriticna")
+        if usred:
+            from shared.issue_v2 import KLJUC_VERZIJE_OPAZANJA
+            g[KLJUC_VERZIJE_OPAZANJA] = 1
+        k, baza = L._zateceno(otvori, g)
+        if usred:
+            baza.tabele["predmeti"][0]["observation_version"] = 2
         pre = copy.deepcopy({t: r for t, r in baza.tabele.items() if r})
         out = {"upisan_razlog": baza.tabele["case_actions"][0]["razlog"], "odgovori": {}}
         for kor in ("A", "B"):

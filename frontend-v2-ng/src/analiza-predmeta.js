@@ -224,7 +224,7 @@
       var k = g.kontradikcije || {};
       function kontr(x) {
         var info = [x.relacija ? RELACIJA[x.relacija] : "", x.tezina ? "težina: " + TEZINA[x.tezina] : "", STANJE_K[x.stanje] || "",
-          x.kontinuitet === "NIJE_POTVRDJEN" ? "kontinuitet nije potvrđen" : ""].filter(Boolean).join(" · ");
+          x.kontinuitet === "NIJE_POTVRDJEN" ? "kontinuitet nije potvrđen" : x.kontinuitet === "NEPOZNAT" ? "kontinuitet nije proveren" : ""].filter(Boolean).join(" · ");
         var dodaci = [meta(info)];
         if (x.opis) dodaci.push(meta(x.opis));
         if (x.kontinuitet && x.napomena) dodaci.push(meta(x.napomena));   // CG001: sačuvana veza vs najnovija analiza

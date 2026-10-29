@@ -930,7 +930,7 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
 
     supa = _get_supa()
     pred_res = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("case_dna,tip,status").eq("id", predmet_id).maybe_single().execute()
+        lambda: supa.table("predmeti").select("case_dna,tip,status,observation_version").eq("id", predmet_id).maybe_single().execute()
     )
     pred_data = (pred_res.data if pred_res else None) or {}
     case_dna = pred_data.get("case_dna") or {}
@@ -1163,7 +1163,8 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     # (A014 tamo pada zatvoreno), pa za njega ovo vraca praznu listu i legacy
     # putanja ostaje netaknuta -- sto je i uslov iz A015 §14.
     from services.v2_projection import predmet_ima_v2, v2_akcije_za_predmet
-    _v2_akcije = await v2_akcije_za_predmet(supa, predmet_id, case_dna=case_dna)
+    _v2_akcije = await v2_akcije_za_predmet(supa, predmet_id, case_dna=case_dna,
+                                            observation_version=pred_data.get("observation_version"))
     if _v2_akcije:
         actions.extend(_v2_akcije)
         return actions
