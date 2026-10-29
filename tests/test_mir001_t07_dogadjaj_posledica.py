@@ -212,12 +212,26 @@ def test_brisanje_nepovezanog_dokumenta_ne_zatvara_protivrecnosti(spis):
     assert sorted(a["id"] for a in _otvorene(b, pid) if a["tip"] == "RAZRESITI_KONTRADIKCIJU") == pre
 
 
+def _danas(monkeypatch, iso):
+    """`date.today()` u `/api/rokovi/kandidati` (routers/rok_odluka.py) — fiksni dan umesto stvarnog. Bez ovoga test je
+    vremenska bomba: fixture rok je 2026-10-28, a pregled bez `od` počinje od DANAS (pao u CI 29.10.2026)."""
+    import routers.rok_odluka as ro
+    from datetime import date
+
+    class _Datum(date):
+        @classmethod
+        def today(cls):
+            return date.fromisoformat(iso)
+    monkeypatch.setattr(ro, "date", _Datum)
+
+
 @treba_ocr
-def test_kandidati_oznacavaju_rok_ciji_je_izvor_povucen(spis):
+def test_kandidati_oznacavaju_rok_ciji_je_izvor_povucen(spis, monkeypatch):
     k, b, pid, doks = spis
+    _danas(monkeypatch, gc.KASNIJA_PROMENA["od"])          # dan dopune nalaza: rok (+8 dana) je predstojeći
     d8 = _dodaj(k, b, pid, gc.KASNIJI)
-    def _kand():
-        r = k.get("/api/rokovi/kandidati", params={"predmet_id": pid, "dana": 60}, headers=A)
+    def _kand(**dod):
+        r = k.get("/api/rokovi/kandidati", params={"predmet_id": pid, "dana": 60, **dod}, headers=A)
         assert r.status_code == 200, r.text
         return [x for x in r.json()["rokovi"] if x.get("datum_iso") == ROK and x.get("akter") == "Genome (AI)"]
     [pre] = _kand()
@@ -225,6 +239,12 @@ def test_kandidati_oznacavaju_rok_ciji_je_izvor_povucen(spis):
     _obrisi(k, b, pid, d8)
     [posle] = _kand()
     assert posle["izvor_povucen"] is True and posle["stanje_odluke"] == "UNCONFIRMED"
+    # Negativno: dan posle roka, pregled bez `od` (= od DANAS) ne prikazuje istekao rok; sa `od` ga prikazuje, sa istim
+    # stanjem — semantika endpointa, ne svojstvo testa.
+    _danas(monkeypatch, "2026-10-29")
+    assert _kand() == []
+    [istekao] = _kand(od=gc.KASNIJA_PROMENA["od"])
+    assert istekao["izvor_povucen"] is True and istekao["stanje_odluke"] == "UNCONFIRMED"
 
 
 @treba_ocr
