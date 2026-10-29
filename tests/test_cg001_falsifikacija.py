@@ -296,3 +296,21 @@ def test_rucno_osvezavanje_pamti_verziju_opazanja(lanac, monkeypatch):
     assert pred["case_dna"][KLJUC_VERZIJE_OPAZANJA] == pred["observation_version"] == 2
     _, ug = L._gv2(k)
     assert ug["kontradikcije"]["aktivne"][0]["kontinuitet"] == "NIJE_POTVRDJEN"
+
+
+def test_8b_jedna_tema_dva_nova_kandidata_oba_traze_pregled_nista_se_ne_spaja():
+    st = status_kontinuiteta(AB, _dna({A, C}, {B, D}, verzija=2), 2)
+    assert st["oznake"] == {"k1": "NIJE_POTVRDJEN"}
+    assert sorted(n["claim_ids"] for n in st["nerazreseno"]) == sorted([sorted([A, C]), sorted([B, D])])
+
+
+def test_nastavak_u_istom_opazanju_je_dokazan_kontinuitet_a_preklopna_stavka_ide_u_pregled():
+    """Opažanje {A,B} (nastavak) + {B,D} (preklapanje): tema je dokazano nastavljena — bez oznake „nije potvrđen“;
+    {B,D} i dalje traži pregled, vezan za istu temu."""
+    st = status_kontinuiteta(AB, _dna({A, B}, {B, D}, verzija=2), 2)
+    assert st["oznake"] == {}
+    [n] = st["nerazreseno"]
+    assert n["claim_ids"] == sorted([B, D]) and n["kontradikcije"] == ["k1"]
+    # dve teme: nastavak prve ne skida oznaku druge koju preklapa druga stavka
+    v2 = [_k("k1", "i1", A, B), _k("k2", "i2", C, D)]
+    assert status_kontinuiteta(v2, _dna({A, B}, {C, E}, verzija=2), 2)["oznake"] == {"k2": "NIJE_POTVRDJEN"}
