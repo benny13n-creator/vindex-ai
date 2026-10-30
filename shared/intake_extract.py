@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from typing import Optional
 
 from shared.llm_retry import llm_retry
@@ -50,8 +51,11 @@ _CASE_NUMBER_RE = re.compile(
 # Novčani iznos sa hiljadama-separatorom i valutom (RSD/din/EUR/€/$/USD) —
 # valuta je OBAVEZNA u match-u, bez nje je prevelik rizik lažnog pozitiva
 # (bilo koji broj bi inače "izgledao" kao iznos).
+# BA-01: „dinara“/„динара“ (najčešći oblik u presudama) nije bio prepoznat — `din\.?` + `\b` traži granicu reči
+# posle „din“. Duži oblik ide PRE kraćeg. `(?<![\d.,])`: broj ne sme biti rep većeg, pogrešno zapisanog broja
+# („350.00,00 dinara“ je davao „00,00 dinara“).
 _AMOUNT_RE = re.compile(
-    r"\b(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s?(РСД|RSD|дин\.?|din\.?|€|EUR|евра|eura|\$|USD)\b",
+    r"(?<![\d.,])\b(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s?(РСД|RSD|динара|дин\.?|dinara|din\.?|€|EUR|евра|eura|\$|USD)\b",
     re.IGNORECASE,
 )
 
@@ -76,8 +80,11 @@ _COURT_TIP_BEZ_GRADA = r"(?:Vrhovni\s+kasacioni|Privredni\s+apelacioni|Prekršaj
 # početi velikim slovom (van dometa (?i:...)) da bi regex ostao selektivan —
 # globalni re.IGNORECASE bi ovaj zahtev poništio i dozvolio da bilo koja
 # sledeća reč (npr. običan glagol) bude pogrešno pročitana kao deo naziva.
+# BA-01: naziv grada (i druga reč, „Novom Sadu“) sme biti samo u ISTOM redu. Sa `\s+` je regex prelazio u sledeći
+# red zaglavlja i vraćao „OSNOVNI SUD U BEOGRADU Posl“ sa pouzdanošću 0.90 — iznad praga pregleda. Kad ovde nema
+# poklapanja, sud ostaje na LLM ekstrakciji (extract_all_entities), pa promašaj nije gubitak, a izmišljen sud jeste.
 _COURT_RE = re.compile(
-    rf"\b(?i:{_COURT_TIP_SA_GRADOM}\s+sud\s+u)\s+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*(?:\s+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*)?"
+    rf"\b(?i:{_COURT_TIP_SA_GRADOM}[ \t]+sud[ \t]+u)[ \t]+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*(?:[ \t]+[A-ZČĆĐŠŽ][a-zčćđšžA-ZČĆĐŠŽ]*)?"
     rf"|\b(?i:{_COURT_TIP_BEZ_GRADA}\s+sud)\b"
 )
 
@@ -253,6 +260,78 @@ def extract_deadline(text: str) -> tuple[Optional[str], float]:
     base = 0.9 if izabran.get("tip") == "apsolutni" else 0.72
     confidence = min(0.97, base + 0.05)
     return vrednost, confidence
+
+
+# ─── BA-01: OBAVEZA, NE DATUM ─────────────────────────────────────────────────
+#
+# `extract_deadline` bira JEDAN rok po dokumentu, pa se drugi dokazani rok istog dokumenta tiho gubio. Identitet
+# obaveze unutar dokumenta je (datum, dokazna fraza): normalizovan IZVORNI tekst istog reda do datuma (najviše
+# `_ROK_DOKAZ_PROZOR` znakova, posle prethodnog datuma u redu). Ista fraza i isti datum = ista obaveza pomenuta dvaput;
+# različita fraza = druga obaveza, i kad joj je datum isti. Fraza nikad ne dolazi iz modela.
+# BA05: fraza je ranije počinjala od BILO KOJE rokovne reči, pa su „… da plati najkasnije D“ i „Odgovor dostaviti
+# najkasnije D“ bile ista fraza („najkasnije“) — druga obaveza je nestajala.
+# BA05 kolizija izvora: ni odsecanje do „rok za …“ nije bilo bezbedno — brisalo je subjekat („Za tužioca rok za uplatu
+# takse ističe D“ i „Za tuženog …“ = ista fraza), a deo reda POSLE datuma („… ističe D za tuženog“) nije ni ulazio u
+# frazu. Fraza je sada ceo red: deo pre datuma (bez strukturne oznake odluke „POUKA O PRAVNOM LEKU:“ — zatvoren spisak
+# naslova odeljka, nikad stranka, pa izreka i pouka ostaju jedna obaveza) i deo posle datuma do kraja reda ili sledećeg
+# datuma. Isto pominjanje sa drugim uvodom tada daje dva kandidata (vidljivo), nikad gubitak.
+# Ugovor: OBLIGATION_IDENTITY_CONTRACT.
+
+_OZNAKA_ODELJKA_RE = re.compile(r"^\W*(?:pouka|поука)(?:\s+(?:o|о)\s+(?:pravnom|правном)\s+(?:leku|lijeku|леку))?\s*:",
+                                re.IGNORECASE)
+
+def _normalizuj_frazu(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s.replace("đ", "dj").replace("Đ", "Dj"))
+    s = "".join(c for c in s if not unicodedata.combining(c)).lower()
+    return " ".join(re.sub(r"[^0-9a-zа-яђјљњћџ ]", " ", s).split())
+
+
+def _dokazna_fraza(text: str, pozicija: int, kraj=None) -> str:
+    # Logički red: prelomljen red (nastavak počinje malim slovom) i uvod koji se završava dvotačkom („Za tužioca:“)
+    # pripadaju istom navodu — samo ti tekstualni znaci, bez nagađanja smisla.
+    p_reda = text.rfind("\n", 0, pozicija) + 1
+    while 0 < p_reda > pozicija - _ROK_DOKAZ_PROZOR:
+        pret = text[text.rfind("\n", 0, p_reda - 1) + 1:p_reda - 1]
+        if not (text[p_reda:pozicija].lstrip()[:1].islower() or pret.rstrip().endswith(":")):
+            break
+        p_reda -= len(pret) + 1
+    pocetak = max(p_reda, pozicija - _ROK_DOKAZ_PROZOR, 0)
+    for m in _DRUGI_DATUM_RE.finditer(text, pocetak, pozicija):
+        pocetak = m.end()
+    pre = _normalizuj_frazu(_OZNAKA_ODELJKA_RE.sub("", text[pocetak:pozicija], count=1))
+    kraj = pozicija if kraj is None else kraj
+    k_reda = text.find("\n", kraj)
+    while 0 <= k_reda < kraj + _ROK_DOKAZ_PROZOR and text[k_reda + 1:k_reda + 41].lstrip(" \t")[:1].islower():
+        k_reda = text.find("\n", k_reda + 1)
+    granica = min(len(text) if k_reda < 0 else k_reda, kraj + _ROK_DOKAZ_PROZOR)
+    sledeci = _DRUGI_DATUM_RE.search(text, kraj, granica)
+    posle = _normalizuj_frazu(text[kraj:sledeci.start() if sledeci else granica])
+    return f"{pre} | {posle}" if posle else pre
+
+
+def dokazani_rokovi(text: str) -> list[dict]:
+    """Svaka dokazana obaveza dokumenta tačno jednom, redom kojim parser vraća datume (hronološki).
+
+    Isti kriterijum dokaza kao `extract_deadline` (`_ima_dokaz_o_roku`); običan datum se nikad ne vraća."""
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+
+    izvor = text or ""
+    out: list[dict] = []
+    vidjeno: set = set()
+    for r in ekstrahuj_rokove(izvor, dedup_konteksta=False):
+        if not _ima_dokaz_o_roku(izvor, r.get("pozicija"), r.get("kraj")):
+            continue
+        vrednost = r.get("konkretan_datum") or r.get("vrednost")
+        fraza = _dokazna_fraza(izvor, r["pozicija"], r.get("kraj"))
+        if (vrednost, fraza) in vidjeno:
+            continue
+        vidjeno.add((vrednost, fraza))
+        out.append({
+            "vrednost": vrednost, "konkretan_datum": r.get("konkretan_datum"), "tip": r.get("tip"),
+            "istekao": r.get("istekao"), "pozicija": r["pozicija"], "fraza": fraza,
+            "confidence": min(0.97, (0.9 if r.get("tip") == "apsolutni" else 0.72) + 0.05),
+        })
+    return out
 
 
 _LLM_SYSTEM = """Ti si ekstraktor podataka iz srpskih pravnih dokumenata. Izvuci sledeće entitete iz teksta, ako postoje.
@@ -440,6 +519,14 @@ async def extract_all_entities(text: str) -> list[dict]:
 
     deadline, dl_conf = extract_deadline(text)
     entities.append({"entity_type": "deadline", "value": deadline, "confidence": dl_conf, "extraction_method": "regex"})
+    # BA-01: svaka DRUGA dokazana obaveza sa konkretnim datumom je zaseban `deadline` entitet (zaseban kandidat,
+    # zasebna ispravka). Prvi entitet ostaje isti izbor kao ranije; relativni rok bez datuma se ne dodaje.
+    ostale = dokazani_rokovi(text)
+    izabrani = next((i for i, o in enumerate(ostale) if o["vrednost"] == deadline), None) if deadline else None
+    for i, o in enumerate(ostale):
+        if i != izabrani and o.get("konkretan_datum"):
+            entities.append({"entity_type": "deadline", "value": o["konkretan_datum"], "confidence": o["confidence"],
+                             "extraction_method": "regex"})
 
     # AKCIJA 1 (2026-07-24): regex kandidat za sud se traži PRE LLM poziva;
     # kad se poklopi, deterministički je pouzdaniji od slobodnog LLM teksta

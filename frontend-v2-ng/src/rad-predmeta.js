@@ -79,6 +79,7 @@
       $("bel-forma").reset();
       $("bel-lista").replaceChildren(); $("bel-stanje").hidden = true; $("bel-stanje").textContent = "";
       $("hron-lista").replaceChildren(); $("hron-stanje").hidden = true; $("hron-stanje").textContent = "";
+      $("hron-procesni").replaceChildren(); $("hron-procesni-stanje").hidden = true; $("hron-procesni-stanje").textContent = "";
     }
 
     function stanjeListe(id, tekst, oznaka) { var s = $(id); s.hidden = !tekst; s.textContent = tekst || ""; if (oznaka) s.dataset.stanje = oznaka; else delete s.dataset.stanje; }
@@ -111,6 +112,23 @@
         var meta = [odluka, root.VxNazivi.akter(h.akter), h.vaznost ? "važnost: " + h.vaznost : ""].filter(Boolean).join(" · ");
         if (meta) li.append(el("span", "chrono__meta", meta));
         $("hron-lista").append(li);
+      });
+      /* BA-04: procesni događaji iz dokumenata — AI analiza, NIJE potvrđeno; datum, izvor i provera datuma u izvoru.
+       * Odvojeni su od zapisa sistema („Dokument prihvaćen") i od rokova; ništa se ne upisuje u hronologiju. */
+      var nazivDok = {};
+      (v.dokumenti || []).forEach(function (dk) { nazivDok[dk.id] = dk.naziv; });
+      var pr = v.procesni;
+      if (pr === null || pr === undefined) stanjeListe("hron-procesni-stanje", "Procesni događaji nisu učitani uz predmet.", "greska");
+      else if (pr.stanje === "UNKNOWN") stanjeListe("hron-procesni-stanje", "Analiza dokumenata još nije urađena — procesni događaji se pojavljuju kada se završi.", "prazno");
+      else if (!pr.stavke.length) stanjeListe("hron-procesni-stanje", "Analiza nije izdvojila procesne događaje iz dokumenata.", "prazno");
+      else pr.stavke.forEach(function (p) {
+        var li = el("li", "chrono__item");
+        var t = el("time", "chrono__date", p.datum ? datum(p.datum) : "datum nije utvrđen"); if (p.datum) t.dateTime = p.datum;
+        li.append(t, el("span", "chrono__text", p.opis));
+        var izvor = p.izvorId ? "Izvor: " + (nazivDok[p.izvorId] || p.oznaka || "dokument predmeta") : "izvor nije razrešen";
+        var provera = p.datumUIzvoru === false ? "datum nije pronađen u navedenom dokumentu" : "";
+        li.append(el("span", "chrono__meta", [izvor, "analiza (AI) — nije potvrđeno", provera].filter(Boolean).join(" · ")));
+        $("hron-procesni").append(li);
       });
       if (naCekanju && naCekanju.id === v.predmet.id && naCekanju.korisnik === s.korisnik) {
         poruka(naCekanju.cilj, "uspeh", naCekanju.tekst);

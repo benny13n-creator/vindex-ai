@@ -243,7 +243,7 @@ def _kalkulisi_rok(vrednost: str, tip: str, datum_dokumenta: Optional[str]) -> d
 
 # ─── Glavna funkcija ──────────────────────────────────────────────────────────
 
-def ekstrahuj_rokove(tekst: str, datum_dokumenta: Optional[str] = None) -> list[dict]:
+def ekstrahuj_rokove(tekst: str, datum_dokumenta: Optional[str] = None, dedup_konteksta: bool = True) -> list[dict]:
     """
     Parsira srpske datume i relativne rokove iz pravnog teksta.
 
@@ -352,10 +352,13 @@ def ekstrahuj_rokove(tekst: str, datum_dokumenta: Optional[str] = None) -> list[
         _add("relativni", vrednost, m.start(), m.end())
 
     # ─── Deduplikacija: isti vrednost + prvih 50 chars konteksta ─────────────
+    # BA-01: `dedup_konteksta=False` traži `shared/intake_extract.py::dokazani_rokovi` — u kratkom dokumentu dva
+    # RAZLIČITA roka istog datuma imaju isti isečak (počinje od 0) i ovaj korak bi drugi tiho izbacio. Ta funkcija
+    # sama razlikuje obaveze po dokaznoj frazi; isti položaj se i dalje ne broji dvaput (`seen_positions`).
     seen_keys: set[str] = set()
     deduped: list[dict] = []
     for r in results:
-        key = r["vrednost"] + "|" + r["kontekst"][:50]
+        key = r["vrednost"] + "|" + (r["kontekst"][:50] if dedup_konteksta else str(r["pozicija"]))
         if key not in seen_keys:
             seen_keys.add(key)
             deduped.append(r)

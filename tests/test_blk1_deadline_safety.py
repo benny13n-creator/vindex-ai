@@ -241,6 +241,16 @@ def _blk1_user():
     return {"user_id": "00000000-0000-0000-0000-000000000001", "email": "advokat@vindex.rs"}
 
 
+
+def _hes_teksta():
+    from shared.vector_identity import verzija_dokumenta
+    return verzija_dokumenta("tekst")      # `uploaded_doc.extractor.extract` je zamenjen i vraća "tekst"
+
+
+def _kljuc_istog_dokumenta(iso):
+    from shared.rokovi import kljuc_obaveze
+    return kljuc_obaveze(_hes_teksta(), iso, "")
+
 def _blk1_supa(hronologija_postoji=False):
     """Beleži svaki INSERT u predmet_hronologija u `supa.blk1_upisi`."""
     supa = MagicMock()
@@ -259,6 +269,9 @@ def _blk1_supa(hronologija_postoji=False):
             t.insert.return_value.execute.return_value.data = [{"id": "pred-001"}]
         elif name == "predmet_dokumenti":
             t.insert.return_value.execute.return_value.data = [{"id": "dok-001"}]
+            # BA05: dokument koji je finalize upravo upisao (ime + heš sadržaja) — pokrivanje zatečenih rokova po imenu
+            t.select.return_value.eq.return_value.execute.return_value.data = [
+                {"id": "dok-001", "naziv_fajla": "presuda.pdf", "content_sha256": _hes_teksta()}]
             # Detekcija "nastavljam prekinuti pokusaj" (smart_intake.py:1055) --
             # prazan rezultat znaci "ovo je prvi finalize", sto je slucaj koji
             # ovi testovi mere. Bez ovoga MagicMock vraca truthy `.data` i kod
@@ -276,9 +289,12 @@ def _blk1_supa(hronologija_postoji=False):
                 m.execute.return_value.data = [{}]
                 return m
             t.insert.side_effect = _insert
-            # N03-FD2: provera duplikata ima i cetvrti uslov (isti izvorni fajl).
-            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
-                [{"id": "hron-postojeci"}] if hronologija_postoji else []
+            # BA05 (OBLIGATION_IDENTITY_CONTRACT): postojeći rokovi predmeta se čitaju jednom; ista obaveza = isti
+            # `obaveza_kljuc` (sadržaj dokumenta + datum + dokazna fraza). „Postoji“ = red koji je raniji upis ISTOG
+            # dokumenta ostavio (isti tekst „tekst“, isti datum, bez dokazne fraze u tekstu).
+            t.select.return_value.eq.return_value.execute.return_value.data = (
+                [{"id": "hron-postojeci", "datum_iso": "2026-09-27", "vrsta": "rok", "dokument_naziv": "presuda.pdf",
+                  "obaveza_kljuc": _kljuc_istog_dokumenta("2026-09-27")}] if hronologija_postoji else []
             )
         elif name == "intake_job_segments":
             t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None

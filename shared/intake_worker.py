@@ -355,10 +355,11 @@ class IntakeWorker:
             )
             entity_rows = await intake_documents.insert_entities(document_id, entities)
 
-            low_confidence_fields = [
+            # BA-01: više `deadline` entiteta po dokumentu → tip polja se navodi jednom
+            low_confidence_fields = list(dict.fromkeys(
                 e["entity_type"] for e in entities
                 if e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD
-            ]
+            ))
             if classification["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD:
                 low_confidence_fields = ["document_type"] + low_confidence_fields
             if low_confidence_fields:
@@ -483,10 +484,11 @@ class IntakeWorker:
                     )
                     await intake_documents.insert_entities(document_id, entities)
 
-                    low_confidence_fields = [
+                    # BA-01: više `deadline` entiteta po dokumentu → tip polja se navodi jednom
+                    low_confidence_fields = list(dict.fromkeys(
                         e["entity_type"] for e in entities
                         if e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD
-                    ]
+                    ))
                     if classification["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD:
                         low_confidence_fields = ["document_type"] + low_confidence_fields
                     needs_review_this_segment = bool(low_confidence_fields)

@@ -894,7 +894,8 @@ def _deadline_to_iso(value: str) -> Optional[str]:
 
 async def _rok_iz_dokumenta(
     supa, *, predmet_id: str, uid: str, job: dict, job_id: str,
-    value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set,
+    value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set, redni: int = 1,
+    kljuc: Optional[str] = None, pokriven: bool = False,
 ) -> dict:
     """Rok iz JEDNOG dokumenta otpremanja -> nepotvrdjen kandidat u hronologiji.
 
@@ -947,44 +948,19 @@ async def _rok_iz_dokumenta(
     # samo ponovno slanje PRE finalizacije — posle nje isti sadržaj dobija
     # nov `job_id` i prolazi ovuda ponovo. Rok je obaveza advokata; ista
     # obaveza upisana dvaput je isti oblik lažne informacije kao izmišljen
-    # rok, samo tiši. Provera je uska: isti predmet + isti datum + isti izvorni fajl + isti
-    # naziv događaja.
+    # rok, samo tiši.
+    # BA05 (OBLIGATION_IDENTITY_CONTRACT): identitet je `kljuc` (sadržaj dokumenta + datum + dokazna fraza, pozivalac
+    # ga računa) — ne ime fajla ni broj redova. Postoji kad je ključ već u predmetu (`vec_upisano` nosi i ključeve iz
+    # baze), kad zatečen red bez ključa jednoznačno pokriva istu obavezu (`pokriven`), ili kad baza odbije upis (23505).
     _rok_dogadjaj = f"Rok iz dokumenta ({tip_labela})"
+    if redni > 1:
+        # BA-01: druga obaveza ISTOG datuma iz istog dokumenta — vidljivo zaseban kandidat, ne duplikat.
+        _rok_dogadjaj += f" — {redni}. rok sa istim datumom"
     nadjen_iso = deadline_iso
-    if deadline_iso and _dl_dovoljan and (deadline_iso, _rok_dogadjaj) in vec_upisano:
-        # N03-FD1: isti red (isti predmet, datum i naziv -- postojece pravilo BLK-1) vec je upisan
-        # iz drugog dela istog otpremanja. Ovo NIJE zakljucak o istoj obavezi: identitet je isti
-        # kao kod provere duplikata ispod, samo bez povratka u bazu.
+    _identitet = kljuc or (deadline_iso, _rok_dogadjaj)   # bez ključa (144 nije primenjena): samo isto otpremanje
+    if deadline_iso and _dl_dovoljan and (pokriven or _identitet in vec_upisano):
         rok_preskocen_razlog = "vec_postoji"
         deadline_iso = None
-    if deadline_iso and _dl_dovoljan:
-        try:
-            # N03-FD2: duplikat je samo ISTI IZVOR (isti naziv izvornog fajla, koji se upisuje u
-            # `dokument_naziv`) — ponovna obrada istog dokumenta. Rok DRUGOG dokumenta sa istim
-            # datumom i istim tipom NIJE isti red: inace bi tiho nasledio odluku (potvrdu ili
-            # odbijanje) ranijeg reda, a to je ekvivalencija izvedena iz datuma.
-            _izvor_naziv = job.get("original_filename") or None
-
-            def _upit_duplikata():
-                q = (supa.table("predmet_hronologija")
-                     .select("id")
-                     .eq("predmet_id", predmet_id)
-                     .eq("datum_iso", deadline_iso)
-                     .eq("dogadjaj", _rok_dogadjaj))
-                q = q.eq("dokument_naziv", _izvor_naziv) if _izvor_naziv else q.is_("dokument_naziv", "null")
-                return q.limit(1).execute()
-            _postojeci = await asyncio.to_thread(_upit_duplikata)
-            if _postojeci.data:
-                logger.info(
-                    "[SMART_INTAKE] rok %s vec postoji u predmetu %s -- preskacem duplikat (job=%s)",
-                    deadline_iso, predmet_id, job_id,
-                )
-                rok_preskocen_razlog = "vec_postoji"
-                deadline_iso = None
-        except Exception as exc:
-            # Provera duplikata NE sme da obori upis stvarnog roka -- gori
-            # ishod od duplog roka je nijedan rok.
-            logger.warning("[SMART_INTAKE] provera duplikata roka nije uspela (nastavljam): %s", exc)
     if deadline_iso and _dl_dovoljan:
         try:
             await asyncio.to_thread(
@@ -1021,11 +997,16 @@ async def _rok_iz_dokumenta(
                     # `stanje` se NE upisuje -- dok covek ne odluci, rok je nepotvrdjen (audit lanac).
                     # Pre migracije 129 fragment je prazan i upis radi kao ranije.
                     **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
+                    # BA05 (144): UNIQUE (predmet_id, obaveza_kljuc) — ista obaveza ne može dvaput ni između procesa.
+                    **({"obaveza_kljuc": kljuc} if kljuc else {}),
                 }).execute()
             )
             rok_dodat = True
-            vec_upisano.add((deadline_iso, _rok_dogadjaj))
+            vec_upisano.add(_identitet)
         except Exception as exc:
+            if kljuc and _IZVOR.je_sukob_kljuca(exc):
+                vec_upisano.add(_identitet)
+                return {"datum_iso": nadjen_iso, "dodat": False, "razlog": "vec_postoji"}
             # N03: pad upisa nije odsustvo roka -- razlog to razlikuje.
             rok_preskocen_razlog = "upis_nije_uspeo"
             logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
@@ -1471,6 +1452,7 @@ async def _finalize_intake_job_jezgro(
     # čuvaju paralelno, bez menjanja `value_map` ugovora koji koriste
     # `_create_new_predmet_from_value_map` i Ownership Resolution.
     per_doc_meta_maps = []
+    per_doc_rokovi: list[list] = []
     for d in documents:
         vm = {
             e["entity_type"]: (e.get("corrected_value") or e.get("value"))
@@ -1478,6 +1460,13 @@ async def _finalize_intake_job_jezgro(
             if (e.get("corrected_value") or e.get("value"))
         }
         per_doc_value_maps.append(vm)
+        # BA-01: dokument može navesti više dokazanih rokova (više `deadline` entiteta). `value_map` je rečnik po
+        # tipu (poslednji pobeđuje), pa se rokovi čitaju kao lista, svaki sa svojom pouzdanošću i ljudskom potvrdom.
+        per_doc_rokovi.append([
+            ((e.get("corrected_value") or e.get("value")),
+             {"confidence": e.get("confidence"), "potvrdio_covek": bool(e.get("corrected_value")) or bool(e.get("reviewed"))})
+            for e in d["entities"] if e["entity_type"] == "deadline" and (e.get("corrected_value") or e.get("value"))
+        ])
         per_doc_meta_maps.append({
             e["entity_type"]: {
                 "confidence": e.get("confidence"),
@@ -1854,25 +1843,6 @@ async def _finalize_intake_job_jezgro(
                     logger.error("[SMART_INTAKE] NEW_CLIENT_LINKED NIJE upisan posle %d pokusaja predmet=%s job=%s -- COI provera NIJE zakazana: %s",
                                  _COI_EMIT_POKUSAJA, predmet_id, job_id, _ee)
 
-        # ── Rok iz SVAKOG dokumenta otpremanja (N03-FD1) ─────────────────────────
-        # Pravila upisa su u `_rok_iz_dokumenta` (BLK-1 prag, provera duplikata,
-        # razlog neupisa). Nijedan datum ne pobedjuje zato sto je prvi: svaki
-        # dokument daje svoj nepotvrdjen kandidat, a razliciti datumi se KAZU.
-        _vec_upisano: set = set()
-        for _i, _d in enumerate(documents):
-            _tip_d = _DOC_TYPE_LABELS.get(((_d.get("document") or {}).get("document_type") or "other"), "dokument")
-            _ishod = await _rok_iz_dokumenta(
-                supa, predmet_id=predmet_id, uid=uid, job=job, job_id=job_id,
-                value_map=per_doc_value_maps[_i], meta_map=per_doc_meta_maps[_i],
-                tip_labela=_tip_d, vec_upisano=_vec_upisano,
-            )
-            _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
-            rokovi_iz_dokumenata.append(_ishod)
-        rok_dodat = any(x["dodat"] for x in rokovi_iz_dokumenata)
-        # Zbirni razlog: prvi razlog koji postoji. Za jedan dokument isto kao ranije.
-        rok_preskocen_razlog = next((x["razlog"] for x in rokovi_iz_dokumenata if x["razlog"]), None)
-        rokovi_razliciti_datumi = len({x["datum_iso"] for x in rokovi_iz_dokumenata if x["datum_iso"]}) > 1
-
     # ── Dokumenti: decrypt → (po dokumentu) tekst-isečak → chunk → Pinecone →
     #    predmet_dokumenti ──────────────────────────────────────────────────
     # Program Intake Sprint 006 (2026-08-05) -- rewritten from a single-
@@ -1936,6 +1906,7 @@ async def _finalize_intake_job_jezgro(
     # FRG001 (BETA-DEF-004): dokumenti upisani u predmet čiji obavezni događaj NIJE upisan. Dok ova lista nije
     # prazna, posao se ne obeležava kao prikačen (v. kraj funkcije) — inače bi dokument trajno ostao bez tvrdnji.
     dogadjaji_nedostaju: list[str] = []
+    _tekst_po_dok: dict[int, str] = {}
 
     async def _vec_u_predmetu(postojeci: dict, doc_id: str, segment_row, classification_uncertain_i: bool,
                               razlog: str = "vec_obradjen_preskocen") -> None:
@@ -1985,6 +1956,7 @@ async def _finalize_intake_job_jezgro(
             seg_text = "\n\n".join(pages[segment_row["start_page"] - 1: segment_row["end_page"]])
         else:
             seg_text = text
+        _tekst_po_dok[idx] = seg_text or ""     # BA05: izvor identiteta obaveza (blok rokova posle petlje)
 
         if not seg_text or not seg_text.strip():
             dokumenti_rezultat.append({"document_id": doc_id, "povezan": False, "razlog": "prazan_tekst"})
@@ -2308,6 +2280,81 @@ async def _finalize_intake_job_jezgro(
             if segment_row:
                 await intake_segments.mark_assimilation_failed(segment_row["id"], str(exc)[:300])
             dokumenti_rezultat.append({"document_id": doc_id, "povezan": False, "razlog": "greska"})
+
+    # ── Rok iz SVAKOG dokumenta otpremanja (N03-FD1, BA05) ───────────────────────
+    # Pravila upisa su u `_rok_iz_dokumenta` (BLK-1 prag, identitet, razlog neupisa). Nijedan datum ne pobedjuje zato
+    # sto je prvi: svaki dokument daje svoje nepotvrdjene kandidate, a razliciti datumi se KAZU.
+    # BA05: blok je POSLE upisa dokumenata (ranije pre, i samo na prvom pokušaju): identitet obaveze traži tekst
+    # dokumenta (heš sadržaja + dokazna fraza). Ključ je idempotentan, pa se blok izvršava i na nastavku prekinutog
+    # prikačivanja — ranije je nastavak preskakao rokove, pa je rok neuspelog prvog pokušaja trajno izostajao.
+    from shared.vector_identity import verzija_dokumenta as _verzija_teksta
+    async with _IZVOR.zakljucavanje_kandidata(predmet_id):
+        _postojeci_rokovi: list = []
+        _bez_kljuca = False
+        try:
+            try:
+                _pr = await asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                                              .select("id,datum_iso,vrsta,dokument_id,dokument_naziv,obaveza_kljuc")
+                                              .eq("predmet_id", predmet_id).execute())
+            except Exception as exc:
+                if not _IZVOR.nedostaje_kljuc_obaveze(exc):
+                    raise
+                # 144 nije primenjena: bez ključa ostaje pokrivanje zatečenih redova (isti sadržaj, ≤ 1 dokazana
+                # obaveza datuma) — mogući duplikat, nikad potiskivanje (gori ishod od duplog roka je nijedan rok).
+                logger.error("[SMART_INTAKE] migracija 144 nije primenjena — rokovi bez identiteta obaveze: %s", exc)
+                _bez_kljuca = True
+                _pr = await asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                                              .select("id,datum_iso,vrsta,dokument_id,dokument_naziv")
+                                              .eq("predmet_id", predmet_id).execute())
+            _postojeci_rokovi = list((_pr.data if _pr else None) or [])
+        except Exception as exc:
+            # Provera NE sme da obori upis stvarnog roka; UNIQUE indeks (144) i dalje odbija isti ključ.
+            logger.warning("[SMART_INTAKE] čitanje postojećih rokova nije uspelo (nastavljam): %s", exc)
+        _dok_predmeta: list = []
+        try:
+            _dp = await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,content_sha256")
+                                          .eq("predmet_id", predmet_id).execute())
+            _dok_predmeta = list(_dp.data or [])
+        except Exception as exc:
+            logger.warning("[SMART_INTAKE] čitanje dokumenata predmeta (bez pokrivanja zatečenih rokova): %s", exc)
+        _vec_upisano: set = {x["obaveza_kljuc"] for x in _postojeci_rokovi if x.get("obaveza_kljuc")}
+        _ime = job.get("original_filename") or None
+        # n-ti rok datuma D iz istog izvora (i kad dva dokumenta prijema dele tekst) → n-ta dokazna fraza; bez fraze:
+        # prvi = prazna fraza (isto što i Genome), sledeći `#n` — dve nedokazane obaveze se ne spajaju po datumu.
+        _po_izvoru: dict = {}
+        for _i, _d in enumerate(documents):
+            _tip_d = _DOC_TYPE_LABELS.get(((_d.get("document") or {}).get("document_type") or "other"), "dokument")
+            _tekst = _tekst_po_dok.get(_i) or ""
+            _hes = _verzija_teksta(_tekst) if _tekst.strip() else None
+            # Izvor = sadržaj (isti heš kao `predmet_dokumenti.content_sha256`); bez teksta samo ovaj dokument prijema.
+            _izvor = _hes or f"prijem:{(_d.get('document') or {}).get('id')}"
+            _po_datumu = _IZVOR.obaveze_po_datumu(_tekst[:100_000]) if _hes else {}
+            _isto_ime = [x for x in _dok_predmeta if x.get("naziv_fajla") == _ime]
+            _ime_jednoznacno = bool(_hes and _isto_ime) and all(x.get("content_sha256") == _hes for x in _isto_ime)
+            _dok_id = next((x["id"] for x in _isto_ime if _hes and x.get("content_sha256") == _hes), None)
+            # BA-01: svaki dokazan rok dokumenta je zaseban kandidat (dve obaveze istog dana ostaju dve).
+            _lista = per_doc_rokovi[_i] or [(None, per_doc_meta_maps[_i].get("deadline") or {})]
+            _redni: dict = {}
+            for _vr, _meta in _lista:
+                _iso = _deadline_to_iso(_vr or "")
+                _redni[_iso] = _redni.get(_iso, 0) + 1
+                _fraze = _po_datumu.get(_iso, []) if _iso else []
+                _n = _po_izvoru[(_izvor, _iso)] = _po_izvoru.get((_izvor, _iso), 0) + 1
+                _fraza = _fraze[min(_n, len(_fraze)) - 1][0] if _fraze else ("" if _n == 1 else f"#{_n}")
+                _ishod = await _rok_iz_dokumenta(
+                    supa, predmet_id=predmet_id, uid=uid, job=job, job_id=job_id,
+                    value_map={**per_doc_value_maps[_i], "deadline": _vr}, meta_map={"deadline": _meta},
+                    tip_labela=_tip_d, vec_upisano=_vec_upisano, redni=_redni[_iso],
+                    kljuc=_IZVOR.kljuc_obaveze(_izvor, _iso, _fraza) if _iso and not _bez_kljuca else None,
+                    pokriven=bool(_iso) and len(_fraze) <= 1 and _IZVOR.pokriva_zateceni(
+                        _postojeci_rokovi, _iso, _dok_id, _ime, _ime_jednoznacno),
+                )
+                _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
+                rokovi_iz_dokumenata.append(_ishod)
+    rok_dodat = any(x["dodat"] for x in rokovi_iz_dokumenata)
+    # Zbirni razlog: prvi razlog koji postoji. Za jedan dokument isto kao ranije.
+    rok_preskocen_razlog = next((x["razlog"] for x in rokovi_iz_dokumenata if x["razlog"]), None)
+    rokovi_razliciti_datumi = len({x["datum_iso"] for x in rokovi_iz_dokumenata if x["datum_iso"]}) > 1
 
     doc_linked = doc_linked_count > 0  # backward-compatible single flag, response below
 
