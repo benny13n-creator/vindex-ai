@@ -26,6 +26,7 @@ from psycopg.rows import dict_row  # noqa: E402
 import routers.case_dna as cd  # noqa: E402
 import routers.smart_intake as si  # noqa: E402
 import shared.rokovi as R  # noqa: E402
+from tests import ns4f_pg  # noqa: E402
 from tests.test_ocr001_trka_postgres import pg  # noqa: E402,F401  (privremen klaster)
 
 KOREN = Path(__file__).resolve().parent.parent
@@ -46,7 +47,27 @@ def _odustajanje():
 
 
 @pytest.fixture
-def baza(pg):
+def klaster(request):
+    """CI (posao produkcione slike, root): izolovan test klaster `VINDEX_PG_TEST_DSN` (scripts/test_db.py) — sveža
+    baza po testu, obrisana posle. Lokalno: privremen klaster (`initdb`) iz tests/test_ocr001_trka_postgres.py."""
+    admin = ns4f_pg.dsn_admin()
+    if not admin:
+        yield request.getfixturevalue("pg")
+        return
+    from urllib.parse import urlparse
+    ime = "ba05_" + uuid.uuid4().hex[:12]
+    with psycopg.connect(admin, autocommit=True) as c:
+        c.execute(f'CREATE DATABASE "{ime}"')
+    try:
+        yield urlparse(admin)._replace(path="/" + ime).geturl()
+    finally:
+        with psycopg.connect(admin, autocommit=True) as c:
+            c.execute(f'DROP DATABASE IF EXISTS "{ime}" WITH (FORCE)')
+
+
+@pytest.fixture
+def baza(klaster):
+    pg = klaster
     with psycopg.connect(pg, autocommit=True) as c:
         c.execute("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;")
         c.execute("""
