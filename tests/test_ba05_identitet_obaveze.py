@@ -75,17 +75,21 @@ def test_B1_parafraze_A_ne_maskiraju_B(lanac, monkeypatch):
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
     _prikaci_sken(k, b, pid, DVE_ISTOG_DANA, "sken.pdf")
-    assert _rokovi(b, pid) == []                                                # OCR ispod praga: SI ne upisuje
+    # OCR ispod praga: SI ga ne upisuje kao pouzdan rok; BA05 (P7714): obe obaveze koje tekst dokazuje su NEPOTVRĐENI
+    # kandidati iz izvora (citat, OCR oznaka) — pre i nezavisno od Genome-a.
+    pre = sorted(h["id"] for h in _rokovi(b, pid))
+    assert len(pre) == 2
     model.izlaz = [_rok("Rok za zalbu", DA, "Izjavljivanje zalbe protiv resenja"),
                    _rok("Zalbeni rok", DA, "Pravo na zalbu prestaje istekom roka")]
     _osvezi(pid)
     r = _rokovi(b, pid)
+    assert sorted(h["id"] for h in r) == pre                                    # parafraze ne prave nov red
     assert len(r) == 2 and len(set(_kljucevi(b, pid))) == 2, [h["dogadjaj"] for h in r]
     assert len([h for h in r if "zalb" in _ime(h)]) == 1 and len([h for h in r if "taks" in _ime(h)]) == 1
-    # model se ne može vezati za tačno jednu od dve obaveze → naslov je citat iz izvora, ne parafraza modela
-    # (citat je stvaran OCR tekst, sa greškama prepoznavanja — npr. „izjavijivanje“)
-    assert all(h["dogadjaj"].startswith("Rok iz dokumenta: Rok ") and "Pravo na zalbu" not in h["dogadjaj"] for h in r)
-    assert {h["akter"] for h in r} == {"Genome (AI)"} and {h["izvor"] for h in r} == {"AI_AUTONOMOUS"}
+    # naslov je citat iz izvora, ne parafraza modela (citat je stvaran OCR tekst, sa greškama — npr. „izjavijivanje“)
+    assert all(h["dogadjaj"].startswith("Rok iz dokumenta (OCR, proveriti): Rok ") and "Pravo na zalbu" not in h["dogadjaj"]
+               for h in r)
+    assert {h["akter"] for h in r} == {"Smart Intake"} and {h["izvor"] for h in r} == {"AI_AUTONOMOUS"}
     assert len({h["dokument_id"] for h in r}) == 1 and None not in {h["dokument_id"] for h in r}
     model.izlaz = [_rok("Žalba", DA, "x"), _rok("Žalbeni rok", DA, "y"), _rok("Treća tvrdnja", DA, "z")]
     _osvezi(pid)

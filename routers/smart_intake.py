@@ -895,7 +895,7 @@ def _deadline_to_iso(value: str) -> Optional[str]:
 async def _rok_iz_dokumenta(
     supa, *, predmet_id: str, uid: str, job: dict, job_id: str,
     value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set, redni: int = 1,
-    kljuc: Optional[str] = None, pokriven: bool = False,
+    kljuc: Optional[str] = None, pokriven: bool = False, dokument_id: Optional[str] = None,
 ) -> dict:
     """Rok iz JEDNOG dokumenta otpremanja -> nepotvrdjen kandidat u hronologiji.
 
@@ -999,6 +999,8 @@ async def _rok_iz_dokumenta(
                     **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
                     # BA05 (144): UNIQUE (predmet_id, obaveza_kljuc) — ista obaveza ne može dvaput ni između procesa.
                     **({"obaveza_kljuc": kljuc} if kljuc else {}),
+                    # BA05: stvarni dokument predmeta (ime fajla nije identitet — dva `scan.pdf`).
+                    **({"dokument_id": dokument_id} if dokument_id else {}),
                 }).execute()
             )
             rok_dodat = True
@@ -1903,6 +1905,7 @@ async def _finalize_intake_job_jezgro(
     doc_linked_count = 0
     genome_should_trigger = False
     accepted_doc_names: list[str] = []  # Program Delta, Sprint 001 -- DOCUMENT_ACCEPTED payload
+    accepted_doc_ids: list[str] = []    # BA05: stvarni identitet dokumenata za rokove iz izvora (ime fajla nije identitet)
     # FRG001 (BETA-DEF-004): dokumenti upisani u predmet čiji obavezni događaj NIJE upisan. Dok ova lista nije
     # prazna, posao se ne obeležava kao prikačen (v. kraj funkcije) — inače bi dokument trajno ostao bez tvrdnji.
     dogadjaji_nedostaju: list[str] = []
@@ -2213,6 +2216,7 @@ async def _finalize_intake_job_jezgro(
                 doc_linked_count += 1
                 genome_should_trigger = True
                 accepted_doc_names.append(job.get("original_filename") or "dokument")
+                accepted_doc_ids.append(dokument_id_i)
 
                 # Program Intake Sprint 006, Phase 1 finding -- finalize had
                 # ZERO audit/provenance calls for document-into-case
@@ -2332,6 +2336,9 @@ async def _finalize_intake_job_jezgro(
             _isto_ime = [x for x in _dok_predmeta if x.get("naziv_fajla") == _ime]
             _ime_jednoznacno = bool(_hes and _isto_ime) and all(x.get("content_sha256") == _hes for x in _isto_ime)
             _dok_id = next((x["id"] for x in _isto_ime if _hes and x.get("content_sha256") == _hes), None)
+            # Dokument ovog sadržaja u predmetu (heš je identitet dokumenta u predmetu); dvosmisleno → bez veze.
+            _isti_sadrzaj = [x["id"] for x in _dok_predmeta if _hes and x.get("content_sha256") == _hes]
+            _dok_izvora = _isti_sadrzaj[0] if len(_isti_sadrzaj) == 1 else None
             # BA-01: svaki dokazan rok dokumenta je zaseban kandidat (dve obaveze istog dana ostaju dve).
             _lista = per_doc_rokovi[_i] or [(None, per_doc_meta_maps[_i].get("deadline") or {})]
             _redni: dict = {}
@@ -2348,6 +2355,7 @@ async def _finalize_intake_job_jezgro(
                     kljuc=_IZVOR.kljuc_obaveze(_izvor, _iso, _fraza) if _iso and not _bez_kljuca else None,
                     pokriven=bool(_iso) and len(_fraze) <= 1 and _IZVOR.pokriva_zateceni(
                         _postojeci_rokovi, _iso, _dok_id, _ime, _ime_jednoznacno),
+                    dokument_id=_dok_izvora,
                 )
                 _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
                 rokovi_iz_dokumenata.append(_ishod)
@@ -2403,7 +2411,9 @@ async def _finalize_intake_job_jezgro(
                 EventType.DOCUMENT_ACCEPTED,
                 uid,
                 predmet_id,
-                {"dokumenti": accepted_doc_names, "trigger": "smart_intake_finalize"},
+                # BA05: `intake_job_id` pokriva i nastavak (dokumenti već upisani) — rokovi iz izvora ih nalaze po poslu.
+                {"dokumenti": accepted_doc_names, "dokument_ids": accepted_doc_ids, "intake_job_id": job_id,
+                 "trigger": "smart_intake_finalize"},
                 event_id=_id_prihvatanja_posla(job_id),
             )
         except Exception as _ee:

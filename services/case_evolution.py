@@ -366,6 +366,25 @@ async def _consequence_genome_refresh(event: Event) -> str:
     return str(after_verzija)
 
 
+async def _consequence_rokovi_iz_izvora(event: Event) -> str:
+    """BA05 (P7714/2026): obaveze koje parser prepozna u tekstu PRIHVAĆENIH dokumenata postaju nepotvrđeni kandidati
+    nezavisno od toga da li ih Genome navede (shared/rokovi.py::uskladi_rokove_iz_izvora). Dokumenti po stvarnom id-u
+    i poslu prijema iz payload-a — nikad po imenu fajla. Događaj bez identiteta dokumenta (stariji payload) se NE
+    razrešava po imenu: ishod to kaže. Pad čitanja/upisa se podiže → posledica `failed`, događaj se ponavlja."""
+    if not event.predmet_id or not event.user_id:
+        return "skipped_no_predmet_id"
+    p = event.payload or {}
+    ishod = await _IZVOR.uskladi_rokove_iz_izvora(
+        _get_supa(), event.predmet_id, event.user_id,
+        dokument_ids=list(p.get("dokument_ids") or []) + ([p["dokument_id"]] if p.get("dokument_id") else []),
+        intake_job_ids=list(p.get("job_ids") or []) + ([p["intake_job_id"]] if p.get("intake_job_id") else []),
+    )
+    if ishod.get("bez_identiteta_dokumenta"):
+        return "skipped_no_document_identity"
+    return (f"kreirano={len(ishod['kreirano'])} postoji={len(ishod['postoji'])} ispravljeno={len(ishod['ispravljeno'])} "
+            f"bez_signala={len(ishod['bez_signala'])} bez_teksta={len(ishod['bez_teksta'])}")
+
+
 async def _consequence_timeline_entry(event: Event) -> str:
     """Records a Timeline entry ("document(s) accepted into this case") —
     reuses the exact existing predmet_hronologija insert shape already used
@@ -1667,6 +1686,9 @@ async def _consequence_project_case_actions_to_notifications(event: Event) -> st
 
 CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     EventType.DOCUMENT_ACCEPTED: [
+        # BA05 (P7714/2026): PRVI — pad ili izostavljanje Genome-a (AI model) ne sme da odloži ni potisne kandidata
+        # koga tekst dokumenta dokazuje (isti obrazac kao email_podsetnik_hitno kod ROCISTE_ZAKAZANO).
+        ConsequenceDef(name="rokovi_iz_izvora", executor=_consequence_rokovi_iz_izvora),
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         # Program Omega, Sprint 003 — runs LAST, always reading freshly-
@@ -1751,6 +1773,8 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # entry at all (neither per-job, now suppressed, nor batch-level,
         # previously missing here) — a real regression this sprint closes
         # before it ships.
+        # BA05: rokovi iz izvora PRVI i ovde — batch potiskuje DOCUMENT_ACCEPTED po poslu (payload nosi `job_ids`).
+        ConsequenceDef(name="rokovi_iz_izvora", executor=_consequence_rokovi_iz_izvora),
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         ConsequenceDef(name="case_intelligence_summary", executor=_consequence_case_intelligence_summary),

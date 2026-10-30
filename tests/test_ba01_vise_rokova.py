@@ -131,8 +131,9 @@ def test_ista_obaveza_dvaput_u_dokumentu_jedan_kandidat(lanac, monkeypatch):
 
 @treba_ocr
 def test_sken_stvaran_ocr_rokovi_ostaju_nesigurni_a_genome_ogranicen_ocr_tekstom(lanac, monkeypatch):
-    """OCR rok je ispod praga (OCR_PLAFON) i bez ispravke advokata NE postaje Smart Intake kandidat — nesigurno ostaje
-    nesigurno (BA-03). Genome kandidat iz istog skena je ograničen brojem obaveza koje OCR tekst stvarno dokazuje."""
+    """OCR rok je ispod praga (OCR_PLAFON): Smart Intake ga NE upisuje kao pouzdan rok — nesigurno ostaje nesigurno
+    (BA-03). BA05 (P7714/2026): obaveza koju tekst skena dokazuje ipak postaje NEPOTVRĐEN kandidat iz izvora, sa OCR
+    oznakom u nazivu (inače je, kad je Genome izostavi, tiho nestajala). Genome je ograničen istim obavezama."""
     k, b = lanac
     model = Model([])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
@@ -142,7 +143,10 @@ def test_sken_stvaran_ocr_rokovi_ostaju_nesigurni_a_genome_ogranicen_ocr_tekstom
     ent = [e for e in b.tabele["extracted_entities"] if e["document_id"] == dok["id"] and e["entity_type"] == "deadline"]
     assert dok["ocr_used"] is True
     assert sorted(e["value"] for e in ent) == sorted([_sr(A_ROK)[:-1], _sr(B_ROK)[:-1]]) and all(e["confidence"] < 0.9 for e in ent), ent
-    assert _rokovi(b, pid) == []
+    r = _rokovi(b, pid)
+    assert _po_datumu(b, pid) == {_iso(A_ROK): 1, _iso(B_ROK): 1}
+    assert all(h["dogadjaj"].startswith("Rok iz dokumenta (OCR, proveriti): ") for h in r), [h["dogadjaj"] for h in r]
+    assert set(_stanja(k, pid).values()) == {"UNCONFIRMED"}
     model.izlaz = [_rok("Žalba", _iso(A_ROK), "x", "DOK-01"), _rok("Ispunjenje", _iso(B_ROK), "y", "DOK-01"),
                    _rok("Izmišljen", _iso(B_ROK), "z", "DOK-01")]
     _osvezi(pid)
