@@ -286,8 +286,8 @@ def test_drugi_korisnik_ne_utice_i_ne_vidi(lanac, monkeypatch):
 
 
 def test_dva_razlicita_dokumenta_istog_imena_obaveza_se_ne_gubi(lanac, monkeypatch):
-    """Ime fajla nije dokaz kad nije jednoznačno: red Smart Intake-a (bez `dokument_id`) za „scan.pdf“ ne sme da
-    „pokrije“ obavezu DRUGOG dokumenta istog imena. Moguć je dupli kandidat (ugovor, granica 2) — gubitak nije."""
+    """Ime fajla nije dokaz: red Smart Intake-a za „scan.pdf“ ne sme da „pokrije“ obavezu DRUGOG dokumenta istog
+    imena. BA05: identitet je sadržaj dokumenta, pa svaka obaveza ima tačno jedan kandidat — ni gubitak ni duplikat."""
     k, b = lanac
     model = Model([_rok("Rok za zalbu", DA, "a", "DOK-01")])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
@@ -295,5 +295,7 @@ def test_dva_razlicita_dokumenta_istog_imena_obaveza_se_ne_gubi(lanac, monkeypat
     _prikaci(k, b, pid, ISTI_DAN[:-1], "scan.pdf")
     model.izlaz = [_rok("Rok za zalbu", DA, "a", "DOK-01"), _rok("Rok za taksu", DA, "b", "DOK-02")]
     _prikaci(k, b, pid, TAKSA, "scan.pdf")
-    dok2 = next(d["id"] for d in b.tabele["predmet_dokumenti"] if d["predmet_id"] == pid and d.get("redni_broj") == 2)
-    assert [h for h in _rokovi(b, pid) if h.get("dokument_id") == dok2], _rokovi(b, pid)
+    r = _rokovi(b, pid)
+    assert len(r) == 2 and len({h["obaveza_kljuc"] for h in r}) == 2, r
+    _osvezi(pid)
+    assert len(_rokovi(b, pid)) == 2

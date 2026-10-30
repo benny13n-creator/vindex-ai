@@ -58,6 +58,7 @@ vraća praznu listu na grešku: `Rezultat.uspeh` je jedini nosilac te razlike, a
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 import weakref
@@ -824,6 +825,59 @@ def pripada_dokumentu(red: dict, dokument_id: str, naziv_fajla: Optional[str], i
     if red.get("dokument_id"):
         return str(red["dokument_id"]) == str(dokument_id)
     return bool(naziv_fajla) and ime_jednoznacno and red.get("dokument_naziv") == naziv_fajla
+
+
+# ── BA05: identitet obaveze (OBLIGATION_IDENTITY_CONTRACT, migracija 144) ──────────────────────────────────────────
+#
+# Brojanje redova klase nije identitet: red ne zna KOJU obavezu predstavlja, pa je postojeći red „pokrivao“ drugu
+# obavezu istog datuma (B2), a dve parafraze iste obaveze su „punile“ klasu (B1); ime fajla nije dokument (A).
+# Ključ = sadržaj izvornog dokumenta (heš teksta, isti kao `predmet_dokumenti.content_sha256`) + datum + dokazna
+# fraza iz TEKSTA dokumenta. Tekst modela i naslov reda nikad nisu deo ključa. Baza ga čini jedinstvenim po predmetu
+# (delimičan UNIQUE indeks iz 144) — važi i između procesa; NULL = zatečen red ili identitet nepoznat.
+
+KLJUC_VERZIJA = "BA05v1"
+
+
+def kljuc_obaveze(izvor_dokumenta: str, datum_iso: str, fraza: str) -> str:
+    """`fraza` je prazna kad tekst dokumenta taj datum ne navodi kao rok (tvrdnja modela ili ispravka advokata)."""
+    return hashlib.sha256(f"{KLJUC_VERZIJA}|{izvor_dokumenta}|{datum_iso}|{fraza}".encode("utf-8")).hexdigest()
+
+
+def obaveze_po_datumu(tekst: Optional[str]) -> dict:
+    """`{datum_iso: [(fraza, citat), ...]}` — svaka dokazana obaveza teksta jednom, redom teksta. `citat` je red
+    izvornog teksta u kom je obaveza (prikaz kada model ne može da se veže za tačno jednu obavezu)."""
+    from shared.intake_extract import dokazani_rokovi
+    t = tekst or ""
+    out: dict = {}
+    for o in dokazani_rokovi(t):
+        if not o.get("konkretan_datum"):
+            continue
+        dd, mm, gg = o["konkretan_datum"].split(".")[:3]
+        lista = out.setdefault(f"{gg}-{mm}-{dd}", [])
+        if any(f == o["fraza"] for f, _ in lista):
+            continue
+        p = o["pozicija"]
+        kraj = t.find("\n", p)
+        lista.append((o["fraza"], " ".join(t[t.rfind("\n", 0, p) + 1:len(t) if kraj < 0 else kraj].split())[:160]))
+    return out
+
+
+def pokriva_zateceni(postojeci, datum_iso: str, dokument_id, naziv_fajla: Optional[str], ime_jednoznacno: bool) -> bool:
+    """Zatečen red (bez ključa) istog dokumenta i datuma pokriva obavezu SAMO kad tekst tog datuma dokazuje najviše
+    jednu obavezu (pozivalac to proverava) — tada je jasno koju predstavlja. Red se ne menja; odluka ostaje na njemu."""
+    return any(not x.get("obaveza_kljuc") and je_kandidat_klase(x, datum_iso)
+               and pripada_dokumentu(x, dokument_id, naziv_fajla, ime_jednoznacno) for x in (postojeci or []))
+
+
+def nedostaje_kljuc_obaveze(exc: Exception) -> bool:
+    """Samo izričit odgovor baze (42703 / PGRST204) da kolona iz 144 ne postoji."""
+    m = str(exc)
+    return ("42703" in m or "PGRST204" in m or "does not exist" in m.lower()) and "obaveza_kljuc" in m
+
+
+def je_sukob_kljuca(exc: Exception) -> bool:
+    """23505: isti ključ je u međuvremenu upisao drugi pisac/proces — obaveza postoji, ne ponavlja se."""
+    return "23505" in str(exc) or "duplicate key" in str(exc).lower()
 
 
 def _sema_ima_129(supa) -> bool:

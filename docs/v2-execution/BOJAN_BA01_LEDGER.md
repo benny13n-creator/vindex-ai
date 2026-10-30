@@ -44,3 +44,17 @@ Prethodni dokaz: `BA-GOLDEN-01-EVIDENCE/` (lokalno, van repozitorijuma; sinteti�
 
 Nije dokazano ovim sprintom: produkcioni E2E, stvarna isporuka emaila (pauza nepromenjena), Bojanovo prihvatanje.
 Postojeći dupli Genome predlozi u produkciji ostaju (nijedan produkcioni red nije menjan); nov kod ih ne umnožava.
+
+## BA05 — identitet obaveze (PR #61 završna kapija → korekcija)
+
+Kapija PR61 (2026-10-30) je oborila presudu `READY_FOR_CONTROLLED_LIVE_TEST`: brojni identitet klase je tiho gubio
+obaveze — (A) dva različita `scan.pdf` istog datuma, (B2) Genome A pa B u sledećem osvežavanju; (B1) dve parafraze A
+„punile“ su klasu. Dodatno nađeno: nastavak prekinutog prikačivanja preskakao je rokove (drugi rok trajno izostajao).
+
+| Stavka | Stanje |
+|---|---|
+| Identitet | `obaveza_kljuc` = sha256(heš teksta dokumenta, datum, dokazna fraza iz teksta) — `shared/rokovi.kljuc_obaveze`; nikad tekst modela, naslov, ime fajla ni broj redova |
+| Šema | migracija 144: kolona + `UNIQUE (predmet_id, obaveza_kljuc) WHERE obaveza_kljuc IS NOT NULL` + CHECK oblika; zatečeni redovi NULL; **NIJE primenjena na produkciju** (pre spajanja, osnivač) |
+| Smart Intake | rokovi posle upisa dokumenata (tekst + heš poznati), i na nastavku; ključ umesto imena fajla |
+| Genome | 1 dokazana obaveza datuma → stavke modela su ona; ≥ 2 → svaka dokazana obaveza sa citatom iz izvora; 0 → jedan AI predlog po (dokument, datum); nerazrešen izvor → tačan tekst (N03-FD2) |
+| Testovi | `tests/test_ba05_identitet_obaveze.py`, `tests/test_ba05_migracija_144_postgres.py` (pravi PostgreSQL, trka dva procesa); 9/9 mutacija ubijeno |

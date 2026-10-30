@@ -117,12 +117,14 @@ def test_pad_citanja_dokumenata_ne_obara_upis_roka():
 
 
 def test_dedup_kljuc_nepromenjen():
-    """BA-01 (DEADLINE_IDENTITY_CONTRACT) zamenjuje ključ (dogadjaj, datum) za RAZREŠEN izvor: tekst modela se menjao
-    pri svakom osvežavanju i pravio nov kandidat za istu obavezu. Razrešen izvor → klasa (dokument, datum) iz
-    `shared/rokovi`; nerazrešen izvor → i dalje tačan (dogadjaj, datum) — jednakost se ne pretpostavlja (N03-FD2).
-    Ponašanje meri tests/test_ba01_rok_identitet.py."""
+    """BA05 (OBLIGATION_IDENTITY_CONTRACT) zamenjuje ključ (dogadjaj, datum) za RAZREŠEN izvor sa tekstom: tekst modela
+    se menjao pri svakom osvežavanju (BA-01), a brojanje redova klase je potiskivalo drugu obavezu (PR61 kapija).
+    Razrešen izvor → `obaveza_kljuc` iz `shared/rokovi` (sadržaj + datum + dokazna fraza) i pokrivanje zatečenih redova;
+    nerazrešen izvor → i dalje tačan (dogadjaj, datum) — jednakost se ne pretpostavlja (N03-FD2).
+    Ponašanje meri tests/test_ba05_identitet_obaveze.py i tests/test_ba01_rok_identitet.py."""
     telo = _telo("_sync_rokovi_to_hronologija")
-    assert "_IZVOR.pripada_dokumentu(" in telo and "_IZVOR.je_kandidat_klase(" in telo
+    assert "_IZVOR.kljuc_obaveze(" in telo and "_IZVOR.pokriva_zateceni(" in telo
+    assert "len(klasa)" not in telo
     assert "(_tekst_genome_roka(r), datum) not in tekstovi" in telo
 
 

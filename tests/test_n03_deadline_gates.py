@@ -61,6 +61,16 @@ def _req():
 _UID = "00000000-0000-0000-0000-0000000000a1"
 
 
+
+def _hes_teksta():
+    from shared.vector_identity import verzija_dokumenta
+    return verzija_dokumenta("tekst")      # `uploaded_doc.extractor.extract` je zamenjen i vraća "tekst"
+
+
+def _kljuc_istog_dokumenta(iso):
+    from shared.rokovi import kljuc_obaveze
+    return kljuc_obaveze(_hes_teksta(), iso, "")
+
 def _supa(hronologija_postoji=False, insert_puca=None):
     """Belezi svaki INSERT u predmet_hronologija u `supa.upisi`."""
     supa = MagicMock()
@@ -85,6 +95,9 @@ def _supa(hronologija_postoji=False, insert_puca=None):
             t.insert.side_effect = _ins_pred
         elif name == "predmet_dokumenti":
             t.insert.return_value.execute.return_value.data = [{"id": "dok-001"}]
+            # BA05: dokument koji je finalize upravo upisao (ime + heš sadržaja) — pokrivanje zatečenih rokova po imenu
+            t.select.return_value.eq.return_value.execute.return_value.data = [
+                {"id": "dok-001", "naziv_fajla": "presuda.pdf", "content_sha256": _hes_teksta()}]
             t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
             t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.limit.return_value.execute.return_value.data = []
@@ -100,10 +113,12 @@ def _supa(hronologija_postoji=False, insert_puca=None):
                 m.execute.return_value.data = [{}]
                 return m
             t.insert.side_effect = _insert
-            # N03-FD2 / BA-01: provera duplikata = isti predmet + isti datum + isti izvorni fajl (bez naziva
-            # događaja — Genome red iz istog dokumenta je ista obaveza; DEADLINE_IDENTITY_CONTRACT).
-            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
-                [{"id": "hron-odbijen"}] if hronologija_postoji else []
+            # BA05 (OBLIGATION_IDENTITY_CONTRACT): postojeći rokovi predmeta se čitaju jednom; ista obaveza = isti
+            # `obaveza_kljuc` (sadržaj dokumenta + datum + dokazna fraza). „Postoji“ = red koji je raniji upis ISTOG
+            # dokumenta ostavio (isti tekst „tekst“, isti datum, bez dokazne fraze u tekstu).
+            t.select.return_value.eq.return_value.execute.return_value.data = (
+                [{"id": "hron-odbijen", "datum_iso": ISO_25, "vrsta": "rok", "dokument_naziv": "presuda.pdf",
+                  "obaveza_kljuc": _kljuc_istog_dokumenta(ISO_25)}] if hronologija_postoji else []
             )
         elif name == "intake_job_segments":
             t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None
@@ -710,16 +725,17 @@ async def test_FD1_drugi_datum_ispod_praga_nije_upisan_ali_se_kaze(sonda_129):
 
 
 @pytest.mark.anyio
-async def test_FD1_isti_datum_isti_tip_je_isti_red_ne_dva(sonda_129):
-    """Kontrola: isti predmet + isti datum + isti naziv je POSTOJECE pravilo
-    duplikata (BLK-1) — vazi i unutar jednog otpremanja. Ne uvodi se nova
-    ekvivalencija; razliciti datumi nisu signalizirani jer ih nema."""
+async def test_FD1_isti_datum_isti_tip_dva_dokumenta_dva_kandidata(sonda_129):
+    """BA05 (invarijanta 1): dva dokumenta istog otpremanja sa istim datumom i istim tipom NISU ista obaveza — raniji
+    ključ (datum + naziv „Rok iz dokumenta (tip)“) je drugu obavezu tiho gubio. Bez dokazne fraze u tekstu ključ
+    nosi redni broj nedokazane obaveze tog izvora, pa se dve ne spajaju; razliciti datumi nisu signalizirani."""
     supa = _supa()
     rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)], "dok-A"),
                                  _dok([_ent("deadline", D_25, 0.95)], "dok-B")])
-    assert [r["datum_iso"] for r in supa.upisi] == [ISO_25]
+    assert [r["datum_iso"] for r in supa.upisi] == [ISO_25, ISO_25]
+    assert len({r["obaveza_kljuc"] for r in supa.upisi}) == 2
     assert rez["rokovi_razliciti_datumi"] is False
-    assert rez["rokovi_iz_dokumenata"][1]["razlog"] == "vec_postoji"
+    assert [x["razlog"] for x in rez["rokovi_iz_dokumenata"]] == [None, None]
 
 
 @pytest.mark.anyio
