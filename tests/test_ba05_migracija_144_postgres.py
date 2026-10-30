@@ -290,6 +290,35 @@ def test_A_B1_B2_nad_pravom_bazom(baza):
     assert len(_redovi(baza, pc)) == 2
 
 
+TEKST_SUBJ_PRE = ("RESENJE\nZa tužioca rok za uplatu sudske takse ističe 05.11.2026.\n"
+                  "Za tuženog rok za uplatu sudske takse ističe 05.11.2026.")
+TEKST_SUBJ_POSLE = ("RESENJE\nRok za uplatu sudske takse ističe 05.11.2026. za tužioca.\n"
+                    "Rok za uplatu sudske takse ističe 05.11.2026. za tuženog.")
+TEKST_PONOVLJENO = "RESENJE\nRok za uplatu sudske takse ističe 05.11.2026.\nRok za uplatu sudske takse ističe 05.11.2026."
+
+
+def test_kolizija_izvora_dva_subjekta_nad_pravom_bazom(baza, monkeypatch):
+    """Isti dokument, ista vrsta i datum, različit subjekat (pre ili posle datuma) → dve obaveze, i u trci dva
+    osvežavanja bez zaključavanja u procesu; ista obaveza ponovljena u dokumentu → jedna."""
+    with psycopg.connect(baza, autocommit=True) as c:
+        c.execute(M144)
+    monkeypatch.setattr(R, "zakljucavanje_kandidata", lambda pid: _NulaZakljucavanje())
+    sp = Supa(baza)
+    for tekst, subj in ((TEKST_SUBJ_PRE, ("Za tužioca", "Za tuženog")), (TEKST_SUBJ_POSLE, ("za tužioca", "za tuženog"))):
+        pid = str(uuid.uuid4())
+        d = _dokument(baza, pid, "resenje.pdf", tekst)
+        _istovremeno(sp, lambda: _genome(sp, pid, _rok("Uplata takse", d, "a")),
+                     lambda: _genome(sp, pid, _rok("Sudska taksa", d, "b")))
+        _genome(sp, pid, _rok("Taksa ponovo", d))
+        r = _redovi(baza, pid)
+        assert len(r) == 2 and len({x["obaveza_kljuc"] for x in r}) == 2 and None not in {x["obaveza_kljuc"] for x in r}, r
+        assert all(sum(s in x["dogadjaj"] for x in r) == 1 for s in subj), [x["dogadjaj"] for x in r]
+    pid = str(uuid.uuid4())
+    d = _dokument(baza, pid, "resenje.pdf", TEKST_PONOVLJENO)
+    _genome(sp, pid, _rok("Uplata takse", d, "a"), _rok("Sudska taksa", d, "b"))
+    assert len(_redovi(baza, pid)) == 1
+
+
 # ── (5) kod pre migracije ─────────────────────────────────────────────────────────────────────────────────────
 
 def test_bez_144_upis_bez_kljuca_i_bez_potiskivanja(baza):

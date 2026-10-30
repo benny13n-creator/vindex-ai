@@ -835,7 +835,7 @@ def pripada_dokumentu(red: dict, dokument_id: str, naziv_fajla: Optional[str], i
 # fraza iz TEKSTA dokumenta. Tekst modela i naslov reda nikad nisu deo ključa. Baza ga čini jedinstvenim po predmetu
 # (delimičan UNIQUE indeks iz 144) — važi i između procesa; NULL = zatečen red ili identitet nepoznat.
 
-KLJUC_VERZIJA = "BA05v1"
+KLJUC_VERZIJA = "BA05v2"     # v2: fraza = ceo red oko datuma (subjekat pre i posle datuma), ne od „rok za“
 
 
 def kljuc_obaveze(izvor_dokumenta: str, datum_iso: str, fraza: str) -> str:

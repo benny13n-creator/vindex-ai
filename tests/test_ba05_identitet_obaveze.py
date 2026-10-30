@@ -134,6 +134,71 @@ def test_C_nedokazan_datum_jedan_nepotvrden_predlog_ai(lanac, monkeypatch):
     assert _stanja(k, pid) == {h["id"]: "UNCONFIRMED"}
 
 
+# ── kolizija izvora: isti dokument, ista vrsta i datum, različit subjekat ──────────────────────────────────────
+# Fraza je počinjala od „rok za“ (subjekat ispred nestajao) i završavala se datumom (subjekat posle nije ulazio):
+# dva subjekta = ista fraza = isti ključ → druga obaveza tiho nestajala (SOURCE-IDENTITY COLLISION GATE).
+
+D_SUBJ = "2026-11-05"
+SUBJEKTI = {
+    "pre_datuma": (["RESENJE", "Posl. br. P 4410/2026 (SINTETICKI)", "Za tužioca rok za uplatu sudske takse ističe 05.11.2026.",
+                    "Za tuženog rok za uplatu sudske takse ističe 05.11.2026."], ("tuzioca", "tuzenog")),
+    "posle_datuma": (["RESENJE", "Posl. br. P 4411/2026 (SINTETICKI)", "Rok za uplatu sudske takse ističe 05.11.2026. za tužioca.",
+                      "Rok za uplatu sudske takse ističe 05.11.2026. za tuženog."], ("tuzioca", "tuzenog")),
+}
+
+
+def test_fraza_nosi_subjekat_pre_i_posle_datuma_a_ponavljanje_i_pouka_ostaju_jedna():
+    from shared.intake_extract import dokazani_rokovi
+    for redovi, subj in SUBJEKTI.values():
+        f = [r["fraza"] for r in dokazani_rokovi("\n".join(redovi))]
+        assert len(f) == 2 and all(sum(s in x for x in f) == 1 for s in subj), f
+    isti = "Rok za uplatu sudske takse ističe 05.11.2026."
+    assert len(dokazani_rokovi(f"RESENJE\n{isti}\n{isti}")) == 1
+    assert len(dokazani_rokovi(f"RESENJE\n{isti}\nObrazlozenje.\nPOUKA O PRAVNOM LEKU: {isti}")) == 1
+    assert len(dokazani_rokovi(f"RESENJE\n{isti}\nObrazlozenje.\nПОУКА О ПРАВНОМ ЛЕКУ: {isti}")) == 1
+    assert len(dokazani_rokovi(f"RESENJE\n{isti}\nObrazlozenje.\nPOUKA O PRAVNOM LEKU:\n{isti}")) == 1
+    # subjekat u drugom redu: uvod sa dvotačkom, prelom reda pre i posle datuma (nastavak malim slovom)
+    for t in (f"RESENJE\nZa tužioca:\n{isti}\nZa tuženog:\n{isti}",
+              "RESENJE\nZa tužioca rok za uplatu sudske\ntakse ističe 05.11.2026.\nZa tuženog rok za uplatu sudske\ntakse ističe 05.11.2026.",
+              "RESENJE\nRok za uplatu sudske takse ističe 05.11.2026. za\ntužioca.\nRok za uplatu sudske takse ističe 05.11.2026. za\ntuženog."):
+        f = [r["fraza"] for r in dokazani_rokovi(t)]
+        assert len(f) == 2 and sum("tuzioca" in x for x in f) == 1 and sum("tuzenog" in x for x in f) == 1, (t, f)
+    assert len(dokazani_rokovi(f"Za tužioca:\n{isti}\nZa tužioca:\n{isti}")) == 1
+
+
+@pytest.mark.parametrize("slucaj", list(SUBJEKTI))
+def test_kolizija_izvora_dva_subjekta_dva_kandidata_i_odluke_ostaju(slucaj, lanac, monkeypatch):
+    k, b = lanac
+    model = Model([])
+    monkeypatch.setattr(cd, "_pozovi_genome_api", model)
+    pid = _predmet(k)
+    redovi = SUBJEKTI[slucaj][0]
+    _prikaci(k, b, pid, redovi, "resenje.pdf")
+    r = _rokovi(b, pid)
+    assert [h["datum_iso"] for h in r] == [D_SUBJ, D_SUBJ] and len(set(_kljucevi(b, pid))) == 2 and None not in _kljucevi(b, pid), r
+    assert sorted(_stanja(k, pid).values()) == ["UNCONFIRMED", "UNCONFIRMED"]
+    assert k.post(f"/api/rokovi/{r[0]['id']}/potvrdi", json={}, headers=A).status_code == 200
+    assert k.post(f"/api/rokovi/{r[1]['id']}/odbij", json={"napomena": "test"}, headers=A).status_code == 200
+    # Genome parafrazira (jednom, pa oba subjekta), isti sadržaj ponovo otpremljen → nijedan nov red, odluke na istim id
+    for izlaz in ([_rok("Uplata sudske takse", D_SUBJ, "a")],
+                  [_rok("Taksa — tužilac", D_SUBJ, "b"), _rok("Taksa — tuženi", D_SUBJ, "c")], []):
+        model.izlaz = izlaz
+        _osvezi(pid)
+    _prikaci(k, b, pid, redovi, "resenje (1).pdf")
+    assert sorted(h["id"] for h in _rokovi(b, pid)) == sorted([r[0]["id"], r[1]["id"]])
+    assert _stanja(k, pid) == {r[0]["id"]: "CONFIRMED", r[1]["id"]: "REJECTED"}
+
+
+def test_ista_obaveza_dvaput_isti_subjekat_jedan_kandidat(lanac, monkeypatch):
+    k, b = lanac
+    monkeypatch.setattr(cd, "_pozovi_genome_api", Model([_rok("Taksa", D_SUBJ, "x"), _rok("Uplata takse", D_SUBJ, "y")]))
+    pid = _predmet(k)
+    isti = "Za tužioca rok za uplatu sudske takse ističe 05.11.2026."
+    _prikaci(k, b, pid, ["RESENJE", "Posl. br. P 4412/2026 (SINTETICKI)", isti, isti], "resenje.pdf")
+    _osvezi(pid)
+    assert len(_rokovi(b, pid)) == 1
+
+
 # ── pad ekstrakcije teksta pri prikačivanju: rok iz entiteta se ne gubi ────────────────────────────────────────
 
 def test_pad_ekstrakcije_teksta_rok_ostaje(lanac, monkeypatch):

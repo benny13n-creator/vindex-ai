@@ -269,12 +269,16 @@ def extract_deadline(text: str) -> tuple[Optional[str], float]:
 # `_ROK_DOKAZ_PROZOR` znakova, posle prethodnog datuma u redu). Ista fraza i isti datum = ista obaveza pomenuta dvaput;
 # različita fraza = druga obaveza, i kad joj je datum isti. Fraza nikad ne dolazi iz modela.
 # BA05: fraza je ranije počinjala od BILO KOJE rokovne reči, pa su „… da plati najkasnije D“ i „Odgovor dostaviti
-# najkasnije D“ bile ista fraza („najkasnije“) — druga obaveza je nestajala. Sada fraza počinje od „rok za …“ samo kad
-# ta konstrukcija IMENUJE obavezu (izreka i pouka „Rok za izjavljivanje žalbe …“ ostaju jedna obaveza); inače je to
-# ceo deo reda pre datuma. Isto pominjanje sa drugim uvodom tada daje dva kandidata (vidljivo), nikad gubitak.
+# najkasnije D“ bile ista fraza („najkasnije“) — druga obaveza je nestajala.
+# BA05 kolizija izvora: ni odsecanje do „rok za …“ nije bilo bezbedno — brisalo je subjekat („Za tužioca rok za uplatu
+# takse ističe D“ i „Za tuženog …“ = ista fraza), a deo reda POSLE datuma („… ističe D za tuženog“) nije ni ulazio u
+# frazu. Fraza je sada ceo red: deo pre datuma (bez strukturne oznake odluke „POUKA O PRAVNOM LEKU:“ — zatvoren spisak
+# naslova odeljka, nikad stranka, pa izreka i pouka ostaju jedna obaveza) i deo posle datuma do kraja reda ili sledećeg
+# datuma. Isto pominjanje sa drugim uvodom tada daje dva kandidata (vidljivo), nikad gubitak.
 # Ugovor: OBLIGATION_IDENTITY_CONTRACT.
 
-_ROK_ZA_RE = re.compile(r"\b(?:rok|рок)(?:a|u|om|ovi|ova|ove|а|у|ом|ови|ова|ове)?\s+(?:za|за)\b", re.IGNORECASE)
+_OZNAKA_ODELJKA_RE = re.compile(r"^\W*(?:pouka|поука)(?:\s+(?:o|о)\s+(?:pravnom|правном)\s+(?:leku|lijeku|леку))?\s*:",
+                                re.IGNORECASE)
 
 def _normalizuj_frazu(s: str) -> str:
     s = unicodedata.normalize("NFKD", s.replace("đ", "dj").replace("Đ", "Dj"))
@@ -282,13 +286,27 @@ def _normalizuj_frazu(s: str) -> str:
     return " ".join(re.sub(r"[^0-9a-zа-яђјљњћџ ]", " ", s).split())
 
 
-def _dokazna_fraza(text: str, pozicija: int) -> str:
-    pocetak = max(text.rfind("\n", 0, pozicija) + 1, pozicija - _ROK_DOKAZ_PROZOR, 0)
+def _dokazna_fraza(text: str, pozicija: int, kraj=None) -> str:
+    # Logički red: prelomljen red (nastavak počinje malim slovom) i uvod koji se završava dvotačkom („Za tužioca:“)
+    # pripadaju istom navodu — samo ti tekstualni znaci, bez nagađanja smisla.
+    p_reda = text.rfind("\n", 0, pozicija) + 1
+    while 0 < p_reda > pozicija - _ROK_DOKAZ_PROZOR:
+        pret = text[text.rfind("\n", 0, p_reda - 1) + 1:p_reda - 1]
+        if not (text[p_reda:pozicija].lstrip()[:1].islower() or pret.rstrip().endswith(":")):
+            break
+        p_reda -= len(pret) + 1
+    pocetak = max(p_reda, pozicija - _ROK_DOKAZ_PROZOR, 0)
     for m in _DRUGI_DATUM_RE.finditer(text, pocetak, pozicija):
         pocetak = m.end()
-    seg = text[pocetak:pozicija]
-    m = _ROK_ZA_RE.search(seg)
-    return _normalizuj_frazu(seg[m.start():] if m else seg)
+    pre = _normalizuj_frazu(_OZNAKA_ODELJKA_RE.sub("", text[pocetak:pozicija], count=1))
+    kraj = pozicija if kraj is None else kraj
+    k_reda = text.find("\n", kraj)
+    while 0 <= k_reda < kraj + _ROK_DOKAZ_PROZOR and text[k_reda + 1:k_reda + 41].lstrip(" \t")[:1].islower():
+        k_reda = text.find("\n", k_reda + 1)
+    granica = min(len(text) if k_reda < 0 else k_reda, kraj + _ROK_DOKAZ_PROZOR)
+    sledeci = _DRUGI_DATUM_RE.search(text, kraj, granica)
+    posle = _normalizuj_frazu(text[kraj:sledeci.start() if sledeci else granica])
+    return f"{pre} | {posle}" if posle else pre
 
 
 def dokazani_rokovi(text: str) -> list[dict]:
@@ -304,7 +322,7 @@ def dokazani_rokovi(text: str) -> list[dict]:
         if not _ima_dokaz_o_roku(izvor, r.get("pozicija"), r.get("kraj")):
             continue
         vrednost = r.get("konkretan_datum") or r.get("vrednost")
-        fraza = _dokazna_fraza(izvor, r["pozicija"])
+        fraza = _dokazna_fraza(izvor, r["pozicija"], r.get("kraj"))
         if (vrednost, fraza) in vidjeno:
             continue
         vidjeno.add((vrednost, fraza))
