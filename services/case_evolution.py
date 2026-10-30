@@ -366,6 +366,18 @@ async def _consequence_genome_refresh(event: Event) -> str:
     return str(after_verzija)
 
 
+def _nema_kolone_dogadjaja(exc: Exception) -> bool:
+    """Samo izričit odgovor baze (42703 / PGRST204) da kolona iz 145 ne postoji."""
+    m = str(exc)
+    return ("42703" in m or "PGRST204" in m or "does not exist" in m.lower()) and "dogadjaj_event_id" in m
+
+
+def _je_sukob_dogadjaja(exc: Exception) -> bool:
+    """23505 NAD indeksom 145 (`uq_hronologija_dogadjaj_event`) — ne bilo koje kršenje jedinstvenosti."""
+    m = str(exc)
+    return ("23505" in m or "duplicate key" in m.lower()) and "dogadjaj_event" in m
+
+
 async def _consequence_rokovi_iz_izvora(event: Event) -> str:
     """BA05 (P7714/2026): obaveze koje parser prepozna u tekstu PRIHVAĆENIH dokumenata postaju nepotvrđeni kandidati
     nezavisno od toga da li ih Genome navede (shared/rokovi.py::uskladi_rokove_iz_izvora). Dokumenti po stvarnom id-u
@@ -436,27 +448,58 @@ async def _consequence_timeline_entry(event: Event) -> str:
     # LIVINGSYS-DEBT-043 (routers/rocista.py) instead: an identical (predmet_id, dogadjaj)
     # row inserted within the same reclaim window is treated as the already-applied result
     # of an earlier attempt, not a new event.
-    _dup_r = await asyncio.to_thread(
-        lambda: supa.table("predmet_hronologija").select("id")
-            .eq("predmet_id", predmet_id).eq("dogadjaj", opis)
-            .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
-            .limit(1).execute()
-    )
+    #
+    # BA04/BA08 (P7714/2026, migracija 145): poređenje VIDLJIVOG teksta je spajalo dva RAZLIČITA prihvatanja dokumenata
+    # istog imena („Dokument prihvaćen — scan.pdf“ dvaput u 300 s → jedan red). Identitet unosa je sada `event_id`
+    # događaja: isti događaj ponovljen = isti red, dva događaja = dva reda; jedinstvenost drži baza (UNIQUE 145).
+    # Bez 145 (kolona ne postoji): ponašanje kao do sada, uz ERROR u logu.
+    bez_145 = False
+    try:
+        _dup_r = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija").select("id")
+                .eq("predmet_id", predmet_id).eq("dogadjaj_event_id", event.event_id)
+                .limit(1).execute()
+        )
+    except Exception as exc:
+        if not _nema_kolone_dogadjaja(exc):
+            raise
+        logger.error("[CASE_EVOLUTION] migracija 145 nije primenjena — unos hronologije po vidljivom tekstu: %s", exc)
+        bez_145 = True
+        _dup_r = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija").select("id")
+                .eq("predmet_id", predmet_id).eq("dogadjaj", opis)
+                .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
+                .limit(1).execute()
+        )
     if _dup_r.data:
         return str(_dup_r.data[0]["id"])
 
-    res = await asyncio.to_thread(
-        lambda: supa.table("predmet_hronologija").insert({
-            "predmet_id": predmet_id,
-            "user_id":    uid,
-            "dogadjaj":   opis,
-            "vaznost":    "informativan",
-            "akter":      "Case Evolution Engine",
-            # migracija 127 — W-EVOLUTION: posledica dogadjaja na sabirnici,
-            # nije opazanje.
-            "izvor":      _IZVOR.IZVOR_SYSTEM,
-        }).execute()
-    )
+    red = {
+        "predmet_id": predmet_id,
+        "user_id":    uid,
+        "dogadjaj":   opis,
+        "vaznost":    "informativan",
+        "akter":      "Case Evolution Engine",
+        # migracija 127 — W-EVOLUTION: posledica dogadjaja na sabirnici,
+        # nije opazanje.
+        "izvor":      _IZVOR.IZVOR_SYSTEM,
+    }
+    if not bez_145:
+        red["dogadjaj_event_id"] = event.event_id
+    try:
+        res = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert(red).execute())
+    except Exception as exc:
+        if bez_145 or not _je_sukob_dogadjaja(exc):
+            raise
+        # Drugi proces je u međuvremenu upisao unos ISTOG događaja — to je taj red.
+        _isti = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija").select("id")
+                .eq("predmet_id", predmet_id).eq("dogadjaj_event_id", event.event_id)
+                .limit(1).execute()
+        )
+        if not _isti.data:
+            raise
+        return str(_isti.data[0]["id"])
     if not res.data:
         raise RuntimeError(f"timeline_entry insert nije uspeo za predmet={predmet_id}")
     return str(res.data[0]["id"])

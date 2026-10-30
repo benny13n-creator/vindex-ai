@@ -270,13 +270,14 @@ class _Upit:
                     r.setdefault("start_at", r["created_at"]); r.setdefault("aktivan", True)
                 if self.t == "audit_immutable":  # seq je BIGSERIAL (redosled lanca odluka)
                     r.setdefault("seq", next(_brojac))
-                kljuc = self.b.jedinstveno.get(self.t)
-                # NULL u ključu se ne sudara (Postgres UNIQUE; delimičan indeks 144 `WHERE obaveza_kljuc IS NOT NULL`).
-                if kljuc and vrsta == "insert" and all(r.get(c) is not None for c in kljuc) and any(
-                        all(x.get(c) == r.get(c) for c in kljuc) for x in self.b.tabele.get(self.t, [])):
-                    # Kao PRIMARY KEY u Postgres-u: drugi INSERT istog kljuca pada (PostgREST APIError 23505).
-                    raise Exception('{"code": "23505", "message": "duplicate key value violates unique constraint '
-                                    + self.b.ime_jedinstvenog.get(self.t, "") + '"}')
+                # NULL u ključu se ne sudara (Postgres UNIQUE; delimični indeksi 144/145 `WHERE … IS NOT NULL`).
+                for kljuc, ime_ogr in ([(self.b.jedinstveno.get(self.t), self.b.ime_jedinstvenog.get(self.t, ""))]
+                                       + self.b.jedinstveno_dodatno.get(self.t, [])):
+                    if kljuc and vrsta == "insert" and all(r.get(c) is not None for c in kljuc) and any(
+                            all(x.get(c) == r.get(c) for c in kljuc) for x in self.b.tabele.get(self.t, [])):
+                        # Kao PRIMARY KEY u Postgres-u: drugi INSERT istog kljuca pada (PostgREST APIError 23505).
+                        raise Exception('{"code": "23505", "message": "duplicate key value violates unique constraint '
+                                        + ime_ogr + '"}')
                 if vrsta == "upsert":
                     self.b.tabele.setdefault(self.t, [])[:] = [x for x in self.b.tabele.get(self.t, []) if x.get("id") != r["id"]]
                 self.b.tabele.setdefault(self.t, []).append(r)
@@ -363,6 +364,8 @@ class Baza:
                             "predmet_hronologija": ("predmet_id", "obaveza_kljuc")}
         # Ime ograničenja u poruci 23505 (kao Postgres/PostgREST) — pisac sme da prepozna SVOJ indeks.
         self.ime_jedinstvenog = {"predmet_hronologija": "uq_hronologija_obaveza_kljuc"}
+        # Druga jedinstvenost iste tabele — migracija 145 (BA04): jedan red hronologije po trajnom događaju.
+        self.jedinstveno_dodatno = {"predmet_hronologija": [(("predmet_id", "dogadjaj_event_id"), "uq_hronologija_dogadjaj_event")]}
         # RPC implementacije po imenu (npr. intake red u tests/ns005_intake_fake.py); bez nje rpc vraća [].
         self.rpc_impl = {}
         # NS4 zavrsno zatvaranje: migracije 139/140 (ishod predmeta, ponovni upis nacrta) -- Python verzije za
