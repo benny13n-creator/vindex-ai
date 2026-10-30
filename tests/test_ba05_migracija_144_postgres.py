@@ -73,7 +73,8 @@ def baza(klaster):
         c.execute("""
             CREATE TABLE public.predmet_dokumenti (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(), predmet_id uuid NOT NULL, user_id uuid,
-                naziv_fajla text, tekst_sadrzaj text, content_sha256 text, source_intake_job_id uuid);
+                naziv_fajla text, tekst_sadrzaj text, content_sha256 text, source_intake_job_id uuid,
+                source_intake_job_segment_id uuid);
             CREATE TABLE public.predmet_hronologija (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(), predmet_id uuid NOT NULL, user_id uuid,
                 dogadjaj text, datum text, datum_iso date, vaznost text, akter text, dokument_naziv text,

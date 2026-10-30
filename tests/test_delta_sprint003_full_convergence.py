@@ -209,6 +209,9 @@ async def test_pipeline_a_upload_endpoint_emits_both_events_durably():
 
     emitted_types = [c.args[0] for c in mock_emit.call_args_list]
     assert emitted_types == [ET.NEW_EVIDENCE_REGISTERED, ET.DOCUMENT_ACCEPTED]
+    # BA05: DOCUMENT_ACCEPTED nosi stvarni dokument (rokovi iz izvora), isti kao NEW_EVIDENCE_REGISTERED
+    dok_id = mock_emit.call_args_list[0].args[3]["dokument_id"]
+    assert dok_id and mock_emit.call_args_list[1].args[3]["dokument_ids"] == [dok_id]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

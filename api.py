@@ -6426,7 +6426,8 @@ async def predmet_upload_auto_analyze(
                 EventType.DOCUMENT_ACCEPTED,
                 user.id,
                 predmet_id,
-                {"dokumenti": [file.filename or "dokument"], "trigger": "pipeline_a_upload"},
+                # BA05 (P7714/2026): stvarni dokument za rokove iz izvora — LLM analiza ispod može da izostavi rok.
+                {"dokumenti": [file.filename or "dokument"], "dokument_ids": [_dok_id], "trigger": "pipeline_a_upload"},
             )
         except Exception as _ge:
             logger.warning("[SMART_EVOLUTION] DOCUMENT_ACCEPTED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ge)

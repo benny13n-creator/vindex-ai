@@ -232,6 +232,7 @@ def test_tudji_dokument_se_ne_cita_ni_upisuje(lanac):
     tudji = _dok(b, pid, "\n".join(TAKSA), uid="uid-B")
     ishod = _uskladi(b, pid, [tudji])
     assert _rokovi(b, pid) == [] and ishod["kreirano"] == [] and ishod["bez_signala"] == []
+    assert ishod["nije_pronadjeno"] == [tudji]                                    # vidljivo, ne „uspeh bez ičega“
 
 
 def test_datum_koji_je_advokat_ispravio_se_ne_vraca_kao_kandidat(lanac):
@@ -352,3 +353,126 @@ def test_kandidati_iz_skena_do_podsetnika_samo_potvrdjen(lanac, monkeypatch, tmp
         assert all(h["user_id"] == "uid-A" for h in _rokovi(b, pid))
     finally:
         smtp.zatvori()
+
+
+# ── nezavisni pregled: ispravka advokata se pripisuje tačnom dokumentu i tačnoj obavezi; ISO vrednost ─────────────
+
+def _prijem(b, posao, ispravke=(), ocr=True):
+    pid_ = str(_uuid.uuid4())
+    b.table("intake_documents").insert({"id": pid_, "intake_job_id": posao, "ocr_used": ocr}).execute()
+    for vrednost, ispravka in ispravke:
+        b.table("extracted_entities").insert({"id": str(_uuid.uuid4()), "document_id": pid_, "entity_type": "deadline",
+                                              "value": vrednost, "corrected_value": ispravka, "reviewed": True}).execute()
+    return pid_
+
+
+def test_ispravka_jednog_segmenta_ne_brise_obavezu_drugog_segmenta(lanac):
+    k, b = lanac
+    pid = _predmet(k)
+    posao = str(_uuid.uuid4())
+    p1, p2 = _prijem(b, posao, [(SA, "20.12.2026")]), _prijem(b, posao)
+    s1, s2 = str(_uuid.uuid4()), str(_uuid.uuid4())
+    b.table("intake_job_segments").insert({"id": s1, "intake_job_id": posao, "document_id": p1}).execute()
+    b.table("intake_job_segments").insert({"id": s2, "intake_job_id": posao, "document_id": p2}).execute()
+    d1 = _dok(b, pid, "\n".join(TROSKOVI), posao=posao)
+    d2 = _dok(b, pid, "\n".join(TAKSA), posao=posao)
+    for did, seg in ((d1, s1), (d2, s2)):
+        next(d for d in b.tabele["predmet_dokumenti"] if d["id"] == did)["source_intake_job_segment_id"] = seg
+    ishod = _uskladi(b, pid, poslovi=[posao])
+    assert ishod["ispravljeno"] == [(d1, DA)] and [h["dokument_id"] for h in _rokovi(b, pid)] == [d2]
+
+
+def test_ispravka_datuma_sa_dve_obaveze_ne_brise_nijednu(lanac):
+    k, b = lanac
+    pid = _predmet(k)
+    posao = str(_uuid.uuid4())
+    _prijem(b, posao, [(SA, "20.12.2026")])
+    _dok(b, pid, f"RESENJE\nRok za zalbu istice {SA} godine.\nRok za uplatu sudske takse istice {SA} godine.", posao=posao)
+    ishod = _uskladi(b, pid, poslovi=[posao])
+    assert ishod["ispravljeno"] == [] and len(_rokovi(b, pid)) == 2              # ne zna se na koju se odnosi
+
+
+def test_ispravka_sa_iso_vrednoscu_se_postuje(lanac):
+    k, b = lanac
+    pid = _predmet(k)
+    posao = str(_uuid.uuid4())
+    _prijem(b, posao, [(DA, "2026-12-20")])
+    did = _dok(b, pid, "\n".join(TAKSA), posao=posao)
+    assert _uskladi(b, pid, poslovi=[posao])["ispravljeno"] == [(did, DA)] and _rokovi(b, pid) == []
+
+
+# ── nezavisni pregled #1: nastavak koji prikači NOVE dokumente dobija svoj identitet događaja ──────────────────────
+
+def test_identitet_prihvatanja_prvi_pokusaj_isti_nastavak_sa_novim_dokumentima_svoj():
+    from routers.smart_intake import _id_prihvatanja_posla as idp
+    posao = str(_uuid.uuid4())
+    assert idp(posao) == idp(posao, None) == idp(posao, [])                       # FRG001: ponovna emisija = no-op
+    novi = idp(posao, ["d3"])
+    assert novi != idp(posao) and novi == idp(posao, ["d3"])                       # deterministički po skupu
+    assert idp(posao, ["d3", "d4"]) == idp(posao, ["d4", "d3"]) != novi
+
+
+def test_nastavak_posle_obradjenog_dogadjaja_uskladjuje_novi_dokument(lanac, monkeypatch):
+    """Posao sa dva akta; prvi pokušaj upiše samo prvi, njegov DOCUMENT_ACCEPTED se OBRADI; nastavak upiše drugi.
+    Rok drugog je ispod praga (kao OCR) pa ga Smart Intake ne upisuje — mora ga usklađivanje nastavka."""
+    import io
+    from datetime import datetime, timedelta, timezone
+
+    from reportlab.pdfgen import canvas
+
+    from tests.test_osb002_solo_tok import _do_kraja_dogadjaja
+    k, b = lanac
+    monkeypatch.setattr(cd, "_pozovi_genome_api", Model([]))
+    pid = _predmet(k)
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    for redovi in (["OSNOVNI SUD U BEOGRADU", "RESENJE", "Posl. br. P 1111/2026", f"Rok za zalbu na troskove istice {SA} godine."],
+                   ["OSNOVNI SUD U NOVOM SADU", "PRESUDA", "Posl. br. P 2222/2026",
+                    f"Rok za uplatu dodatne sudske takse istice {SA} godine."]):
+        for i, r in enumerate(redovi):
+            c.drawString(50, 800 - 20 * i, r)
+        c.showPage()
+    c.save()
+    r = k.post("/api/smart-intake/documents", files=[("files", ("dva.pdf", buf.getvalue(), "application/pdf"))], headers=A)
+    jid = r.json()["rezultati"][0]["job_id"]
+    _do_kraja()
+    prijemi = [d["id"] for d in b.tabele["intake_documents"] if d["intake_job_id"] == jid]
+    assert len(prijemi) == 2
+    for e in b.tabele["extracted_entities"]:
+        if e["document_id"] in prijemi and e["entity_type"] == "case_number":
+            e["corrected_value"], e["reviewed"] = "P 1111/2026", True              # advokat: isti predmet
+    seg = sorted((x for x in b.tabele["intake_job_segments"] if x["intake_job_id"] == jid), key=lambda x: x["segment_index"])
+    taksa_prijem = seg[-1]["document_id"]                                       # drugi akt (taksa)
+    for e in b.tabele["extracted_entities"]:
+        if e["document_id"] == taksa_prijem and e["entity_type"] == "deadline":
+            e["confidence"] = 0.5                                                 # kao OCR: SI ne upisuje
+    if k.get(f"/api/smart-intake/jobs/{jid}", headers=A).json()["job"]["status"] == "awaiting_review":
+        k.post(f"/api/smart-intake/jobs/{jid}/review/resolve", json={}, headers=A)
+        _do_kraja()
+    orig = _h._Upit.execute
+    stanje = {"dok": 0}
+
+    def execute(self):                                   # drugi akt se u prvom pokušaju ne upiše (prolazna greška)
+        if self.t == "predmet_dokumenti" and self.radnja[0] == "insert":
+            stanje["dok"] += 1
+            if stanje["dok"] == 2:
+                raise RuntimeError("upis dokumenta pao (test)")
+        return orig(self)
+    monkeypatch.setattr(_h._Upit, "execute", execute)
+    prvi = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A)
+    monkeypatch.setattr(_h._Upit, "execute", orig)
+    assert prvi.status_code == 200, prvi.text
+    assert len([d for d in b.tabele["predmet_dokumenti"] if d["predmet_id"] == pid]) == 1
+    _do_kraja_dogadjaja(b)                               # prvi događaj OBRAĐEN — usklađen je samo prvi akt
+    posao = next(j for j in b.tabele["intake_jobs"] if j["id"] == jid)
+    posao["finalizing_at"] = (datetime.now(timezone.utc) - timedelta(seconds=121)).isoformat()
+    f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A)
+    assert f.status_code == 200, f.text
+    _do_kraja_dogadjaja(b)
+    dok = [d for d in b.tabele["predmet_dokumenti"] if d["predmet_id"] == pid]
+    assert len(dok) == 2
+    takse = [h for h in _rokovi(b, pid) if "takse" in (h.get("dogadjaj") or "")]
+    assert len(takse) == 1 and takse[0]["dokument_id"] in {d["id"] for d in dok}, \
+        [(h["dogadjaj"], h.get("dokument_id")) for h in _rokovi(b, pid)]
+    prihvatanja = [e for e in b.tabele["events"] if e["event_type"] == "DocumentAccepted"]
+    assert len(prihvatanja) == 2 and len({e["id"] for e in prihvatanja}) == 2

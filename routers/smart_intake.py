@@ -74,7 +74,14 @@ def _id_dogadjaja_dokaza(dokument_id: str) -> str:
     return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"new_evidence_registered:{dokument_id}"))
 
 
-def _id_prihvatanja_posla(job_id: str) -> str:
+def _id_prihvatanja_posla(job_id: str, novi_posle_prethodnih: Optional[list] = None) -> str:
+    """Stabilan identitet DOCUMENT_ACCEPTED po poslu (FRG001: ponovna emisija istog prihvatanja je no-op).
+
+    BA05 (nezavisni pregled #1): nastavak koji prikači NOVE dokumente pored onih iz prethodnog pokušaja dobija svoj
+    identitet (posao + skup novih dokumenata). Pod istim identitetom bi ga `ON CONFLICT DO NOTHING` progutao posle
+    već obrađenog prvog događaja, a novi dokumenti nikad ne bi prošli rokove iz izvora (ni Genome osvežavanje)."""
+    if novi_posle_prethodnih:
+        return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"document_accepted:{job_id}:{','.join(sorted(novi_posle_prethodnih))}"))
     return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"document_accepted:{job_id}"))
 
 
@@ -1906,6 +1913,7 @@ async def _finalize_intake_job_jezgro(
     genome_should_trigger = False
     accepted_doc_names: list[str] = []  # Program Delta, Sprint 001 -- DOCUMENT_ACCEPTED payload
     accepted_doc_ids: list[str] = []    # BA05: stvarni identitet dokumenata za rokove iz izvora (ime fajla nije identitet)
+    vec_prikacenih = 0                  # dokumenti ovog otpremanja već u predmetu (prethodni pokušaj / isti sadržaj)
     # FRG001 (BETA-DEF-004): dokumenti upisani u predmet čiji obavezni događaj NIJE upisan. Dok ova lista nije
     # prazna, posao se ne obeležava kao prikačen (v. kraj funkcije) — inače bi dokument trajno ostao bez tvrdnji.
     dogadjaji_nedostaju: list[str] = []
@@ -1914,7 +1922,7 @@ async def _finalize_intake_job_jezgro(
     async def _vec_u_predmetu(postojeci: dict, doc_id: str, segment_row, classification_uncertain_i: bool,
                               razlog: str = "vec_obradjen_preskocen") -> None:
         """Dokument istog sadržaja već ima red u OVOM predmetu: povezan je, bez novog reda, lineage-a i audita."""
-        nonlocal doc_linked_count
+        nonlocal doc_linked_count, vec_prikacenih
         if segment_row:
             await intake_segments.mark_assimilation_resolved(segment_row["id"])
         # FRG001 (BETA-DEF-004): postojeći dokument OVOG korisnika u OVOM predmetu koji još nije klasifikovan
@@ -1938,6 +1946,7 @@ async def _finalize_intake_job_jezgro(
                 dogadjaji_nedostaju.append(postojeci["id"])
                 logger.error("[SMART_INTAKE] NEW_EVIDENCE_REGISTERED ponovni upis greška dok=%s: %s", postojeci["id"], _ee)
         doc_linked_count += 1
+        vec_prikacenih += 1
         dokumenti_rezultat.append({"document_id": doc_id, "povezan": True, "razlog": razlog})
         logger.info(
             "[SMART_INTAKE] job=%s dok=%s isti sadržaj već postoji u OVOM predmetu (%s) -- bez novog reda (%s).",
@@ -2414,7 +2423,7 @@ async def _finalize_intake_job_jezgro(
                 # BA05: `intake_job_id` pokriva i nastavak (dokumenti već upisani) — rokovi iz izvora ih nalaze po poslu.
                 {"dokumenti": accepted_doc_names, "dokument_ids": accepted_doc_ids, "intake_job_id": job_id,
                  "trigger": "smart_intake_finalize"},
-                event_id=_id_prihvatanja_posla(job_id),
+                event_id=_id_prihvatanja_posla(job_id, accepted_doc_ids if vec_prikacenih else None),
             )
         except Exception as _ee:
             # FRG001 (BETA-DEF-004): više nije fail-soft. Izgubljen DOCUMENT_ACCEPTED je značio da se Genome i

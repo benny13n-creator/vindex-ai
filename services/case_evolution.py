@@ -394,7 +394,8 @@ async def _consequence_rokovi_iz_izvora(event: Event) -> str:
     if ishod.get("bez_identiteta_dokumenta"):
         return "skipped_no_document_identity"
     return (f"kreirano={len(ishod['kreirano'])} postoji={len(ishod['postoji'])} ispravljeno={len(ishod['ispravljeno'])} "
-            f"bez_signala={len(ishod['bez_signala'])} bez_teksta={len(ishod['bez_teksta'])}")
+            f"bez_signala={len(ishod['bez_signala'])} bez_teksta={len(ishod['bez_teksta'])} "
+            f"nije_pronadjeno={len(ishod['nije_pronadjeno'])}")
 
 
 async def _consequence_timeline_entry(event: Event) -> str:

@@ -893,10 +893,14 @@ def je_sukob_kljuca(exc: Exception) -> bool:
 # upisa se podiže (posledica ostaje nezavršena i ponavlja se), nikad „nula kandidata“.
 
 def _iso_iz_vrednosti(v) -> Optional[str]:
+    """`dd.mm.gggg` (kako ga čuva ekstrakcija) ili ISO `gggg-mm-dd`; sve ostalo → None."""
+    t = str(v or "").strip().rstrip(".")
     try:
-        dd, mm, gg = str(v).strip().rstrip(".").split(".")[:3]
+        if len(t) >= 10 and t[4] == "-":
+            return date.fromisoformat(t[:10]).isoformat()
+        dd, mm, gg = t.split(".")[:3]
         return date(int(gg), int(mm), int(dd)).isoformat()
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, IndexError):
         return None
 
 
@@ -907,20 +911,23 @@ def naslov_roka_iz_izvora(citat: str, ocr: Optional[bool]) -> str:
 
 async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_ids=(), intake_job_ids=()) -> dict:
     """Ishod po obavezi: `kreirano` / `postoji` (ključ ili zatečen red istog dokumenta) / `ispravljeno` (advokat je
-    ispravio taj datum) i po dokumentu: `bez_signala` (tekst ne navodi nijedan rok) / `bez_teksta`."""
-    ishod: dict = {"kreirano": [], "postoji": [], "ispravljeno": [], "bez_signala": [], "bez_teksta": []}
+    ispravio taj datum) i po dokumentu: `bez_signala` (tekst ne navodi nijedan rok) / `bez_teksta` /
+    `nije_pronadjeno` (traženi dokument nije u ovom predmetu ovog korisnika)."""
+    ishod: dict = {"kreirano": [], "postoji": [], "ispravljeno": [], "bez_signala": [], "bez_teksta": [],
+                   "nije_pronadjeno": []}
     ids = sorted({str(x) for x in dokument_ids if x})
     poslovi = sorted({str(x) for x in intake_job_ids if x})
     if not ids and not poslovi:
         ishod["bez_identiteta_dokumenta"] = True
         return ishod
-    kol = "id,naziv_fajla,content_sha256,tekst_sadrzaj,source_intake_job_id"
+    kol = "id,naziv_fajla,content_sha256,tekst_sadrzaj,source_intake_job_id,source_intake_job_segment_id"
     dokumenti: dict = {}
     for polje, vrednosti in (("id", ids), ("source_intake_job_id", poslovi)):
         if vrednosti:
             r = await asyncio.to_thread(lambda p=polje, v=vrednosti: supa.table("predmet_dokumenti").select(kol)
                                         .eq("predmet_id", predmet_id).eq("user_id", uid).in_(p, v).execute())
             dokumenti.update({d["id"]: d for d in (r.data or [])})
+    ishod["nije_pronadjeno"] = [x for x in ids if x not in dokumenti]
     # Zatečen red bez ključa (pre 144) i bez `dokument_id` pokriva obavezu samo po pravilu Smart Intake-a: ime fajla je
     # u predmetu jednoznačno tek kad svi dokumenti tog imena imaju isti sadržaj.
     r = await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,content_sha256")
@@ -929,26 +936,42 @@ async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_
     for x in (r.data or []):
         sadrzaj_po_imenu.setdefault(x.get("naziv_fajla"), set()).add(x.get("content_sha256"))
 
-    # OCR i ispravke advokata po poslu prijema (dokument bez posla: čitanje nepoznato, nema ispravki)
-    ocr_posla: dict = {}
-    ispravljeni_posla: dict = {}
+    # OCR i ispravke advokata po PRIJEMU tog dokumenta (segment → prijem; posao bez segmenata ima jedan prijem).
+    # Dokument bez jednoznačnog prijema: čitanje nepoznato, ispravka se ne pripisuje (nikad drugi dokument posla).
+    prijem_dok: dict = {}
+    ocr_prijema: dict = {}
+    ispravljeno_prijema: dict = {}
     poslovi_dok = sorted({d["source_intake_job_id"] for d in dokumenti.values() if d.get("source_intake_job_id")})
     if poslovi_dok:
         r = await asyncio.to_thread(lambda: supa.table("intake_documents").select("id,intake_job_id,ocr_used")
                                     .in_("intake_job_id", poslovi_dok).execute())
-        prijem = {x["id"]: x["intake_job_id"] for x in (r.data or [])}
+        prijemi_posla: dict = {}
         for x in (r.data or []):
-            ocr_posla[x["intake_job_id"]] = bool(ocr_posla.get(x["intake_job_id"])) or bool(x.get("ocr_used"))
-        if prijem:
+            prijemi_posla.setdefault(x["intake_job_id"], []).append(x["id"])
+            ocr_prijema[x["id"]] = bool(x.get("ocr_used"))
+        segmenti = sorted({d["source_intake_job_segment_id"] for d in dokumenti.values()
+                           if d.get("source_intake_job_segment_id")})
+        prijem_segmenta: dict = {}
+        if segmenti:
+            r = await asyncio.to_thread(lambda: supa.table("intake_job_segments").select("id,document_id")
+                                        .in_("id", segmenti).execute())
+            prijem_segmenta = {x["id"]: x.get("document_id") for x in (r.data or [])}
+        for did, d in dokumenti.items():
+            if d.get("source_intake_job_segment_id"):
+                prijem_dok[did] = prijem_segmenta.get(d["source_intake_job_segment_id"])
+            elif len(prijemi_posla.get(d.get("source_intake_job_id"), [])) == 1:
+                prijem_dok[did] = prijemi_posla[d["source_intake_job_id"]][0]
+        prijemi = sorted({p for p in prijem_dok.values() if p})
+        if prijemi:
             r = await asyncio.to_thread(lambda: supa.table("extracted_entities")
                                         .select("document_id,entity_type,value,corrected_value")
-                                        .in_("document_id", sorted(prijem)).execute())
+                                        .in_("document_id", prijemi).execute())
             for e in (r.data or []):
                 if e.get("entity_type") != "deadline" or e.get("corrected_value") in (None, ""):
                     continue
                 stari, novi = _iso_iz_vrednosti(e.get("value")), _iso_iz_vrednosti(e.get("corrected_value"))
                 if stari and stari != novi:
-                    ispravljeni_posla.setdefault(prijem[e["document_id"]], set()).add(stari)
+                    ispravljeno_prijema.setdefault(e["document_id"], set()).add(stari)
 
     async with zakljucavanje_kandidata(predmet_id):
         _kolone = "id,dogadjaj,datum_iso,dokument_id,dokument_naziv,akter,vrsta"
@@ -976,10 +999,12 @@ async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_
                 ishod["bez_signala"].append(did)
                 continue
             izvor = d.get("content_sha256") or f"dokument:{did}"
-            posao = d.get("source_intake_job_id")
-            ocr = ocr_posla.get(posao) if posao in ocr_posla else None
+            prijem = prijem_dok.get(did)
+            ocr = ocr_prijema.get(prijem) if prijem in ocr_prijema else None
             for datum, fraze in po_datumu.items():
-                if datum in ispravljeni_posla.get(posao, ()):
+                # Advokat je ispravio pročitan datum — ali samo kad tekst tog datuma navodi JEDNU obavezu, jasno je na
+                # koju se ispravka odnosi; inače se obaveze upisuju (moguć duplikat, nikad gubitak druge obaveze).
+                if len(fraze) == 1 and datum in ispravljeno_prijema.get(prijem, ()):
                     ishod["ispravljeno"].append((did, datum))
                     continue
                 ime = d.get("naziv_fajla")
