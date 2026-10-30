@@ -30,4 +30,17 @@ Prethodni dokaz: `BA-GOLDEN-01-EVIDENCE/` (lokalno, van repozitorijuma; sinteti�
 
 | Task | Stanje | Dokaz |
 |---|---|---|
-| 0 | PASS | ova tabela |
+| 0 | PASS | ova tabela; CI osnovice 11/11 |
+| 1 | PASS | reprodukcije A/B/C/D na osnovici (sud „… Posl“ 0.90; „dinara“; Genome 9 kandidata za 3 obaveze; događaji samo u Analizi) |
+| 2 | PASS | `e0cdfe48` — `tests/test_ba01_ekstrakcija.py` |
+| 3 | PASS | `cb984b6e` — isti fajl, iznos kao Decimal + valuta |
+| 4 | PASS | ugovor identiteta (klasa = izvorni dokument + datum, ograničena dokazom iz teksta; nerazrešen izvor = tačan tekst) |
+| 5 | PASS | `e4458b5c` — `tests/test_ba01_rok_identitet.py`, 8/8 mutacija ubijeno |
+| 6 | PASS | `7060c591` — `tests/test_ba01_vise_rokova.py` (stvaran OCR), 7/7 mutacija ubijeno |
+| 7 | PASS | `533fd80c` — `tests/test_ba01_procesna_hronologija.py`, `frontend-v2-ng/tests/live-ba01-hronologija.mjs` 37/37 |
+| 8 | PASS (izolovano) | `bd0cb491` — lokalni SMTP, stvaran lanac odluka; svita podsetnika 240/240 sa PostgreSQL 17 |
+| 9 | PASS | `0e117238` — zlatni slučaj D (stvaran OCR); stvaran model 3 varijante: 0 duplikata, 0 običnih datuma kao rok |
+| 10 | u toku | puna svita: isti 9 padova kao osnovica (po ID-ju); CI i Draft PR |
+
+Nije dokazano ovim sprintom: produkcioni E2E, stvarna isporuka emaila (pauza nepromenjena), Bojanovo prihvatanje.
+Postojeći dupli Genome predlozi u produkciji ostaju (nijedan produkcioni red nije menjan); nov kod ih ne umnožava.
