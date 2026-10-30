@@ -2299,10 +2299,13 @@ async def _finalize_intake_job_jezgro(
             except Exception as exc:
                 if not _IZVOR.nedostaje_kljuc_obaveze(exc):
                     raise
-                # 144 nije primenjena: bez identiteta obaveze nema provere preko otpremanja — mogući duplikat,
-                # nikad potiskivanje (gori ishod od duplog roka je nijedan rok).
+                # 144 nije primenjena: bez ključa ostaje pokrivanje zatečenih redova (isti sadržaj, ≤ 1 dokazana
+                # obaveza datuma) — mogući duplikat, nikad potiskivanje (gori ishod od duplog roka je nijedan rok).
                 logger.error("[SMART_INTAKE] migracija 144 nije primenjena — rokovi bez identiteta obaveze: %s", exc)
-                _bez_kljuca, _pr = True, None
+                _bez_kljuca = True
+                _pr = await asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                                              .select("id,datum_iso,vrsta,dokument_id,dokument_naziv")
+                                              .eq("predmet_id", predmet_id).execute())
             _postojeci_rokovi = list((_pr.data if _pr else None) or [])
         except Exception as exc:
             # Provera NE sme da obori upis stvarnog roka; UNIQUE indeks (144) i dalje odbija isti ključ.

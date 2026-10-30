@@ -265,9 +265,16 @@ def extract_deadline(text: str) -> tuple[Optional[str], float]:
 # ─── BA-01: OBAVEZA, NE DATUM ─────────────────────────────────────────────────
 #
 # `extract_deadline` bira JEDAN rok po dokumentu, pa se drugi dokazani rok istog dokumenta tiho gubio. Identitet
-# obaveze unutar dokumenta je (datum, dokazna fraza): normalizovan IZVORNI tekst od prve rokovne reči u istom redu do
-# datuma. Ista fraza i isti datum = ista obaveza pomenuta dvaput (izreka i pouka); različita fraza = druga obaveza,
-# i kad joj je datum isti. Fraza nikad ne dolazi iz modela. Ugovor: BA01 DEADLINE_IDENTITY_CONTRACT.
+# obaveze unutar dokumenta je (datum, dokazna fraza): normalizovan IZVORNI tekst istog reda do datuma (najviše
+# `_ROK_DOKAZ_PROZOR` znakova, posle prethodnog datuma u redu). Ista fraza i isti datum = ista obaveza pomenuta dvaput;
+# različita fraza = druga obaveza, i kad joj je datum isti. Fraza nikad ne dolazi iz modela.
+# BA05: fraza je ranije počinjala od BILO KOJE rokovne reči, pa su „… da plati najkasnije D“ i „Odgovor dostaviti
+# najkasnije D“ bile ista fraza („najkasnije“) — druga obaveza je nestajala. Sada fraza počinje od „rok za …“ samo kad
+# ta konstrukcija IMENUJE obavezu (izreka i pouka „Rok za izjavljivanje žalbe …“ ostaju jedna obaveza); inače je to
+# ceo deo reda pre datuma. Isto pominjanje sa drugim uvodom tada daje dva kandidata (vidljivo), nikad gubitak.
+# Ugovor: OBLIGATION_IDENTITY_CONTRACT.
+
+_ROK_ZA_RE = re.compile(r"\b(?:rok|рок)(?:a|u|om|ovi|ova|ove|а|у|ом|ови|ова|ове)?\s+(?:za|за)\b", re.IGNORECASE)
 
 def _normalizuj_frazu(s: str) -> str:
     s = unicodedata.normalize("NFKD", s.replace("đ", "dj").replace("Đ", "Dj"))
@@ -280,7 +287,7 @@ def _dokazna_fraza(text: str, pozicija: int) -> str:
     for m in _DRUGI_DATUM_RE.finditer(text, pocetak, pozicija):
         pocetak = m.end()
     seg = text[pocetak:pozicija]
-    m = _ROK_MARKER_RE.search(seg)
+    m = _ROK_ZA_RE.search(seg)
     return _normalizuj_frazu(seg[m.start():] if m else seg)
 
 

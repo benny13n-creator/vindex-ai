@@ -876,8 +876,10 @@ def nedostaje_kljuc_obaveze(exc: Exception) -> bool:
 
 
 def je_sukob_kljuca(exc: Exception) -> bool:
-    """23505: isti ključ je u međuvremenu upisao drugi pisac/proces — obaveza postoji, ne ponavlja se."""
-    return "23505" in str(exc) or "duplicate key" in str(exc).lower()
+    """23505 NAD indeksom ključa obaveze (`uq_hronologija_obaveza_kljuc`): isti ključ je u međuvremenu upisao drugi
+    pisac/proces — obaveza postoji, ne ponavlja se. Kršenje bilo kog drugog jedinstvenog ograničenja nije ovaj slučaj."""
+    m = str(exc)
+    return ("23505" in m or "duplicate key" in m.lower()) and "obaveza_kljuc" in m
 
 
 def _sema_ima_129(supa) -> bool:

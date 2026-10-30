@@ -275,7 +275,8 @@ class _Upit:
                 if kljuc and vrsta == "insert" and all(r.get(c) is not None for c in kljuc) and any(
                         all(x.get(c) == r.get(c) for c in kljuc) for x in self.b.tabele.get(self.t, [])):
                     # Kao PRIMARY KEY u Postgres-u: drugi INSERT istog kljuca pada (PostgREST APIError 23505).
-                    raise Exception('{"code": "23505", "message": "duplicate key value violates unique constraint"}')
+                    raise Exception('{"code": "23505", "message": "duplicate key value violates unique constraint '
+                                    + self.b.ime_jedinstvenog.get(self.t, "") + '"}')
                 if vrsta == "upsert":
                     self.b.tabele.setdefault(self.t, [])[:] = [x for x in self.b.tabele.get(self.t, []) if x.get("id") != r["id"]]
                 self.b.tabele.setdefault(self.t, []).append(r)
@@ -360,6 +361,8 @@ class Baza:
                             "email_podsetnik_pokretanje": ("dan",),
                             # migracija 144 (BA05): identitet obaveze roka po predmetu
                             "predmet_hronologija": ("predmet_id", "obaveza_kljuc")}
+        # Ime ograničenja u poruci 23505 (kao Postgres/PostgREST) — pisac sme da prepozna SVOJ indeks.
+        self.ime_jedinstvenog = {"predmet_hronologija": "uq_hronologija_obaveza_kljuc"}
         # RPC implementacije po imenu (npr. intake red u tests/ns005_intake_fake.py); bez nje rpc vraća [].
         self.rpc_impl = {}
         # NS4 zavrsno zatvaranje: migracije 139/140 (ishod predmeta, ponovni upis nacrta) -- Python verzije za

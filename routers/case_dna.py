@@ -942,7 +942,8 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
             except Exception as exc:
                 if not _IZVOR.nedostaje_kljuc_obaveze(exc):
                     raise
-                # 144 nije primenjena: bez ključa važi samo tačan tekst — mogući duplikat, nikad potiskivanje.
+                # 144 nije primenjena: ista pravila identiteta, ali bez ključa — zatečeni redovi pokrivaju obavezu (≤ 1
+                # dokazana), redovi sa citatom (≥ 2) se porede po tačnom tekstu. Mogući duplikat, nikad potiskivanje.
                 logger.error("[GENOME] migracija 144 nije primenjena — rokovi bez identiteta obaveze: %s", exc)
                 bez_kljuca = True
                 postojeci_r = await asyncio.to_thread(
@@ -967,7 +968,7 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
         # taj dokument (tačan tekst), nikad pad upisa roka.
         _ids = sorted({d for d, _ in grupe if d})
         _izvori: dict[str, tuple] = {}
-        if _ids and not bez_kljuca:
+        if _ids:
             try:
                 _tr = await asyncio.to_thread(
                     lambda: supa.table("predmet_dokumenti").select("id,tekst_sadrzaj,content_sha256")
@@ -994,7 +995,11 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
                     pokriven = _IZVOR.pokriva_zateceni(postojeci, datum, did, naziv_fajla, _imena.count(naziv_fajla) == 1)
                     nove = [] if pokriven else [(_IZVOR.kljuc_obaveze(izvor, datum, fraze[0][0] if fraze else ""),
                                                  _tekst_genome_roka(stavke[0]), stavke[0])]
-                nove = [n for n in nove if n[0] not in kljucevi]
+                if bez_kljuca:
+                    tekstovi = {(x.get("dogadjaj"), (x.get("datum_iso") or "")[:10]) for x in postojeci}
+                    nove = [(None, d, r) for _, d, r in nove if (d, datum) not in tekstovi]
+                else:
+                    nove = [n for n in nove if n[0] not in kljucevi]
             else:
                 tekstovi = {(x.get("dogadjaj"), (x.get("datum_iso") or "")[:10]) for x in postojeci}
                 nove = [(None, _tekst_genome_roka(r), r) for r in stavke if (_tekst_genome_roka(r), datum) not in tekstovi]

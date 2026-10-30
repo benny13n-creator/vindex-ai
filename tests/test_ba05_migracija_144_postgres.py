@@ -274,8 +274,8 @@ def test_A_B1_B2_nad_pravom_bazom(baza):
 def test_bez_144_upis_bez_kljuca_i_bez_potiskivanja(baza):
     sp, pid = Supa(baza), str(uuid.uuid4())
     d = _dokument(baza, pid, "sken.pdf", TEKST_2)
-    assert _genome(sp, pid, _rok("Rok za zalbu", d)) == 1
-    assert _genome(sp, pid, _rok("Rok za takse", d)) == 1                     # drugi tekst → nov red, ne potiskivanje
-    assert _genome(sp, pid, _rok("Rok za zalbu", d)) == 0                     # tačan tekst se ne ponavlja
+    assert _genome(sp, pid, _rok("Rok za zalbu", d)) == 2                     # obe dokazane obaveze, sa citatom
+    assert _genome(sp, pid, _rok("Rok za takse", d)) == 0                     # citat iz izvora se ne ponavlja
+    assert _genome(sp, pid, _rok("Žalbeni rok", d)) == 0                      # parafraza ne pravi nov red
     with psycopg.connect(baza, autocommit=True) as c:
         assert c.execute("SELECT count(*) FROM public.predmet_hronologija WHERE predmet_id = %s", (pid,)).fetchone()[0] == 2

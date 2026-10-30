@@ -282,3 +282,70 @@ def test_bez_migracije_144_nema_potiskivanja(lanac, monkeypatch):
     _prikaci(k, b, pid, TAKSA_B, "scan.pdf")
     r = _rokovi(b, pid)
     assert len(r) == 2 and all(not h.get("obaveza_kljuc") for h in r), r
+
+
+# ── generička rokovna reč: dve obaveze istog dana se ne svode na „najkasnije“ (nezavisni pregled, F1) ──────────
+
+@pytest.mark.parametrize("veza", ["najkasnije", "u roku do"])
+def test_dve_obaveze_sa_generickom_rokovnom_reci_ostaju_dve(lanac, monkeypatch, veza):
+    k, b = lanac
+    model = Model([])
+    monkeypatch.setattr(cd, "_pozovi_genome_api", model)
+    pid = _predmet(k)
+    _prikaci(k, b, pid, ["PRESUDA", f"Tuzeni je duzan da tuziocu plati 350.000,00 dinara {veza} {SA} godine.",
+                         f"Odgovor na tuzbu dostaviti sudu {veza} {SA} godine."], "presuda.pdf")
+    assert len(_rokovi(b, pid)) == 2 and len(set(_kljucevi(b, pid))) == 2, _rokovi(b, pid)
+    model.izlaz = [_rok("Rok za placanje", DA, "x")]
+    _osvezi(pid)
+    assert len(_rokovi(b, pid)) == 2
+
+
+# ── bez 144: zatečeni redovi i dalje pokrivaju istu obavezu (F2, F3) ──────────────────────────────────────────
+
+def _bez_144(monkeypatch):
+    orig = _h._Upit.execute
+
+    def execute(self):
+        if self.t == "predmet_hronologija" and "obaveza_kljuc" in str(self.kol) + str(self.radnja[1]):
+            raise Exception('{"code": "42703", "message": "column predmet_hronologija.obaveza_kljuc does not exist"}')
+        return orig(self)
+    monkeypatch.setattr(_h._Upit, "execute", execute)
+
+
+def test_bez_144_ponovno_otpremanje_i_genome_ne_dupliraju(lanac, monkeypatch):
+    k, b = lanac
+    model = Model([])
+    monkeypatch.setattr(cd, "_pozovi_genome_api", model)
+    _bez_144(monkeypatch)
+    pid = _predmet(k)
+    _prikaci(k, b, pid, ZALBA_A, "resenje.pdf")
+    _prikaci(k, b, pid, ZALBA_A, "resenje.pdf")                                  # isti sadržaj ponovo (F2)
+    for izlaz in ([_rok("Rok za zalbu", DA, "a")], [_rok("Žalbeni rok", DA, "b")]):  # Genome parafrazira (F3)
+        model.izlaz = izlaz
+        _osvezi(pid)
+    [h] = _rokovi(b, pid)
+    assert h["akter"] == "Smart Intake" and not h.get("obaveza_kljuc")
+
+
+# ── 23505 nad DRUGIM ograničenjem nije „obaveza postoji“ (nezavisni pregled, F7) ───────────────────────────────
+
+def test_kršenje_drugog_ogranicenja_nije_vec_postoji(lanac, monkeypatch):
+    k, b = lanac
+    monkeypatch.setattr(cd, "_pozovi_genome_api", Model([]))
+    orig = _h._Upit.execute
+
+    def execute(self):
+        if self.t == "predmet_hronologija" and self.radnja[0] == "insert":
+            raise Exception('{"code": "23505", "message": "duplicate key value violates unique constraint '
+                            '\\"predmet_hronologija_pkey\\""}')
+        return orig(self)
+    monkeypatch.setattr(_h._Upit, "execute", execute)
+    pid = _predmet(k)
+    r = k.post("/api/smart-intake/documents", files=[("files", ("scan.pdf", _pdf(ZALBA_A), "application/pdf"))], headers=A)
+    jid = r.json()["rezultati"][0]["job_id"]
+    _do_kraja()
+    if k.get(f"/api/smart-intake/jobs/{jid}", headers=A).json()["job"]["status"] == "awaiting_review":
+        k.post(f"/api/smart-intake/jobs/{jid}/review/resolve", json={}, headers=A)
+        _do_kraja()
+    f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A).json()
+    assert f["rok_dodat"] is False and f["rok_preskocen_razlog"] == "upis_nije_uspeo", f   # ne „vec_postoji“
