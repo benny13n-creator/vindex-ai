@@ -494,6 +494,14 @@ async def extract_all_entities(text: str) -> list[dict]:
 
     deadline, dl_conf = extract_deadline(text)
     entities.append({"entity_type": "deadline", "value": deadline, "confidence": dl_conf, "extraction_method": "regex"})
+    # BA-01: svaka DRUGA dokazana obaveza sa konkretnim datumom je zaseban `deadline` entitet (zaseban kandidat,
+    # zasebna ispravka). Prvi entitet ostaje isti izbor kao ranije; relativni rok bez datuma se ne dodaje.
+    ostale = dokazani_rokovi(text)
+    izabrani = next((i for i, o in enumerate(ostale) if o["vrednost"] == deadline), None) if deadline else None
+    for i, o in enumerate(ostale):
+        if i != izabrani and o.get("konkretan_datum"):
+            entities.append({"entity_type": "deadline", "value": o["konkretan_datum"], "confidence": o["confidence"],
+                             "extraction_method": "regex"})
 
     # AKCIJA 1 (2026-07-24): regex kandidat za sud se traži PRE LLM poziva;
     # kad se poklopi, deterministički je pouzdaniji od slobodnog LLM teksta

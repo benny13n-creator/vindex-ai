@@ -894,7 +894,7 @@ def _deadline_to_iso(value: str) -> Optional[str]:
 
 async def _rok_iz_dokumenta(
     supa, *, predmet_id: str, uid: str, job: dict, job_id: str,
-    value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set, potrebno: int = 1,
+    value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set, potrebno: int = 1, redni: int = 1,
 ) -> dict:
     """Rok iz JEDNOG dokumenta otpremanja -> nepotvrdjen kandidat u hronologiji.
 
@@ -950,6 +950,9 @@ async def _rok_iz_dokumenta(
     # rok, samo tiši. Provera je uska: isti predmet + isti datum + isti izvorni fajl (BA-01: bez
     # naziva događaja — v. `_upit_duplikata`).
     _rok_dogadjaj = f"Rok iz dokumenta ({tip_labela})"
+    if redni > 1:
+        # BA-01: druga obaveza ISTOG datuma iz istog dokumenta — vidljivo zaseban kandidat, ne duplikat.
+        _rok_dogadjaj += f" — {redni}. rok sa istim datumom"
     nadjen_iso = deadline_iso
     if deadline_iso and _dl_dovoljan and (deadline_iso, _rok_dogadjaj) in vec_upisano:
         # N03-FD1: isti red (isti predmet, datum i naziv -- postojece pravilo BLK-1) vec je upisan
@@ -1474,6 +1477,7 @@ async def _finalize_intake_job_jezgro(
     # čuvaju paralelno, bez menjanja `value_map` ugovora koji koriste
     # `_create_new_predmet_from_value_map` i Ownership Resolution.
     per_doc_meta_maps = []
+    per_doc_rokovi: list[list] = []
     for d in documents:
         vm = {
             e["entity_type"]: (e.get("corrected_value") or e.get("value"))
@@ -1481,6 +1485,13 @@ async def _finalize_intake_job_jezgro(
             if (e.get("corrected_value") or e.get("value"))
         }
         per_doc_value_maps.append(vm)
+        # BA-01: dokument može navesti više dokazanih rokova (više `deadline` entiteta). `value_map` je rečnik po
+        # tipu (poslednji pobeđuje), pa se rokovi čitaju kao lista, svaki sa svojom pouzdanošću i ljudskom potvrdom.
+        per_doc_rokovi.append([
+            ((e.get("corrected_value") or e.get("value")),
+             {"confidence": e.get("confidence"), "potvrdio_covek": bool(e.get("corrected_value")) or bool(e.get("reviewed"))})
+            for e in d["entities"] if e["entity_type"] == "deadline" and (e.get("corrected_value") or e.get("value"))
+        ])
         per_doc_meta_maps.append({
             e["entity_type"]: {
                 "confidence": e.get("confidence"),
@@ -1866,13 +1877,23 @@ async def _finalize_intake_job_jezgro(
         async with _IZVOR.zakljucavanje_kandidata(predmet_id):
             for _i, _d in enumerate(documents):
                 _tip_d = _DOC_TYPE_LABELS.get(((_d.get("document") or {}).get("document_type") or "other"), "dokument")
-                _ishod = await _rok_iz_dokumenta(
-                    supa, predmet_id=predmet_id, uid=uid, job=job, job_id=job_id,
-                    value_map=per_doc_value_maps[_i], meta_map=per_doc_meta_maps[_i],
-                    tip_labela=_tip_d, vec_upisano=_vec_upisano,
-                )
-                _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
-                rokovi_iz_dokumenata.append(_ishod)
+                # BA-01: svaki dokazan rok dokumenta je zaseban kandidat. Za datum D dokument traži onoliko
+                # kandidata koliko ima rokova tog datuma (dve obaveze istog dana ostaju dve).
+                _lista = per_doc_rokovi[_i] or [(None, per_doc_meta_maps[_i].get("deadline") or {})]
+                _ukupno: dict = {}
+                for _vr, _ in _lista:
+                    _ukupno[_deadline_to_iso(_vr or "")] = _ukupno.get(_deadline_to_iso(_vr or ""), 0) + 1
+                _redni: dict = {}
+                for _vr, _meta in _lista:
+                    _iso = _deadline_to_iso(_vr or "")
+                    _redni[_iso] = _redni.get(_iso, 0) + 1
+                    _ishod = await _rok_iz_dokumenta(
+                        supa, predmet_id=predmet_id, uid=uid, job=job, job_id=job_id,
+                        value_map={**per_doc_value_maps[_i], "deadline": _vr}, meta_map={"deadline": _meta},
+                        tip_labela=_tip_d, vec_upisano=_vec_upisano, potrebno=_ukupno[_iso], redni=_redni[_iso],
+                    )
+                    _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
+                    rokovi_iz_dokumenata.append(_ishod)
         rok_dodat = any(x["dodat"] for x in rokovi_iz_dokumenata)
         # Zbirni razlog: prvi razlog koji postoji. Za jedan dokument isto kao ranije.
         rok_preskocen_razlog = next((x["razlog"] for x in rokovi_iz_dokumenata if x["razlog"]), None)

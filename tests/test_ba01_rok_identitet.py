@@ -10,36 +10,44 @@ Stvarne rute, stvaran prijem i stvaran sync; baza u memoriji (`lanac`). Genome m
 import asyncio
 import copy
 import json
+from datetime import timedelta
 
 import pytest
 
 import routers.case_dna as cd
+from routers.email_notif import _danas_beograd
 import tests.test_osb002_solo_tok as osb
 from tests.test_n1_zlatni_prijem import _do_kraja, _pdf
 from tests.test_n7_azuriranje_predmeta import lanac  # noqa: F401 — fixture
 from tests.test_osb002_solo_tok import A, B, solo  # noqa: F401 — fixture
 from tests.test_osb002_solo_tok import _do_kraja_dogadjaja
 
+# Datumi su relativni prema `_danas_beograd()` (sintetički): `/api/rokovi/kandidati` gleda [danas, danas+30], pa bi
+# fiksan datum posle nekoliko dana ispao iz prozora (lekcija CI pada MIR001 T07).
+_D = _danas_beograd()
+DA, DB, DC, DX, DY = ((_D + timedelta(days=n)).isoformat() for n in (6, 21, 28, 25, 26))
+SA, SB, SC = ((_D + timedelta(days=n)).strftime("%d.%m.%Y.") for n in (6, 21, 28))
+SO, SP = ((_D - timedelta(days=n)).strftime("%d.%m.%Y.") for n in (8, 9))
 ZAGLAVLJE = ["OSNOVNI SUD U BEOGRADU", "Posl. br. P 7714/2026 (SINTETICKI)", "Tuzilac: Petar Goldenovic iz Beograda",
-             "Tuzeni: Golden Gradnja DOO Beograd", "PRESUDA", "Presuda je doneta 20.10.2026. godine."]
+             "Tuzeni: Golden Gradnja DOO Beograd", "PRESUDA", f"Presuda je doneta {SP} godine."]
 D01 = ZAGLAVLJE + ["Obavezuje se tuzeni da tuziocu isplati 350.000,00 dinara.",
-                   "Rok za izjavljivanje zalbe istice 05.11.2026. godine.",
-                   "Rok za dobrovoljno ispunjenje istice 20.11.2026. godine.", "U Beogradu, dana 21.10.2026."]
-ISTI_DAN = ZAGLAVLJE + ["Rok za izjavljivanje zalbe istice 05.11.2026. godine.",
-                        "Rok za uplatu sudske takse istice 05.11.2026. godine."]
-TAKSA = ["OBAVESTENJE O TAKSI", "Posl. br. P 7714/2026", "Rok za uplatu sudske takse istice 05.11.2026. godine."]
-D05 = ["OBAVESTENJE", "Posl. br. P 7714/2026", "Rok za odgovor na zalbu istice 27.11.2026. godine."]
+                   f"Rok za izjavljivanje zalbe istice {SA} godine.",
+                   f"Rok za dobrovoljno ispunjenje istice {SB} godine.", f"U Beogradu, dana {SO}"]
+ISTI_DAN = ZAGLAVLJE + [f"Rok za izjavljivanje zalbe istice {SA} godine.",
+                        f"Rok za uplatu sudske takse istice {SA} godine."]
+TAKSA = ["OBAVESTENJE O TAKSI", "Posl. br. P 7714/2026", f"Rok za uplatu sudske takse istice {SA} godine."]
+D05 = ["OBAVESTENJE", "Posl. br. P 7714/2026", f"Rok za odgovor na zalbu istice {SC} godine."]
 
 
 def _rok(naziv, datum, opis, lok="DOK-01"):
     return {"naziv": naziv, "datum": datum, "opis": opis, "status": "aktivan", "lokacija": lok}
 
 
-ZALBA = [_rok("Rok za izjavljivanje zalbe", "2026-11-05", "Propustanje onemogucava zalbu"),
-         _rok("Rok za dobrovoljno ispunjenje", "2026-11-20", "Moguce prinudno izvrsenje")]
-ZALBA_PREFORMULISANO = [_rok("Rok za izjavljivanje žalbe", "2026-11-05", "Propuštanje roka onemogućava žalbu"),
-                        _rok("Dobrovoljno ispunjenje", "2026-11-20", "Nakon isteka moguće je prinudno izvršenje")]
-ZALBA_TRECE = [_rok("Žalbeni rok", "2026-11-05", "Pravosnažnost"), _rok("Ispunjenje", "2026-11-20", "Izvršenje")]
+ZALBA = [_rok("Rok za izjavljivanje zalbe", DA, "Propustanje onemogucava zalbu"),
+         _rok("Rok za dobrovoljno ispunjenje", DB, "Moguce prinudno izvrsenje")]
+ZALBA_PREFORMULISANO = [_rok("Rok za izjavljivanje žalbe", DA, "Propuštanje roka onemogućava žalbu"),
+                        _rok("Dobrovoljno ispunjenje", DB, "Nakon isteka moguće je prinudno izvršenje")]
+ZALBA_TRECE = [_rok("Žalbeni rok", DA, "Pravosnažnost"), _rok("Ispunjenje", DB, "Izvršenje")]
 
 
 class Model:
@@ -101,17 +109,17 @@ def test_ista_obaveza_jedan_kandidat_kroz_preformulacije_i_potvrdu(lanac, monkey
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
     _prikaci(k, b, pid, D01, "01 Presuda digitalna.pdf")
-    assert _po_datumu(b, pid) == {"2026-11-05": 1, "2026-11-20": 1}, _rokovi(b, pid)        # 5: SI + Genome = jedan
+    assert _po_datumu(b, pid) == {DA: 1, DB: 1}, _rokovi(b, pid)        # 5: SI + Genome = jedan
     si = next(h for h in _rokovi(b, pid) if h["akter"] == "Smart Intake")
-    assert si["datum_iso"] == "2026-11-05"
+    assert si["datum_iso"] == DA
     for izlaz in (ZALBA, ZALBA_PREFORMULISANO, ZALBA_TRECE):                                   # 1: identično i preformulisano
         model.izlaz = izlaz
         _osvezi(pid)
-        assert _po_datumu(b, pid) == {"2026-11-05": 1, "2026-11-20": 1}, [h["dogadjaj"] for h in _rokovi(b, pid)]
+        assert _po_datumu(b, pid) == {DA: 1, DB: 1}, [h["dogadjaj"] for h in _rokovi(b, pid)]
     assert model.pozivi >= 4
     ids_pre = sorted(h["id"] for h in _rokovi(b, pid))
     assert k.post(f"/api/rokovi/{si['id']}/potvrdi", json={}, headers=A).status_code == 200
-    g = next(h for h in _rokovi(b, pid) if h["datum_iso"] == "2026-11-20")
+    g = next(h for h in _rokovi(b, pid) if h["datum_iso"] == DB)
     assert k.post(f"/api/rokovi/{g['id']}/odbij", json={"napomena": "nije rok"}, headers=A).status_code == 200
     model.izlaz = ZALBA_PREFORMULISANO
     _osvezi(pid)                                                                                 # 6: posle odluka
@@ -120,36 +128,36 @@ def test_ista_obaveza_jedan_kandidat_kroz_preformulacije_i_potvrdu(lanac, monkey
     assert st[si["id"]] == "CONFIRMED" and st[g["id"]] == "REJECTED", st                        # odluke na istim id
     # ponovna obrada istog dokumenta (nov posao, isti tekst) ne vraća odbijen ni potvrđen rok kao nov kandidat
     _prikaci(k, b, pid, D01, "01 Presuda digitalna.pdf")
-    assert _po_datumu(b, pid) == {"2026-11-05": 1, "2026-11-20": 1}
+    assert _po_datumu(b, pid) == {DA: 1, DB: 1}
 
 
 # ── 2: isti dokument, dve obaveze, ISTI datum ──────────────────────────────────────────────────────────────────
 
 def test_dve_obaveze_istog_datuma_ostaju_dve(lanac, monkeypatch):
     k, b = lanac
-    model = Model([_rok("Rok za zalbu", "2026-11-05", "a"), _rok("Rok za taksu", "2026-11-05", "b")])
+    model = Model([_rok("Rok za zalbu", DA, "a"), _rok("Rok za taksu", DA, "b")])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
     _prikaci(k, b, pid, ISTI_DAN, "02 Resenje dve obaveze.pdf")
-    assert _po_datumu(b, pid) == {"2026-11-05": 2}, _rokovi(b, pid)
-    model.izlaz = [_rok("Žalba", "2026-11-05", "x"), _rok("Taksa", "2026-11-05", "y")]
+    assert _po_datumu(b, pid) == {DA: 2}, _rokovi(b, pid)
+    model.izlaz = [_rok("Žalba", DA, "x"), _rok("Taksa", DA, "y")]
     _osvezi(pid)
-    assert _po_datumu(b, pid) == {"2026-11-05": 2}
+    assert _po_datumu(b, pid) == {DA: 2}
     # model tvrdi TRI obaveze tog dana — tekst dokazuje dve; ograničenje dokazom
-    model.izlaz = [_rok("A", "2026-11-05", "1"), _rok("B", "2026-11-05", "2"), _rok("C", "2026-11-05", "3")]
+    model.izlaz = [_rok("A", DA, "1"), _rok("B", DA, "2"), _rok("C", DA, "3")]
     _osvezi(pid)
-    assert _po_datumu(b, pid) == {"2026-11-05": 2}
+    assert _po_datumu(b, pid) == {DA: 2}
 
 
 # ── 3 i 4: različiti datumi; dva dokumenta sa istim datumom se ne spajaju ──────────────────────────────────────
 
 def test_dva_dokumenta_isti_datum_nisu_ista_obaveza(lanac, monkeypatch):
     k, b = lanac
-    model = Model([_rok("Rok za zalbu", "2026-11-05", "a", "DOK-01")])
+    model = Model([_rok("Rok za zalbu", DA, "a", "DOK-01")])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
     _prikaci(k, b, pid, ISTI_DAN[:-1], "01 Presuda.pdf")
-    model.izlaz = [_rok("Rok za zalbu", "2026-11-05", "a", "DOK-01"), _rok("Rok za taksu", "2026-11-05", "b", "DOK-02")]
+    model.izlaz = [_rok("Rok za zalbu", DA, "a", "DOK-01"), _rok("Rok za taksu", DA, "b", "DOK-02")]
     _prikaci(k, b, pid, TAKSA, "02 Taksa.pdf")
     r = _rokovi(b, pid)
     assert sorted(h["dokument_naziv"] for h in r) == ["01 Presuda.pdf", "02 Taksa.pdf"], r
@@ -161,31 +169,33 @@ def test_dva_dokumenta_isti_datum_nisu_ista_obaveza(lanac, monkeypatch):
 
 def test_nerazresen_izvor_odvojena_klasa(lanac, monkeypatch):
     k, b = lanac
-    model = Model([_rok("Rok bez izvora", "2026-12-01", "x", lok="")])
+    model = Model([_rok("Rok bez izvora", DX, "x", lok="")])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
     b.tabele["predmet_hronologija"].append({"id": "rucni-1", "predmet_id": pid, "user_id": "uid-A", "dogadjaj": "Ručni rok",
-                                            "datum_iso": "2026-12-01", "datum": "2026-12-01", "akter": "advokat",
+                                            "datum_iso": DX, "datum": DX, "akter": "advokat",
                                             "izvor": "HUMAN_DIRECT", "vrsta": "rok"})
     _prikaci(k, b, pid, D05, "05 Obavestenje.pdf")
-    nerazreseni = [h for h in _rokovi(b, pid) if h["datum_iso"] == "2026-12-01" and h["akter"] == "Genome (AI)"]
+    nerazreseni = [h for h in _rokovi(b, pid) if h["datum_iso"] == DX and h["akter"] == "Genome (AI)"]
     assert len(nerazreseni) == 1 and not nerazreseni[0].get("dokument_id") and not nerazreseni[0].get("dokument_naziv")
     _osvezi(pid)                                                                                  # isti tekst → isti red
-    assert len([h for h in _rokovi(b, pid) if h["datum_iso"] == "2026-12-01"]) == 2              # ručni + jedan Genome
-    model.izlaz = [_rok("Drugačije rečeno", "2026-12-01", "y", lok="")]
+    assert len([h for h in _rokovi(b, pid) if h["datum_iso"] == DX]) == 2              # ručni + jedan Genome
+    model.izlaz = [_rok("Drugačije rečeno", DX, "y", lok="")]
     _osvezi(pid)                                                                                  # bez izvora: ne spaja se
-    assert len([h for h in _rokovi(b, pid) if h["datum_iso"] == "2026-12-01"]) == 3
+    assert len([h for h in _rokovi(b, pid) if h["datum_iso"] == DX]) == 3
 
 
 # ── 8: izvor uklonjen posle potvrde — istorija i odluka ostaju ─────────────────────────────────────────────────
 
 def test_uklonjen_izvor_cuva_odluku(lanac, monkeypatch):
     k, b = lanac
-    model = Model(ZALBA)
+    # rok koji tekst ne dokazuje (npr. izračunat od dostave) predlaže samo Genome — on nosi `dokument_id`
+    model = Model(ZALBA + [_rok("Rok za izvrsenje", DY, "racunato od dostave")])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
     _prikaci(k, b, pid, D01, "01 Presuda digitalna.pdf")
     g = next(h for h in _rokovi(b, pid) if h["akter"] == "Genome (AI)")
+    assert g["datum_iso"] == DY and g.get("dokument_id")
     assert k.post(f"/api/rokovi/{g['id']}/potvrdi", json={}, headers=A).status_code == 200
     dok = next(d for d in b.tabele["predmet_dokumenti"] if d["predmet_id"] == pid)
     b.tabele["predmet_dokumenti"].remove(dok)
@@ -242,7 +252,7 @@ def test_pad_citanja(lanac, monkeypatch):
     assert asyncio.run(cd._sync_rokovi_to_hronologija(b, pid, "uid-A", copy.deepcopy(g))) == 0
     assert _rokovi(b, pid) == []
     pada["ime"] = "predmet_dokumenti"
-    b.tabele["predmet_hronologija"].append({"id": "si-1", "predmet_id": pid, "user_id": "uid-A", "datum_iso": "2026-11-05",
+    b.tabele["predmet_hronologija"].append({"id": "si-1", "predmet_id": pid, "user_id": "uid-A", "datum_iso": DA,
                                             "dogadjaj": "Rok iz dokumenta (presuda)", "akter": "Smart Intake",
                                             "dokument_naziv": "01 Presuda digitalna.pdf", "vrsta": "rok"})
     assert asyncio.run(cd._sync_rokovi_to_hronologija(b, pid, "uid-A", copy.deepcopy(g))) == 2
@@ -252,7 +262,7 @@ def test_pad_citanja(lanac, monkeypatch):
 def test_istovremeni_sync_ne_duplira(lanac, monkeypatch):
     k, b = lanac
     pid = _predmet(k)
-    g = {"rokovi_kriticni": [_rok("Bez izvora", "2026-12-01", "x", lok="")]}
+    g = {"rokovi_kriticni": [_rok("Bez izvora", DX, "x", lok="")]}
 
     async def _dva():
         return await asyncio.gather(cd._sync_rokovi_to_hronologija(b, pid, "uid-A", copy.deepcopy(g)),
@@ -268,7 +278,7 @@ def test_drugi_korisnik_ne_utice_i_ne_vidi(lanac, monkeypatch):
     _prikaci(k, b, pa, D01, "01 Presuda digitalna.pdf")
     pb = _predmet(k, h=B, ime="Bojana")
     _prikaci(k, b, pb, D01, "01 Presuda digitalna.pdf", h=B)
-    assert _po_datumu(b, pa) == _po_datumu(b, pb) == {"2026-11-05": 1, "2026-11-20": 1}
+    assert _po_datumu(b, pa) == _po_datumu(b, pb) == {DA: 1, DB: 1}
     assert {h["user_id"] for h in _rokovi(b, pb)} == {"uid-B"}
     assert k.get(f"/api/rokovi/kandidati?predmet_id={pa}", headers=B).json()["rokovi"] == []
     rid = _rokovi(b, pa)[0]["id"]
@@ -279,11 +289,11 @@ def test_dva_razlicita_dokumenta_istog_imena_obaveza_se_ne_gubi(lanac, monkeypat
     """Ime fajla nije dokaz kad nije jednoznačno: red Smart Intake-a (bez `dokument_id`) za „scan.pdf“ ne sme da
     „pokrije“ obavezu DRUGOG dokumenta istog imena. Moguć je dupli kandidat (ugovor, granica 2) — gubitak nije."""
     k, b = lanac
-    model = Model([_rok("Rok za zalbu", "2026-11-05", "a", "DOK-01")])
+    model = Model([_rok("Rok za zalbu", DA, "a", "DOK-01")])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
     _prikaci(k, b, pid, ISTI_DAN[:-1], "scan.pdf")
-    model.izlaz = [_rok("Rok za zalbu", "2026-11-05", "a", "DOK-01"), _rok("Rok za taksu", "2026-11-05", "b", "DOK-02")]
+    model.izlaz = [_rok("Rok za zalbu", DA, "a", "DOK-01"), _rok("Rok za taksu", DA, "b", "DOK-02")]
     _prikaci(k, b, pid, TAKSA, "scan.pdf")
     dok2 = next(d["id"] for d in b.tabele["predmet_dokumenti"] if d["predmet_id"] == pid and d.get("redni_broj") == 2)
     assert [h for h in _rokovi(b, pid) if h.get("dokument_id") == dok2], _rokovi(b, pid)
