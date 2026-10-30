@@ -5206,12 +5206,22 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
                 h["stanje_odluke"] = (_stanje_roka(str(h.get("id")), _mapa) if _odluke_dostupne
                                       else _NEPOZNATO)
 
+    # BA-04: procesni događaji iz dokumenata u hronološkom toku predmeta — ista projekcija kao Analiza, samo
+    # čitanje (shared/genome_contract.py::procesni_dogadjaji). Pad projekcije → `None` („nije učitano"), nikad prazno.
+    try:
+        from shared.genome_contract import procesni_dogadjaji as _procesni_dogadjaji
+        _procesni = _procesni_dogadjaji((row.data or {}).get("case_dna"), dokumenti.data)
+    except Exception as _e:
+        logger.error("[PREDMETI] procesni događaji nisu sastavljeni za %s: %s", predmet_id, _e)
+        _procesni = None
+
     return {
         "predmet":         row.data,
         "beleske":         beleske.data,
         "istorija":        istorija.data,
         "dokumenti":       dokumenti.data,
         "hronologija":     _hron,
+        "procesni_dogadjaji": _procesni,
         "komentari":       komentari.data,
         "klijenti_linked": klijenti_linked,
         "odluke_o_rokovima_dostupne": _odluke_dostupne,

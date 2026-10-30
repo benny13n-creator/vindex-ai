@@ -415,6 +415,35 @@ def _hronologija(g: dict, ima_genome: bool, raz: Optional["Razresavac"] = None) 
     return _sekcija(OK if stavke else PRAZNO, stavke, neispravnih=neispravni)
 
 
+def procesni_dogadjaji(case_dna: Optional[dict], dokumenti: Optional[list]) -> dict:
+    """BA-04: procesni događaji za HRONOLOŠKI tok predmeta („Rad na predmetu → Hronologija“). Ista projekcija kao
+    sekcija `hronologija` Analize (`_hronologija`) — nema nove persistencije ni drugog izvora istine; poreklo ostaje
+    AI_ANALYSIS. Dodaje se samo deterministička provera: `datum_u_izvoru` = da li se datum događaja doslovno navodi
+    u tekstu razrešenog izvornog dokumenta (isti parser datuma kao rokovi). `None` = nije provereno (nema izvora,
+    datuma ili teksta). Nerazrešen izvor ostaje `lokacija.dokument_id = None` — nikad pogođen."""
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+
+    g = case_dna if isinstance(case_dna, dict) else {}
+    dok = [d for d in (dokumenti or []) if isinstance(d, dict)]
+    sek = _hronologija(g, bool(g) and "greska" not in g, Razresavac(dok))
+    tekstovi = {str(d.get("id")): d.get("tekst_sadrzaj") for d in dok}
+    datumi_dok: dict[str, set] = {}
+    for s in sek.get("stavke") or []:
+        did = (s.get("lokacija") or {}).get("dokument_id")
+        tekst = tekstovi.get(str(did)) if did else None
+        if not (s.get("datum") and isinstance(tekst, str) and tekst.strip()):
+            s["datum_u_izvoru"] = None
+            continue
+        if did not in datumi_dok:
+            datumi_dok[did] = set()
+            for r in ekstrahuj_rokove(tekst, dedup_konteksta=False):
+                if r.get("tip") == "apsolutni" and r.get("konkretan_datum"):
+                    dd, mm, gg = r["konkretan_datum"].split(".")
+                    datumi_dok[did].add(f"{gg}-{mm}-{dd}")
+        s["datum_u_izvoru"] = s["datum"] in datumi_dok[did]
+    return sek
+
+
 def _strategija(g: dict, ima_genome: bool, raz: Razresavac) -> dict:
     if not ima_genome:
         return _sekcija(NEPOZNATO)

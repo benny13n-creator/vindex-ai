@@ -68,7 +68,7 @@
       }
       podaci = { korisnik: korisnik, id: id, predmet: r.predmet, dokumenti: r.dokumenti, klijenti: r.klijenti };
       prikazi({ vrsta: "predmet", predmet: r.predmet, dokumenti: r.dokumenti, klijenti: r.klijenti,
-                beleske: r.beleske, hronologija: r.hronologija });
+                beleske: r.beleske, hronologija: r.hronologija, procesni: r.procesni });
     }
 
     function otvori(id) {

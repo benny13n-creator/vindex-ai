@@ -65,6 +65,19 @@
       .filter(function (x) { return x.dogadjaj; });
   }
 
+  /* BA-04: procesni događaji iz dokumenata (api.py → shared/genome_contract.py::procesni_dogadjaji; ista projekcija
+   * kao Analiza). Nije objekat sa nizom stavki → null („nije učitano"), nikad prazna lista. */
+  function mapirajProcesne(x) {
+    if (!x || typeof x !== "object" || !Array.isArray(x.stavke)) return null;
+    return { stanje: tekst(x.stanje), stavke: x.stavke.filter(function (s) { return s && typeof s === "object" && tekst(s.vrednost); })
+      .map(function (s) {
+        var lok = s.lokacija && typeof s.lokacija === "object" ? s.lokacija : {};
+        return { opis: tekst(s.vrednost), datum: datumIso(s.datum), datumNeispravan: s.datum_neispravan === true,
+          izvorId: lok.dokument_id ? String(lok.dokument_id) : "", oznaka: tekst(lok.oznaka),
+          datumUIzvoru: s.datum_u_izvoru === true ? true : (s.datum_u_izvoru === false ? false : null) };
+      }) };
+  }
+
   function mapirajKlijenta(k) {
     var ime = [tekst(k.ime), tekst(k.prezime)].filter(Boolean).join(" ");
     return { naziv: ime || tekst(k.firma), firma: ime ? tekst(k.firma) : "", uloga: tekst(k.uloga) };
@@ -92,7 +105,8 @@
     }
     var klijenti = d.klijenti_linked.filter(function (k) { return k && typeof k === "object"; }).map(mapirajKlijenta).filter(function (k) { return k.naziv; });
     return { ok: true, predmet: mapirajPredmet(d.predmet), dokumenti: dokumenti, klijenti: klijenti,
-             beleske: mapirajBeleske(d.beleske), hronologija: mapirajHronologiju(d.hronologija) };
+             beleske: mapirajBeleske(d.beleske), hronologija: mapirajHronologiju(d.hronologija),
+             procesni: mapirajProcesne(d.procesni_dogadjaji) };
   }
 
   async function ucitajTekst(predmetId, dokId, token, signal) {
