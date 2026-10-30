@@ -60,6 +60,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import weakref
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
@@ -790,6 +791,39 @@ def izvor_povucen(red: dict, nazivi_dokumenata_predmeta) -> bool:
     `dokument_id` od nastanka, a stari redovi su `LEGACY_UNKNOWN` (127) — za njih se ovo ne zaključuje."""
     return (red.get("akter") == AKTER_GENOME and bool(red.get("dokument_naziv")) and not red.get("dokument_id")
             and red["dokument_naziv"] not in nazivi_dokumenata_predmeta)
+
+
+# ── BA-01: identitet kandidata (DEADLINE_IDENTITY_CONTRACT) ──────────────────
+#
+# Dva pisca predlažu rok iz istog dokumenta: Smart Intake (deterministički, red bez `dokument_id`, sa imenom fajla) i
+# Genome (model, `dokument_id` iz DOK-NN). Identitet NIJE tekst modela (preformulacija je pravila nov red na svako
+# osvežavanje) ni sam datum (dve obaveze istog dana). Klasa = isti izvorni dokument + isti datum; koliko kandidata
+# klasa sme da ima određuje dokaz iz teksta dokumenta (broj različitih dokaznih fraza). Postojeći red se nikad ne
+# menja ni briše — odluka advokata ostaje na svom `id`.
+
+_ZAKLJUCAVANJA_KANDIDATA: "weakref.WeakValueDictionary[str, asyncio.Lock]" = weakref.WeakValueDictionary()
+
+
+def zakljucavanje_kandidata(predmet_id: str) -> asyncio.Lock:
+    """Jedno zaključavanje po predmetu za OBA pisca (čitanje klase → upis). Važi unutar procesa; produkcija radi sa
+    jednim procesom (`/health` `workers: 1`). Između procesa nema baze-garancije bez UNIQUE indeksa (migracija)."""
+    z = _ZAKLJUCAVANJA_KANDIDATA.get(predmet_id)
+    if z is None:
+        z = asyncio.Lock()
+        _ZAKLJUCAVANJA_KANDIDATA[predmet_id] = z
+    return z
+
+
+def je_kandidat_klase(red: dict, datum_iso: str) -> bool:
+    """Red koji se broji u klasu roka: datum se poklapa, a vrsta je rok ili nije izjavljena (zatečeni redovi)."""
+    return (red.get("datum_iso") or "")[:10] == datum_iso and (red.get("vrsta") or VRSTA_ROK) == VRSTA_ROK
+
+
+def pripada_dokumentu(red: dict, dokument_id: str, naziv_fajla: Optional[str], ime_jednoznacno: bool) -> bool:
+    """`dokument_id` je dokaz. Bez njega (Smart Intake red) samo ime fajla — i to samo kad je u predmetu jednoznačno."""
+    if red.get("dokument_id"):
+        return str(red["dokument_id"]) == str(dokument_id)
+    return bool(naziv_fajla) and ime_jednoznacno and red.get("dokument_naziv") == naziv_fajla
 
 
 def _sema_ima_129(supa) -> bool:

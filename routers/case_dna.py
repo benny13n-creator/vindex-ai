@@ -901,85 +901,140 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
     upisani u predmet_hronologija (stvarna, vec-koriscena kalendar tabela
     — Cockpit-ov 'Hitni rokovi' i case_pipeline._step_kalendar je citaju).
     Rezultat: rok koji Genome pronadje u dokumentu bio je nevidljiv svuda
-    drugde u aplikaciji. Ovo ga upisuje u hronologiju — deduplicirano po
-    (datum_iso, dogadjaj) da ponovljeni Genome refresh ne pravi duplikate.
-    Advisory/best-effort: greska ovde nikad ne sme oboriti Genome upis."""
+    drugde u aplikaciji. Ovo ga upisuje u hronologiju.
+    Advisory/best-effort: greska ovde nikad ne sme oboriti Genome upis.
+
+    BA-01 (DEADLINE_IDENTITY_CONTRACT): identitet je bio `(f"{naziv}: {opis}", datum)` — tekst modela. Svaka
+    preformulacija pravila je nov kandidat za istu obavezu, a red Smart Intake-a za isti dokument se nije ni video.
+    Sada, kad je izvor razrešen: klasa = (izvorni dokument, datum) preko `shared/rokovi`; stavki modela za klasu sme
+    biti najviše onoliko koliko je obaveza tog datuma dokazano u tekstu dokumenta; upisuje se samo ono što klasi
+    nedostaje. Tekst modela je tada samo prikaz. Kad izvor NIJE razrešen, jednakost se ne pretpostavlja: identitet
+    ostaje tačan `(dogadjaj, datum)` (N03-FD2)."""
     rokovi = genome.get("rokovi_kriticni") or []
     if not rokovi:
         return 0
-    # B8: `dokument_id` -> `naziv_fajla`, da hronologija prikaze STVARNO ime
-    # dokumenta iz kog rok potice. Cita se opsegom predmeta; nerazresen rok
-    # ostaje bez naziva (None), nikad sa pogodjenim.
-    _dok_nazivi: dict[str, str] = {}
-    try:
-        _dr = await asyncio.to_thread(
-            lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla")
-                .eq("predmet_id", predmet_id).execute()
-        )
-        _dok_nazivi = {d["id"]: d.get("naziv_fajla") or "" for d in (_dr.data or [])}
-    except Exception as exc:
-        logger.warning("[GENOME] Sync rokovi — citanje dokumenata: %s", exc)
-    try:
-        postojeci_r = await asyncio.to_thread(
-            lambda: supa.table("predmet_hronologija")
-                .select("dogadjaj,datum_iso")
-                .eq("predmet_id", predmet_id)
-                .execute()
-        )
-        postojeci = {(r.get("dogadjaj",""), r.get("datum_iso","")) for r in (postojeci_r.data or [])}
-    except Exception as exc:
-        logger.warning("[GENOME] Sync rokovi — čitanje hronologije greška: %s", exc)
-        return 0
+    from shared.intake_extract import dokazani_rokovi
 
-    upisano = 0
-    for r in rokovi[:10]:
-        if r.get("status") != "aktivan":
-            continue
-        datum = (r.get("datum") or "")[:10]
-        if not datum or len(datum) != 10:
-            continue
-        naziv = (r.get("naziv") or "Rok").strip()
-        # B8: naziv dokumenta se izvodi iz razresenog `dokument_id`, ne iz teksta
-        # koji je model napisao. Kolona `dokument_naziv` vec postoji, pa ovaj deo
-        # NE trazi migraciju. Puni `dokument_id` u hronologiji ceka migraciju 126.
-        _dok_naziv = _dok_nazivi.get(r.get("dokument_id")) if r.get("dokument_id") else None
-        dogadjaj = f"{naziv}: {(r.get('opis') or '').strip()}"[:200] if r.get("opis") else naziv[:200]
-        if (dogadjaj, datum) in postojeci:
-            continue
+    async with _IZVOR.zakljucavanje_kandidata(predmet_id):
+        # B8: `dokument_id` -> `naziv_fajla`, da hronologija prikaze STVARNO ime
+        # dokumenta iz kog rok potice. Cita se opsegom predmeta; nerazresen rok
+        # ostaje bez naziva (None), nikad sa pogodjenim.
+        _dok_nazivi: dict[str, str] = {}
         try:
-            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum, dn=_dok_naziv, di=r.get("dokument_id"): supa.table("predmet_hronologija").insert({
-                "predmet_id": predmet_id,
-                "user_id":    uid,
-                "dogadjaj":   dg,
-                "datum":      dt,
-                "datum_iso":  dt,
-                # QA-01 B1: važnost nepotvrđenog AI predloga NIJE „kritičan“.
-                # „kritičan“ je ranije bio upisan u kodu za svaki Genome rok, pa je
-                # predlog izgledao kao potvrđen kritičan rok. `važan` je postojeća
-                # vrednost (CHECK), ista koju upisuje Smart Intake za svoj kandidat.
-                # Prošao datum se i dalje upisuje kao kandidat: prošao datum ne
-                # znači da je obaveza izvršena (QA-01 B2) — status proverava advokat.
-                "vaznost":    "važan",
-                "akter":      "Genome (AI)",
-                "dokument_naziv": dn,
-                # migracija 127 — W-GENOME: Genome sam izvlaci rok iz
-                # dokumenta.
-                "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
-                # Migracija 126 je izvrsena i dokazana uzivo (11/11: FK odbija
-                # nepostojeci dokument sa 23503, ON DELETE SET NULL cuva
-                # istorijski dogadjaj). Tek sada se kolona sme upisivati.
-                # NULL je TACNA vrednost kada izvor nije jednoznacno razresen.
-                "dokument_id": di,
-                # migracija 129 — Genome ovde upisuje ROK, i to se IZJAVLJUJE,
-                # ne pogadja iz teksta. `stanje` se NAMERNO ne upisuje: dok
-                # covek ne odluci, stanje je nepotvrdjeno i to vec nosi audit
-                # lanac (FAZA 6.5). Prazna sema -> prazan fragment.
-                **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
-            }).execute())
-            upisano += 1
+            _dr = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla")
+                    .eq("predmet_id", predmet_id).execute()
+            )
+            _dok_nazivi = {d["id"]: d.get("naziv_fajla") or "" for d in (_dr.data or [])}
         except Exception as exc:
-            logger.warning("[GENOME] Sync rokovi — insert greška: %s", exc)
-    return upisano
+            # B8: rok ulazi i bez naziva. BA-01: bez naziva nema ni poklapanja po imenu fajla (klasa samo po
+            # `dokument_id`) — moguć je dupli kandidat, nikad spajanje.
+            logger.warning("[GENOME] Sync rokovi — citanje dokumenata: %s", exc)
+        try:
+            postojeci_r = await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija")
+                    .select("id,dogadjaj,datum_iso,dokument_id,dokument_naziv,akter,vrsta")
+                    .eq("predmet_id", predmet_id)
+                    .execute()
+            )
+            postojeci = list(postojeci_r.data or [])
+        except Exception as exc:
+            logger.warning("[GENOME] Sync rokovi — čitanje hronologije greška: %s", exc)
+            return 0
+
+        # Stavke modela po klasi (dokument ili None, datum), redom kojim ih je model dao.
+        grupe: dict[tuple, list] = {}
+        for r in rokovi[:10]:
+            if r.get("status") != "aktivan":
+                continue
+            datum = (r.get("datum") or "")[:10]
+            if not datum or len(datum) != 10:
+                continue
+            grupe.setdefault((r.get("dokument_id") or None, datum), []).append(r)
+
+        # Dokaz iz teksta: koliko obaveza po datumu svaki dokument stvarno navodi. Bez teksta nema ograničenja
+        # (traži se onoliko koliko je model naveo), ali klasa i dalje sprečava dupli upis.
+        _ids = sorted({d for d, _ in grupe if d})
+        _dokazano: dict[str, dict] = {}
+        if _ids:
+            try:
+                _tr = await asyncio.to_thread(
+                    lambda: supa.table("predmet_dokumenti").select("id,tekst_sadrzaj")
+                        .eq("predmet_id", predmet_id).in_("id", _ids).execute()
+                )
+                for d in (_tr.data or []):
+                    po_datumu: dict[str, set] = {}
+                    for o in dokazani_rokovi(d.get("tekst_sadrzaj") or ""):
+                        if o.get("konkretan_datum"):
+                            dd, mm, gg = o["konkretan_datum"].split(".")
+                            po_datumu.setdefault(f"{gg}-{mm}-{dd}", set()).add(o["fraza"])
+                    _dokazano[d["id"]] = {k: len(v) for k, v in po_datumu.items()}
+            except Exception as exc:
+                logger.warning("[GENOME] Sync rokovi — tekst dokumenata (bez ograničenja dokazom): %s", exc)
+        _imena = [n for n in _dok_nazivi.values() if n]
+
+        upisano = 0
+        for (did, datum), stavke in grupe.items():
+            if did:
+                naziv_fajla = _dok_nazivi.get(did)
+                klasa = [x for x in postojeci if _IZVOR.je_kandidat_klase(x, datum)
+                         and _IZVOR.pripada_dokumentu(x, did, naziv_fajla, _imena.count(naziv_fajla) == 1)]
+                m = (_dokazano.get(did) or {}).get(datum, 0)
+                nove = stavke[len(klasa):min(len(stavke), m) if m else len(stavke)]
+            else:
+                tekstovi = {(x.get("dogadjaj"), (x.get("datum_iso") or "")[:10]) for x in postojeci}
+                nove = [r for r in stavke if (_tekst_genome_roka(r), datum) not in tekstovi]
+            for r in nove:
+                naziv = (r.get("naziv") or "Rok").strip()
+                # B8: naziv dokumenta se izvodi iz razresenog `dokument_id`, ne iz teksta
+                # koji je model napisao. Kolona `dokument_naziv` vec postoji, pa ovaj deo
+                # NE trazi migraciju. Puni `dokument_id` u hronologiji ceka migraciju 126.
+                _dok_naziv = _dok_nazivi.get(r.get("dokument_id")) if r.get("dokument_id") else None
+                dogadjaj = _tekst_genome_roka(r)
+                try:
+                    res = await asyncio.to_thread(lambda dg=dogadjaj, dt=datum, dn=_dok_naziv, di=r.get("dokument_id"): supa.table("predmet_hronologija").insert({
+                        "predmet_id": predmet_id,
+                        "user_id":    uid,
+                        "dogadjaj":   dg,
+                        "datum":      dt,
+                        "datum_iso":  dt,
+                        # QA-01 B1: važnost nepotvrđenog AI predloga NIJE „kritičan“.
+                        # „kritičan“ je ranije bio upisan u kodu za svaki Genome rok, pa je
+                        # predlog izgledao kao potvrđen kritičan rok. `važan` je postojeća
+                        # vrednost (CHECK), ista koju upisuje Smart Intake za svoj kandidat.
+                        # Prošao datum se i dalje upisuje kao kandidat: prošao datum ne
+                        # znači da je obaveza izvršena (QA-01 B2) — status proverava advokat.
+                        "vaznost":    "važan",
+                        "akter":      "Genome (AI)",
+                        "dokument_naziv": dn,
+                        # migracija 127 — W-GENOME: Genome sam izvlaci rok iz
+                        # dokumenta.
+                        "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
+                        # Migracija 126 je izvrsena i dokazana uzivo (11/11: FK odbija
+                        # nepostojeci dokument sa 23503, ON DELETE SET NULL cuva
+                        # istorijski dogadjaj). Tek sada se kolona sme upisivati.
+                        # NULL je TACNA vrednost kada izvor nije jednoznacno razresen.
+                        "dokument_id": di,
+                        # migracija 129 — Genome ovde upisuje ROK, i to se IZJAVLJUJE,
+                        # ne pogadja iz teksta. `stanje` se NAMERNO ne upisuje: dok
+                        # covek ne odluci, stanje je nepotvrdjeno i to vec nosi audit
+                        # lanac (FAZA 6.5). Prazna sema -> prazan fragment.
+                        **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
+                    }).execute())
+                except Exception as exc:
+                    logger.warning("[GENOME] Sync rokovi — insert greška: %s", exc)
+                    continue
+                # Klasa vidi i upis iz istog osvežavanja.
+                postojeci.append((res.data or [None])[0] or {"dogadjaj": dogadjaj, "datum_iso": datum,
+                                                             "dokument_id": r.get("dokument_id"), "dokument_naziv": _dok_naziv,
+                                                             "akter": _IZVOR.AKTER_GENOME, "vrsta": _IZVOR.VRSTA_ROK})
+                upisano += 1
+        return upisano
+
+
+def _tekst_genome_roka(r: dict) -> str:
+    naziv = (r.get("naziv") or "Rok").strip()
+    return f"{naziv}: {(r.get('opis') or '').strip()}"[:200] if r.get("opis") else naziv[:200]
 
 
 _genome_refresh_inflight: set = set()

@@ -154,32 +154,32 @@ def test_protivrecnost_pokazuje_na_stvarne_tvrdnje_razlicitih_dokumenata(predmet
 
 # ── B9 / B11: rok iz dokumenta → obaveza čeka potvrdu → potvrda; bez duplikata ─────────────────────────────────
 def test_B9_B11_rok_iz_dokumenta_ceka_potvrdu_jedna_akcija_i_potvrda_je_zatvara(predmet):
-    """N03-FD7 (2026-10-14): Smart Intake rok sada IZJAVLJUJE `vrsta=rok`, pa je i on kandidat u pregledu. Genome i
-    Smart Intake su dva proizvođača; da li je to ista obaveza, postojeći identifikatori NE dokazuju (Smart Intake red
-    nema `dokument_id`, identitet odluke je id reda) — zato su to DVA kandidata, svaki sa svojom akcijom pregleda, i
-    potvrda jednog NE zatvara drugi (N03-FD2: nema izvođenja ekvivalencije iz datuma/naziva)."""
+    """N03-FD7 (2026-10-14): Smart Intake rok IZJAVLJUJE `vrsta=rok`, pa je kandidat u pregledu.
+    BA-01 (DEADLINE_IDENTITY_CONTRACT, 2026-10-30, odluka osnivača): Smart Intake i Genome za ISTI dokument
+    (`Zapisnik.pdf` je jednoznačan u predmetu) i isti datum su ista klasa — Genome ne dodaje drugi kandidat. Ranije su to
+    bila dva kandidata i dve akcije (N03-FD2: identitet nije bio dokazan); sada je dokaz izvorni dokument + tekst dokumenta
+    koji navodi jednu obavezu tog dana. Jedan kandidat, jedna akcija, potvrda je zatvara."""
     k, b, pid, doks = predmet
     rokovi = _rokovi(b, pid)
-    [rok] = [r for r in rokovi if r.get("akter") == "Genome (AI)"]
     [si] = [r for r in rokovi if r.get("akter") == "Smart Intake"]
-    assert len(rokovi) == 2
-    assert rok["datum_iso"] == ROK and rok["dokument_id"] == doks["Zapisnik.pdf"] and rok["izvor"] == "AI_AUTONOMOUS"
+    assert [r for r in rokovi if r.get("akter") == "Genome (AI)"] == []
+    assert len(rokovi) == 1
     assert si["datum_iso"] == ROK and si["izvor"] == "AI_AUTONOMOUS" and si["dokument_naziv"] == "Zapisnik.pdf"
     akc = {a["dokaz"]["hronologija_id"]: a for a in _rok_akcije(b, pid)}
-    assert set(akc) == {rok["id"], si["id"]} and all(a["tip"] == "PLANIRATI_ROKOVE" for a in akc.values())
-    assert akc[rok["id"]]["dokaz"]["dokument_id"] == doks["Zapisnik.pdf"]
+    assert set(akc) == {si["id"]} and all(a["tip"] == "PLANIRATI_ROKOVE" for a in akc.values())
     assert all(a["dokaz"]["stanje_odluke"] == "UNCONFIRMED" and "čeka vašu potvrdu" in a["razlog"] for a in akc.values())
-    # isti zaključeni rok ponovo izveden (ponovljeno osvežavanje Genome-a i dispečera) — ni treći rok ni treća akcija
+    # isti zaključeni rok ponovo izveden (ponovljeno osvežavanje Genome-a i dispečera) — ni drugi rok ni druga akcija
     from services.event_bus import EventType, emit_durable
     asyncio.run(emit_durable(EventType.MANUAL_CORRECTION_APPLIED, "uid-A", pid, {"trigger": "test"}))
     assert k.post(f"/api/predmeti/{pid}/case-dna/refresh", headers=A).status_code in (200, 202, 409)
     _do_kraja_dogadjaja(b, najvise=10)
-    assert len(_rokovi(b, pid)) == 2 and len(_rok_akcije(b, pid)) == 2
-    # potvrda advokata se trajno beleži i zatvara akciju TOG roka; drugi kandidat i dalje čeka odluku
+    assert len(_rokovi(b, pid)) == 1 and len(_rok_akcije(b, pid)) == 1
+    # potvrda advokata se trajno beleži i zatvara akciju tog roka
+    rok = si
     r = k.post(f"/api/rokovi/{rok['id']}/potvrdi", json={}, headers=A)
     assert r.status_code == 200 and r.json()["stanje_odluke"] == "CONFIRMED", r.text
     _do_kraja_dogadjaja(b)
-    assert [a["dokaz"]["hronologija_id"] for a in _rok_akcije(b, pid)] == [si["id"]]
+    assert _rok_akcije(b, pid) == []
     assert len(_rok_akcije(b, pid, "closed")) == 1
     assert any(a.get("action") and "rok" in str(a.get("action")).lower() for a in b.tabele["audit_immutable"])
     # B ne može da potvrdi/odbije tuđ rok

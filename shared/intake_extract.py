@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from typing import Optional
 
 from shared.llm_retry import llm_retry
@@ -259,6 +260,53 @@ def extract_deadline(text: str) -> tuple[Optional[str], float]:
     base = 0.9 if izabran.get("tip") == "apsolutni" else 0.72
     confidence = min(0.97, base + 0.05)
     return vrednost, confidence
+
+
+# ─── BA-01: OBAVEZA, NE DATUM ─────────────────────────────────────────────────
+#
+# `extract_deadline` bira JEDAN rok po dokumentu, pa se drugi dokazani rok istog dokumenta tiho gubio. Identitet
+# obaveze unutar dokumenta je (datum, dokazna fraza): normalizovan IZVORNI tekst od prve rokovne reči u istom redu do
+# datuma. Ista fraza i isti datum = ista obaveza pomenuta dvaput (izreka i pouka); različita fraza = druga obaveza,
+# i kad joj je datum isti. Fraza nikad ne dolazi iz modela. Ugovor: BA01 DEADLINE_IDENTITY_CONTRACT.
+
+def _normalizuj_frazu(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s.replace("đ", "dj").replace("Đ", "Dj"))
+    s = "".join(c for c in s if not unicodedata.combining(c)).lower()
+    return " ".join(re.sub(r"[^0-9a-zа-яђјљњћџ ]", " ", s).split())
+
+
+def _dokazna_fraza(text: str, pozicija: int) -> str:
+    pocetak = max(text.rfind("\n", 0, pozicija) + 1, pozicija - _ROK_DOKAZ_PROZOR, 0)
+    for m in _DRUGI_DATUM_RE.finditer(text, pocetak, pozicija):
+        pocetak = m.end()
+    seg = text[pocetak:pozicija]
+    m = _ROK_MARKER_RE.search(seg)
+    return _normalizuj_frazu(seg[m.start():] if m else seg)
+
+
+def dokazani_rokovi(text: str) -> list[dict]:
+    """Svaka dokazana obaveza dokumenta tačno jednom, redom kojim parser vraća datume (hronološki).
+
+    Isti kriterijum dokaza kao `extract_deadline` (`_ima_dokaz_o_roku`); običan datum se nikad ne vraća."""
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+
+    izvor = text or ""
+    out: list[dict] = []
+    vidjeno: set = set()
+    for r in ekstrahuj_rokove(izvor, dedup_konteksta=False):
+        if not _ima_dokaz_o_roku(izvor, r.get("pozicija"), r.get("kraj")):
+            continue
+        vrednost = r.get("konkretan_datum") or r.get("vrednost")
+        fraza = _dokazna_fraza(izvor, r["pozicija"])
+        if (vrednost, fraza) in vidjeno:
+            continue
+        vidjeno.add((vrednost, fraza))
+        out.append({
+            "vrednost": vrednost, "konkretan_datum": r.get("konkretan_datum"), "tip": r.get("tip"),
+            "istekao": r.get("istekao"), "pozicija": r["pozicija"], "fraza": fraza,
+            "confidence": min(0.97, (0.9 if r.get("tip") == "apsolutni" else 0.72) + 0.05),
+        })
+    return out
 
 
 _LLM_SYSTEM = """Ti si ekstraktor podataka iz srpskih pravnih dokumenata. Izvuci sledeće entitete iz teksta, ako postoje.

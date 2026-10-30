@@ -100,8 +100,9 @@ def _supa(hronologija_postoji=False, insert_puca=None):
                 m.execute.return_value.data = [{}]
                 return m
             t.insert.side_effect = _insert
-            # N03-FD2: provera duplikata ima i cetvrti uslov (isti izvorni fajl).
-            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
+            # N03-FD2 / BA-01: provera duplikata = isti predmet + isti datum + isti izvorni fajl (bez naziva
+            # događaja — Genome red iz istog dokumenta je ista obaveza; DEADLINE_IDENTITY_CONTRACT).
+            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
                 [{"id": "hron-odbijen"}] if hronologija_postoji else []
             )
         elif name == "intake_job_segments":

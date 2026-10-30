@@ -117,10 +117,13 @@ def test_pad_citanja_dokumenata_ne_obara_upis_roka():
 
 
 def test_dedup_kljuc_nepromenjen():
-    """Dedup po (dogadjaj, datum) ostaje — dodavanje naziva ne sme praviti
-    duplikate pri ponovljenom refresh-u."""
+    """BA-01 (DEADLINE_IDENTITY_CONTRACT) zamenjuje ključ (dogadjaj, datum) za RAZREŠEN izvor: tekst modela se menjao
+    pri svakom osvežavanju i pravio nov kandidat za istu obavezu. Razrešen izvor → klasa (dokument, datum) iz
+    `shared/rokovi`; nerazrešen izvor → i dalje tačan (dogadjaj, datum) — jednakost se ne pretpostavlja (N03-FD2).
+    Ponašanje meri tests/test_ba01_rok_identitet.py."""
     telo = _telo("_sync_rokovi_to_hronologija")
-    assert '(dogadjaj, datum) in postojeci' in telo
+    assert "_IZVOR.pripada_dokumentu(" in telo and "_IZVOR.je_kandidat_klase(" in telo
+    assert "(_tekst_genome_roka(r), datum) not in tekstovi" in telo
 
 
 # ═══════════════════════════════════════════════════════════════════════════
