@@ -237,7 +237,8 @@ def test_map_batch_neuspesan_ne_obara_celu_analizu():
 def test_lociraj_tvrdnju_pronalazi_tacan_citat():
     from routers.evidence import _lociraj_tvrdnju
 
-    tekst = "A" * 3000 + "Ugovorna kazna iznosi 500.000 RSD po danu kašnjenja." + "B" * 3000
+    # S01 (B5): citat počinje rečenicu — ispuna je odvojena granicom, ne zalepljena za citat.
+    tekst = "A" * 3000 + ". " + "Ugovorna kazna iznosi 500.000 RSD po danu kašnjenja." + "B" * 3000
     loc = _lociraj_tvrdnju(tekst, "Ugovorna kazna iznosi 500.000 RSD po danu kašnjenja.")
     assert loc["start_offset"] == tekst.find("Ugovorna kazna")
     assert loc["stranica"] is not None
@@ -310,7 +311,7 @@ def test_klasifikuj_i_sacuvaj_salje_lokaciju_u_insert():
         return dokumenti_table if name == "predmet_dokumenti" else dokazi_table
     supa.table = MagicMock(side_effect=_table)
 
-    tekst_dokumenta = "A" * 100 + "Tužilac je pretrpeo štetu usled saobraćajne nezgode." + "B" * 100
+    tekst_dokumenta = "A" * 100 + ". " + "Tužilac je pretrpeo štetu usled saobraćajne nezgode." + "B" * 100
 
     def _fake_rezultat(naziv, tekst):
         return {

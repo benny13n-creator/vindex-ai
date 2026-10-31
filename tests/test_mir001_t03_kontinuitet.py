@@ -159,7 +159,12 @@ def test_svaki_kljucni_navod_ima_stvarni_izvor_i_nije_utvrdjen(spis):
     g = _gv2(k, pid)
     stavke = g["cinjenice"]["stavke"]
     assert len(stavke) == len(zive)
-    assert {s["poreklo"] for s in stavke} == {"SOURCE_FACT"}  # navod pronađen u dokumentu, ne činjenica suda
+    # S01 (B5): zamenski model vraća REDOVE PDF-a; red koji samo nastavlja rečenicu iz prethodnog reda („Nosaci solarnih
+    # panela nisu ostetili⏎hidroizolaciju krova.“) nije navod dokumenta — bez početka rečenice (i negacije) je AI analiza.
+    nastavci = {"izvedena hidroizolacija na spoju atike.", "hidroizolaciju krova."}
+    po = {s["vrednost"]: s["poreklo"] for s in stavke}
+    assert nastavci <= set(po) and {po[v] for v in nastavci} == {"AI_ANALYSIS"}
+    assert {p for v, p in po.items() if v not in nastavci} == {"SOURCE_FACT"}  # navod pronađen u dokumentu, ne činjenica suda
     assert g["metapodaci"]["kompletnost"] == "COMPLETE"
 
 

@@ -113,3 +113,51 @@ Nijedna stavka nema nivo REAL_USER_ACCEPTED.
 
 ### Gate S00: `PROVEN_CLOSED`
 Izvor zahteva (kanon + 7 dokumenata), kod (`a45b34ba` = produkcija), migracije (142, 143, 144, 145 kolone PROVEN; UNIQUE indeksi UNKNOWN) i osnovica potvrđeni; nema divergentne istorije. Otvoreno i preneto: UNIQUE indeksi 144/145 (nema DB pristupa — INFERRED iz uspešnog spajanja #61/#62 i ponašanja: 4 roka, 4 `dogadjaj_event_id`, bez duplikata).
+
+---
+
+## S01 — B5: evidence provenance & fact integrity
+
+**Zahtevi:** B5, BA-03 (delimično), INV-02, INV-04, INV-13, INV-14. **Preflight SHA:** `72fbb980` (= `a45b34ba` + S00 dokumentacija).
+
+### Problem (PROVEN, reprodukovano pre izmene)
+1. **Negacija/pripisivanje gubi se, a tvrdnja ostaje „Iz dokumenta“.** `shared/evidence_write.py::lociraj_tvrdnju` je prihvatala pogodak USRED rečenice. AI tvrdnja „isplatio zaradu za mart 2026. godine.“ iz rečenice „Tuženi **nije** isplatio zaradu …“ dobijala je `nacin_pronalaska = egzaktan` → `poreklo_tvrdnje` = SOURCE_FACT → V2 „Iz dokumenta“, „pronađeno u dokumentu“ (obrnut smisao). Isto: „zakup placen …“ iz „Tužilac tvrdi da je zakup placen …“ (navod stranke prikazan kao navod dokumenta bez pripisivanja), red-nastavak „hidroizolaciju krova.“ iz „Nosaci … **nisu** ostetili⏎hidroizolaciju krova.“ (MIR001 zlatni spis), odsečen broj („iznosi 500“ u „iznosi 5000“). Dokaz: novi test fajl na nepromenjenoj osnovici `a45b34ba` → **41 failed / 32 passed** (svi padovi su slučajevi koji moraju biti AI analiza).
+2. **V2 „Pitanje“ tvrdi više od backend-a.** `frontend-v2-ng/src/pitanje-predmeta.js`: „Odgovor je dat uz beleške i **utvrđene činjenice** ovog predmeta“ / „nema … utvrđenih činjenica“, iako backend kontekst (VCR002 RC FIX 3) izričito kaže da nijedna tvrdnja nije utvrđena činjenica; postojeći `live-pitanje.mjs` je zaključavao taj tekst.
+3. **V2 „Pripremljeno“ prazno stanje:** „U spisu nema **potvrđenih** činjenica.“ za listu stavki čije je poreklo navod/AI.
+
+### Šta je već bilo ispravno (PROVEN postojećim testovima, nepromenjeno)
+A doslovna rečenica (SOURCE_FACT, „navod iz dokumenta“ — nikad „utvrđeno“); B normalizovana (SOURCE_FACT); C parafraza (AI_ANALYSIS); F pogrešno pročitan iznos/datum (nije pronađen → AI); G ručna tvrdnja advokata (HUMAN_CONFIRMED, ponovna AI klasifikacija ne briše ljudske redove — `reklasifikuj` samo dodaje; čuvar `klasifikovan_at`); H obrisan dokument povlači svoje AI tvrdnje u istoj transakciji (137; `test_vcr002_rc_fix1_migracija137_pg`, `test_mir001_t03_kontinuitet::test_obrisan_izvor…`); I tenant B → 404/bez upisa (`test_impl001…g/g2`, `test_ns006_t4…b_ne_vidi_a`, `test_mir001_t03…korisnik_b…`); J retry/konkurentnost (`klasifikovan_at` čuvar, `test_vcr002_rc_fix1…konkurentan_upis`); K navod stranke ostaje navod (oznake „navod iz dokumenta, pronađen u tekstu“, „nijedna nije sudski utvrđena činjenica“, MIR001 TASK-03).
+
+### Minimalna izmena
+- `shared/evidence_write.py`: lokacija se vraća samo ako (1) pogodak počinje rečenicu (ispred: samo interpunkcija/navodnici/jedna oznaka nabrajanja), (2) ne seče reč ili broj. Granica rečenice je konzervativna (kad nije sigurno — nije granica → bezbedna strana „AI analiza“): tačka/upitnik/uzvičnik pred velikim slovom, ne posle skraćenice/inicijala/datuma; prelom reda samo posle zatvorenog reda (interpunkcija, zaglavlje velikim slovima koje se ne završava veznikom, naslov od jedne reči, ceo red = broj predmeta, oznaka „Naziv: ime/broj“) ili pred redom-nabrajanjem/oznakom. Normalizovana grana proverava isto na tekstu iste dužine sa sačuvanim prelomima (`_ws_sa_prelomima`, 1:1 sa `_normalize_ws`, fuzz 200.000 nizova).
+- `routers/evidence.py`: prompt ekstrakcije — deo rečenice uvek od početka rečenice.
+- `frontend-v2-ng/src/pitanje-predmeta.js`, `pripremljeno.js`: tekst bez „utvrđene/potvrđene činjenice“.
+- **Non-goals / namerno nedirano:** šema i migracije, `poreklo_tvrdnje`, DC-005 (`snaga`), identitet tvrdnje, 137 invalidacija, Genome, postojeći produkcioni redovi (nema masovnog prepisivanja — postojeći `egzaktan` iz starog koda ostaju; produkcioni uzorak: 0 pogođenih), legacy `static/vindex.js` `reklasifikuj` (vidi rizike).
+
+### Testovi i dokazi
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s01_poreklo_tvrdnji.py` (nov; matrica A–F, K, nalazi 3 kruga pregleda, E+D kroz stvaran prijem: dva `scan.pdf`, model vraća delove rečenica i rečenice DRUGOG dokumenta) | **73/73**; na osnovici 41 pada |
+| Ciljana regresija (svih 159 test fajlova koji dodiruju dokaze/poreklo/Genome-v2) | **2556 passed / 0 failed** / 52 skipped |
+| Browser: `live-pitanje.mjs` | 45/45 |
+| Browser: `live-pripremljeno.mjs` (+ nov slučaj praznog stanja) | 54/54 |
+| Mutacije (binarno, vraćanje svake grane ispravke i UI teksta) | **22/22 ubijeno** |
+| Kolateral na stvarnim podacima | 38 tvrdnji iz 2 sintetička produkciona predmeta (samo čitanje): 0 promena; sačuvani izlazi stvarnog modela (MIR001 C2): 99/99 i 2/2 i dalje locirani, 5/5 fragmenata usred navoda stranke ispravno AI |
+| Puna svita (lokalno) | **9 failed / 12.888 passed** — isti ID-jevi kao osnovica `a45b34ba` (0 novih padova; +73 nova testa) |
+
+Izmenjeni postojeći testovi (promena ugovora, ne ublažavanje): ispuna zalepljena za citat („AAAA“+citat) odvojena granicom (akcija2 ×2, impl001, claim_identity); QA06 ×2 citat od početka rečenice („Dana 15.08.2026. predato je …“ umesto „predato je …“); MIR001 C2 red-okidač zatvoren tačkom; MIR001 T03 — dva reda-nastavka sada AI analiza (ostali navodi i dalje „Iz dokumenta“); `live-pitanje.mjs` — zaključan pogrešan tekst zamenjen proverom da tekst NE tvrdi utvrđene činjenice.
+
+### Nezavisni adversarial pregled (3 kruga, zaseban agent, samo čitanje + probe)
+- Krug 1: 2 HIGH (prelom reda pred velikim slovom prenosi negaciju; odsečen iznos/datum), MEDIUM skraćenice/datumi, FN nabrajanja, UI „potvrđenih činjenica“, prompt traži „deo rečenice“ — sve ispravljeno.
+- Krug 2: HIGH oznaka govornika kao uvod u navod („Svedok: Ne sećam se da je⏎Tuženi …“), MEDIUM datum pred velikim slovom, hiljade sa razmakom, preširoka pravila zatvorenog reda, FN lista posle „:“ — ispravljeno.
+- Krug 3: HIGH red koji se samo završava referencom („… ugovorom br. 15/2026⏎Tuženi …“), MEDIUM zaglavlje „NIJE TAČNO DA JE“ — ispravljeno; ostalo ocenjeno kao malo realno. Pregled potvrđuje: lažno pozitivni nisu zamenjeni neprihvatljivim lažno negativnim (svi preostali FN su na bezbednoj strani, stvarni izlazi modela bez gubitka).
+
+### Preostali rizici (poznati, dokumentovani)
+- LOW: kraj rečenice se ne zahteva — „Zakup je plaćen“ iz „Zakup je plaćen, navodi tužilac.“ ostaje „Iz dokumenta“ (tekst jeste u dokumentu; UI svuda kaže „navod, nije utvrđena činjenica“).
+- LOW: „… br. 15/2026. Tuženi …“ u istom redu (tačka iza rednog broja pred velikim slovom je granica, zbog „Član 1. Ugovorna …“); ostali malo realni slučajevi iz kruga 3 (`scratchpad/s01/review/probe3.py`).
+- LOW (bezbedna strana): neki tačni citati posle zaglavlja malim slovima bez interpunkcije („Zapisnik o glavnoj raspravi⏎Tuženi …“) postaju AI analiza.
+- Postojeći produkcioni redovi nisu ponovo locirani (nema backfill-a — zabranjeno bez odobrenja); uzorak 38/38 nepogođen.
+- Legacy `static/vindex.js` → `POST /reklasifikuj` dodaje AI tvrdnje istog dokumenta ponovo (duplikati); nije V2 tok, nije menjano.
+- Leksička provera ne razume semantiku (tekst postoji u dokumentu ≠ istinit); to je ugovor (INV-04), ne kvar.
+
+**Gate S01: `PROVEN_CLOSED` (nivo LOCAL + BROWSER_INTEGRATION; nije LIVE — kod nije pušten).**

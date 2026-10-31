@@ -61,7 +61,9 @@ def test_citat_sa_zavrsnim_tri_tacke_je_namerno_skracen():
 
 
 def test_kratka_tacna_tvrdnja_i_dalje_jaka():
-    lok, t, snaga, izvor = _potpora("predato je devet monitora Kupcu")
+    # S01 (B5): citat počinje od početka rečenice („Dana 15.08.2026. predato je …“); deo koji počinje usred
+    # rečenice („predato je …“) više nije lociran — v. tests/test_s01_poreklo_tvrdnji.py.
+    lok, t, snaga, izvor = _potpora("Dana 15.08.2026. predato je devet monitora Kupcu")
     assert (t["potpora"], snaga, izvor) == (POTPORA_LOCIRANA, "jaka", "dc005")
 
 
@@ -74,8 +76,9 @@ def test_tacan_dokument_izmisljen_sadrzaj():
 
 def test_tacan_citat_pogresan_zakljucak_aplikacija_dokazuje_samo_citat():
     """„predato je devet monitora Kupcu“ JESTE u dokumentu; zaključak „pa je ugovor ispunjen u celosti“
-    aplikacija ne proverava. Nivo 3 postoji, nivo 4 ne postoji ni kao polje."""
-    _, t, _, _ = _potpora("predato je devet monitora Kupcu")
+    aplikacija ne proverava. Nivo 3 postoji, nivo 4 ne postoji ni kao polje.
+    S01 (B5): citat od početka rečenice — deo usred rečenice više nije lociran."""
+    _, t, _, _ = _potpora("Dana 15.08.2026. predato je devet monitora Kupcu")
     assert t["potpora"] == POTPORA_LOCIRANA
     assert not ({"verifikovano", "podrzano", "semanticki"} & set(t))
 

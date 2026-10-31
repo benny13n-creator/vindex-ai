@@ -182,7 +182,8 @@ def test_kratak_dokument_jedan_poziv_kao_ranije(citac):
 def test_izmisljena_cinjenica_nije_utemeljena_u_izvoru(citac):
     k, b, poruke = citac
     _, pid = _novi_predmet(k, b)
-    d = _prikaci(k, b, pid, "Halucinacija.pdf", _redovi("PODNESAK", 60, ["HALUCINACIJA okidac", "CINJENICA: dug 1.000 dinara."]))
+    # S01 (B5): red-okidač je zatvoren (tačka) — inače je sledeći red nastavak iste rečenice, a ne navod.
+    d = _prikaci(k, b, pid, "Halucinacija.pdf", _redovi("PODNESAK", 60, ["HALUCINACIJA okidac.", "CINJENICA: dug 1.000 dinara."]))
     gv = k.get(f"/api/predmeti/{pid}/genome-v2", headers=A).json()
     po = {t["vrednost"]: t for t in gv["dokazi"]["tvrdnje"]}
     assert po["Tuzeni je platio ceo dug 01.01.2020."]["potpora"] != "LOCIRANA_U_DOKUMENTU"   # nema je u tekstu
