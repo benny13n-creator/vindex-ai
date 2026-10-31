@@ -904,6 +904,17 @@ def _iso_iz_vrednosti(v) -> Optional[str]:
         return None
 
 
+async def _citaj_u_delovima(upit, vrednosti, n: int = 100) -> list:
+    """`in_` lista u delovima od `n`: stotine UUID-a u jednom URL-u bi gateway odbio, a odgovor preko podrazumevanog
+    limita (1000 redova) bi bio tiho skraćen. `upit(deo)` vraća neizvršen upit."""
+    redovi: list = []
+    vrednosti = list(vrednosti)
+    for i in range(0, len(vrednosti), n):
+        r = await asyncio.to_thread(lambda d=vrednosti[i:i + n]: upit(d).execute())
+        redovi.extend(r.data or [])
+    return redovi
+
+
 def naslov_roka_iz_izvora(citat: str, ocr: Optional[bool]) -> str:
     oznaka = "" if ocr is False else (" (OCR, proveriti)" if ocr else " (čitanje nepoznato, proveriti)")
     return f"Rok iz dokumenta{oznaka}: {citat}"[:200]
@@ -923,27 +934,32 @@ async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_
         return ishod
     kol = "id,naziv_fajla,content_sha256,tekst_sadrzaj,source_intake_job_id,source_intake_job_segment_id"
     dokumenti: dict = {}
-    for polje, vrednosti in (("id", ids), ("source_intake_job_id", poslovi)):
-        if vrednosti:
-            r = await asyncio.to_thread(lambda p=polje, v=vrednosti: supa.table("predmet_dokumenti").select(kol)
-                                        .eq("predmet_id", predmet_id).eq("user_id", uid).in_(p, v).execute())
-            dokumenti.update({d["id"]: d for d in (r.data or [])})
+    for polje, vrednosti, n in (("id", ids, 100), ("source_intake_job_id", poslovi, 20)):
+        for d in await _citaj_u_delovima(lambda v, p=polje: supa.table("predmet_dokumenti").select(kol)
+                                         .eq("predmet_id", predmet_id).eq("user_id", uid).in_(p, v), vrednosti, n):
+            dokumenti[d["id"]] = d
     nepronadjeni = [x for x in ids if x not in dokumenti]
     if nepronadjeni:
         # Događaj nosi id dokumenta tek POSLE potvrđenog upisa, pa je nestanak dokaziv samo brisanjem: brisanje
         # dokumenta u istoj transakciji upisuje SourceInvalidated sa determinističkim id-jem (migracije 130/137), a
-        # brisanje predmeta ga prvo označava (`brisanje_zapoceto`, 114). Oba čitanja su u granicama ovog korisnika i
-        # predmeta. Bez dokaza (privremeno nevidljiv, tuđi ili pogrešan id) dokument ostaje `nije_pronadjeno`.
+        # brisanje predmeta ga prvo označava (`brisanje_zapoceto`, 114) ili ga više nema. Dokaz brisanja dokumenta se
+        # traži u granicama ovog korisnika i predmeta; predmet DRUGOG vlasnika nije dokaz ničega. Bez dokaza
+        # (privremeno nevidljiv, tuđi ili pogrešan id) dokument ostaje `nije_pronadjeno`.
         from services.event_bus import _source_invalidation_event_id
         dokaz_brisanja = {_source_invalidation_event_id("dokument", x): x for x in nepronadjeni}
-        r = await asyncio.to_thread(lambda: supa.table("events").select("id").eq("event_type", "SourceInvalidated")
-                                    .eq("user_id", uid).eq("predmet_id", predmet_id)
-                                    .in_("id", sorted(dokaz_brisanja)).execute())
-        obrisani = {dokaz_brisanja[x["id"]] for x in (r.data or []) if x.get("id") in dokaz_brisanja}
+        dokazi = await _citaj_u_delovima(lambda v: supa.table("events").select("id").eq("event_type", "SourceInvalidated")
+                                         .eq("user_id", uid).eq("predmet_id", predmet_id).in_("id", v),
+                                         sorted(dokaz_brisanja))
+        obrisani = {dokaz_brisanja[x["id"]] for x in dokazi if x.get("id") in dokaz_brisanja}
         if len(obrisani) < len(nepronadjeni):
             r = await asyncio.to_thread(lambda: supa.table("predmeti").select("id,brisanje_zapoceto")
                                         .eq("id", predmet_id).eq("user_id", uid).execute())
-            if not r.data or r.data[0].get("brisanje_zapoceto"):
+            if r.data:
+                predmet_obrisan = bool(r.data[0].get("brisanje_zapoceto"))
+            else:                                       # samo postojanje (id), bez ijednog podatka tuđeg predmeta
+                r = await asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("id", predmet_id).execute())
+                predmet_obrisan = not r.data
+            if predmet_obrisan:
                 obrisani = set(nepronadjeni)
         ishod["obrisano"] = [x for x in nepronadjeni if x in obrisani]
         ishod["nije_pronadjeno"] = [x for x in nepronadjeni if x not in obrisani]
@@ -962,19 +978,15 @@ async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_
     ispravljeno_prijema: dict = {}
     poslovi_dok = sorted({d["source_intake_job_id"] for d in dokumenti.values() if d.get("source_intake_job_id")})
     if poslovi_dok:
-        r = await asyncio.to_thread(lambda: supa.table("intake_documents").select("id,intake_job_id,ocr_used")
-                                    .in_("intake_job_id", poslovi_dok).execute())
         prijemi_posla: dict = {}
-        for x in (r.data or []):
+        for x in await _citaj_u_delovima(lambda v: supa.table("intake_documents").select("id,intake_job_id,ocr_used")
+                                         .in_("intake_job_id", v), poslovi_dok, 20):
             prijemi_posla.setdefault(x["intake_job_id"], []).append(x["id"])
             ocr_prijema[x["id"]] = bool(x.get("ocr_used"))
         segmenti = sorted({d["source_intake_job_segment_id"] for d in dokumenti.values()
                            if d.get("source_intake_job_segment_id")})
-        prijem_segmenta: dict = {}
-        if segmenti:
-            r = await asyncio.to_thread(lambda: supa.table("intake_job_segments").select("id,document_id")
-                                        .in_("id", segmenti).execute())
-            prijem_segmenta = {x["id"]: x.get("document_id") for x in (r.data or [])}
+        prijem_segmenta = {x["id"]: x.get("document_id") for x in await _citaj_u_delovima(
+            lambda v: supa.table("intake_job_segments").select("id,document_id").in_("id", v), segmenti)}
         for did, d in dokumenti.items():
             if d.get("source_intake_job_segment_id"):
                 prijem_dok[did] = prijem_segmenta.get(d["source_intake_job_segment_id"])
@@ -982,10 +994,9 @@ async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_
                 prijem_dok[did] = prijemi_posla[d["source_intake_job_id"]][0]
         prijemi = sorted({p for p in prijem_dok.values() if p})
         if prijemi:
-            r = await asyncio.to_thread(lambda: supa.table("extracted_entities")
-                                        .select("document_id,entity_type,value,corrected_value")
-                                        .in_("document_id", prijemi).execute())
-            for e in (r.data or []):
+            for e in await _citaj_u_delovima(lambda v: supa.table("extracted_entities")
+                                             .select("document_id,entity_type,value,corrected_value")
+                                             .eq("entity_type", "deadline").in_("document_id", v), prijemi, 20):
                 if e.get("entity_type") != "deadline" or e.get("corrected_value") in (None, ""):
                     continue
                 stari, novi = _iso_iz_vrednosti(e.get("value")), _iso_iz_vrednosti(e.get("corrected_value"))

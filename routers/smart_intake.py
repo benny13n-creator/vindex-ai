@@ -1913,7 +1913,7 @@ async def _finalize_intake_job_jezgro(
     genome_should_trigger = False
     accepted_doc_names: list[str] = []  # Program Delta, Sprint 001 -- DOCUMENT_ACCEPTED payload
     accepted_doc_ids: list[str] = []    # BA05: stvarni identitet dokumenata za rokove iz izvora (ime fajla nije identitet)
-    vec_prikacenih = 0                  # dokumenti ovog otpremanja već u predmetu (prethodni pokušaj / isti sadržaj)
+    vec_prikacenih = 0                  # dokumenti koje je OVAJ posao upisao u prethodnom pokušaju
     # FRG001 (BETA-DEF-004): dokumenti upisani u predmet čiji obavezni događaj NIJE upisan. Dok ova lista nije
     # prazna, posao se ne obeležava kao prikačen (v. kraj funkcije) — inače bi dokument trajno ostao bez tvrdnji.
     dogadjaji_nedostaju: list[str] = []
@@ -1946,7 +1946,11 @@ async def _finalize_intake_job_jezgro(
                 dogadjaji_nedostaju.append(postojeci["id"])
                 logger.error("[SMART_INTAKE] NEW_EVIDENCE_REGISTERED ponovni upis greška dok=%s: %s", postojeci["id"], _ee)
         doc_linked_count += 1
-        vec_prikacenih += 1
+        # Samo dokument koji je upisao OVAJ posao znači nastavak (identitet događaja sa novim dokumentima). Isti
+        # sadržaj koji je uneo drugi posao/otpremanje nije prethodni pokušaj: inače nastavak posle pada nakon upisa
+        # događaja dobija drugi identitet i drugi DOCUMENT_ACCEPTED (PR #62, nezavisni pregled L1).
+        if postojeci.get("source_intake_job_id") == job_id:
+            vec_prikacenih += 1
         dokumenti_rezultat.append({"document_id": doc_id, "povezan": True, "razlog": razlog})
         logger.info(
             "[SMART_INTAKE] job=%s dok=%s isti sadržaj već postoji u OVOM predmetu (%s) -- bez novog reda (%s).",
@@ -1990,7 +1994,7 @@ async def _finalize_intake_job_jezgro(
         content_hash = _verzija_dok(seg_text)
         dup_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id, predmet_id, klasifikovan_at")
+                .select("id, predmet_id, klasifikovan_at, source_intake_job_id")
                 .eq("user_id", uid)
                 .eq("content_sha256", content_hash)
                 .execute()
@@ -2199,14 +2203,14 @@ async def _finalize_intake_job_jezgro(
             if _proveri_upisan:
                 _isti = await asyncio.to_thread(
                     lambda: supa.table("predmet_dokumenti")
-                        .select("id, predmet_id, klasifikovan_at")
+                        .select("id, predmet_id, klasifikovan_at, source_intake_job_id")
                         .eq("user_id", uid).eq("predmet_id", predmet_id).eq("content_sha256", content_hash)
                         .limit(1).execute()
                 )
                 if not _isti.data and segment_row:
                     _isti = await asyncio.to_thread(
                         lambda: supa.table("predmet_dokumenti")
-                            .select("id, predmet_id, klasifikovan_at")
+                            .select("id, predmet_id, klasifikovan_at, source_intake_job_id")
                             .eq("user_id", uid).eq("predmet_id", predmet_id)
                             .eq("source_intake_job_segment_id", segment_row["id"])
                             .limit(1).execute()

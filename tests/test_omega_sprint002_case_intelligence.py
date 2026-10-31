@@ -187,7 +187,7 @@ def test_document_batch_completed_registry_is_genome_refresh_then_summary_in_ord
     # BA05 (P7714/2026): rokovi_iz_izvora PRVI — pad Genome-a ne sme da odloži kandidate koje tekst dokazuje.
     assert [c.name for c in consequences] == [
         "rokovi_iz_izvora", "genome_refresh", "timeline_entry", "case_intelligence_summary",
-        "refresh_case_actions", "project_notifications",
+        "refresh_case_actions", "project_notifications", "rokovi_iz_izvora_razreseni",
     ]
     assert consequences[1].executor is _consequence_genome_refresh
     assert consequences[2].executor is _consequence_timeline_entry

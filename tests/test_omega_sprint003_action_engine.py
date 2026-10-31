@@ -200,6 +200,9 @@ def test_refresh_case_actions_wired_last_on_all_four_events():
     for event_type in (EventType.DOCUMENT_ACCEPTED, EventType.REVIEW_ACCEPTED,
                         EventType.ROCISTE_ZAKAZANO, EventType.DOCUMENT_BATCH_COMPLETED):
         consequences = CONSEQUENCE_REGISTRY[event_type]
+        # PR #62: kapija rokova iz izvora je POSLE svih posledica stanja predmeta (ne zadržava ih); ona nije projekcija.
+        if consequences[-1].name == "rokovi_iz_izvora_razreseni":
+            consequences = consequences[:-1]
         assert consequences[-1].name == "project_notifications", event_type
         assert consequences[-1].executor is _consequence_project_case_actions_to_notifications, event_type
         assert consequences[-2].name == "refresh_case_actions", event_type
