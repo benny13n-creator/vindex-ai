@@ -912,9 +912,10 @@ def naslov_roka_iz_izvora(citat: str, ocr: Optional[bool]) -> str:
 async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_ids=(), intake_job_ids=()) -> dict:
     """Ishod po obavezi: `kreirano` / `postoji` (ključ ili zatečen red istog dokumenta) / `ispravljeno` (advokat je
     ispravio taj datum) i po dokumentu: `bez_signala` (tekst ne navodi nijedan rok) / `bez_teksta` /
-    `nije_pronadjeno` (traženi dokument nije u ovom predmetu ovog korisnika)."""
+    `obrisano` (traženi dokument je obrisan iz predmeta, ili je predmet obrisan) / `nije_pronadjeno` (traženi
+    dokument nije u ovom predmetu ovog korisnika, a dokaza brisanja nema — pozivalac to ne sme da prijavi kao uspeh)."""
     ishod: dict = {"kreirano": [], "postoji": [], "ispravljeno": [], "bez_signala": [], "bez_teksta": [],
-                   "nije_pronadjeno": []}
+                   "obrisano": [], "nije_pronadjeno": []}
     ids = sorted({str(x) for x in dokument_ids if x})
     poslovi = sorted({str(x) for x in intake_job_ids if x})
     if not ids and not poslovi:
@@ -927,7 +928,25 @@ async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_
             r = await asyncio.to_thread(lambda p=polje, v=vrednosti: supa.table("predmet_dokumenti").select(kol)
                                         .eq("predmet_id", predmet_id).eq("user_id", uid).in_(p, v).execute())
             dokumenti.update({d["id"]: d for d in (r.data or [])})
-    ishod["nije_pronadjeno"] = [x for x in ids if x not in dokumenti]
+    nepronadjeni = [x for x in ids if x not in dokumenti]
+    if nepronadjeni:
+        # Događaj nosi id dokumenta tek POSLE potvrđenog upisa, pa je nestanak dokaziv samo brisanjem: brisanje
+        # dokumenta u istoj transakciji upisuje SourceInvalidated sa determinističkim id-jem (migracije 130/137), a
+        # brisanje predmeta ga prvo označava (`brisanje_zapoceto`, 114). Oba čitanja su u granicama ovog korisnika i
+        # predmeta. Bez dokaza (privremeno nevidljiv, tuđi ili pogrešan id) dokument ostaje `nije_pronadjeno`.
+        from services.event_bus import _source_invalidation_event_id
+        dokaz_brisanja = {_source_invalidation_event_id("dokument", x): x for x in nepronadjeni}
+        r = await asyncio.to_thread(lambda: supa.table("events").select("id").eq("event_type", "SourceInvalidated")
+                                    .eq("user_id", uid).eq("predmet_id", predmet_id)
+                                    .in_("id", sorted(dokaz_brisanja)).execute())
+        obrisani = {dokaz_brisanja[x["id"]] for x in (r.data or []) if x.get("id") in dokaz_brisanja}
+        if len(obrisani) < len(nepronadjeni):
+            r = await asyncio.to_thread(lambda: supa.table("predmeti").select("id,brisanje_zapoceto")
+                                        .eq("id", predmet_id).eq("user_id", uid).execute())
+            if not r.data or r.data[0].get("brisanje_zapoceto"):
+                obrisani = set(nepronadjeni)
+        ishod["obrisano"] = [x for x in nepronadjeni if x in obrisani]
+        ishod["nije_pronadjeno"] = [x for x in nepronadjeni if x not in obrisani]
     # Zatečen red bez ključa (pre 144) i bez `dokument_id` pokriva obavezu samo po pravilu Smart Intake-a: ime fajla je
     # u predmetu jednoznačno tek kad svi dokumenti tog imena imaju isti sadržaj.
     r = await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,content_sha256")

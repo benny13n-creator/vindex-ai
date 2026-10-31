@@ -100,6 +100,35 @@ def test_T18_trka_dva_procesa_isti_dogadjaj_jedan_red_razliciti_dva(baza):
     assert a != b and len(_redovi(baza, pid2)) == 2
 
 
+class _UpitPadPosleUpisa(_UpitGte):
+    """INSERT se izvrši i potvrdi u bazi, a odgovor se izgubi (pad procesa/veze POSLE commit-a)."""
+    def execute(self):
+        rez = super().execute()
+        if self.red is not None and self.t == "predmet_hronologija" and self.sp.pad_posle_upisa:
+            self.sp.pad_posle_upisa = False
+            raise ConnectionError("veza pukla posle upisa (test)")
+        return rez
+
+
+class SupaPad(SupaGte):
+    pad_posle_upisa = True
+
+    def table(self, t):
+        return _UpitPadPosleUpisa(self, t)
+
+
+def test_pad_posle_potvrdjenog_upisa_ponovni_pokusaj_bez_duplikata(baza):
+    _primeni(baza)
+    sp, pid = SupaPad(baza), str(uuid.uuid4())
+    ev = _prihvatanje(pid)
+    with pytest.raises(ConnectionError):
+        _unos(sp, ev)                                                            # red JESTE upisan, posledica pada
+    [(rid, _, _, eid)] = _redovi(baza, pid)
+    assert eid == ev.event_id
+    assert _unos(sp, ev) == rid                                                  # ponovni pokušaj nalazi isti red
+    assert _unos(sp, _prihvatanje(pid)) != rid and len(_redovi(baza, pid)) == 2  # drugi događaj, isto ime → nov red
+
+
 def test_zateceni_redovi_netaknuti(baza):
     with psycopg.connect(baza, autocommit=True) as c:
         pre = c.execute("SELECT id, dogadjaj, datum_iso, akter FROM public.predmet_hronologija ORDER BY id").fetchall()

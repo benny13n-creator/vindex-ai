@@ -382,7 +382,9 @@ async def _consequence_rokovi_iz_izvora(event: Event) -> str:
     """BA05 (P7714/2026): obaveze koje parser prepozna u tekstu PRIHVAĆENIH dokumenata postaju nepotvrđeni kandidati
     nezavisno od toga da li ih Genome navede (shared/rokovi.py::uskladi_rokove_iz_izvora). Dokumenti po stvarnom id-u
     i poslu prijema iz payload-a — nikad po imenu fajla. Događaj bez identiteta dokumenta (stariji payload) se NE
-    razrešava po imenu: ishod to kaže. Pad čitanja/upisa se podiže → posledica `failed`, događaj se ponavlja."""
+    razrešava po imenu: ishod to kaže. Pad čitanja/upisa se podiže → posledica `failed`, događaj se ponavlja.
+    Isto i kad dokument koji događaj navodi nije pronađen bez dokaza brisanja: kandidati razrešenih dokumenata su već
+    upisani, a posledica se ne prijavljuje kao završena (ponavljanje, pa DEAD_LETTER posle MAX_DISPATCH_ATTEMPTS)."""
     if not event.predmet_id or not event.user_id:
         return "skipped_no_predmet_id"
     p = event.payload or {}
@@ -393,9 +395,14 @@ async def _consequence_rokovi_iz_izvora(event: Event) -> str:
     )
     if ishod.get("bez_identiteta_dokumenta"):
         return "skipped_no_document_identity"
+    if ishod["nije_pronadjeno"]:
+        raise RuntimeError(
+            f"rokovi_iz_izvora: dokument(i) {[x[:8] for x in ishod['nije_pronadjeno']]} nije pronađen u predmetu "
+            f"{event.predmet_id} ovog korisnika, a dokaza brisanja nema (kreirano={len(ishod['kreirano'])})"
+        )
     return (f"kreirano={len(ishod['kreirano'])} postoji={len(ishod['postoji'])} ispravljeno={len(ishod['ispravljeno'])} "
             f"bez_signala={len(ishod['bez_signala'])} bez_teksta={len(ishod['bez_teksta'])} "
-            f"nije_pronadjeno={len(ishod['nije_pronadjeno'])}")
+            f"obrisano={len(ishod['obrisano'])}")
 
 
 async def _consequence_timeline_entry(event: Event) -> str:

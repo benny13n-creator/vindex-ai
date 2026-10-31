@@ -2602,6 +2602,7 @@ async def _finalize_intake_job_jezgro(
         "dokumenti": dokumenti_rezultat,
         "dokumenata_ukupno": len(documents),
         "dokumenata_povezano": doc_linked_count,
+        "dokument_ids": accepted_doc_ids,   # BA05: batch događaj navodi stvarne dokumente (rokovi iz izvora)
         # Program Intake Sprint 003 (2026-08-05) -- eksplicitan signal da je
         # tip_dokaza klasifikacija ispod AUTO_ACCEPT_THRESHOLD (Sprint 003
         # Fork C's headline finding) -- "Review Required" mora biti vidljivo
@@ -2675,6 +2676,7 @@ async def finalize_intake_jobs_batch(
     predmeti_za_proveru: dict[str, int] = {}
     predmeti_rokovi: dict[str, int] = {}
     predmeti_job_ids: dict[str, list[str]] = {}
+    predmeti_dokument_ids: dict[str, list[str]] = {}
     uspesno = 0
     neuspesno = 0
     dokumenti_za_proveru = 0
@@ -2709,6 +2711,7 @@ async def finalize_intake_jobs_batch(
         if predmet_id:
             predmeti_dokumenti_count[predmet_id] = predmeti_dokumenti_count.get(predmet_id, 0) + (result.get("dokumenata_povezano") or 0)
             predmeti_job_ids.setdefault(predmet_id, []).append(job_id)
+            predmeti_dokument_ids.setdefault(predmet_id, []).extend(result.get("dokument_ids") or [])
             if result.get("naziv"):
                 predmeti_nazivi[predmet_id] = result["naziv"]
             if result.get("klasifikacija_nesigurna"):
@@ -2754,6 +2757,8 @@ async def finalize_intake_jobs_batch(
                     "dokumenti_za_proveru": predmeti_za_proveru.get(predmet_id, 0),
                     "rokovi_dodati": predmeti_rokovi.get(predmet_id, 0),
                     "job_ids": predmeti_job_ids.get(predmet_id, []),
+                    # BA05: dokumenti upisani u OVOJ obradi — očekivano postoje; poslovi pokrivaju i ranije upisane
+                    "dokument_ids": predmeti_dokument_ids.get(predmet_id, []),
                     "pre_verzija": _pre_dna.get("verzija"),
                     "pre_kontradikcije": len(_pre_dna.get("kontradikcije") or []),
                     "pre_dogadjaji": len(_pre_dna.get("datumi_kljucni") or []),
