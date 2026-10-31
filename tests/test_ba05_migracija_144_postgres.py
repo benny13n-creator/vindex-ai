@@ -73,7 +73,8 @@ def baza(klaster):
         c.execute("""
             CREATE TABLE public.predmet_dokumenti (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(), predmet_id uuid NOT NULL, user_id uuid,
-                naziv_fajla text, tekst_sadrzaj text, content_sha256 text);
+                naziv_fajla text, tekst_sadrzaj text, content_sha256 text, source_intake_job_id uuid,
+                source_intake_job_segment_id uuid);
             CREATE TABLE public.predmet_hronologija (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(), predmet_id uuid NOT NULL, user_id uuid,
                 dogadjaj text, datum text, datum_iso date, vaznost text, akter text, dokument_naziv text,
@@ -317,6 +318,44 @@ def test_kolizija_izvora_dva_subjekta_nad_pravom_bazom(baza, monkeypatch):
     d = _dokument(baza, pid, "resenje.pdf", TEKST_PONOVLJENO)
     _genome(sp, pid, _rok("Uplata takse", d, "a"), _rok("Sudska taksa", d, "b"))
     assert len(_redovi(baza, pid)) == 1
+
+
+TEKST_TROSKOVI = "RESENJE\nRok za zalbu na troskove istice 05.11.2026. godine."
+TEKST_TAKSA = "RESENJE\nRok za uplatu dodatne sudske takse istice 05.11.2026. godine."
+
+
+def _uskladi(sp, pid, *ids):
+    return asyncio.run(R.uskladi_rokove_iz_izvora(sp, pid, U, dokument_ids=list(ids)))
+
+
+def test_rokovi_iz_izvora_nad_pravom_bazom_trka_dva_procesa(baza, monkeypatch):
+    """P7714: dva `scan.pdf`, isti datum; Genome navodi samo A. Dva procesa istovremeno usklađuju izvor (bez
+    zaključavanja u procesu, barijera pred INSERT-om) → B tačno jednom; ponovljeno usklađivanje ništa ne dodaje."""
+    with psycopg.connect(baza, autocommit=True) as c:
+        c.execute(M144)
+    monkeypatch.setattr(R, "zakljucavanje_kandidata", lambda pid: _NulaZakljucavanje())
+    sp, pid = Supa(baza), str(uuid.uuid4())
+    da, db = _dokument(baza, pid, "scan.pdf", TEKST_TROSKOVI), _dokument(baza, pid, "scan.pdf", TEKST_TAKSA)
+    assert _genome(sp, pid, _rok("Rok za žalbu na troškove", da)) == 1
+    out = _istovremeno(sp, lambda: _uskladi(sp, pid, da, db), lambda: _uskladi(sp, pid, da, db))
+    assert sorted(len(o["kreirano"]) for o in out) == [0, 1], out
+    r = _redovi(baza, pid)
+    assert sorted(x["dokument_id"] for x in r) == sorted([da, db]) and len({x["obaveza_kljuc"] for x in r}) == 2
+    assert all(x["obaveza_kljuc"] for x in r)
+    ishod = _uskladi(sp, pid, da, db)
+    assert ishod["kreirano"] == [] and len(ishod["postoji"]) == 2 and len(_redovi(baza, pid)) == 2
+    assert _genome(sp, pid) == 0 and len(_redovi(baza, pid)) == 2                # Genome bez rokova ništa ne briše
+
+
+def test_rokovi_iz_izvora_i_genome_istovremeno_ista_obaveza_jedan_red(baza, monkeypatch):
+    with psycopg.connect(baza, autocommit=True) as c:
+        c.execute(M144)
+    monkeypatch.setattr(R, "zakljucavanje_kandidata", lambda pid: _NulaZakljucavanje())
+    sp, pid = Supa(baza), str(uuid.uuid4())
+    d = _dokument(baza, pid, "scan.pdf", TEKST_TAKSA)
+    _istovremeno(sp, lambda: _uskladi(sp, pid, d), lambda: _genome(sp, pid, _rok("Dodatna taksa", d)))
+    [r] = _redovi(baza, pid)
+    assert r["dokument_id"] == d and r["obaveza_kljuc"]
 
 
 # ── (5) kod pre migracije ─────────────────────────────────────────────────────────────────────────────────────

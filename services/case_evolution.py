@@ -366,6 +366,66 @@ async def _consequence_genome_refresh(event: Event) -> str:
     return str(after_verzija)
 
 
+def _nema_kolone_dogadjaja(exc: Exception) -> bool:
+    """Samo izričit odgovor baze (42703 / PGRST204) da kolona iz 145 ne postoji."""
+    m = str(exc)
+    return ("42703" in m or "PGRST204" in m or "does not exist" in m.lower()) and "dogadjaj_event_id" in m
+
+
+def _je_sukob_dogadjaja(exc: Exception) -> bool:
+    """23505 NAD indeksom 145 (`uq_hronologija_dogadjaj_event`) — ne bilo koje kršenje jedinstvenosti."""
+    m = str(exc)
+    return ("23505" in m or "duplicate key" in m.lower()) and "dogadjaj_event" in m
+
+
+async def _uskladi_izvor_dogadjaja(event: Event) -> dict:
+    p = event.payload or {}
+    return await _IZVOR.uskladi_rokove_iz_izvora(
+        _get_supa(), event.predmet_id, event.user_id,
+        dokument_ids=list(p.get("dokument_ids") or []) + ([p["dokument_id"]] if p.get("dokument_id") else []),
+        intake_job_ids=list(p.get("job_ids") or []) + ([p["intake_job_id"]] if p.get("intake_job_id") else []),
+    )
+
+
+def _ishod_izvora(ishod: dict) -> str:
+    return (f"kreirano={len(ishod['kreirano'])} postoji={len(ishod['postoji'])} ispravljeno={len(ishod['ispravljeno'])} "
+            f"bez_signala={len(ishod['bez_signala'])} bez_teksta={len(ishod['bez_teksta'])} "
+            f"obrisano={len(ishod['obrisano'])} nije_pronadjeno={len(ishod['nije_pronadjeno'])}")
+
+
+async def _consequence_rokovi_iz_izvora(event: Event) -> str:
+    """BA05 (P7714/2026): obaveze koje parser prepozna u tekstu PRIHVAĆENIH dokumenata postaju nepotvrđeni kandidati
+    nezavisno od toga da li ih Genome navede (shared/rokovi.py::uskladi_rokove_iz_izvora). Dokumenti po stvarnom id-u
+    i poslu prijema iz payload-a — nikad po imenu fajla. Događaj bez identiteta dokumenta (stariji payload) se NE
+    razrešava po imenu: ishod to kaže. Pad čitanja/upisa se podiže → posledica `failed`, događaj se ponavlja.
+    Nerazrešen dokument ovde NE zaustavlja ostale posledice (Genome, hronologija, radnje); njega čuva poslednja
+    posledica `rokovi_iz_izvora_razreseni`."""
+    if not event.predmet_id or not event.user_id:
+        return "skipped_no_predmet_id"
+    ishod = await _uskladi_izvor_dogadjaja(event)
+    if ishod.get("bez_identiteta_dokumenta"):
+        return "skipped_no_document_identity"
+    return _ishod_izvora(ishod)
+
+
+async def _consequence_rokovi_iz_izvora_razreseni(event: Event) -> str:
+    """PR #62 završna kapija: dokument koji događaj navodi (upisan PRE emisije), a nije pronađen bez dokaza brisanja,
+    ne sme da se prijavi kao uspeh. Poslednja posledica: ponovo usklađuje (idempotentno — dokument koji se u
+    međuvremenu pojavio dobija kandidata) i podiže grešku dok je išta nerazrešeno → događaj se ponavlja, pa
+    DEAD_LETTER posle MAX_DISPATCH_ATTEMPTS (vidljivo, nikad tih uspeh). Ostale posledice su tada već završene."""
+    if not event.predmet_id or not event.user_id:
+        return "skipped_no_predmet_id"
+    ishod = await _uskladi_izvor_dogadjaja(event)
+    if ishod.get("bez_identiteta_dokumenta"):
+        return "skipped_no_document_identity"
+    if ishod["nije_pronadjeno"]:
+        raise RuntimeError(
+            f"rokovi_iz_izvora: dokument(i) {[x[:8] for x in ishod['nije_pronadjeno']]} nije pronađen u predmetu "
+            f"{event.predmet_id} ovog korisnika, a dokaza brisanja nema (kreirano={len(ishod['kreirano'])})"
+        )
+    return _ishod_izvora(ishod)
+
+
 async def _consequence_timeline_entry(event: Event) -> str:
     """Records a Timeline entry ("document(s) accepted into this case") —
     reuses the exact existing predmet_hronologija insert shape already used
@@ -417,27 +477,58 @@ async def _consequence_timeline_entry(event: Event) -> str:
     # LIVINGSYS-DEBT-043 (routers/rocista.py) instead: an identical (predmet_id, dogadjaj)
     # row inserted within the same reclaim window is treated as the already-applied result
     # of an earlier attempt, not a new event.
-    _dup_r = await asyncio.to_thread(
-        lambda: supa.table("predmet_hronologija").select("id")
-            .eq("predmet_id", predmet_id).eq("dogadjaj", opis)
-            .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
-            .limit(1).execute()
-    )
+    #
+    # BA04/BA08 (P7714/2026, migracija 145): poređenje VIDLJIVOG teksta je spajalo dva RAZLIČITA prihvatanja dokumenata
+    # istog imena („Dokument prihvaćen — scan.pdf“ dvaput u 300 s → jedan red). Identitet unosa je sada `event_id`
+    # događaja: isti događaj ponovljen = isti red, dva događaja = dva reda; jedinstvenost drži baza (UNIQUE 145).
+    # Bez 145 (kolona ne postoji): ponašanje kao do sada, uz ERROR u logu.
+    bez_145 = False
+    try:
+        _dup_r = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija").select("id")
+                .eq("predmet_id", predmet_id).eq("dogadjaj_event_id", event.event_id)
+                .limit(1).execute()
+        )
+    except Exception as exc:
+        if not _nema_kolone_dogadjaja(exc):
+            raise
+        logger.error("[CASE_EVOLUTION] migracija 145 nije primenjena — unos hronologije po vidljivom tekstu: %s", exc)
+        bez_145 = True
+        _dup_r = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija").select("id")
+                .eq("predmet_id", predmet_id).eq("dogadjaj", opis)
+                .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
+                .limit(1).execute()
+        )
     if _dup_r.data:
         return str(_dup_r.data[0]["id"])
 
-    res = await asyncio.to_thread(
-        lambda: supa.table("predmet_hronologija").insert({
-            "predmet_id": predmet_id,
-            "user_id":    uid,
-            "dogadjaj":   opis,
-            "vaznost":    "informativan",
-            "akter":      "Case Evolution Engine",
-            # migracija 127 — W-EVOLUTION: posledica dogadjaja na sabirnici,
-            # nije opazanje.
-            "izvor":      _IZVOR.IZVOR_SYSTEM,
-        }).execute()
-    )
+    red = {
+        "predmet_id": predmet_id,
+        "user_id":    uid,
+        "dogadjaj":   opis,
+        "vaznost":    "informativan",
+        "akter":      "Case Evolution Engine",
+        # migracija 127 — W-EVOLUTION: posledica dogadjaja na sabirnici,
+        # nije opazanje.
+        "izvor":      _IZVOR.IZVOR_SYSTEM,
+    }
+    if not bez_145:
+        red["dogadjaj_event_id"] = event.event_id
+    try:
+        res = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert(red).execute())
+    except Exception as exc:
+        if bez_145 or not _je_sukob_dogadjaja(exc):
+            raise
+        # Drugi proces je u međuvremenu upisao unos ISTOG događaja — to je taj red.
+        _isti = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija").select("id")
+                .eq("predmet_id", predmet_id).eq("dogadjaj_event_id", event.event_id)
+                .limit(1).execute()
+        )
+        if not _isti.data:
+            raise
+        return str(_isti.data[0]["id"])
     if not res.data:
         raise RuntimeError(f"timeline_entry insert nije uspeo za predmet={predmet_id}")
     return str(res.data[0]["id"])
@@ -1667,6 +1758,9 @@ async def _consequence_project_case_actions_to_notifications(event: Event) -> st
 
 CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     EventType.DOCUMENT_ACCEPTED: [
+        # BA05 (P7714/2026): PRVI — pad ili izostavljanje Genome-a (AI model) ne sme da odloži ni potisne kandidata
+        # koga tekst dokumenta dokazuje (isti obrazac kao email_podsetnik_hitno kod ROCISTE_ZAKAZANO).
+        ConsequenceDef(name="rokovi_iz_izvora", executor=_consequence_rokovi_iz_izvora),
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         # Program Omega, Sprint 003 — runs LAST, always reading freshly-
@@ -1678,6 +1772,8 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # projecting the JUST-refreshed case_actions rows (never a stale
         # read) into notifications. Closes OMEGA-020.
         ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
+        # PR #62: nerazrešen dokument izvora → događaj nije obrađen (posle svih ostalih posledica, da ih ne zadrži).
+        ConsequenceDef(name="rokovi_iz_izvora_razreseni", executor=_consequence_rokovi_iz_izvora_razreseni),
     ],
     EventType.REVIEW_ACCEPTED: [
         # Reuses DOCUMENT_ACCEPTED's own genome_refresh/timeline_entry
@@ -1751,11 +1847,14 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # entry at all (neither per-job, now suppressed, nor batch-level,
         # previously missing here) — a real regression this sprint closes
         # before it ships.
+        # BA05: rokovi iz izvora PRVI i ovde — batch potiskuje DOCUMENT_ACCEPTED po poslu (payload nosi `job_ids`).
+        ConsequenceDef(name="rokovi_iz_izvora", executor=_consequence_rokovi_iz_izvora),
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         ConsequenceDef(name="case_intelligence_summary", executor=_consequence_case_intelligence_summary),
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
         ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
+        ConsequenceDef(name="rokovi_iz_izvora_razreseni", executor=_consequence_rokovi_iz_izvora_razreseni),
     ],
     # Wave 2, Task 2B — see EventType.MATTER_BECAME_TERMINAL's own docstring
     # (services/event_bus.py). Only refresh_case_actions: a matter going

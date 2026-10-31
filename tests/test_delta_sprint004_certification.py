@@ -172,10 +172,14 @@ async def test_full_chain_raw_event_row_through_real_dispatch_to_completed_conse
 
     assert result["dispecovano"] == 1
     assert "evt-real-1" in dispatched
+    assert rows[("evt-real-1", "rokovi_iz_izvora")]["status"] == "completed"
     assert rows[("evt-real-1", "genome_refresh")]["status"] == "completed"
     assert rows[("evt-real-1", "timeline_entry")]["status"] == "completed"
     assert rows[("evt-real-1", "refresh_case_actions")]["status"] == "completed"
     assert rows[("evt-real-1", "project_notifications")]["status"] == "completed"
+    assert rows[("evt-real-1", "rokovi_iz_izvora_razreseni")]["status"] == "completed"
+    # PR #62: rokovi_iz_izvora_razreseni (poslednja; isti payload → skipped_no_document_identity) = +1 red.
+    # BA05: rokovi_iz_izvora (prvi; payload bez identiteta dokumenta → skipped_no_document_identity) = +1 red.
     # Program Omega Sprint 003 appended refresh_case_actions and Final
     # Sprint 007 appended project_notifications as a 4th DOCUMENT_ACCEPTED
     # consequence: one case_evolution_consequence_completed row per
@@ -183,7 +187,7 @@ async def test_full_chain_raw_event_row_through_real_dispatch_to_completed_conse
     # case_action_refreshed row = 5 total. project_notifications itself adds
     # no domain-specific row here (this harness's predmeti fake has no
     # user_id -> "skipped_no_owner").
-    assert mock_log.await_count == 5
+    assert mock_log.await_count == 7
 
 
 @pytest.mark.anyio
@@ -195,10 +199,12 @@ async def test_full_chain_replay_same_row_produces_no_duplicate_work():
     from services.event_bus import Event
 
     supa, rows, _ = _make_full_chain_supa(existing_consequence_rows={
+        ("evt-real-1", "rokovi_iz_izvora"): {"status": "completed", "result_ref": "kreirano=0 postoji=0"},
         ("evt-real-1", "genome_refresh"): {"status": "completed", "result_ref": "9"},
         ("evt-real-1", "timeline_entry"): {"status": "completed", "result_ref": "hron-real-1"},
         ("evt-real-1", "refresh_case_actions"): {"status": "completed", "result_ref": "created=0 updated=0 closed=0"},
         ("evt-real-1", "project_notifications"): {"status": "completed", "result_ref": "created=0 updated=0 closed=0"},
+        ("evt-real-1", "rokovi_iz_izvora_razreseni"): {"status": "completed", "result_ref": "skipped_no_document_identity"},
     })
     genome_bg = AsyncMock()
 
@@ -228,6 +234,7 @@ async def test_full_chain_crash_after_one_consequence_real_dispatch_retry_resume
     from services.event_bus import dispatch_pending_events
 
     supa, rows, dispatched = _make_full_chain_supa(existing_consequence_rows={
+        ("evt-real-1", "rokovi_iz_izvora"): {"status": "completed", "result_ref": "kreirano=0 postoji=0"},
         ("evt-real-1", "genome_refresh"): {"status": "completed", "result_ref": "9"},
     })
     genome_bg = AsyncMock()
@@ -247,8 +254,8 @@ async def test_full_chain_crash_after_one_consequence_real_dispatch_retry_resume
     # 3 newly-completed consequences (timeline_entry, refresh_case_actions,
     # project_notifications) -> 3 case_evolution_consequence_completed rows +
     # refresh_case_actions's own domain-specific case_action_refreshed row =
-    # 4 total.
-    assert mock_log.await_count == 4
+    # 4 total. PR #62: + rokovi_iz_izvora_razreseni (poslednja) = 5.
+    assert mock_log.await_count == 5
 
 
 @pytest.mark.anyio

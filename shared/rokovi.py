@@ -882,6 +882,200 @@ def je_sukob_kljuca(exc: Exception) -> bool:
     return ("23505" in m or "duplicate key" in m.lower()) and "obaveza_kljuc" in m
 
 
+# ── BA05: rokovi iz izvora (produkcioni defekt P7714/2026) ──────────────────────────────────────────────────────────
+#
+# Smart Intake OCR rok namerno ne upisuje (pouzdanost ispod praga), a Genome sync obilazi samo (dokument, datum) koje
+# model navede — kad ga model izostavi, obaveza dokazana u tekstu nije nigde postajala kandidat. Usklađivanje radi
+# NEZAVISNO od modela, nad prihvaćenim dokumentima (stvarni `predmet_dokumenti.id`, nikad ime fajla): svaka obaveza
+# koju parser (`obaveze_po_datumu`) prepozna u tekstu postaje NEPOTVRĐEN kandidat sa ključem iz 144. Prepoznavanje u
+# tekstu nije pravna provera — kandidat nikad nije izvršiv bez potvrde advokata; OCR čitanje stoji u nazivu. Datum koji
+# je advokat u pregledu ispravio (`extracted_entities.corrected_value`) se ne vraća kao kandidat. Pad čitanja ili
+# upisa se podiže (posledica ostaje nezavršena i ponavlja se), nikad „nula kandidata“.
+
+def _iso_iz_vrednosti(v) -> Optional[str]:
+    """`dd.mm.gggg` (kako ga čuva ekstrakcija) ili ISO `gggg-mm-dd`; sve ostalo → None."""
+    t = str(v or "").strip().rstrip(".")
+    try:
+        if len(t) >= 10 and t[4] == "-":
+            return date.fromisoformat(t[:10]).isoformat()
+        dd, mm, gg = t.split(".")[:3]
+        return date(int(gg), int(mm), int(dd)).isoformat()
+    except (ValueError, TypeError, IndexError):
+        return None
+
+
+async def _citaj_u_delovima(upit, vrednosti, n: int = 100) -> list:
+    """`in_` lista u delovima od `n`: stotine UUID-a u jednom URL-u bi gateway odbio, a odgovor preko podrazumevanog
+    limita (1000 redova) bi bio tiho skraćen. `upit(deo)` vraća neizvršen upit."""
+    redovi: list = []
+    vrednosti = list(vrednosti)
+    for i in range(0, len(vrednosti), n):
+        r = await asyncio.to_thread(lambda d=vrednosti[i:i + n]: upit(d).execute())
+        redovi.extend(r.data or [])
+    return redovi
+
+
+def naslov_roka_iz_izvora(citat: str, ocr: Optional[bool]) -> str:
+    oznaka = "" if ocr is False else (" (OCR, proveriti)" if ocr else " (čitanje nepoznato, proveriti)")
+    return f"Rok iz dokumenta{oznaka}: {citat}"[:200]
+
+
+async def uskladi_rokove_iz_izvora(supa, predmet_id: str, uid: str, *, dokument_ids=(), intake_job_ids=()) -> dict:
+    """Ishod po obavezi: `kreirano` / `postoji` (ključ ili zatečen red istog dokumenta) / `ispravljeno` (advokat je
+    ispravio taj datum) i po dokumentu: `bez_signala` (tekst ne navodi nijedan rok) / `bez_teksta` /
+    `obrisano` (traženi dokument je obrisan iz predmeta, ili je predmet obrisan) / `nije_pronadjeno` (traženi
+    dokument nije u ovom predmetu ovog korisnika, a dokaza brisanja nema — pozivalac to ne sme da prijavi kao uspeh)."""
+    ishod: dict = {"kreirano": [], "postoji": [], "ispravljeno": [], "bez_signala": [], "bez_teksta": [],
+                   "obrisano": [], "nije_pronadjeno": []}
+    ids = sorted({str(x) for x in dokument_ids if x})
+    poslovi = sorted({str(x) for x in intake_job_ids if x})
+    if not ids and not poslovi:
+        ishod["bez_identiteta_dokumenta"] = True
+        return ishod
+    kol = "id,naziv_fajla,content_sha256,tekst_sadrzaj,source_intake_job_id,source_intake_job_segment_id"
+    dokumenti: dict = {}
+    for polje, vrednosti, n in (("id", ids, 100), ("source_intake_job_id", poslovi, 20)):
+        for d in await _citaj_u_delovima(lambda v, p=polje: supa.table("predmet_dokumenti").select(kol)
+                                         .eq("predmet_id", predmet_id).eq("user_id", uid).in_(p, v), vrednosti, n):
+            dokumenti[d["id"]] = d
+    nepronadjeni = [x for x in ids if x not in dokumenti]
+    if nepronadjeni:
+        # Događaj nosi id dokumenta tek POSLE potvrđenog upisa, pa je nestanak dokaziv samo brisanjem: brisanje
+        # dokumenta u istoj transakciji upisuje SourceInvalidated sa determinističkim id-jem (migracije 130/137), a
+        # brisanje predmeta ga prvo označava (`brisanje_zapoceto`, 114) ili ga više nema. Dokaz brisanja dokumenta se
+        # traži u granicama ovog korisnika i predmeta; predmet DRUGOG vlasnika nije dokaz ničega. Bez dokaza
+        # (privremeno nevidljiv, tuđi ili pogrešan id) dokument ostaje `nije_pronadjeno`.
+        from services.event_bus import _source_invalidation_event_id
+        dokaz_brisanja = {_source_invalidation_event_id("dokument", x): x for x in nepronadjeni}
+        dokazi = await _citaj_u_delovima(lambda v: supa.table("events").select("id").eq("event_type", "SourceInvalidated")
+                                         .eq("user_id", uid).eq("predmet_id", predmet_id).in_("id", v),
+                                         sorted(dokaz_brisanja))
+        obrisani = {dokaz_brisanja[x["id"]] for x in dokazi if x.get("id") in dokaz_brisanja}
+        if len(obrisani) < len(nepronadjeni):
+            r = await asyncio.to_thread(lambda: supa.table("predmeti").select("id,brisanje_zapoceto")
+                                        .eq("id", predmet_id).eq("user_id", uid).execute())
+            if r.data:
+                predmet_obrisan = bool(r.data[0].get("brisanje_zapoceto"))
+            else:                                       # samo postojanje (id), bez ijednog podatka tuđeg predmeta
+                r = await asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("id", predmet_id).execute())
+                predmet_obrisan = not r.data
+            if predmet_obrisan:
+                obrisani = set(nepronadjeni)
+        ishod["obrisano"] = [x for x in nepronadjeni if x in obrisani]
+        ishod["nije_pronadjeno"] = [x for x in nepronadjeni if x not in obrisani]
+    # Zatečen red bez ključa (pre 144) i bez `dokument_id` pokriva obavezu samo po pravilu Smart Intake-a: ime fajla je
+    # u predmetu jednoznačno tek kad svi dokumenti tog imena imaju isti sadržaj.
+    r = await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,content_sha256")
+                                .eq("predmet_id", predmet_id).execute())
+    sadrzaj_po_imenu: dict = {}
+    for x in (r.data or []):
+        sadrzaj_po_imenu.setdefault(x.get("naziv_fajla"), set()).add(x.get("content_sha256"))
+
+    # OCR i ispravke advokata po PRIJEMU tog dokumenta (segment → prijem; posao bez segmenata ima jedan prijem).
+    # Dokument bez jednoznačnog prijema: čitanje nepoznato, ispravka se ne pripisuje (nikad drugi dokument posla).
+    prijem_dok: dict = {}
+    ocr_prijema: dict = {}
+    ispravljeno_prijema: dict = {}
+    poslovi_dok = sorted({d["source_intake_job_id"] for d in dokumenti.values() if d.get("source_intake_job_id")})
+    if poslovi_dok:
+        prijemi_posla: dict = {}
+        for x in await _citaj_u_delovima(lambda v: supa.table("intake_documents").select("id,intake_job_id,ocr_used")
+                                         .in_("intake_job_id", v), poslovi_dok, 20):
+            prijemi_posla.setdefault(x["intake_job_id"], []).append(x["id"])
+            ocr_prijema[x["id"]] = bool(x.get("ocr_used"))
+        segmenti = sorted({d["source_intake_job_segment_id"] for d in dokumenti.values()
+                           if d.get("source_intake_job_segment_id")})
+        prijem_segmenta = {x["id"]: x.get("document_id") for x in await _citaj_u_delovima(
+            lambda v: supa.table("intake_job_segments").select("id,document_id").in_("id", v), segmenti)}
+        for did, d in dokumenti.items():
+            if d.get("source_intake_job_segment_id"):
+                prijem_dok[did] = prijem_segmenta.get(d["source_intake_job_segment_id"])
+            elif len(prijemi_posla.get(d.get("source_intake_job_id"), [])) == 1:
+                prijem_dok[did] = prijemi_posla[d["source_intake_job_id"]][0]
+        prijemi = sorted({p for p in prijem_dok.values() if p})
+        if prijemi:
+            for e in await _citaj_u_delovima(lambda v: supa.table("extracted_entities")
+                                             .select("document_id,entity_type,value,corrected_value")
+                                             .eq("entity_type", "deadline").in_("document_id", v), prijemi, 20):
+                if e.get("entity_type") != "deadline" or e.get("corrected_value") in (None, ""):
+                    continue
+                stari, novi = _iso_iz_vrednosti(e.get("value")), _iso_iz_vrednosti(e.get("corrected_value"))
+                if stari and stari != novi:
+                    ispravljeno_prijema.setdefault(e["document_id"], set()).add(stari)
+
+    async with zakljucavanje_kandidata(predmet_id):
+        _kolone = "id,dogadjaj,datum_iso,dokument_id,dokument_naziv,akter,vrsta"
+        bez_kljuca = False
+        try:
+            r = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").select(_kolone + ",obaveza_kljuc")
+                                        .eq("predmet_id", predmet_id).execute())
+        except Exception as exc:
+            if not nedostaje_kljuc_obaveze(exc):
+                raise
+            logger.error("[ROKOVI] migracija 144 nije primenjena — rokovi iz izvora bez identiteta obaveze: %s", exc)
+            bez_kljuca = True
+            r = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").select(_kolone)
+                                        .eq("predmet_id", predmet_id).execute())
+        postojeci = list(r.data or [])
+        kljucevi = {x["obaveza_kljuc"] for x in postojeci if x.get("obaveza_kljuc")}
+
+        for did, d in sorted(dokumenti.items()):
+            tekst = d.get("tekst_sadrzaj") or ""
+            if not tekst.strip():
+                ishod["bez_teksta"].append(did)
+                continue
+            po_datumu = obaveze_po_datumu(tekst)
+            if not po_datumu:
+                ishod["bez_signala"].append(did)
+                continue
+            izvor = d.get("content_sha256") or f"dokument:{did}"
+            prijem = prijem_dok.get(did)
+            ocr = ocr_prijema.get(prijem) if prijem in ocr_prijema else None
+            for datum, fraze in po_datumu.items():
+                # Advokat je ispravio pročitan datum — ali samo kad tekst tog datuma navodi JEDNU obavezu, jasno je na
+                # koju se ispravka odnosi; inače se obaveze upisuju (moguć duplikat, nikad gubitak druge obaveze).
+                if len(fraze) == 1 and datum in ispravljeno_prijema.get(prijem, ()):
+                    ishod["ispravljeno"].append((did, datum))
+                    continue
+                ime = d.get("naziv_fajla")
+                ime_jednoznacno = bool(d.get("content_sha256")) and sadrzaj_po_imenu.get(ime) == {d.get("content_sha256")}
+                if len(fraze) <= 1 and pokriva_zateceni(postojeci, datum, did, ime, ime_jednoznacno):
+                    ishod["postoji"].append((did, datum))
+                    continue
+                for fraza, citat in fraze:
+                    kl = kljuc_obaveze(izvor, datum, fraza)
+                    naslov = naslov_roka_iz_izvora(citat, ocr)
+                    if bez_kljuca:      # 144 nije primenjena: isti naslov iz izvora i isti datum (mogući duplikat, ne gubitak)
+                        vec = (naslov, datum) in {(x.get("dogadjaj"), (x.get("datum_iso") or "")[:10]) for x in postojeci}
+                    else:
+                        vec = kl in kljucevi
+                    if vec:
+                        ishod["postoji"].append(kl if not bez_kljuca else (did, datum))
+                        continue
+                    red = {
+                        "predmet_id": predmet_id, "user_id": uid, "dogadjaj": naslov, "datum": datum, "datum_iso": datum,
+                        # isti potpis i poreklo kao Smart Intake rok: mašinski pročitano iz dokumenta, čovek nije video
+                        "vaznost": "važan", "akter": "Smart Intake", "izvor": IZVOR_AI_AUTONOMOUS,
+                        "dokument_id": did, "dokument_naziv": d.get("naziv_fajla") or None,
+                        **oznake(vrsta=VRSTA_ROK, supa=supa),
+                        **({} if bez_kljuca else {"obaveza_kljuc": kl}),
+                    }
+                    try:
+                        res = await asyncio.to_thread(lambda red=red: supa.table("predmet_hronologija").insert(red).execute())
+                    except Exception as exc:
+                        if not bez_kljuca and je_sukob_kljuca(exc):
+                            kljucevi.add(kl)          # drugi pisac/proces je upisao istu obavezu
+                            ishod["postoji"].append(kl)
+                            continue
+                        raise
+                    if not (res.data or []):
+                        raise RuntimeError(f"rok iz izvora nije potvrđen upisom: predmet={predmet_id} dokument={did}")
+                    kljucevi.add(kl)
+                    postojeci.append(res.data[0])
+                    ishod["kreirano"].append(kl if not bez_kljuca else (did, datum))
+    return ishod
+
+
 def _sema_ima_129(supa) -> bool:
     """Da li `predmet_hronologija` ima `vrsta`/`stanje` (migracija 129).
 

@@ -32,7 +32,8 @@ async def test_timeline_entry_skips_duplicate_insert_on_reclaim():
     def _table(name):
         t = MagicMock()
         if name == "predmet_hronologija":
-            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = [existing_row]
+            # BA04 (145): ponovna obrada ISTOG događaja nalazi red po `dogadjaj_event_id`, ne po vidljivom tekstu
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [existing_row]
             def _insert(row):
                 insert_calls.append(row)
                 m = MagicMock(); m.execute.return_value = MagicMock(data=[{"id": "hron-NEW"}])
@@ -61,7 +62,7 @@ async def test_timeline_entry_creates_row_when_no_recent_duplicate():
     def _table(name):
         t = MagicMock()
         if name == "predmet_hronologija":
-            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
             t.insert.return_value.execute.return_value.data = [{"id": "hron-new"}]
         return t
 

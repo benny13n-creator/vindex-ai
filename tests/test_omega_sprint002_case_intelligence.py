@@ -184,14 +184,15 @@ def test_document_batch_completed_registry_is_genome_refresh_then_summary_in_ord
     # new trailing consequence, always reading the just-refreshed
     # case_actions rows (never stale) -- see
     # _consequence_project_case_actions_to_notifications's own docstring.
+    # BA05 (P7714/2026): rokovi_iz_izvora PRVI — pad Genome-a ne sme da odloži kandidate koje tekst dokazuje.
     assert [c.name for c in consequences] == [
-        "genome_refresh", "timeline_entry", "case_intelligence_summary",
-        "refresh_case_actions", "project_notifications",
+        "rokovi_iz_izvora", "genome_refresh", "timeline_entry", "case_intelligence_summary",
+        "refresh_case_actions", "project_notifications", "rokovi_iz_izvora_razreseni",
     ]
-    assert consequences[0].executor is _consequence_genome_refresh
-    assert consequences[1].executor is _consequence_timeline_entry
-    assert consequences[2].executor is _consequence_case_intelligence_summary
-    assert consequences[3].executor is _consequence_refresh_case_actions
+    assert consequences[1].executor is _consequence_genome_refresh
+    assert consequences[2].executor is _consequence_timeline_entry
+    assert consequences[3].executor is _consequence_case_intelligence_summary
+    assert consequences[4].executor is _consequence_refresh_case_actions
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -74,7 +74,14 @@ def _id_dogadjaja_dokaza(dokument_id: str) -> str:
     return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"new_evidence_registered:{dokument_id}"))
 
 
-def _id_prihvatanja_posla(job_id: str) -> str:
+def _id_prihvatanja_posla(job_id: str, novi_posle_prethodnih: Optional[list] = None) -> str:
+    """Stabilan identitet DOCUMENT_ACCEPTED po poslu (FRG001: ponovna emisija istog prihvatanja je no-op).
+
+    BA05 (nezavisni pregled #1): nastavak koji prikači NOVE dokumente pored onih iz prethodnog pokušaja dobija svoj
+    identitet (posao + skup novih dokumenata). Pod istim identitetom bi ga `ON CONFLICT DO NOTHING` progutao posle
+    već obrađenog prvog događaja, a novi dokumenti nikad ne bi prošli rokove iz izvora (ni Genome osvežavanje)."""
+    if novi_posle_prethodnih:
+        return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"document_accepted:{job_id}:{','.join(sorted(novi_posle_prethodnih))}"))
     return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"document_accepted:{job_id}"))
 
 
@@ -895,7 +902,7 @@ def _deadline_to_iso(value: str) -> Optional[str]:
 async def _rok_iz_dokumenta(
     supa, *, predmet_id: str, uid: str, job: dict, job_id: str,
     value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set, redni: int = 1,
-    kljuc: Optional[str] = None, pokriven: bool = False,
+    kljuc: Optional[str] = None, pokriven: bool = False, dokument_id: Optional[str] = None,
 ) -> dict:
     """Rok iz JEDNOG dokumenta otpremanja -> nepotvrdjen kandidat u hronologiji.
 
@@ -999,6 +1006,8 @@ async def _rok_iz_dokumenta(
                     **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
                     # BA05 (144): UNIQUE (predmet_id, obaveza_kljuc) — ista obaveza ne može dvaput ni između procesa.
                     **({"obaveza_kljuc": kljuc} if kljuc else {}),
+                    # BA05: stvarni dokument predmeta (ime fajla nije identitet — dva `scan.pdf`).
+                    **({"dokument_id": dokument_id} if dokument_id else {}),
                 }).execute()
             )
             rok_dodat = True
@@ -1903,6 +1912,8 @@ async def _finalize_intake_job_jezgro(
     doc_linked_count = 0
     genome_should_trigger = False
     accepted_doc_names: list[str] = []  # Program Delta, Sprint 001 -- DOCUMENT_ACCEPTED payload
+    accepted_doc_ids: list[str] = []    # BA05: stvarni identitet dokumenata za rokove iz izvora (ime fajla nije identitet)
+    vec_prikacenih = 0                  # dokumenti koje je OVAJ posao upisao u prethodnom pokušaju
     # FRG001 (BETA-DEF-004): dokumenti upisani u predmet čiji obavezni događaj NIJE upisan. Dok ova lista nije
     # prazna, posao se ne obeležava kao prikačen (v. kraj funkcije) — inače bi dokument trajno ostao bez tvrdnji.
     dogadjaji_nedostaju: list[str] = []
@@ -1911,7 +1922,7 @@ async def _finalize_intake_job_jezgro(
     async def _vec_u_predmetu(postojeci: dict, doc_id: str, segment_row, classification_uncertain_i: bool,
                               razlog: str = "vec_obradjen_preskocen") -> None:
         """Dokument istog sadržaja već ima red u OVOM predmetu: povezan je, bez novog reda, lineage-a i audita."""
-        nonlocal doc_linked_count
+        nonlocal doc_linked_count, vec_prikacenih
         if segment_row:
             await intake_segments.mark_assimilation_resolved(segment_row["id"])
         # FRG001 (BETA-DEF-004): postojeći dokument OVOG korisnika u OVOM predmetu koji još nije klasifikovan
@@ -1935,6 +1946,11 @@ async def _finalize_intake_job_jezgro(
                 dogadjaji_nedostaju.append(postojeci["id"])
                 logger.error("[SMART_INTAKE] NEW_EVIDENCE_REGISTERED ponovni upis greška dok=%s: %s", postojeci["id"], _ee)
         doc_linked_count += 1
+        # Samo dokument koji je upisao OVAJ posao znači nastavak (identitet događaja sa novim dokumentima). Isti
+        # sadržaj koji je uneo drugi posao/otpremanje nije prethodni pokušaj: inače nastavak posle pada nakon upisa
+        # događaja dobija drugi identitet i drugi DOCUMENT_ACCEPTED (PR #62, nezavisni pregled L1).
+        if postojeci.get("source_intake_job_id") == job_id:
+            vec_prikacenih += 1
         dokumenti_rezultat.append({"document_id": doc_id, "povezan": True, "razlog": razlog})
         logger.info(
             "[SMART_INTAKE] job=%s dok=%s isti sadržaj već postoji u OVOM predmetu (%s) -- bez novog reda (%s).",
@@ -1978,7 +1994,7 @@ async def _finalize_intake_job_jezgro(
         content_hash = _verzija_dok(seg_text)
         dup_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id, predmet_id, klasifikovan_at")
+                .select("id, predmet_id, klasifikovan_at, source_intake_job_id")
                 .eq("user_id", uid)
                 .eq("content_sha256", content_hash)
                 .execute()
@@ -2187,14 +2203,14 @@ async def _finalize_intake_job_jezgro(
             if _proveri_upisan:
                 _isti = await asyncio.to_thread(
                     lambda: supa.table("predmet_dokumenti")
-                        .select("id, predmet_id, klasifikovan_at")
+                        .select("id, predmet_id, klasifikovan_at, source_intake_job_id")
                         .eq("user_id", uid).eq("predmet_id", predmet_id).eq("content_sha256", content_hash)
                         .limit(1).execute()
                 )
                 if not _isti.data and segment_row:
                     _isti = await asyncio.to_thread(
                         lambda: supa.table("predmet_dokumenti")
-                            .select("id, predmet_id, klasifikovan_at")
+                            .select("id, predmet_id, klasifikovan_at, source_intake_job_id")
                             .eq("user_id", uid).eq("predmet_id", predmet_id)
                             .eq("source_intake_job_segment_id", segment_row["id"])
                             .limit(1).execute()
@@ -2213,6 +2229,7 @@ async def _finalize_intake_job_jezgro(
                 doc_linked_count += 1
                 genome_should_trigger = True
                 accepted_doc_names.append(job.get("original_filename") or "dokument")
+                accepted_doc_ids.append(dokument_id_i)
 
                 # Program Intake Sprint 006, Phase 1 finding -- finalize had
                 # ZERO audit/provenance calls for document-into-case
@@ -2332,6 +2349,9 @@ async def _finalize_intake_job_jezgro(
             _isto_ime = [x for x in _dok_predmeta if x.get("naziv_fajla") == _ime]
             _ime_jednoznacno = bool(_hes and _isto_ime) and all(x.get("content_sha256") == _hes for x in _isto_ime)
             _dok_id = next((x["id"] for x in _isto_ime if _hes and x.get("content_sha256") == _hes), None)
+            # Dokument ovog sadržaja u predmetu (heš je identitet dokumenta u predmetu); dvosmisleno → bez veze.
+            _isti_sadrzaj = [x["id"] for x in _dok_predmeta if _hes and x.get("content_sha256") == _hes]
+            _dok_izvora = _isti_sadrzaj[0] if len(_isti_sadrzaj) == 1 else None
             # BA-01: svaki dokazan rok dokumenta je zaseban kandidat (dve obaveze istog dana ostaju dve).
             _lista = per_doc_rokovi[_i] or [(None, per_doc_meta_maps[_i].get("deadline") or {})]
             _redni: dict = {}
@@ -2348,6 +2368,7 @@ async def _finalize_intake_job_jezgro(
                     kljuc=_IZVOR.kljuc_obaveze(_izvor, _iso, _fraza) if _iso and not _bez_kljuca else None,
                     pokriven=bool(_iso) and len(_fraze) <= 1 and _IZVOR.pokriva_zateceni(
                         _postojeci_rokovi, _iso, _dok_id, _ime, _ime_jednoznacno),
+                    dokument_id=_dok_izvora,
                 )
                 _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
                 rokovi_iz_dokumenata.append(_ishod)
@@ -2403,8 +2424,10 @@ async def _finalize_intake_job_jezgro(
                 EventType.DOCUMENT_ACCEPTED,
                 uid,
                 predmet_id,
-                {"dokumenti": accepted_doc_names, "trigger": "smart_intake_finalize"},
-                event_id=_id_prihvatanja_posla(job_id),
+                # BA05: `intake_job_id` pokriva i nastavak (dokumenti već upisani) — rokovi iz izvora ih nalaze po poslu.
+                {"dokumenti": accepted_doc_names, "dokument_ids": accepted_doc_ids, "intake_job_id": job_id,
+                 "trigger": "smart_intake_finalize"},
+                event_id=_id_prihvatanja_posla(job_id, accepted_doc_ids if vec_prikacenih else None),
             )
         except Exception as _ee:
             # FRG001 (BETA-DEF-004): više nije fail-soft. Izgubljen DOCUMENT_ACCEPTED je značio da se Genome i
@@ -2583,6 +2606,7 @@ async def _finalize_intake_job_jezgro(
         "dokumenti": dokumenti_rezultat,
         "dokumenata_ukupno": len(documents),
         "dokumenata_povezano": doc_linked_count,
+        "dokument_ids": accepted_doc_ids,   # BA05: batch događaj navodi stvarne dokumente (rokovi iz izvora)
         # Program Intake Sprint 003 (2026-08-05) -- eksplicitan signal da je
         # tip_dokaza klasifikacija ispod AUTO_ACCEPT_THRESHOLD (Sprint 003
         # Fork C's headline finding) -- "Review Required" mora biti vidljivo
@@ -2656,6 +2680,7 @@ async def finalize_intake_jobs_batch(
     predmeti_za_proveru: dict[str, int] = {}
     predmeti_rokovi: dict[str, int] = {}
     predmeti_job_ids: dict[str, list[str]] = {}
+    predmeti_dokument_ids: dict[str, list[str]] = {}
     uspesno = 0
     neuspesno = 0
     dokumenti_za_proveru = 0
@@ -2690,6 +2715,7 @@ async def finalize_intake_jobs_batch(
         if predmet_id:
             predmeti_dokumenti_count[predmet_id] = predmeti_dokumenti_count.get(predmet_id, 0) + (result.get("dokumenata_povezano") or 0)
             predmeti_job_ids.setdefault(predmet_id, []).append(job_id)
+            predmeti_dokument_ids.setdefault(predmet_id, []).extend(result.get("dokument_ids") or [])
             if result.get("naziv"):
                 predmeti_nazivi[predmet_id] = result["naziv"]
             if result.get("klasifikacija_nesigurna"):
@@ -2735,6 +2761,8 @@ async def finalize_intake_jobs_batch(
                     "dokumenti_za_proveru": predmeti_za_proveru.get(predmet_id, 0),
                     "rokovi_dodati": predmeti_rokovi.get(predmet_id, 0),
                     "job_ids": predmeti_job_ids.get(predmet_id, []),
+                    # BA05: dokumenti upisani u OVOJ obradi — očekivano postoje; poslovi pokrivaju i ranije upisane
+                    "dokument_ids": predmeti_dokument_ids.get(predmet_id, []),
                     "pre_verzija": _pre_dna.get("verzija"),
                     "pre_kontradikcije": len(_pre_dna.get("kontradikcije") or []),
                     "pre_dogadjaji": len(_pre_dna.get("datumi_kljucni") or []),
