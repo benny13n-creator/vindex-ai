@@ -161,3 +161,56 @@ Izmenjeni postojeći testovi (promena ugovora, ne ublažavanje): ispuna zaleplje
 - Leksička provera ne razume semantiku (tekst postoji u dokumentu ≠ istinit); to je ugovor (INV-04), ne kvar.
 
 **Gate S01: `PROVEN_CLOSED` (nivo LOCAL + BROWSER_INTEGRATION; nije LIVE — kod nije pušten).**
+
+**S01 lokalni commit:** `68848d84`.
+
+---
+
+## S02 — B7: semantic contradiction integrity — `BLOCKED_PRODUCT_DECISION`
+
+**Zahtevi:** B7, INV-07, INV-08, INV-09, INV-13. **Preflight SHA:** `68848d84`.
+
+### Problem (PROVEN)
+- **Produkcija, samo čitanje (sintetički predmeti):** Genome je u dva predmeta proizveo 4 neutemeljene protivrečnosti.
+  - `11eaeffc`:
+    - „Razlika u rokovima za uplatu takse“ — rok za sudsku taksu 04.12. ↔ rok za DODATNU sudsku taksu 27.11. Stanje: **OPEN**, aktivna, sa akcijom.
+    - „Razlika u datumu dokumenta“ — „DATUM TEST DOKUMENTA: 30.10.“ ↔ „Tužba je pripremljena 31.10.“. Stanje: NOT_OBSERVED.
+    - „Sintetički test“ — dve izjave istog dokumenta. Stanje: NOT_OBSERVED.
+  - P7714: „Razlika u datumu odluke“ — rok za žalbu 05.11. ↔ „Odluka je doneta 20.10.“. Stanje: NOT_OBSERVED.
+  - Zajednički obrazac: izvori i `claim_ids` su ispravni, ali nije dokazano da se tvrdnje odnose na isti događaj ili obavezu. Svaki naredni Genome ih ponovo predlaže, u drugom obliku.
+- **Izolovana reprodukcija (stvaran prijem, dispečer, V2 paket, `genome-v2`, Case Actions; zamenjen samo model):** produkcioni par taksi, rokovi za podnesak dve stranke i rok ↔ datum odluke postaju **AKTIVNA** V2 sporna tačka sa akcijom „Razrešiti kontradikciju“ (3/3 testa padaju na `68848d84`).
+
+### Šta je pokušano (nacrt, lokalna grana `bojan/s02-b7-istovetnost-nacrt` @ `affae433`, NIJE na sprint grani)
+- Materijalizacija dobija treći ishod, „za pregled“, za protivrečnost čija istovetnost nije dokazana. Ne postaje V2 sporna tačka, ne pravi akciju, opažanje ostaje nekompletno (ništa se ne zatvara), a prikazuje se pod „traži vaš pregled“. Ranije sačuvana aktivna sporna tačka ne menja se nego dobija oznaku.
+- **Pravilo istovetnosti, verzija 1** — „fraza obaveze nije identična“. Nezavisni pregled: **HIGH**, svaka parafraza iste obaveze postaje pregled. To su rok bez „godine“, ćirilica, „dana“, tekst posle datuma i drugačiji opisni oblik. Recenzentov e2e: 3 stvarne protivrečnosti u pregledu, a lažna „dve radnje istog dana“ aktivna.
+- **Pravilo istovetnosti, verzija 2** — pozitivan dokaz razlike: R1 druga stranka, R2 odrednica više, R3 OCR. Testovi: 17/17 S02, ciljano 4209/0, browser 47/47 i 50/50, mutacije 12/12.
+  - Nezavisni pregled, krug 2 — **HIGH:** R2 kratak i pun naziv iste obaveze proglašava za dve obaveze („rok za uplatu takse“ ↔ „… sudske takse“; „rok za žalbu“ ↔ „… na rešenje“; „rok za odgovor“ ↔ „… na tužbu“).
+  - **MEDIUM:** R1 čita uvodne reči kao stranku („Prema rešenju, …“ ↔ „Prema nalogu, …“).
+  - **MEDIUM:** obavezni negativni slučajevi koji i dalje ostaju AKTIVNI:
+    - dve nezavisne radnje istog datuma;
+    - rok ↔ događaj (produkcioni „datum odluke“);
+    - raniji rok ↔ nova zasebna obaveza sa drugačijim predmetom;
+    - različita lica kada stranka nije u istom redu;
+    - opisni oblik obaveza;
+    - dva produkciona lažna nalaza bez roka.
+
+### Zašto je ovo blocker, a ne nastavak
+Da li dve tvrdnje opisuju ISTU obavezu ili događaj je semantičko pitanje. Ugovor zabranjuje filter po rečima („taksa“) i univerzalno pravilo „različiti datumi nisu protivrečnost“. Leksičko pravilo zato mora da bira između dve vrste greške, a obe krše prihvatne kriterijume S02:
+- lažno pozitivne — neutemeljen aktivni nalaz;
+- lažno negativne — stvarna protivrečnost skinuta sa aktivnih.
+
+Postojeći ugovor ima reprezentaciju neodređenosti (`ZA_PREGLED` u prikazu; `DISCOVERED` = „provizorna, bez trajnih posledica“; `CONFIRMED` = „tek tada sme nositi akcije“ — `shared/issue_v2.py`). Međutim, danas svaka V2 sporna tačka u stanju `DISCOVERED` nosi akciju i prikazuje se kao aktivna. Koji podrazumevani status AI protivrečnost dobija pre advokatove odluke je **produktna odluka**.
+
+### Minimalne opcije za osnivača
+| Opcija | Šta znači | Posledica |
+|---|---|---|
+| **A. Pregled pre aktivnog** (preporuka) | Svaka AI protivrečnost u stanju `DISCOVERED` prikazuje se pod „traži vaš pregled“ (sa oba izvora). Aktivna je i nosi akciju tek kad je advokat potvrdi — tačno ono što `issue_v2` već definiše (`DISCOVERED` / `CONFIRMED`). | Rešava SVE lažne pozitive bez semantičkog pogađanja. Advokat jednim klikom potvrđuje stvarne. Menja današnji prikaz i akcije; traži potvrdu protivrečnosti u V2 (postojeći status `CONFIRMED`, verovatno bez migracije — proveriti). |
+| B. Model iskazuje istovetnost | Genome za svaku protivrečnost vraća „isti događaj/obaveza: da/ne/nepoznato“ + predmet. Backend: sve osim „da“ ide u pregled. | Manja promena prikaza. Oslanja se na model koji je i napravio lažni nalaz (delimično pouzdano). Nova polja u izlazu modela. |
+| C. Ostaviti aktivno uz oznaku | Sve AI protivrečnosti sa datumima ostaju aktivne uz oznaku „nije provereno da je isti događaj/obaveza“. | Najmanja promena. Ne ispunjava „ne daje neutemeljen aktivni nalaz“. |
+| D. Nacrt `affae433` | Uže pravilo (R1–R3). | Rešava tačan produkcioni par. Nezavisni pregled ga ocenjuje kao neprihvatljiv rizik lažno negativnih. Nije preporučeno. |
+
+### Stanje
+- Ništa iz S02 nije na sprint grani.
+- Produkcioni `predmet_issues` / `predmet_contradictions` redovi nisu dirani.
+- Sprint je zaustavljen po ugovoru („na prvom neotklonjenom blocker-u zaustavi ceo sprint“).
+- S03–S11 nisu započeti.
