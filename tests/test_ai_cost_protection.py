@@ -291,14 +291,22 @@ def zapis(monkeypatch):
     propagacije do korena, a raniji testovi u punoj sviti (dictConfig sa
     disable_existing_loggers) gase postojeće loggere — tada je `caplog.text` prazan."""
     h = _Zapis()
-    zahvaceni = [logging.getLogger("vindex.ai_budget"), logging.getLogger("vindex.api")]
+    # Loggeri MODULA (ne `logging.getLogger`): u punoj sviti neki test zameni registar
+    # loggera, pa isto ime vraća drugi objekat od onog u koji moduli pišu.
+    zahvaceni = [sys.modules["shared.ai_budget"].logger, sys.modules["shared.deps"].logger]
     for lg in zahvaceni:
         monkeypatch.setattr(lg, "disabled", False)
         lg.addHandler(h)
-    monkeypatch.setattr(logging.root.manager, "disable", 0)
-    yield h
-    for lg in zahvaceni:
-        lg.removeHandler(h)
+    # UI fixture-i u sviti zovu `logging.disable(CRITICAL)`; `Logger` kešira
+    # `isEnabledFor`, pa samo `logging.disable()` (koji čisti keš) vraća beleženje.
+    pre = logging.root.manager.disable
+    logging.disable(logging.NOTSET)
+    try:
+        yield h
+    finally:
+        logging.disable(pre)
+        for lg in zahvaceni:
+            lg.removeHandler(h)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

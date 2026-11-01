@@ -1,6 +1,6 @@
 # Early Access — Faza A: AI zaštita troška
 
-**Grana:** `feature/ai-cost-protection` (od `main` = `aaea99a4`)
+**Grana:** `feature/ai-cost-protection` (od `main` = `aaea99a4`) · Draft PR: v. opis PR-a
 **Status:** `AI_COST_PROTECTION_READY_FOR_REVIEW` — spajanje, puštanje i promene OpenAI podešavanja čekaju odluku osnivača.
 **Oznake:** PROVEN = izmereno testom ili čitanjem koda u ovom radu; INFERRED = zaključak iz dokaza; ASSUMED = pretpostavka; UNKNOWN = nije vidljivo odavde.
 
@@ -117,7 +117,37 @@ Zato šire puštanje ostaje **BLOKIRANO** dok osnivač ne potvrdi korake iz §8.
 
 ## 6. Regresija
 
-POPUNJAVA SE POSLE MERENJA.
+Cela svita je pokrenuta lokalno: Python 3.13, `-p no:randomly` (zaključan redosled), bez `tests/e2e`, isto okruženje za oba stabla.
+
+| Stablo | Prošlo | Palo | Preskočeno |
+|---|---:|---:|---:|
+| `main` `aaea99a4` | 13.165 | 25 | 521 |
+| grana, 1. merenje (pre ispravki testova) | 13.186 | 44 | 523 |
+| grana `53704834` | 13.194 | 36 | 523 |
+
+**Svih 25 padova sa `main` padaju i na grani.** To je postojeće stanje okruženja (npr. `test_tier_config`), a grana nijedan ne popravlja ni ne kvari.
+
+**Novi padovi iz 1. merenja (19), sa uzrokom i ishodom:**
+
+- **11 testova provenance, firewall-a i glasa** (`test_n01_*`, `test_qa_c_*`, `test_rc_beta_flows` e1/e3, `test_wave9_governance` c3, `test_wave9_voice_isolation` j):
+  - Uzrok: idu kroz pravi SDK bez baze, a brana je ispravno odbila poziv bez rezervacije (fail-closed).
+  - Ispravka: zamenjena je SAMO rezervacija u bazi; brana ostaje uključena.
+  - Ishod: 117/117 prolazi.
+- **`test_web3_founder_access::test_F`:**
+  - Uzrok: meri nekomitovan `git diff`.
+  - Ishod: posle commit-a prolazi.
+- **3 moja testa sa tvrdnjom o logu:**
+  - Uzrok: UI fixture-i u sviti zovu `logging.disable(CRITICAL)`, a `Logger` kešira odluku.
+  - Ispravka: fixture sada zove `logging.disable(NOTSET)`.
+  - Ishod: reprodukcija tog uslova daje 40/40.
+
+**`test_optimistic_ui_contract_playwright` (8) u 2. merenju:**
+- U 1. merenju grane i na `main` su prolazili.
+- Pokrenuti sami: 15/15.
+- Grana ne menja frontend.
+- Zaključak: nestabilnost pod opterećenjem (INFERRED).
+
+Testovi Faze A: `tests/test_ai_cost_protection.py` 40/40 i `tests/test_ai_cost_protection_postgres.py` 2/2 (PostgreSQL 17, migracije 107/108 doslovno).
 
 ## 7. Preostali materijalni rizici
 
