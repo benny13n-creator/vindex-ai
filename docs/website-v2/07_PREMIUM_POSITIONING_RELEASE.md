@@ -9,7 +9,7 @@ Interni dokument: **ne objavljuje se**, registar `site/funkcije.json` se ne serv
 |---|---|---|
 | Kategorija i hero | „Pravni radni prostor“ / „Od dokumenata do jasnih odluka.“ | „Pravni operativni sistem“ / **„Jedan prostor za čitav predmet.“** |
 | Početna | 7 odeljaka: 6 kartica, 4 funkcije u formatu Problem/Šta radi/Korist, tok, **10 sektora**, zaštita, poziv | 5 odeljaka: uvod → 4 vrednosti → tok rada + 3 stvarna ekrana → poverljivost → poziv. Sektori uklonjeni |
-| Visina početne | 8.281 px (1440) / 12.517 px (390) | 6.022 px / 8.404 px (−27 % / −33 %) |
+| Visina početne | 8.281 px (1440) / 12.517 px (390) | 6.078 px / 8.508 px (−27 % / −32 %; posle prihvatanja §10) |
 | Kako radi | 7 koraka × 4 polja („Ne pretpostavlja“ kao zaseban niz upozorenja) | 6 koraka × 3 polja (Vindex / Vi odlučujete / Dobro je znati); materijalne granice zadržane |
 | Za advokate | 8 nepovezanih primera | jedan predmet (naknada štete zbog povrede na radu, tužena strana) od tužbe do nacrta, izmišljene okolnosti |
 | Funkcionalnosti | 49 stavki, od toga 5 „klasični interfejs“; J01 „V2 koristi istu sesiju“, interna adresa `/app-legacy?posle=app` vidljiva | 46 stavki, sve sa putanjom u aplikaciji; nula oznaka verzije; nova stavka C08 (odluka o protivrečnosti) |
@@ -53,7 +53,7 @@ Status: PC = PROVEN_CURRENT, PL = PROVEN_LIMITED. Odluka: P = PUBLISH, Q = QUALI
 |---|---|---|---|---|---|---|
 | 1 | „Pravni operativni sistem“, „Jedan prostor za čitav predmet.“ | `/` uvod, title | pozicioniranje | Canonical Rules §1 | kategorija, ne funkcija | P |
 | 2 | dokumenti, činjenice, dokazi, rokovi, pravna pitanja i nacrti jednog predmeta u jednom toku | `/` uvod, meta | PL | A06, B01–B05, C01–C04, D01–D05, E01, F01 | deo zavisi od paketa naloga | Q (katalog i /beta: „zavise od paketa“) |
-| 3 | podatak vezan za izvor; važeći tek kad advokat potvrdi | `/`, `/kako-radi` | PC | J03, C02, D01, B04, F02 | — | P |
+| 3 | podaci i tvrdnje izdvojeni iz dokumenata vezani za dokument; rok, podatak i nacrt važeći tek kad advokat potvrdi | `/`, `/kako-radi` | PC (u tom obimu) | J03, C02, D01, B04, F02 | ne važi za ručne unose; stavka analize može imati poreklo UNKNOWN (v. §10) | P |
 | 4 | član koji ne postoji u izvorima se odbija; kada izvori nisu dostupni, to piše | `/` vrednost 03 | PL | E01 (`verify:live-pravno-pitanje`) | baza propisa nije potpuna | Q (`/kako-radi` k5) |
 | 5 | predloženi rok, podatak, protivrečnost i nacrt važeći tek posle odluke; AI rezultat označen | `/` vrednost 04 | PC | D01, B04, C08, F02, J03 | — | P |
 | 6 | više dokumenata odjednom; OCR ćirilica/latinica; vrsta + polja sa pouzdanošću | `/`, `/kako-radi`, `/za-advokate` | PL | B01–B04; OCR korak production-runtime (67 passed, PR #64) | kvalitet skena; .doc nije podržan | Q |
@@ -86,13 +86,16 @@ Zato je stara rečenica „Vindex danas ne šalje podsetnike“ netačna, a tvrd
 
 ## 5. Miroslav (MIR-01…MIR-05) — matrica spremnosti
 
-Izvor: `docs/v2-execution/MIR001_TASK_LEDGER.md` (definicije :57-61, presuda :424-428), `MIR001_FINAL_CLOSURE_REPORT.md`.
+Izvor: `docs/v2-execution/MIR001_TASK_LEDGER.md` (definicije :57-61, presuda :424-428), `MIR001_FINAL_CLOSURE_REPORT.md`;
+za MIR-03 noviji `MIR001_C3B_FINAL_CLOSURE_REPORT.md` (§8 ograničenja kvaliteta, §10 presuda) i
+`MIR001_FINAL_RELEASE_GATES_LEDGER.md` (GATE-R1…R4, :339). Kod je u `main` od `30cfbd5a` (predak `2c6663a8`); to nije
+dokaz da je tok pušten i dostupan korisniku u produkciji.
 
 | MIR | Presuda u ledgeru | Šta sajt danas kaže | Šta ne kaže | Dokaz potreban za objavu |
 |---|---|---|---|---|
 | MIR-01 povezan predmet | PARTIAL_READY, ograničenja obelodanjena; LIVE nije dokazan | narativ „jedan prostor za čitav predmet“; samo pojedinačno dokazane funkcije (prijem, poreklo, protivrečnosti, stanje predmeta) | „Vindex čita ceo spis“, broj dokumenata/strana, sinteza preko celog spisa | LIVE prijem stvarnog višedokumentnog spisa (≥7 procesnih dokumenata) + prihvatanje korisnika |
 | MIR-02 strategija iz spisa | „Da, kao radni materijal“; DEBT-MIR-04/05 otvoreni | savetnik razmatra predmet iz izabranog ugla (E02, postojeće) | strategija „iz spisa“, procena ishoda | zatvoreni DEBT-MIR-04-1/2; merenje kvaliteta nad dugim stvarnim spisom |
-| MIR-03 nacrt iz spisa | „Delimično“; C3b FAIL (20/40) | nacrt kao polazna tačka iz opisa advokata (F01–F03) | nacrt iz spisa, „spreman za sud“ | C3b PASS; `live-c3b-usvajanje-e2e.mjs` u CI-ju; migracija 141 potvrđena u produkciji |
+| MIR-03 nacrt iz spisa | kontrola: `C3B_CONTROLLED_DRAFTING_READY`; puštanje: GATE-R1…R4 PASS → `READY_FOR_FOUNDER_PRODUCTION_APPROVAL`; kvalitet AI teksta: materijalna ograničenja ostaju (v. ispod) | nacrt kao polazna tačka iz opisa advokata (F01–F03) | nacrt iz spisa, „spreman za sud“, „proveren“ nacrt | odobrenje osnivača i potvrđeno puštanje (uklj. migraciju 141 i odluku o izvodu DOK-nn); posmatrana dostupnost korisniku u produkciji; prihvatanje stvarnog korisnika |
 | MIR-04 korporativni rad | BLOCKED_REQUIREMENTS_DETAIL | ništa (sektori uklonjeni) | ugovori, korporativni timovi, due diligence | definisani procesi (TASK-09) + izgrađen i proveren tok |
 | MIR-05 kontrolisana proaktivnost | BLOCKED_AUTHORITY (migracija 136, cron) | posledice radnji u predmetu kroz Danas/Rad (postojeće, deterministički) | pozadinska/dnevna AI obrada, „Vindex je pripremio“ | odobrena aktivacija osnivača, primenjena 136, posmatran rad u produkciji |
 
@@ -101,9 +104,10 @@ Arhitektura je spremna bez novog redizajna: nova sposobnost ulazi kao stavka reg
 
 ### Neobjavljeni kandidat-tekstovi (PREPARE_NOT_PUBLIC — ne stavljati u `site/_izvor/` pre dokaza)
 
-- **MIR-03 / F06**: „Nacrt iz dokumenata predmeta: savetnik za pisanje podnesaka pravi nacrt oslonjen na dokumente koje ste
-  priložili, sa napomenom koji dokument je korišćen, šta nije pročitano i šta je sud već odlučio. Svaku stavku napomene
-  usvajate ili odbijate pre odobrenja.“
+- **MIR-03 / F06**: „Radni predlog nacrta iz dokumenata predmeta: savetnik za pisanje podnesaka predlaže tekst uz izvore
+  iz dokumenata koje ste priložili. Predlog nije proveren tekst: svaku stavku usvajate ili odbijate, tekst pišete i
+  ispravljate vi, a kao Word dokument se izvozi samo tekst koji ste odobrili.“ (Ranija verzija kandidata obećavala je da
+  napomena kaže „šta je sud već odlučio“; slepa merenja pokazuju da predlog ponekad prećuti odluku suda, pa je izbačeno.)
 - **MIR-01**: „Dokumenti celog spisa, od tužbe do zapisnika, ulaze u isti predmet; Vindex pokazuje gde se navodi stranaka
   razlikuju i šta je sporno.“
 - **MIR-05 / K01**: „Kada se u predmetu nešto promeni, Vindex pripremi kratak pregled promene koji čeka vaš pregled. Ništa se
@@ -161,3 +165,54 @@ Sajt ga ne pominje (D10, javno: ne); zaseban zadatak za osnivača.
   (zabrana rebrendiranja); usklađivanje je odluka osnivača.
 - Tvrdnje sa granicom „zavisi od paketa naloga“ (analiza, savetnik, nacrt) su na početnoj opisane bez te granice; granica je u
   katalogu i na /beta.
+
+## 10. Prihvatanje osnivača (vizuelni smer odobren, spajanje još nije) — ispravke nad `77bfc916`
+
+### A. Preciznost tvrdnji
+
+Univerzalne formulacije su zamenjene tačnim obimom. Dokaz da univerzalna verzija nije tačna:
+- `shared/genome_contract.py:61,197,211`: klasa porekla `UNKNOWN` („poreklo nije zabeleženo — neproveren“);
+- `frontend-v2-ng/src/analiza-predmeta.js:18`: prikaz „Poreklo nepoznato“;
+- registar C01: starije analize dobijaju vezu sa izvorom tek pri osvežavanju; E02: status provere citata može biti „nepoznato“;
+- beleške, zadaci i ročišta koje advokat unese nemaju dokument kao izvor.
+
+| Bilo | Sada | Gde |
+|---|---|---|
+| „Svaki podatak ostaje vezan za izvor iz kog potiče“ | „Podaci i tvrdnje izdvojeni iz dokumenata ostaju vezani za dokument iz kog potiču“ | `/` uvod, meta opis |
+| „Svaki podatak sa svojim izvorom“ / „Odluka uvek ostaje vama“ | „Izdvojeni podaci vezani za dokument“ / „Konačnu odluku donosite vi“ | `/` uvod |
+| „odakle potiče svaki podatak“ | „iz kog dokumenta potiče izdvojeni podatak“ | `/` Zašto Vindex |
+| „svaku stavku sa poreklom“ | „uz oznaku porekla stavke: dokument, vaša potvrda, proračun ili AI analiza“ | `/` istaknuto 2 |
+| „Svaka stavka analize nosi poreklo, a AI rezultat … čeka vašu odluku“ | „Stavke analize su označene po poreklu, a AI rezultat kao AI rezultat. Rok, podatak i nacrt čekaju vašu odluku.“ | `/` poverenje |
+| C01/J03: „Svaka stavka (analize) nosi poreklo …“ | „Stavke su označene po poreklu …; kada poreklo nije zabeleženo, i to piše“ | `/funkcionalnosti` |
+| E02: „Uz svaki odgovor … provereni, neprovereni ili ih nema“ | „… da ih nema ili da ishod provere nije poznat“ | `/funkcionalnosti` |
+| „Svaki [pružalac] dobija samo podatke potrebne za svoj deo posla“ (minimizacija nije dokazana) | „Tabela pokazuje koji pružalac obrađuje koje podatke.“ | `/bezbednost` |
+
+Zadržane univerzalne tvrdnje (dokazane u celom obimu): „Svaki predloženi rok potvrđujete ili odbijate“ (lanac odluka o rokovima,
+`e2e:rok-odluka`); „Svaka funkcija na ovoj stranici dostupna je u aplikaciji, uz putanju“ (generator objavljuje samo javne statuse,
+test traži „U aplikaciji:“ na svakoj stavci); „provera na serveru pri svakom zahtevu“ (J02). Regresija:
+`test_poreklo_se_ne_tvrdi_univerzalno` (6 stranica); mutacija (stara početna i katalog) → 2 pada.
+
+### B. Prazni okviri na `premium-posle-pocetna-390.webp`
+
+**Presuda: artefakt snimanja, ne kvar.** Stari snimač (`snimi.py`) pravio je snimak cele strane odmah posle `networkidle`, bez
+skrolovanja: slike sa `loading="lazy"` ispod prvog ekrana se tada još ne traže, a `.otkrij` sekcije koje nikad nisu bile u ekranu
+ostaju na `opacity: 0`. Ponašanje sajta nije menjano.
+
+Dokaz (Chromium, bez `reduced-motion`, 320/375/390 + 1440, svih 6 stranica):
+- pre skrolovanja `dokumenti.webp`, `rad-predmeta.webp` i `danas.webp` imaju `complete=false` (stanje koje je stari snimač video);
+- posle skrolovanja do svake slike: `complete=true`, `naturalWidth` 780/1600, ispravan `currentSrc`, puna providnost, isečak nije
+  prazan (std. odstupanje piksela 10,7–32,6); 0 neuspelih zahteva, 0 odgovora ≥ 400, 0 grešaka konzole;
+- 162/162 `.otkrij` elementa postaje vidljivo čim uđe u ekran, i posle skoka sa dna strane (18 kombinacija stranica × širina).
+
+Novi snimci (postepeno skrolovanje, provera da nijedna sekcija nije skrivena, pa snimak): `premium-posle-pocetna-320/375/390`,
+`premium-posle-kako-radi-390`, `premium-posle-za-advokate-390` i ponovo `premium-posle-*-1440` (stari 1440 snimci su bili od pre
+ispravki iz §8).
+
+Zamke merenja (nisu kvar sajta): lokalni server posle mnogo zahteva sa 127.0.0.1 vraća 429 na `sajt.js`, pa sekcije ostaju bez
+klase `vidljivo` — restart servera pre svakog merenja; `scroll-behavior: smooth` uz brze skokove u skripti može preskočiti mali
+element, zato skripta skroluje sa `behavior: 'instant'`; provera „bez JS“ čeka 1,2 s na CSS ulaznu animaciju heroja.
+
+### C. MIR-03
+
+Matrica u §5 i registar F06 usklađeni su sa `MIR001_C3B_FINAL_CLOSURE_REPORT.md` i `MIR001_FINAL_RELEASE_GATES_LEDGER.md`. Stara
+oznaka „C3b FAIL“ više nije tačna. Kandidat-tekst MIR-03 ostaje neobjavljen.

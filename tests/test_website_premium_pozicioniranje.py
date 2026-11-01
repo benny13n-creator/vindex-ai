@@ -7,7 +7,9 @@ Website Premium Positioning (founder, 2026-11-01) — ugovori javnog sajta.
      `data-status` nisu korisnički tekst i ne mere se.
   2. Nema internih naziva projekta, sprintova, zahteva, migracija ni CI statistike.
   3. MIR (Miroslav): nijedna nepotvrđena sposobnost se ne prikazuje kao dostupna —
-     nacrt iz spisa (MIR-03, C3b FAIL), korporativni rad (MIR-04 BLOCKED_REQUIREMENTS_DETAIL),
+     nacrt iz spisa (MIR-03: kontrola C3B_CONTROLLED_DRAFTING_READY i READY_FOR_FOUNDER_PRODUCTION_APPROVAL,
+     ali puštanje, dostupnost korisniku i prihvatanje nisu dokazani, a kvalitet AI teksta ima materijalna
+     ograničenja), korporativni rad (MIR-04 BLOCKED_REQUIREMENTS_DETAIL),
      samostalna/pozadinska AI obrada (MIR-05 BLOCKED_AUTHORITY).
   4. Email podsetnici: isporuka nije potvrđena (LIVE_EMAIL_DELIVERY_NOT_VERIFIED), a
      podešavanje i slanje postoje u kodu — sajt ne tvrdi ni „šalje“ ni „ne šalje“.
@@ -103,6 +105,19 @@ def test_nema_apsolutnih_garancija(k, ruta):
                r"automatski (šalje|prati|upisuje|potvrđuje)", r"enterprise", r"revolucion", r"sudu spreman",
                r"zamenjuje (advokat|pravn)"):
         assert not re.search(rx, t), f"{ruta}: {rx}"
+
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_poreklo_se_ne_tvrdi_univerzalno(k, ruta):
+    """Prihvatanje PR #65: poreklo je dokazano za podatke i tvrdnje izdvojene iz dokumenata, a stavka analize
+    može nositi klasu UNKNOWN (shared/genome_contract.py:61,197; analiza-predmeta.js „Poreklo nepoznato“).
+    Ručni unosi (beleške, zadaci) nemaju dokument kao izvor. Zato bez „svaki podatak / svaka stavka“."""
+    t = _povrsine(k.get(ruta).text).lower()
+    for rx in (r"svak[ia] podat", r"svak[aeu] stavk[aeu] (analize )?(nosi|sa) porekl", r"svaku stavku sa porekl",
+               r"porekl\w* svake stavke", r"odluka uvek", r"svaki dobija samo"):
+        assert not re.search(rx, t), f"{ruta}: {rx}"
+    if ruta == "/funkcionalnosti":
+        assert "poreklo nije zabeleženo" in t                       # neprovereno poreklo se kaže
 
 
 def test_granice_iz_nezavisnog_pregleda_ostaju_vidljive(k):

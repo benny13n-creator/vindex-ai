@@ -28,7 +28,7 @@ DOMEN = "https://vindex.rs"
 STRANICE = [
     # (izvor, izlaz, ruta, naslov, opis, stavka menija)
     ("index", "index.html", "/", "Vindex — pravni operativni sistem za advokate",
-     "Vindex povezuje dokumente, činjenice, dokaze, rokove, pravna pitanja i nacrte jednog predmeta u jedan tok rada. Svaki podatak ostaje vezan za svoj izvor, a odluka ostaje advokatu.", None),
+     "Vindex povezuje dokumente, činjenice, dokaze, rokove, pravna pitanja i nacrte jednog predmeta u jedan tok rada. Podaci izdvojeni iz dokumenata ostaju vezani za svoj izvor, a odluka ostaje advokatu.", None),
     ("kako-radi", "kako-radi.html", "/kako-radi", "Kako radi — Vindex",
      "Tok rada u Vindexu od otvaranja predmeta do nacrta podneska: šta radi Vindex, šta odlučujete vi i šta je dobro da znate.", "Kako radi"),
     ("funkcionalnosti", "funkcionalnosti.html", "/funkcionalnosti", "Funkcionalnosti — Vindex",

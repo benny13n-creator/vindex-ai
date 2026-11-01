@@ -62,7 +62,7 @@ def test_prvi_ekran_kaze_sta_je_vindex_i_sledeci_korak(k):
     hero = re.search(r'<section class="uvod uvod--glavni".*?</section>', t, flags=re.S).group(0)
     assert "Jedan prostor za čitav predmet." in hero          # Premium Positioning 2026-11-01
     assert "Pravni operativni sistem" in hero                   # kategorija
-    assert "vezan za izvor" in hero and "potvrdi" in hero       # razlika: izvor i potvrda
+    assert "vezani za dokument" in hero and "potvrdi" in hero   # razlika: izvor i potvrda (obim: izdvojeno iz dokumenata)
     dugmad = re.findall(r'<a class="dugme[^"]*" href="([^"]+)">([^<]+)</a>', hero)
     assert dugmad == [("/beta", CTA)], dugmad                    # jedan primarni poziv
     assert 'href="/kako-radi">Pogledaj kako Vindex radi</a>' in hero
