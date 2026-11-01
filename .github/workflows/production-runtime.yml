@@ -183,7 +183,7 @@ jobs:
         run: |
           set -o pipefail
           # `python -m pytest` (ne gol `pytest`): stavlja koren repoa na sys.path, kao u koraku u produkcionoj slici.
-          python -m pytest tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py tests/test_vcr002_t02_ocr_korpus.py tests/test_ocr001_ocr_korpus.py tests/test_n1_zlatni_prijem.py -q -rs -p no:randomly -p no:cacheprovider 2>&1 | tee /tmp/ocr-py311.log
+          python -m pytest tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py tests/test_vcr002_t02_ocr_korpus.py tests/test_ocr001_ocr_korpus.py tests/test_n1_zlatni_prijem.py tests/test_s10_bojan_ceo_tok.py -q -rs -p no:randomly -p no:cacheprovider 2>&1 | tee /tmp/ocr-py311.log
 
       - name: OCR proof report (py311)
         if: always()

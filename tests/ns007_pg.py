@@ -4,15 +4,23 @@
 test pravi se sveža baza sa minimalnim Supabase okruženjem (šema `auth`, `auth.uid()` iz podešavanja sesije, uloge
 `anon` / `authenticated` / `service_role` sa BYPASSRLS kao na Supabase-u, minimalni `predmeti` i
 `agent_recommendations`), pa se primenjuje migracija 136 TAČNO kako je u repou. Bez DSN-a testovi se preskaču.
+
+CI (`.github/workflows/tests.yml`) podiže izolovan klaster kroz `scripts/test_db.py` i postavlja `VINDEX_PG_TEST_DSN`
+(isti naziv kao `tests/ns4f_pg.py`); ranije se ovde čitao samo `VX_TEST_PG_DSN`, pa su se svi PG testovi ovog
+pomoćnika u CI-ju preskakali. Sada: `VX_TEST_PG_DSN`, inače `VINDEX_PG_TEST_DSN`. DSN mora biti loopback, a ako je
+podešen a baza nedostupna, to je PAD (ne preskok) — preskok sme samo kad DSN nije podešen.
 """
 import os
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
-DSN = os.getenv("VX_TEST_PG_DSN", "")
+DSN = os.getenv("VX_TEST_PG_DSN", "") or os.getenv("VINDEX_PG_TEST_DSN", "")
+if DSN and (urlparse(DSN).hostname or "").lower() not in ("127.0.0.1", "localhost", "::1"):
+    raise RuntimeError("PG DSN za ns007_pg mora biti lokalan izolovan klaster (loopback) — odbijeno")
 KOREN = Path(__file__).resolve().parent.parent
 
 _OKRUZENJE = """
@@ -39,11 +47,12 @@ def dostupan() -> bool:
         import psycopg
         with psycopg.connect(DSN, connect_timeout=3):
             return True
-    except Exception:
-        return False
+    except Exception as e:
+        # podešen DSN koji ne radi nije razlog za preskok; poruka bez DSN-a (tajne)
+        raise RuntimeError(f"PG DSN za ns007_pg je podešen, ali baza nije dostupna ({type(e).__name__})") from None
 
 
-zahteva_pg = pytest.mark.skipif(not dostupan(), reason="VX_TEST_PG_DSN nije podešen ili lokalni PostgreSQL nije dostupan")
+zahteva_pg = pytest.mark.skipif(not dostupan(), reason="ni VX_TEST_PG_DSN ni VINDEX_PG_TEST_DSN nije podešen")
 
 
 def migracija(broj: str) -> str:
