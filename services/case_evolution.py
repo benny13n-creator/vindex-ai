@@ -57,7 +57,6 @@ from typing import Awaitable, Callable, Optional
 
 from services.event_bus import Event, EventType
 from shared.attention_priority import CANONICAL_TO_NOTIFICATIONS
-from shared.contradiction_identity import contradiction_dedupe_key, normalize_tezina
 from shared.contradiction_identity import nove_kontradikcije_za_briefing
 from shared.deps import _get_supa
 from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
@@ -1265,61 +1264,9 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     if await predmet_ima_v2(supa, predmet_id):
         return actions
 
-    _TEZINA_PRIORITET = {"kriticna": "critical", "vazna": "high", "manja": "medium"}
-    # MIR001 TASK-07: sačuvan Genome može do sledećeg osvežavanja da navodi protivrečnost iz OBRISANOG dokumenta
-    # (LIM-T03-3); ovde bi je, čim V2 nema živih strana, vratio kao otvorenu akciju. `dokument_id_1/2` su razrešeni pri
-    # nastanku (routers/case_dna.py) — strana čiji dokument više ne postoji u predmetu nije osnov za akciju.
-    _postojeci_dok_ids = {d.get("id") for d in dok_data}
-    for k in (case_dna.get("kontradikcije") or []):
-        if any(_di and _di not in _postojeci_dok_ids for _di in (k.get("dokument_id_1"), k.get("dokument_id_2"))):
-            continue
-        opis = k.get("opis") or ""
-        loc1 = k.get("lokacija_1") or ""
-        loc2 = k.get("lokacija_2") or ""
-        if not opis:
-            continue
-        # Operation Single Brain (2026-08-07): raw k.get("tezina") is a free-form GPT
-        # classification -- normalize_tezina() validates it against the 3 values Genome's
-        # own extraction prompt actually asks for, fail-safe toward "kriticna" for anything
-        # unrecognized (see shared/contradiction_identity.py's docstring). Previously this
-        # dict's own .get(..., "medium") default silently downgraded an out-of-enum tezina
-        # to medium priority -- invisible under-flagging of a possibly-critical contradiction.
-        _tez = normalize_tezina(k.get("tezina"))
-        # A003 (2026-08-29) — ADITIVNA PROVENIJENCIJA DOKUMENTA.
-        # A002 (routers/case_dna.py) je JEDINI vlasnik rezolucije `DOK-NN` ->
-        # `predmet_dokumenti.id` i upisuje `dokument_id_1`/`dokument_id_2` u istu
-        # kontradikciju, uparene sa `lokacija_1`/`lokacija_2` iz kojih su izvedene.
-        # Ovde se ta vec-razresena vrednost SAMO PRENOSI dalje -- nikad ponovo ne
-        # racuna: nema regexa, nema poklapanja po nazivu fajla, nema pozicije u
-        # listi, nema `docs[0]`. Drugi resolver istog pojma je tacno ono sto ovaj
-        # repo zabranjuje (jedan koncept = jedan vlasnik).
-        #
-        # `.get()` je namerno: Genome ekstrahovan PRE A002 nema ove kljuceve
-        # (izmereno: 0/19 postojecih kontradikcija u produkciji ih ima), pa je
-        # `None` ispravan ishod, a ne greska.
-        #
-        # FAIL-CLOSED, tri pravila koja NE SMEJU biti "popravljena":
-        #   1. oba kljuca UVEK postoje -- `None` znaci "nije razreseno", dok bi
-        #      izostavljen kljuc znacio "ova verzija ne podrzava provenijenciju";
-        #   2. `dokument_id_1 == dokument_id_2` je VALIDNO, ne duplikat --
-        #      intra-dokumentna kontradikcija (dva iskaza u istom dokumentu) je
-        #      26% stvarnih slucajeva; deduplikacija bi obrisala drugu stranu;
-        #   3. `lokacija_N` i `dokument_id_N` ostaju upareni -- zamena strana je
-        #      korupcija provenijencije, iako je identitet kontradikcije
-        #      (shared/contradiction_identity.py) namerno order-independent.
-        #
-        # `izvor_dokumenti`, `dedupe_key`, `lokacija_1/2` i identitet kontradikcije
-        # ostaju NEPROMENJENI -- ovo je iskljucivo dodavanje dva polja u `dokaz`.
-        actions.append({
-            "tip": "RAZRESITI_KONTRADIKCIJU", "razlog": opis,
-            "dokaz": {"opis": opis, "lokacija_1": loc1, "lokacija_2": loc2, "tezina": _tez,
-                      "dokument_id_1": k.get("dokument_id_1"),
-                      "dokument_id_2": k.get("dokument_id_2")},
-            "prioritet": _TEZINA_PRIORITET[_tez], "rok": None,
-            "dedupe_key": contradiction_dedupe_key(k),
-            "izvor_dokumenti": [x for x in (loc1, loc2) if x],
-        })
-
+    # S02 / B7 (odluka osnivača A, 2026-10-31): protivrečnost iz analize koja NIJE vezana za tvrdnje predmeta (nema V2
+    # sporne tačke) ne može se potvrditi, pa ne nosi akciju „Razrešiti kontradikciju“ — ostaje samo za pregled u analizi
+    # (shared/genome_contract.sastavi_kontradikcije). Akciju nosi isključivo potvrđena V2 sporna tačka (gore).
     return actions
 
 
@@ -1332,6 +1279,31 @@ _POLJA_VEZE = {
 }
 RAZLOG_ZATVARANJA_IZVOR_POVUCEN = "IZVOR_POVUCEN"
 RAZLOG_ZATVARANJA_CINJENICA_NESTALA = "CINJENICA_VISE_NE_VAZI"
+# S02 / B7: protivrečnost i dalje postoji, ali je advokat nije potvrdio (ili ju je odbio) — radnja se zatvara zbog
+# odluke/pravila potvrde, ne zato što je činjenica nestala.
+RAZLOG_ZATVARANJA_NIJE_POTVRDJENA = "PROTIVRECNOST_NIJE_POTVRDJENA"
+RAZLOG_ZATVARANJA_ODBIJENA = "PROTIVRECNOST_ODBIJENA"
+
+
+async def _razlog_zatvaranja_v2(supa, predmet_id: str, key: str, kes: dict) -> str:
+    """S02 / B7 — istinit razlog zatvaranja V2 radnje: ako protivrečnost i dalje postoji (OPEN), zatvara je odluka
+    advokata (odbijena) ili to što još nije potvrđena — ne „činjenica više ne važi“. Čita se jednom po usklađivanju
+    (`kes`); neuspelo čitanje → postojeći opšti razlog (ništa se ne izmišlja)."""
+    from services.v2_projection import contradiction_id_iz_kljuca, ucitaj_v2_kontradikcije
+    cid = contradiction_id_iz_kljuca(key)
+    if not cid:
+        return RAZLOG_ZATVARANJA_CINJENICA_NESTALA
+    if "v2" not in kes:
+        try:
+            kes["v2"] = {str(k["id"]): k for k in await ucitaj_v2_kontradikcije(supa, predmet_id)}
+        except Exception as exc:
+            logger.warning("[CASE_EVOLUTION] V2 odluke nisu pročitane za razlog zatvaranja predmet=%s: %s", predmet_id, exc)
+            kes["v2"] = None
+    k = (kes["v2"] or {}).get(str(cid))
+    if not k:
+        return RAZLOG_ZATVARANJA_CINJENICA_NESTALA
+    from shared.issue_v2 import ODLUKA_ODBIJENA, efektivna_odluka
+    return RAZLOG_ZATVARANJA_ODBIJENA if efektivna_odluka(k) == ODLUKA_ODBIJENA else RAZLOG_ZATVARANJA_NIJE_POTVRDJENA
 
 
 def veza_sa_izvorom(akcija: dict, source_type: str, source_id: str) -> str | None:
@@ -1516,6 +1488,7 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
     _povlacenje = event.type == EventType.SOURCE_INVALIDATED
     _src_type, _src_id = str(_pl.get("source_type") or ""), str(_pl.get("source_id") or "")
     zadrzane_entries: list[dict] = []
+    _v2_odluke: dict = {}
     for key, existing in existing_by_key.items():
         if key not in target_by_key:
             if _povlacenje:
@@ -1539,7 +1512,9 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
                 _zatvaranje = {"razlog": RAZLOG_ZATVARANJA_IZVOR_POVUCEN, "source_type": _src_type,
                                "source_id": _src_id, "veza": _polje}
             else:
-                _zatvaranje = {"razlog": RAZLOG_ZATVARANJA_CINJENICA_NESTALA}
+                # Završen predmet zatvara SVE radnje zbog završetka, ne zbog odluke o protivrečnosti.
+                _zatvaranje = {"razlog": RAZLOG_ZATVARANJA_CINJENICA_NESTALA if event.type == EventType.MATTER_BECAME_TERMINAL
+                               else await _razlog_zatvaranja_v2(supa, predmet_id, key, _v2_odluke)}
             _zatvaranje.update({"event_type": event.type.value, "event_id": event.event_id, "zatvoreno_at": _now_iso})
             _dokaz_pre = existing.get("dokaz") if isinstance(existing.get("dokaz"), dict) else {}
             if isinstance(_dokaz_pre.get("zadrzano"), dict):

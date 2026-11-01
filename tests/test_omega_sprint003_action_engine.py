@@ -367,7 +367,10 @@ async def test_rule5_weak_evidence_is_informational_ojacati_dokaze():
 
 
 @pytest.mark.anyio
-async def test_rule3_contradictions_mapped_by_tezina_and_sourced():
+async def test_rule3_nepotvrdjene_kontradikcije_iz_analize_ne_prave_akcije():
+    """S02 / B7 (odluka osnivača A, 2026-10-31) — ranije `test_rule3_contradictions_mapped_by_tezina_and_sourced`.
+    Protivrečnost iz analize koja nije V2 sporna tačka ne može se potvrditi, pa NE nosi akciju „Razrešiti
+    kontradikciju“ (ranije: 3 akcije po težini). Ostala pravila istog predmeta rade kao pre."""
     from services.case_evolution import _compute_target_actions
     case_dna = {"kontradikcije": [
         {"opis": "Datum uviđaja se razlikuje", "lokacija_1": "DOK-01 str.2", "lokacija_2": "DOK-03 str.1", "tezina": "kriticna"},
@@ -379,15 +382,8 @@ async def test_rule3_contradictions_mapped_by_tezina_and_sourced():
     with patch("services.case_evolution._get_supa", return_value=supa):
         actions = await _compute_target_actions("pred-1")
 
-    kontradikcije = [a for a in actions if a["tip"] == "RAZRESITI_KONTRADIKCIJU"]
-    assert len(kontradikcije) == 3
-    by_prio = {a["razlog"]: a["prioritet"] for a in kontradikcije}
-    assert by_prio["Datum uviđaja se razlikuje"] == "critical"
-    assert by_prio["Iznos štete nije usklađen"] == "high"
-    assert by_prio["Manja nepodudarnost imena svedoka"] == "medium"
-    for a in kontradikcije:
-        assert a["dokaz"]["lokacija_1"] and a["dokaz"]["lokacija_2"]  # never ungrounded
-        assert a["izvor_dokumenti"]
+    assert [a for a in actions if a["tip"] == "RAZRESITI_KONTRADIKCIJU"] == []
+    assert any(a["tip"] == "PRIBAVITI_DOKAZ" for a in actions)          # predmet bez dokaza i dalje dobija svoje radnje
 
 
 @pytest.mark.anyio

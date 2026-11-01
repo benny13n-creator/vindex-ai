@@ -19,6 +19,15 @@ from tests.test_mir001_t03_kontinuitet import _sekcije
 from tests.test_osb002_solo_tok import A, _do_kraja_dogadjaja, _novi_predmet, _otpremi, _radnik, solo  # noqa: F401
 from routers.evidence import _klasifikuj_dokument as _PRAVI_KLASIFIKATOR   # pre fixture-a (koji ga zamenjuje)
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+
 UVOD = "Recenica uvoda broj {i}: tuzilac opisuje okolnosti ugovora i tok saradnje sa tuzenim."
 
 

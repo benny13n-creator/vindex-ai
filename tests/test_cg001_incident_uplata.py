@@ -188,7 +188,8 @@ def test_kontekst_tvrdnji_nosi_dokument():
 # ═══ TASK 2 — najnovije opažanje naspram sačuvane V2 veze ═══
 
 def _v2(clanovi=(A, B), tezina="manja", cid=KONTR, issue=ISSUE, label="Razlika u iznosu uplate", state="OPEN"):
-    return {"id": cid, "issue_id": issue, "issue_label": label, "issue_status": "DISCOVERED",
+    # S02 / B7: aktivna (akcija, kontinuitet) je samo sporna tačka koju je advokat potvrdio — CONFIRMED.
+    return {"id": cid, "issue_id": issue, "issue_label": label, "issue_status": "CONFIRMED", "issue_odluka_at": "2999-12-31T00:00:00+00:00",
             "relation_type": "cinjenica_cinjenica", "state": state, "state_reason": None, "tezina": tezina,
             "created_at": "2026-10-28T21:58:21Z", "updated_at": "2026-10-28T21:58:21Z",
             "clanovi": [{"dokaz_id": c, "uklonjen": False, "razlog_uklanjanja": None} for c in sorted(clanovi)],
@@ -387,7 +388,7 @@ class _Upit:
 
 def _supa_v2():
     tabele = {
-        "predmet_issues": [{"id": ISSUE, "predmet_id": P, "label": "Razlika u iznosu uplate", "status": "DISCOVERED"}],
+        "predmet_issues": [{"id": ISSUE, "predmet_id": P, "label": "Razlika u iznosu uplate", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],
         "predmet_contradictions": [{"id": KONTR, "issue_id": ISSUE, "relation_type": CC, "state": "OPEN", "tezina": "manja"}],
         "predmet_contradiction_claims": [{"contradiction_id": KONTR, "dokaz_id": x, "removed_at": None} for x in (A, B)],
         "predmet_dokazi": dokazi_v2(),

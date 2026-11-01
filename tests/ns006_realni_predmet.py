@@ -115,8 +115,9 @@ def tabele(danas: date | None = None) -> dict:
             {"id": "h3", "predmet_id": PA, "user_id": "uid-A", "verzija": 3, "genome_data": v3,
              "trigger_event": "case_evolution:" + DOGADJAJ_V4, "created_at": "2026-10-09T08:00:00+00:00"},
         ],
+        # S02 / B7: aktivna je samo sporna tačka koju je advokat potvrdio — CONFIRMED.
         "predmet_issues": [{"id": I1, "predmet_id": PA, "user_id": "uid-A", "label": "datum uručenja rešenja o otkazu",
-                            "status": "DISCOVERED"}],
+                            "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],
         "predmet_contradictions": [{"id": K1, "issue_id": I1, "relation_type": "cinjenica_cinjenica", "state": "OPEN",
                                     "tezina": "kriticna", "state_reason": None, "created_at": "2026-10-09T08:00:00+00:00",
                                     "updated_at": "2026-10-09T08:00:00+00:00"}],

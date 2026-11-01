@@ -197,12 +197,20 @@ def _claim_pending_events(baza, p):
     return out
 
 
+# S02 / B7 (odluka osnivača A): nova sporna tačka je kandidat (`DISCOVERED`) dok je advokat ne potvrdi. Testovi koji
+# proveravaju tok POTVRĐENE protivrečnosti (akcije, kontinuitet, povlačenje izvora) uključuju ovo — isto stanje upisuje
+# `routers/sporna_tacka.py` posle izričite potvrde; sama potvrda je dokazana u tests/test_s02_kontradikcije_potvrda.py.
+ADVOKAT_POTVRDJUJE = False
+
+
 def _v2_paket(baza, p):
     """Emulacija `v2_persist_observation_package` (migracije 124/125; pojedinačna stavka = 120/121
     `v2_persist_contradiction`). Pravila prepisana iz SQL-a: provera verzije opažanja (55000 za ustajalo),
     verzija+1, nova tema ili nastavak, OTVORENA kontradikcija po (tema, relacija) se ponovo koristi, aktivni
-    članovi se ne dupliraju, kompletno opažanje zatvara neopažene u NOT_OBSERVED. NIJE emulirano: grana
-    RESOLVED→REVIEW_REQUIRED (122) i `xmin` revalidacija — stvarni SQL je dokazan nad živom bazom (A016.8)."""
+    članovi se ne dupliraju, kompletno opažanje zatvara neopažene u NOT_OBSERVED, nova tema sa otiskom postojeće
+    (ne-MERGED) teme JE ta tema (120: ON CONFLICT po `initial_claim_fingerprint` — S02, dokazano u
+    tests/test_s02_odluka_postgres.py). NIJE emulirano: grana RESOLVED→REVIEW_REQUIRED (122) i `xmin` revalidacija —
+    stvarni SQL je dokazan nad živom bazom (A016.8)."""
     pid = p["p_predmet_id"]
     pred = next((r for r in baza.tabele.get("predmeti", []) if r["id"] == pid), None)
     if pred is None:
@@ -219,10 +227,17 @@ def _v2_paket(baza, p):
         if ref and str(ref).startswith("__nova__"):
             ref = mapa[ref]
         nova_tema = not ref
+        if nova_tema and st.get("fingerprint"):
+            ista = next((i for i in baza.tabele.get("predmet_issues", []) if i["predmet_id"] == pid
+                         and i.get("initial_claim_fingerprint") == st["fingerprint"] and i.get("status") != "MERGED"), None)
+            if ista is not None:
+                ref, nova_tema = ista["id"], False
         if nova_tema:
             ref = str(h5.uuid.uuid4())
             baza.tabele.setdefault("predmet_issues", []).append({"id": ref, "predmet_id": pid, "user_id": p["p_user_id"],
-                "label": st.get("label"), "status": "DISCOVERED", "created_at": sada, "updated_at": sada})
+                "label": st.get("label"), "status": "CONFIRMED" if ADVOKAT_POTVRDJUJE else "DISCOVERED",
+                "initial_claim_fingerprint": st.get("fingerprint"),
+                "created_at": sada, "updated_at": sada})
         kontr = next((k for k in baza.tabele.setdefault("predmet_contradictions", [])
                       if k["issue_id"] == ref and k["relation_type"] == st["relation_type"] and k["state"] == "OPEN"), None)
         if kontr is None:

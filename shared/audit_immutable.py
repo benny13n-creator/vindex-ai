@@ -90,6 +90,9 @@ AUDITABLE_ACTIONS: set[str] = {
     # N3 (2026-10-26) -- advokat odbacuje PREDLOG ročišta pročitan iz dokumenta
     # (`routers/rocista.py`); predlog bez ovog zapisa ostaje vidljiv kao predlog.
     "rociste_predlog_odbacen",
+    # S02 / B7 (odluka osnivača A, 2026-10-31) -- advokat potvrđuje ili odbacuje AI protivrečnost (spornu tačku).
+    # Tek potvrđena je aktivna i nosi akciju; zapis je istorija odluke (ruta je fail-closed bez njega).
+    "sporna_tacka_potvrdjena", "sporna_tacka_odbijena",
     # N5 -- promena statusa fakture (izdata / plaćena / stornirana): ko i kada je zabeležio naplatu.
     "faktura_status_promenjen",
     # Klijenti

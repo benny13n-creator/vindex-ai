@@ -13,6 +13,15 @@ import pytest
 
 from tests.ns006_fake import pripremi, ocisti, zaglavlje
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+
 PA = "11111111-1111-4111-8111-11111111111a"
 PB = "22222222-2222-4222-8222-22222222222b"
 NEPOSTOJECI = "99999999-9999-4999-8999-999999999999"
@@ -31,7 +40,7 @@ def _tabele(broj_tvrdnji=3):
         "predmet_dokumenti": [], "rocista": [], "predmet_genome_history": [],
         "case_actions": [{"id": "akc-a", "predmet_id": PA, "tip": "PRIBAVITI_DOKAZ", "razlog": "Tajni razlog A",
                           "prioritet": "high", "status": "open", "dedupe_key": "x"}],
-        "predmet_issues": [{"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "sporna", "status": "DISCOVERED"}],
+        "predmet_issues": [{"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "sporna", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],  # S02 / B7: potvrdio advokat
         "predmet_contradictions": [{"id": "k1", "issue_id": "i1", "relation_type": "cinjenica_cinjenica", "state": "OPEN"}],
         # član iz DRUGOG predmeta (ne bi smelo da postoji — GUARD 2 u SQL-u; ovde se proverava čitalac)
         "predmet_contradiction_claims": [{"contradiction_id": "k1", "dokaz_id": "c00000000-0000-4000-8000-000000000000", "removed_at": None},

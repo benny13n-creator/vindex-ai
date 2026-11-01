@@ -18,6 +18,9 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
+
+_S02_LEGACY_RULE3 = pytest.mark.skip(reason=(
+    'S02 / B7 (odluka osnivača A, 2026-10-31): legacy Rule 3 — akcija RAZRESITI_KONTRADIKCIJU iz case_dna.kontradikcije bez V2 sporne tačke — je uklonjen: nepotvrđena protivrečnost ne nosi akciju. Zamenu dokazuju tests/test_omega_sprint003_action_engine.py::test_rule3_nepotvrdjene_kontradikcije_iz_analize_ne_prave_akcije i tests/test_s02_kontradikcije_potvrda.py.'))
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from services.event_bus import Event, EventType  # noqa: F401 -- import order avoids a circular import (see services/event_bus.py::_register_defaults)
@@ -109,6 +112,7 @@ def _make_target_supa(case_dna=None, dokazi=None, dokumenti=None, rocista=None):
     return supa
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.anyio
 async def test_rule3_dedupe_key_stable_across_reworded_refresh():
     """The actual bug: 2 separate Genome refreshes, SAME underlying
@@ -137,6 +141,7 @@ async def test_rule3_dedupe_key_stable_across_reworded_refresh():
     assert key1 == key2
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.anyio
 async def test_rule3_dedupe_key_differs_for_a_genuinely_new_contradiction():
     from services.case_evolution import _compute_target_actions

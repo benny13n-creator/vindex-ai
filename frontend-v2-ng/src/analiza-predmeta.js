@@ -19,7 +19,8 @@
   };
   var RELACIJA = { cinjenica_cinjenica: "činjenica — činjenica", cinjenica_norma: "činjenica — pravna norma" };
   var TEZINA = { kriticna: "kritična", vazna: "važna", manja: "manja" };
-  var STANJE_K = { AKTIVNA: "aktivna", ZA_PREGLED: "traži vaš pregled", VISE_SE_NE_OPAZA: "više se ne opaža",
+  var STANJE_K = { AKTIVNA: "aktivna — potvrdio advokat", ZA_PREGLED: "traži vaš pregled", VISE_SE_NE_OPAZA: "više se ne opaža",
+    NEPOTVRDJENA: "nepotvrđena — predlog analize, čeka vašu odluku", ODBIJENA: "odbacili ste je — ostaje u istoriji",
     RAZRESENA: "razrešena", ZAMENJENA: "zamenjena", NEPOTVRDJENA_TVRDNJAMA: "navodi je analiza; nije vezana za tvrdnje" };
   var POTPORA = { LOCIRANA_U_DOKUMENTU: "pronađeno u dokumentu", DOKUMENT_BEZ_LOKACIJE: "vezano za dokument, mesto nije pronađeno",
     BEZ_POTPORE: "bez dokumenta" };
@@ -55,7 +56,8 @@
       "an-kontr-aktivne", "an-kontr-pregled", "an-kontr-zatvorene", "an-spremnost", "an-metrike"];
     function ocistiPrikaz() {
       KONTEJNERI.forEach(function (id) { $(id).replaceChildren(); });
-      ["an-promene-stanje", "an-genome-stanje", "an-dokazi-stanje", "an-kontr-stanje", "an-spremnost-stanje", "an-skraceno"].forEach(function (id) { stanje(id, null); });
+      ["an-promene-stanje", "an-genome-stanje", "an-dokazi-stanje", "an-kontr-stanje", "an-kontr-poruka", "an-spremnost-stanje", "an-skraceno"].forEach(function (id) { stanje(id, null); });
+      $("an-kontr-pregled-naslov").hidden = true;
       $("an-analiticke-blok").hidden = true; $("an-zatvorene-blok").hidden = true; $("an-metrike-blok").hidden = true;
       $("an-sadrzaj").hidden = true;
     }
@@ -117,6 +119,58 @@
       if (sek.stanje === "INVALID") { stanje(id, "nepoznato", "Deo analize nije u ispravnom obliku i nije prikazan."); return true; }
       if (sek.stanje === "EMPTY" && prazno) { stanje(id, "prazno", prazno); return true; }
       return false;
+    }
+
+    /* S02 / B7 (odluka osnivača A): protivrečnost iz analize je predlog. Aktivna je i nosi radnju tek kad je advokat
+     * potvrdi; odbačena ostaje u istoriji. Server odlučuje (POST …/sporne-tacke/{id}/potvrdi|odbij, 409 ako se stanje
+     * promenilo); prikaz se uvek ponovo čita sa servera — ishod se ne tvrdi po kliknutom dugmetu. */
+    function odlukaKontradikcije(x) {
+      /* Dugmad prema odluci koja VAŽI (server: `odluka.vazi`): čeka odluku → Potvrdi / Odbaci; potvrđena → Odbaci
+       * (promena odluke); odbačena → Ipak potvrdi. Odbacivanje je dvostepeno (prvi klik traži potvrdu). Šalje se stanje
+       * koje je advokat VIDEO — ako se u međuvremenu promenilo, server odbija (409) i ništa se ne beleži. */
+      var vazi = x.odluka.vazi, div = el("div", "an-odluka"), dugmad = [];
+      var st = el("p", "an-item__meta"); st.hidden = true; st.setAttribute("role", "status");
+      var moja = gen, predmetId = trenutni && trenutni.id, korisnik = sesija.stanje().korisnik;
+      function dugme(radnja, tekst, cls) {
+        var b = el("button", cls, tekst); b.type = "button"; b.dataset.radnja = radnja; dugmad.push(b); return b;
+      }
+      async function odluci(radnja) {
+        if (moja !== gen || !predmetId) return;
+        var s = sesija.stanje();
+        if (s.stanje !== sesija.STANJA.PRIJAVLJEN || s.korisnik !== korisnik) { st.hidden = false; st.textContent = "Niste prijavljeni. Ništa nije zabeleženo."; return; }
+        dugmad.forEach(function (b) { b.disabled = true; }); st.hidden = false; st.textContent = "Beleži se…";
+        var r = await api.send("/api/predmeti/" + encodeURIComponent(predmetId) + "/sporne-tacke/" + encodeURIComponent(x.odluka.issue_id) + "/" + radnja,
+          { telo: { ocekivano: { status: x.odluka.status || null, odluka_at: x.odluka.odluka_at || null, sadrzaj: x.odluka.sadrzaj || null } }, token: sesija.token(),
+            oblik: function (y) { return y && typeof y.status === "string"; } });
+        if (moja !== gen) return;
+        var g = r.greska || {}, poruka;
+        if (r.ok) poruka = radnja === "potvrdi" ? "Potvrdili ste protivrečnost „" + (x.sporna_tacka || "") + "“. Odluka je zabeležena."
+          : "Odbacili ste „" + (x.sporna_tacka || "") + "“. Odluka je zabeležena; protivrečnost ostaje u istoriji i može se ponovo potvrditi.";
+        else if (g.kod === "CONFLICT") poruka = "Stanje ove sporne tačke se u međuvremenu promenilo. Ništa nije zabeleženo; prikaz je ponovo učitan.";
+        else if (g.ishodNepoznat) poruka = "Ishod odluke nije poznat (veza je prekinuta). Prikaz je ponovo učitan — proverite stanje pre ponovnog pokušaja.";
+        else {
+          dugmad.forEach(function (b) { b.disabled = false; });
+          st.textContent = g.kod === "NOT_FOUND" ? "Sporna tačka nije dostupna. Ništa nije zabeleženo."
+            : g.kod === "AUTH_REQUIRED" ? "Prijava više nije važeća. Ništa nije zabeleženo."
+            : g.kod === "RATE_LIMITED" ? "Previše zahteva. Pokušajte malo kasnije. Ništa nije zabeleženo."
+            : "Server je odbio zahtev. Ništa nije zabeleženo.";
+          return;
+        }
+        await ucitaj();
+        if (moja + 1 === gen) { stanje("an-kontr-poruka", r.ok ? "uspeh" : "nepoznato", poruka); $("an-kontr-poruka").focus(); }
+      }
+      if (vazi !== "POTVRDJENA") dugme("potvrdi", vazi === "ODBIJENA" ? "Ipak potvrdi protivrečnost" : "Potvrdi protivrečnost", "btn")
+        .addEventListener("click", function () { odluci("potvrdi"); });
+      if (vazi !== "ODBIJENA") {
+        var ne = dugme("odbij", vazi === "POTVRDJENA" ? "Odbaci (promeni odluku)" : "Odbaci predlog", "text-btn"), naoruzano = false;
+        ne.addEventListener("click", function () {
+          if (!naoruzano) { naoruzano = true; ne.textContent = "Potvrdite odbacivanje"; ne.dataset.radnja = "odbij-potvrda"; return; }
+          odluci("odbij");
+        });
+      }
+      dugmad.forEach(function (b) { div.append(b); });
+      div.append(st);
+      return div;
     }
 
     function prikazi(g, pr, prGreska) {
@@ -227,13 +281,14 @@
           x.kontinuitet === "NIJE_POTVRDJEN" ? "kontinuitet nije potvrđen" : x.kontinuitet === "NEPOZNAT" ? "kontinuitet nije proveren" : ""].filter(Boolean).join(" · ");
         var dodaci = [meta(info)];
         if (x.opis) dodaci.push(meta(x.opis));
-        if (x.kontinuitet && x.napomena) dodaci.push(meta(x.napomena));   // CG001: sačuvana veza vs najnovija analiza
+        if (x.napomena) dodaci.push(meta(x.napomena));   // CG001: kontinuitet; S02: nov sadržaj posle odluke; analiza bez tvrdnji
         var ul = el("ul", "an-sub");
         niz(x.ucesnici).forEach(function (u) {
           ul.append(stavkaListe(u.tvrdnja || "Tvrdnja nije dostupna", u.poreklo, [dugmeIzvora(u.dokument_id, dokNaziv[u.dokument_id], u.lokacija)]));
         });
         if (ul.childNodes.length) dodaci.push(ul);
         if (niz(x.bez_izvora).length) dodaci.push(meta("Bez dokumenta: " + x.bez_izvora.length + " učesnik(a) — izvor nije poznat i ne pogađa se."));
+        if (x.odluka && x.odluka.issue_id) dodaci.push(odlukaKontradikcije(x));
         var li = stavkaListe(x.sporna_tacka || "Sporna tačka", x.poreklo, dodaci);
         li.dataset.kontradikcija = x.id; li.dataset.stanje = x.stanje;
         return li;
@@ -242,6 +297,7 @@
         if (!niz(k.aktivne).length) stanje("an-kontr-stanje", "prazno", "Nema aktivnih protivrečnosti.");
         niz(k.aktivne).forEach(function (x) { $("an-kontr-aktivne").append(kontr(x)); });
         niz(k.za_pregled).forEach(function (x) { $("an-kontr-pregled").append(kontr(x)); });
+        $("an-kontr-pregled-naslov").hidden = !niz(k.za_pregled).length;
         if (niz(k.zatvorene).length) { $("an-zatvorene-blok").hidden = false; k.zatvorene.forEach(function (x) { $("an-kontr-zatvorene").append(kontr(x)); }); }
       }
 

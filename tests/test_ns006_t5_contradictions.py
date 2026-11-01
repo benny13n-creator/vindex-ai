@@ -16,6 +16,15 @@ from shared.contradiction_materializer import materializuj
 from shared.issue_v2 import ODLUKA_NASTAVAK, ODLUKA_NOVA, razresi_kontinuitet, razresi_paket
 from tests.ns006_fake import pripremi, ocisti, zaglavlje
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+
 PA = "11111111-1111-4111-8111-11111111111a"
 D1, D2 = "d1000000-0000-4000-8000-000000000001", "d2000000-0000-4000-8000-000000000002"
 C = {i: f"c{i}000000-0000-4000-8000-00000000000{i}" for i in range(1, 6)}
@@ -90,8 +99,9 @@ def _tabele(kontradikcije, clanovi, case_dna=None):
         "predmet_dokumenti": [{"id": D1, "predmet_id": PA, "user_id": "uid-A", "naziv_fajla": "resenje.pdf", "redni_broj": 1},
                               {"id": D2, "predmet_id": PA, "user_id": "uid-A", "naziv_fajla": "dostavnica.pdf", "redni_broj": 2}],
         "predmet_dokazi": _dokazi(), "predmet_genome_history": [],
-        "predmet_issues": [{"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "datum uručenja", "status": "DISCOVERED"},
-                           {"id": "i2", "predmet_id": PA, "user_id": "uid-A", "label": "iznos duga", "status": "DISCOVERED"}],
+        # S02 / B7: aktivna je samo sporna tačka koju je advokat potvrdio — CONFIRMED.
+        "predmet_issues": [{"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "datum uručenja", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"},
+                           {"id": "i2", "predmet_id": PA, "user_id": "uid-A", "label": "iznos duga", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],
         "predmet_contradictions": kontradikcije, "predmet_contradiction_claims": clanovi,
     }
 
@@ -152,12 +162,13 @@ def test_samo_analiza_prikazana_kao_nepotvrdjena_bez_pogadjanja(ruta):
         {"issue_label": "potpis", "opis": "Potpis se razlikuje.", "relation_type": "cinjenica_cinjenica",
          "lokacija_1": "DOK-01", "dokument_id_1": D2, "lokacija_2": "", "dokument_id_2": "dddddddd-0000-4000-8000-0000000000ff"}]}
     k, _ = ruta(_tabele([], [], case_dna=g))
-    assert k["izvor"] == "analiza" and len(k["aktivne"]) == 3, "dve sporne tačke nad istim parom ostaju dve (+ treća)"
-    potpis = next(x for x in k["aktivne"] if x["sporna_tacka"] == "potpis")
+    # S02 / B7: protivrečnost iz analize nevezana za tvrdnje se ne može potvrditi — samo „traži pregled“, nikad aktivna.
+    assert k["izvor"] == "analiza" and k["aktivne"] == [] and len(k["za_pregled"]) == 3, "dve sporne tačke nad istim parom ostaju dve (+ treća)"
+    potpis = next(x for x in k["za_pregled"] if x["sporna_tacka"] == "potpis")
     assert potpis["lokacije"][0]["dokument_id"] is None and potpis["lokacije"][0]["neslaganje"] is True
     assert potpis["lokacije"][1]["dokument_id"] is None, "tuđ upisani dokument se ne prihvata"
     assert potpis["dokumenti"] == []
-    a = {x["sporna_tacka"]: x for x in k["aktivne"]}
+    a = {x["sporna_tacka"]: x for x in k["za_pregled"]}
     datum = a["datum uručenja"]
     assert datum["stanje"] == "NEPOTVRDJENA_TVRDNJAMA" and datum["ucesnici"] == [] and datum["reference_proverene"] is False
     assert datum["lokacije"][0]["dokument_id"] == D1 and datum["lokacije"][1]["dokument_id"] is None, "DOK-09 ne postoji"

@@ -485,6 +485,85 @@ def status_kontinuiteta(v2_otvorene: Iterable[dict], case_dna: Any, observation_
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# 3b. ODLUKA ADVOKATA (S02 / B7, odluka osnivača A, 2026-10-31)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Protivrečnost koju predlaže analiza je KANDIDAT. Aktivna je (i nosi akciju) samo ako je advokat potvrdio spornu
+# tačku; odbijena je istorija. Odluka važi za SADRŽAJ koji je postojao kad je doneta (`predmet_issues.updated_at`,
+# koji piše samo ruta odluke — RPC opažanja status teme ne menja): kontradikcija ili tvrdnja nastala POSLE odluke
+# (nova relacija, član dodat nastavkom) traži novu odluku — potvrda se ne nasleđuje na sadržaj koji advokat nije video,
+# niti odbijanje skriva novu protivrečnost. Ulaz je red iz `services/v2_projection` (polja `issue_status`,
+# `issue_close_reason`, `issue_odluka_at`, `created_at`, `clanovi_od` = vremena opažanja aktivnih članova).
+ODLUKA_POTVRDJENA = "POTVRDJENA"
+ODLUKA_ODBIJENA = "ODBIJENA"
+ODLUKA_CEKA = "CEKA_ODLUKU"
+
+
+def _vreme(v: Any):
+    from datetime import datetime, timezone
+    import re
+    m = re.match(r"\d{4}-\d{2}-\d{2}[T ][\d:.]+(?:Z|[+-]\d{2}:?\d{2})?", str(v or ""))
+    if not m:
+        return None
+    try:
+        t = datetime.fromisoformat(m.group(0).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def novo_posle_odluke(k: dict) -> bool:
+    """Da li kontradikcija ili neki njen aktivan član postoji tek POSLE odluke advokata o spornoj tački."""
+    odluka = _vreme(k.get("issue_odluka_at"))
+    if odluka is None:
+        return True
+    vremena = [_vreme(k.get("created_at"))] + [_vreme(t) for t in (k.get("clanovi_od") or [])]
+    return any(t is not None and t > odluka for t in vremena)
+
+
+def efektivna_odluka(k: dict) -> str:
+    """POTVRDJENA / ODBIJENA / CEKA_ODLUKU za jednu V2 kontradikciju (vidi zaglavlje odeljka)."""
+    status = k.get("issue_status")
+    if status not in (STATUS_POTVRDJENA, STATUS_RAZRESENA) or novo_posle_odluke(k):
+        return ODLUKA_CEKA
+    return ODLUKA_POTVRDJENA if status == STATUS_POTVRDJENA else ODLUKA_ODBIJENA
+
+
+def verzija_sadrzaja(kontradikcije: Iterable[dict]) -> str:
+    """Otisak sadržaja sporne tačke koji advokat VIDI (otvorene / za pregled kontradikcije: id, relacija, aktivni članovi).
+    Klijent ga šalje uz odluku; ruta ga ponovo računa pre i posle upisa — ako je opažanje u međuvremenu dodalo tvrdnju
+    ili relaciju, odluka se ne beleži (409). Nije identitet ničega; samo poređenje „isto što sam video“."""
+    redovi = sorted(f"{k.get('id')}|{k.get('relation_type')}|{','.join(sorted(str(c) for c in (k.get('claim_ids') or [])))}"
+                    for k in (kontradikcije or []))
+    return hashlib.sha256("\n".join(redovi).encode("utf-8")).hexdigest()[:24]
+
+
+ODLUKA_NEPOZNATA = "NEPOZNATA"
+
+
+def oznaci_kontradikcije_analize(sirove: Any, v2: Optional[list]) -> list[dict]:
+    """`case_dna.kontradikcije` za AI potrošače (sažeci, predikcije, priprema): odbijena protivrečnost se IZOSTAVLJA,
+    svaka druga nosi `_odluka_advokata` (POTVRDJENA / CEKA_ODLUKU / NEPOZNATA). Veza sa V2 je SAMO tačan skup trajnih
+    tvrdnji (`claim_ids`); stavka bez skupa ili bez istog skupa u V2 je nepotvrđena (bezbedna strana). `v2 is None`
+    (V2 nije pročitan) → stanje odluke je NEPOZNATA, ništa se ne izostavlja niti tvrdi da je potvrđeno."""
+    stavke = [k for k in (sirove or []) if isinstance(k, dict)] if isinstance(sirove, list) else []
+    if v2 is None:
+        return [{**k, "_odluka_advokata": ODLUKA_NEPOZNATA} for k in stavke]
+    po_skupu: dict = {}
+    for k in v2:
+        skup = frozenset(str(c) for c in (k.get("claim_ids") or []))
+        if len(skup) >= MIN_TVRDNJI:
+            po_skupu.setdefault(skup, set()).add(efektivna_odluka(k))
+    out = []
+    for k in stavke:
+        odluke = po_skupu.get(frozenset(str(c) for c in (k.get("claim_ids") or [])), set())
+        if ODLUKA_ODBIJENA in odluke and not odluke - {ODLUKA_ODBIJENA}:
+            continue
+        out.append({**k, "_odluka_advokata": ODLUKA_POTVRDJENA if odluke == {ODLUKA_POTVRDJENA} else ODLUKA_CEKA})
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 4. PROMENA ČLANSTVA — šta je izostalo, a šta je razrešeno
 # ═══════════════════════════════════════════════════════════════════════════
 

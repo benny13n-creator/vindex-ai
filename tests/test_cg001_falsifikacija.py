@@ -20,12 +20,22 @@ from tests.test_cg001_incident_uplata import A, B, C, D, D1, D2, KONTR, P, dokaz
 from tests import test_cg001_lanac as L
 from tests.test_cg001_lanac import lanac  # noqa: F401 — fixture
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+
 E, F = "e0000000-0000-4000-8000-0000000000e1", "f0000000-0000-4000-8000-0000000000f1"
 CC = "cinjenica_cinjenica"
 
 
 def _k(cid, iid, *claims, rel=CC, state="OPEN"):
-    return {"id": cid, "issue_id": iid, "issue_status": "DISCOVERED", "state": state, "relation_type": rel,
+    # S02 / B7: aktivna (akcija, kontinuitet) je samo sporna tačka koju je advokat potvrdio — CONFIRMED.
+    return {"id": cid, "issue_id": iid, "issue_status": "CONFIRMED", "issue_odluka_at": "2999-12-31T00:00:00+00:00", "state": state, "relation_type": rel,
             "claim_ids": list(claims)}
 
 
@@ -252,7 +262,7 @@ def test_12_korisnik_B_ne_cita_niti_utice_na_odluku(lanac):
     k, baza = L._zateceno(otvori, g)
     # tuđa sporna tačka zakačena za isti predmet (odbrana u dubinu iza GUARD-a RPC-a), preklapa opažanje
     baza.tabele["predmet_issues"].append({"id": "i-tudja", "predmet_id": P, "user_id": "uid-B", "label": "x",
-                                          "status": "DISCOVERED"})
+                                          "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"})
     baza.tabele["predmet_contradictions"].append({"id": "k-tudja", "issue_id": "i-tudja", "relation_type": CC,
                                                   "state": "OPEN", "tezina": "kriticna"})
     baza.tabele["predmet_contradiction_claims"] += [{"id": f"t-{x[:3]}", "contradiction_id": "k-tudja", "dokaz_id": x,

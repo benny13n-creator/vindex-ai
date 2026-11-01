@@ -12,6 +12,15 @@ from tests.test_cg001_incident_uplata import A, B, C, D, KONTR, P, dokazi_v2
 from tests import test_cg001_lanac as L
 from tests.test_cg001_lanac import lanac  # noqa: F401 — fixture
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+
 PAT_NIJE_POTVRDJEN = "kontinuitet nije potvrđen"
 PAT_NIJE_PROVEREN = "kontinuitet nije proveren"
 
@@ -167,7 +176,8 @@ def test_D_tudja_sporna_tacka_istog_predmeta_ne_ulazi_u_reconcile(lanac):
     g[KLJUC_VERZIJE_OPAZANJA] = 1
     k, baza = L._zateceno(otvori, g)
     baza.tabele["predmet_issues"].append({"id": "i-tudja", "predmet_id": P, "user_id": "uid-B", "label": "x",
-                                          "status": "DISCOVERED"})
+                                          # S02 / B7: aktivna (akcija, kontinuitet) je samo sporna tačka koju je advokat potvrdio — CONFIRMED.
+                                          "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"})
     baza.tabele["predmet_contradictions"].append({"id": "k-tudja", "issue_id": "i-tudja", "relation_type": "cinjenica_cinjenica",
                                                   "state": "OPEN", "tezina": "kriticna"})
     baza.tabele["predmet_contradiction_claims"] += [{"id": f"t-{x[:3]}", "contradiction_id": "k-tudja", "dokaz_id": x,

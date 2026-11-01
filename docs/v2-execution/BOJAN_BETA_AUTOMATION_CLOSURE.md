@@ -214,3 +214,74 @@ Postojeći ugovor ima reprezentaciju neodređenosti (`ZA_PREGLED` u prikazu; `DI
 - Produkcioni `predmet_issues` / `predmet_contradictions` redovi nisu dirani.
 - Sprint je zaustavljen po ugovoru („na prvom neotklonjenom blocker-u zaustavi ceo sprint“).
 - S03–S11 nisu započeti.
+
+### S02 nastavak — odluka osnivača: OPCIJA A (2026-10-31/11-01) — `PROVEN_CLOSED`
+
+**Odluka (citat suštine):** AI protivrečnost je kandidat za pregled advokata, ne potvrđena protivrečnost; aktivna i izvršiva je tek posle izričite potvrde ovlašćenog advokata; odbijeni kandidat izlazi iz aktivnih tokova uz istoriju i audit. Bez leksičkih pravila, bez AI sudije, bez automatske potvrde.
+
+**Postojeća infrastruktura koja je to već podržavala (PROVEN čitanjem SQL-a i PG testom):** `predmet_issues.status` DISCOVERED („provizorna“) / CONFIRMED („tek tada sme nositi akcije“) / RESOLVED + `close_reason = WITHDRAWN` (migracija 119); RPC opažanja (120–125) status teme nikad ne menja i ponovo opaženu temu nalazi po otisku početnog skupa tvrdnji. Bez migracije, bez nove tabele.
+
+**Implementacija (najmanji ceo tok):**
+- `routers/sporna_tacka.py` (nova ruta): `POST /api/predmeti/{pid}/sporne-tacke/{iid}/potvrdi|odbij`. Pravila:
+  - vlasnik predmeta i teme (`user_id`); 404 za tuđe i neispravan UUID;
+  - obavezno `ocekivano` {status, odluka_at, sadrzaj} = ono što je advokat VIDEO → inače 409;
+  - uslovni upis (status + `updated_at`); vreme odluke = vreme baze (`'now'`);
+  - provera verzije sadržaja pre i POSLE upisa (opažanje drži zaključan red teme), pa vraćanje i 409;
+  - obavezan audit (`sporna_tacka_potvrdjena` / `_odbijena`, sa prethodnim stanjem i verzijom sadržaja); bez audita se odluka vraća i odgovor je 503;
+  - odluka se može promeniti u oba smera, svaki put uz audit; ponovljen klik ne piše ništa;
+  - događaj `ManualCorrectionApplied` usklađuje akcije.
+- `shared/issue_v2.py`:
+  - `efektivna_odluka` / `novo_posle_odluke`: odluka važi samo za sadržaj koji je postojao kad je doneta; nova tvrdnja ili relacija → ponovo „čeka odluku“;
+  - `verzija_sadrzaja`;
+  - `oznaci_kontradikcije_analize`: za AI potrošače izostavlja odbijene i označava ostale.
+- `services/v2_projection.py`: akcija „Razrešiti kontradikciju“ samo za efektivno potvrđene; čitači nose vreme odluke i vremena opažanja; `kontradikcije_analize_za_ai`.
+- `services/v2_contradiction_persistence.py`: nova tema čiji otisak već postoji šalje se sa tom temom i njenim `xmin`. Opažanje pročitano pre odluke tada pada (55000), umesto da tiho doda sadržaj pod odluku. Ishod identiteta je isti kao RPC-ov sopstveni put po otisku (potvrdio pregled).
+- `shared/genome_contract.py`:
+  - stanja NEPOTVRDJENA (za pregled, sa dugmadima), AKTIVNA (samo potvrđena), ODBIJENA (istorija, „Ipak potvrdi“);
+  - protivrečnosti iz analize samo kad predmet nema nijednu V2 temu (ne vraćaju se odbijene);
+  - verzija sadržaja u `odluka.sadrzaj`;
+  - kontekst pitanja razlikuje potvrđenu, nepotvrđenu i odbijenu.
+- `services/case_evolution.py`:
+  - legacy Rule 3 (akcija iz analize bez V2) uklonjen — nepotvrđeno ne nosi akciju;
+  - istinit razlog zatvaranja V2 radnje (`PROTIVRECNOST_ODBIJENA` / `PROTIVRECNOST_NIJE_POTVRDJENA`; završen predmet zadržava opšti razlog).
+- AI potrošači:
+  - `shared/case_context` → gap_engine (sudska prognoza, priprema ročišta, CIO, copilot): oznaka „[nepotvrđena …]“, odbijene izostavljene;
+  - `routers/case_intelligence` (čita iz konteksta), `strategy_simulator`, `copilot` (slabosti, upozorenja) i `multi_agent` (sporne tačke + Genome blok, potvrđene prve);
+  - graf dokaza: samo potvrđene.
+- V2 UI (`analiza-predmeta.js`, `index.html`):
+  - naslov „Predlozi analize — nisu potvrđeni, čekaju vašu odluku“;
+  - Potvrdi / dvostepeno Odbaci / „Ipak potvrdi“;
+  - šalje viđeno stanje i sadržaj;
+  - poruka tvrdi samo zabeleženu odluku; fokus i živi region.
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s02_kontradikcije_potvrda.py` (stvarne rute nad bazom u memoriji) | 19 testova. Pokriva: kandidati sa izvorima i bez akcije; potvrda, odbijanje i istorija; osvežavanje bez duplikata; promena odluke uz audit; zastareo prozor; tenant B i neprijavljen; audit pad; kontekst pitanja; analiza bez tvrdnji; H1, H2 i M1; razlog zatvaranja; UUID; R2-H1 (pre i tokom upisa); R3-M2 |
+| `tests/test_s02_odluka_postgres.py` (PostgreSQL 17.9, migracije 119–125) | 5/5. Pokriva: odbijena se ne vraća, potvrđena opstaje; trka dve odluke (tačno jedna); opažanje pre odluke odbijeno; odluka ne važi za kasniji sadržaj; paket pre „Ipak potvrdi“ (55000) |
+| Browser `live-s02-protivrecnost-e2e.mjs` (pravi api.app, 390 px) | 21/21. Pokriva: kandidati; potvrda u UI-ju; radnja samo za potvrđenu; B 404; API bez viđenog stanja 409; dvostepeno odbijanje; „Ipak potvrdi“; osvežavanje; zastareo prozor; 0 spoljnih veza i 0 grešaka |
+| Browser regresija | `live-analiza` 46/46, `live-cg001-kontinuitet` 50/50, `live-pitanje` 45/45, `live-pripremljeno` 54/54, `live-solo-tok-e2e` 23/23, `live-matter` 56/56, `live-zlatni-prijem-e2e` 48/48. Jedan od tri prolaza `live-analiza` i `live-zlatni-prijem` imao je padove tajminga pod opterećenjem; ponovljeno 2× potpuno zeleno |
+| Ciljana regresija (svi testovi protivrečnosti, akcija, Genome-a i konteksta, uz PG) | 6697 passed / 7 failed. Svih 7 su poznati padovi okruženja iz osnovice |
+| Mutacije (binarno) | prva grana 9/9; konačna 20/20 (B1–B20) |
+| Puna svita | **9 failed / 12.886 passed** — isti ID-jevi kao osnovica `a45b34ba` |
+| Nezavisni pregled (4 kruga) | 2 HIGH + 4 MEDIUM → 1 HIGH + 2 MEDIUM → 2 MEDIUM → **bez HIGH/MEDIUM; „S02 acceptance (Option A) is met“** |
+
+**Izmenjeni postojeći testovi (promena ugovora, opisano u svakom):**
+- tokovi POTVRĐENIH protivrečnosti dobijaju potvrdu advokata: prekidač `ns006_fake.ADVOKAT_POTVRDJUJE` i `CONFIRMED` + vreme odluke u fiksturama — MIR001, NS006, NS007, CG001, A015;
+- prikaz analize bez tvrdnji: „za pregled“ umesto „aktivne“;
+- `test_omega_sprint003…rule3` pretvoren u dokaz da nepotvrđene ne prave akciju;
+- 19 testova detalja uklonjene legacy Rule 3 putanje preskočeno uz razlog: A003 ×14 (jedan bi prolazio nad praznom listom), omega004 ×2, sigma002 ×2, singlebrain ×2;
+- `ns006_fake` emulira pronalaženje teme po otisku (kao migracija 120, dokazano PG testom).
+
+**Produkcija (samo čitanje, ništa nije menjano):**
+- stanje: 10 spornih tačaka, sve DISCOVERED (potvrda do sada nije bila moguća); 5 otvorenih V2 protivrečnosti; **5 otvorenih V2 radnji „Razrešiti kontradikciju“ u 4 predmeta**;
+- posle puštanja: protivrečnosti postaju kandidati za odluku; tih 5 radnji zatvara se pri prvom sledećem događaju svog predmeta, sa razlogom `PROTIVRECNOST_NIJE_POTVRDJENA`;
+- produkcioni par „takse“ biće kandidat, ne aktivna protivrečnost.
+
+**Preostali rizici (LOW):**
+- odluka nad temom bez otvorenih kontradikcija moguća je samo kroz API (konstantna verzija sadržaja);
+- `law_brain` broji DISCOVERED u sličnosti profila (označeno kao AI rad);
+- zaštita od trke u jednom procesu važi kao i ranije;
+- ručno osvežavanje Genome-a ne usklađuje akcije samo po sebi — to radi sledeći događaj (postojeće ponašanje).
+
+**Nacrt `bojan/s02-b7-istovetnost-nacrt` (`affae433`)** ostaje kao istorija; nije deo rešenja.

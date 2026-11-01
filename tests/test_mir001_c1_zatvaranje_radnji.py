@@ -12,10 +12,20 @@ beleži (`zadrzane_actions`); (4) ponavljanje istog događaja ništa ne menja; (
 import asyncio
 import copy
 
+import pytest
+
 from tests import mir001_golden_case as gc
 from tests.test_mir001_t07_dogadjaj_posledica import (ROK, _dodaj, _obrisi, _otvorene, _rok_akcije, spis,  # noqa: F401
                                                      treba_ocr)
 from tests.test_osb002_solo_tok import A, B, _do_kraja_dogadjaja, solo  # noqa: F401
+
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): ovaj fajl proverava zatvaranje radnji POTVRĐENIH protivrečnosti — advokat je
+    potvrdio sporne tačke. Sama odluka je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
 
 
 def _audit(b, od=0):

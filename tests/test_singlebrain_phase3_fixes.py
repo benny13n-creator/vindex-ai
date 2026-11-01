@@ -8,6 +8,9 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
+
+_S02_LEGACY_RULE3 = pytest.mark.skip(reason=(
+    'S02 / B7 (odluka osnivača A, 2026-10-31): legacy Rule 3 — akcija RAZRESITI_KONTRADIKCIJU iz case_dna.kontradikcije bez V2 sporne tačke — je uklonjen: nepotvrđena protivrečnost ne nosi akciju. Zamenu dokazuju tests/test_omega_sprint003_action_engine.py::test_rule3_nepotvrdjene_kontradikcije_iz_analize_ne_prave_akcije i tests/test_s02_kontradikcije_potvrda.py.'))
 from unittest.mock import MagicMock, patch
 
 
@@ -364,6 +367,7 @@ def test_normalize_tezina_never_raises_on_non_string_input():
         assert normalize_tezina(hostile) == "kriticna"
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.anyio
 async def test_case_evolution_rule3_unrecognized_tezina_does_not_silently_downgrade():
     """Before this fix: an out-of-enum tezina fell through case_evolution.py's own

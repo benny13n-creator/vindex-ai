@@ -21,6 +21,15 @@ from services import autonomy as au
 from services.agent_tasks import hearing_prep as hp
 from tests import ns006_realni_predmet as rp
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+
 DANAS = date(2026, 10, 10)
 DOZVOLJENI_UPISI = {"autonomy_work_items", "autonomy_cycles", "usage_events", "audit_immutable", "ai_provenance",
                     "ai_call_log"}

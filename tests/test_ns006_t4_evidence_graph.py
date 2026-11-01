@@ -69,7 +69,8 @@ def _napuni(k, baza):
     lociran = _jedan("Radni odnos")
     nelociran = _jedan("Poslodavac je")
     # V2 kontradikcija kakvu ostavlja RPC 120/121 (issue + contradiction + 2 člana)
-    baza.tabele["predmet_issues"].append({"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "uručenje rešenja", "status": "DISCOVERED"})
+    baza.tabele["predmet_issues"].append({"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "uručenje rešenja", "status": "CONFIRMED",
+                                           "updated_at": "2999-12-31T00:00:00+00:00"})   # S02 / B7: potvrdio advokat
     baza.tabele["predmet_contradictions"].append({"id": "k1", "issue_id": "i1", "relation_type": "cinjenica_cinjenica", "state": "OPEN", "tezina": "vazna"})
     for c in (covek, lociran):
         baza.tabele["predmet_contradiction_claims"].append({"contradiction_id": "k1", "dokaz_id": c["id"], "removed_at": None})

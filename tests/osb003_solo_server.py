@@ -104,6 +104,30 @@ if os.environ.get("VX_GENOME_IZVORI") == "1":
         g["rokovi_kriticni"] = [{"naziv": "Rok za žalbu", "datum": _rok, "opis": "Žalba na rešenje", "status": "aktivan", "lokacija": "DOK-01 str.1"}]
         return json.dumps(g, ensure_ascii=False)
     mp.setattr(_CD, "_pozovi_genome_api", _genome_izvori)
+# S02 / B7 (samo uz VX_KONTRADIKCIJE=1): Genome predlaže dve protivrečnosti nad STVARNIM tvrdnjama iz prompta
+# (CLAIM-NNN, DOK-NN) — lažnu (dva roka za različite takse) i stvarnu (dva datuma uručenja) — da browser test proveri
+# odluku advokata (kandidat → potvrda / odbijanje). Ostali e2e ostaju nepromenjeni.
+if os.environ.get("VX_KONTRADIKCIJE") == "1":
+    import copy as _copy2, re as _re2  # noqa: E402
+    import routers.case_dna as _CD2  # noqa: E402
+    from tests import ns006_realni_predmet as _RP2  # noqa: E402
+    _S02_PAROVI = [("Razlika u rokovima za uplatu takse", "Rok za uplatu sudske takse", "Rok za uplatu dodatne sudske takse"),
+                   ("Datum urucenja resenja", "uruceno tuziocu 17.03", "urucena primaocu 25.03")]
+
+    async def _genome_s02(client, combined, n):
+        g = _copy2.deepcopy(_RP2._genome(0, False, 0, 0))
+        for _p in ("verzija", "_analiza_osnov", "_genome_docs_count", "_genome_docs_preskoceno", "_dokumenti_bez_teksta", "_verifikacija"):
+            g.pop(_p, None)
+        g["datumi_kljucni"], g["rokovi_kriticni"], g["kontradikcije"] = [], [], []
+        claim = dict(_re2.findall(r"(CLAIM-\d+): ([^\n]+)", combined))
+        for labela, a, b in _S02_PAROVI:
+            ca = [c for c, t in claim.items() if a in t and "dodatne" not in t] if "dodatne" in b else [c for c, t in claim.items() if a in t]
+            cb = [c for c, t in claim.items() if b in t]
+            if ca and cb:
+                g["kontradikcije"].append({"issue_label": labela, "claim_refs": [ca[0], cb[0]], "relation_type": "cinjenica_cinjenica",
+                                           "opis": f"{a} / {b}", "tezina": "vazna"})
+        return json.dumps(g, ensure_ascii=False)
+    mp.setattr(_CD2, "_pozovi_genome_api", _genome_s02)
 # VCR002 T07 (samo uz VX_AGENTI=1): savetnici — zamenjen je SAMO poziv modela (/run i niz: `_pozovi_agent_api`,
 # paralelno: `_pozovi_para_api`). Beleži se agent i da li je izlaz prethodnog koraka stigao unutar granice poverenja.
 # Kredit: politika 1 kredit po pozivu i stanje 100 (bez ovoga lažna baza nema `user_credits`, pa provera budžeta = 402).
