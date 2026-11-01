@@ -466,3 +466,32 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 **Fajlovi:** izmenjen samo `frontend-v2-ng/tests/live-n6-izvestaji-e2e.mjs`.
 
 **Kapija S07: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S08 — N7 / B8 / B11 / B12: automatsko ažuriranje predmeta — `PROVEN_EXISTING_NO_CHANGE` (posle S02)
+
+**Pokriva:** N7, B8, B11, B12, INV-12, INV-09, INV-10. **Preflight:** `95a7b1e6` (S07). U ovoj etapi kod nije menjan. B7 deo (lažna protivrečnost se ne vraća, stvarna ostaje vidljiva) zatvoren je u S02 i ovde je ponovo izmeren.
+
+| Test iz ugovora | Dokaz |
+|---|---|
+| Nov dokument dodaje izvorne tvrdnje | `test_n7_azuriranje_predmeta::test_nov_dokument_azurira_predmet_bez_prepisivanja…`, `test_mir001_t03_kontinuitet::test_svaki_kljucni_navod_ima_stvarni_izvor_i_nije_utvrdjen` |
+| Genome vidi relevantne dokumente | `test_mir001_t03` (ceo spis), `live-cg001-kontinuitet` |
+| `case_dna` čuva istoriju verzija | `predmet_genome_history`: `test_case_evolution`, `test_cg001_lanac`, `test_ns006_t13_autonomous_chain` |
+| Izvor hronološke stavke razrešiv | `test_mir001_t03::test_hronologija_ceo_spis_tacan_redosled_i_izvor` |
+| Akcija vezana za izvor; isti događaj → nema druge akcije | `test_case_evolution`, `test_phoenix_mission_007_case_evolution_chain_integrity`, `test_cg001_lanac` |
+| Pad Genome-a ne briše dokaze | `test_ns006_t16_chaos::test_a_model_pada_genome_netaknut…`, `…test_b_pad_v2_paketa_ne_upisuje_case_dna`; `test_cg001_falsifikacija::test_10_neuspeo_upis_case_dna…`; BA05 `test_genome_pada_kandidati_iz_izvora_ostaju…` |
+| Odluke advokata nisu prepisane | `test_n7…::test_ispravka_advokata_ostaje_posle_novog_dokumenta`; S02 `test_s02_kontradikcije_potvrda` (odluka kroz osvežavanje); BA05 odluke kroz osvežavanje |
+| Dva konkurentna osvežavanja bez lažnog uspeha | `test_phoenix_mission_012::test_coalesced_caller_waits_for_inflight_run_to_complete` (spojen pozivalac čeka stvarni završetak); `test_cg001_falsifikacija::test_10_citanje_usred_osvezavanja_je_nepoznato`; DB nivo: V2 paket xmin → 55000 (S02 PG) |
+| B7 lažna protivrečnost se ne vraća pri refresh-u | **PostgreSQL** `test_s02_odluka_postgres` (odbijena se ne vraća; odluka ne pokriva kasniji sadržaj) |
+| Nov validan dokaz koji protivreči ostaje vidljiv | S02 M1 (nov sadržaj posle odluke → „čeka odluku“), `live-s02-protivrecnost-e2e` |
+| Obrisan dokument nije aktivan izvor | `test_mir001_t03::test_obrisan_izvor_povlaci_navode_i_njihovu_spornu_tacku`, `test_cg001_falsifikacija::test_6…` |
+| Tenant B ne izaziva osvežavanje tuđeg predmeta | `test_mir001_t03:279` (POST refresh kao B), `test_n7…::test_b_ne_ubacuje_dokument_u_predmet_a`, `test_cg001_falsifikacija::test_12…` |
+
+**Rezultati:** Python 13 fajlova: **161 passed** (156, plus 5 PostgreSQL S02 testova uz `VX_TEST_PG_DSN`). Browser: `live-cg001-kontinuitet` 50/50, `live-pregled-zivi` 30/30, `live-prijem` 53/53, `live-s02-protivrecnost-e2e` 21/21. Dodatno navedeni `test_ns006_t13`, `test_ns006_t16_chaos`, `test_phoenix_mission_012`: 20/20.
+
+**Preostali rizici:**
+- **MEDIUM (CI):** `tests/ns007_pg.py` čita `VX_TEST_PG_DSN`, a CI (`.github/workflows/tests.yml:74`) postavlja `VINDEX_PG_TEST_DSN`. Svi testovi preko tog helpera, i NS007 i S02 PG testovi, u CI-ju se **preskaču**. Lokalno su izvršeni nad PostgreSQL-om 17. Predlog osnivaču: jedan red u helperu (čitati i `VINDEX_PG_TEST_DSN`), uz prvi CI prolaz kao proveru da NS007 PG testovi prolaze. Nije urađeno ovde: uključuje tuđe testove u CI bez lokalne potvrde svih.
+- LOW (postojeće, N7): spajanje osvežavanja Genome-a je unutar jednog procesa (produkcija = 1 proces); preko procesa štiti xmin V2 paketa, a `case_dna` je poslednji upis.
+
+**Kapija S08: `PROVEN_EXISTING_NO_CHANGE`.**
