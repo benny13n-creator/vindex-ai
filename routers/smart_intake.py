@@ -899,10 +899,23 @@ def _deadline_to_iso(value: str) -> Optional[str]:
     return iso
 
 
+def _citati_nesporni(fraze: list, broj_obaveza: int, datum_iso: str) -> bool:
+    """S10: rečenica iz dokumenta sme da bude naziv roka samo kad je jasno KOJA je: model je za taj datum dao isto
+    onoliko obaveza koliko tekst ima dokaznih rečenica, rečenice se međusobno razlikuju i svaka sadrži sam datum
+    (`obaveze_po_datumu` daje prvih 160 znakova reda — dugačak ili prelomljen red ne sme da imenuje pogrešnu obavezu).
+    Inače ostaje raniji naziv sa rednim brojem: bez 144 je on deo identiteta, pa dve obaveze ne smeju dobiti isti naziv."""
+    if not fraze or len(fraze) != broj_obaveza or len({c for _, c in fraze}) != len(fraze):
+        return False
+    g, m, d = (int(x) for x in datum_iso.split("-"))
+    datum = re.compile(rf"(?<!\d)0?{d}\s*\.\s*0?{m}\s*\.\s*{g}(?!\d)")
+    return all(datum.search(c or "") for _, c in fraze)
+
+
 async def _rok_iz_dokumenta(
     supa, *, predmet_id: str, uid: str, job: dict, job_id: str,
     value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set, redni: int = 1,
     kljuc: Optional[str] = None, pokriven: bool = False, dokument_id: Optional[str] = None,
+    naslov: Optional[str] = None,
 ) -> dict:
     """Rok iz JEDNOG dokumenta otpremanja -> nepotvrdjen kandidat u hronologiji.
 
@@ -960,7 +973,12 @@ async def _rok_iz_dokumenta(
     # ga računa) — ne ime fajla ni broj redova. Postoji kad je ključ već u predmetu (`vec_upisano` nosi i ključeve iz
     # baze), kad zatečen red bez ključa jednoznačno pokriva istu obavezu (`pokriven`), ili kad baza odbije upis (23505).
     _rok_dogadjaj = f"Rok iz dokumenta ({tip_labela})"
-    if redni > 1:
+    if naslov:
+        # S10: obaveza dokazana rečenicom dokumenta nosi TU rečenicu (isti naslov kao `shared.rokovi::uskladi_rokove_iz_izvora`,
+        # uz oznaku OCR-a). Ranije su dva roka istog dana bila „(vrsta dokumenta)“ i „… — 2. rok sa istim datumom“: advokat
+        # u Danas nije mogao da zna koju obavezu potvrđuje.
+        _rok_dogadjaj = naslov
+    elif redni > 1:
         # BA-01: druga obaveza ISTOG datuma iz istog dokumenta — vidljivo zaseban kandidat, ne duplikat.
         _rok_dogadjaj += f" — {redni}. rok sa istim datumom"
     nadjen_iso = deadline_iso
@@ -2354,6 +2372,10 @@ async def _finalize_intake_job_jezgro(
             _dok_izvora = _isti_sadrzaj[0] if len(_isti_sadrzaj) == 1 else None
             # BA-01: svaki dokazan rok dokumenta je zaseban kandidat (dve obaveze istog dana ostaju dve).
             _lista = per_doc_rokovi[_i] or [(None, per_doc_meta_maps[_i].get("deadline") or {})]
+            _broj_po_datumu: dict = {}
+            for _vr0, _ in _lista:
+                _i0 = _deadline_to_iso(_vr0 or "")
+                _broj_po_datumu[_i0] = _broj_po_datumu.get(_i0, 0) + 1
             _redni: dict = {}
             for _vr, _meta in _lista:
                 _iso = _deadline_to_iso(_vr or "")
@@ -2361,6 +2383,8 @@ async def _finalize_intake_job_jezgro(
                 _fraze = _po_datumu.get(_iso, []) if _iso else []
                 _n = _po_izvoru[(_izvor, _iso)] = _po_izvoru.get((_izvor, _iso), 0) + 1
                 _fraza = _fraze[min(_n, len(_fraze)) - 1][0] if _fraze else ("" if _n == 1 else f"#{_n}")
+                _citat = (_fraze[_n - 1][1] if _iso and _n <= len(_fraze)
+                          and _citati_nesporni(_fraze, _broj_po_datumu.get(_iso, 0), _iso) else None)
                 _ishod = await _rok_iz_dokumenta(
                     supa, predmet_id=predmet_id, uid=uid, job=job, job_id=job_id,
                     value_map={**per_doc_value_maps[_i], "deadline": _vr}, meta_map={"deadline": _meta},
@@ -2369,6 +2393,7 @@ async def _finalize_intake_job_jezgro(
                     pokriven=bool(_iso) and len(_fraze) <= 1 and _IZVOR.pokriva_zateceni(
                         _postojeci_rokovi, _iso, _dok_id, _ime, _ime_jednoznacno),
                     dokument_id=_dok_izvora,
+                    naslov=_IZVOR.naslov_roka_iz_izvora(_citat, bool((_d.get("document") or {}).get("ocr_used"))) if _citat else None,
                 )
                 _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
                 rokovi_iz_dokumenata.append(_ishod)

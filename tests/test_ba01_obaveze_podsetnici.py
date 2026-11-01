@@ -107,11 +107,14 @@ def test_zivotni_ciklus_obaveze_do_podsetnika(lanac, monkeypatch, smtp):
     [(primalac, telo)] = _poruke(smtp)
     assert "advokat-a@example.invalid" in primalac
     import re as _re
-    stavke = _re.findall(r"(Rok iz dokumenta \([^)]+\))\s*</td>\s*<td[^>]*>\s*(\d{4}-\d{2}-\d{2})", telo)
-    if not stavke:   # oblik tabele nije bitan za tvrdnju — tekst bez oznaka
-        tekst = " ".join(_re.sub(r"<[^>]+>", " ", telo).split())
-        stavke = _re.findall(r"(Rok iz dokumenta \([^)]+\)) (\d{4}-\d{2}-\d{2})", tekst)
-    assert sorted(stavke) == sorted([("Rok iz dokumenta (presuda)", A_ROK.isoformat()), ("Rok iz dokumenta (dokument)", A_ROK.isoformat())]), stavke
+    # S10: svaka stavka imenuje SVOJU obavezu rečenicom iz dokumenta (ranije „(presuda)“ / „(dokument)“ — vrsta dokumenta)
+    tekst = " ".join(_re.sub(r"<[^>]+>", " ", telo).split())
+    # obaveza i njen datum zajedno: rečenica iz dokumenta nosi datum, a stavka podsetnika datum obaveze (red tabele)
+    stavke = _re.findall(r"Rok iz dokumenta: (Rok za [a-z ]+?) istice (\d{2}\.\d{2}\.\d{4})\. godine\.\s+(\d{4}-\d{2}-\d{2})", tekst)
+    a_sr = A_ROK.strftime("%d.%m.%Y")
+    assert sorted(stavke) == [("Rok za izjavljivanje zalbe", a_sr, A_ROK.isoformat()),
+                              ("Rok za uplatu sudske takse", a_sr, A_ROK.isoformat())], tekst[:1500]
+    assert "dobrovoljno ispunjenje" not in tekst
     assert B_ROK.isoformat() not in telo
     rez_dog = {str(x["dogadjaj_id"]) for x in b.tabele.get("email_podsetnik_dogadjaj", [])}
     assert {ra["id"], rc["id"]} <= rez_dog and rb["id"] not in rez_dog, rez_dog

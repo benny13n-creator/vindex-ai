@@ -113,7 +113,9 @@ def test_jedan_predmet_od_prijema_do_azuriranja(lanac):
         rez2 = asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))   # ponovljeno
     assert rez["poslato"] == 1 and rez2["poslato"] == 0 and len(poslati) == 1, (rez, rez2, poslati)
     tekst = _html.unescape(poslati[0][2]).lower()
-    assert poslati[0][0] == "advokat@example.invalid" and "09:30" in tekst and "odgovor na tužbu" in tekst
+    # S10: naziv roka je rečenica iz dokumenta (ranije vrsta dokumenta „odgovor na tužbu“); ispravka kaže ko je dao datum
+    assert poslati[0][0] == "advokat@example.invalid" and "09:30" in tekst and "rok za odgovor na tuzbu" in tekst
+    assert f"datum ispravio advokat: {_sr(_danas_beograd() + timedelta(days=1))}" in tekst
     assert _sr(rok_ai) not in tekst
     rez_dog = {(x["tip"], str(x["dogadjaj_id"])) for x in t.get("email_podsetnik_dogadjaj", [])}
     assert ("rok", potvrdjen["id"]) in rez_dog and ("rociste", roc[0]["id"]) in rez_dog, rez_dog
@@ -139,7 +141,9 @@ def test_jedan_predmet_od_prijema_do_azuriranja(lanac):
     import pymupdf
     pt = "\n".join(s.get_text() for s in pymupdf.open(stream=pdf.content, filetype="pdf"))
     assert "Zlatic" in pt and "09:30" in pt, pt[:500]
-    assert "[ODBIJENO]" in pt and "[NEPOTVRĐENO] Rok za odgovor" not in pt          # odbijen AI predlog nije obaveza
+    pt1 = " ".join(pt.split())
+    assert "[ODBIJENO] Rok iz dokumenta: Rok za odgovor na tuzbu" in pt1, pt1[:1500]   # odbijen AI predlog nije obaveza
+    assert "[NEPOTVRĐENO] Rok iz dokumenta: Rok za odgovor" not in pt1
     assert k.get(f"/api/predmeti/{pid}/pdf-export", headers=B).status_code == 404
     c = k.get("/billing/report/csv", params={"od": _danas_beograd().replace(day=1).isoformat()}, headers=A)
     assert c.status_code == 200

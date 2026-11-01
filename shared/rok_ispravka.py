@@ -6,12 +6,14 @@ dokument kao predlog — a sam predlog se ne menja (odbijanje predloga radi ruta
 """
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Optional
 
 from shared import rokovi as _rokovi_domen
 
 AKTER_ISPRAVKE = "Advokat (ispravka predloga)"
+_MESECI = ("januar", "februar", "mart", "april", "maj", "jun", "jul", "avgust", "septembar", "oktobar", "novembar", "decembar")
 
 
 def upisi_ispravljen_rok(supa, *, nov_id: str, uid: str, predlog: dict, izvor: dict, opis: str, datum: date) -> Optional[str]:
@@ -27,6 +29,33 @@ def upisi_ispravljen_rok(supa, *, nov_id: str, uid: str, predlog: dict, izvor: d
         **_rokovi_domen.oznake(vrsta=_rokovi_domen.VRSTA_ROK, supa=supa),
     }).execute()
     return (nov_r.data or [{}])[0].get("id") or None
+
+
+def _bez_datuma(tekst: str, stari: Optional[str]) -> str:
+    """Izostavlja („…“) SAMO ispravljeni datum (brojčano ili sa nazivom meseca, i ćirilicom preslovljen nije potreban —
+    citat je onakav kakav je pročitan); ostali datumi rečenice ostaju."""
+    try:
+        g, m, d = (int(x) for x in str(stari)[:10].split("-"))
+    except (TypeError, ValueError):
+        return tekst
+    mesec = _MESECI[m - 1]
+    obrazac = re.compile(rf"(?<!\d)0?{d}\s*\.\s*(?:0?{m}\s*\.|{mesec[:-2] if mesec.endswith('ar') else mesec}\w*)\s*{g}\.?(?!\d)", re.I)
+    return obrazac.sub("…", tekst)
+
+
+def opis_ispravke(opis_advokata: Optional[str], opis_predloga: Optional[str], datum: date,
+                  stari_datum: Optional[str] = None) -> str:
+    """Naziv ispravljenog roka. Advokatov tekst ima prednost. Bez njega se preuzima naziv predloga — ali naziv koji
+    CITIRA dokument („Rok iz dokumenta…: <rečenica>“, `shared.rokovi.naslov_roka_iz_izvora`) nosi datum iz dokumenta,
+    koji je advokat upravo ispravio; zato se izričito kaže da je datum ispravio advokat (S10)."""
+    sopstveni = (opis_advokata or "").strip()
+    if sopstveni:
+        return sopstveni[:500]
+    osnova = (opis_predloga or "").strip() or "Rok"
+    if osnova.startswith("Rok iz dokumenta") and ": " in osnova:
+        # datum iz citata je upravo proglašen pogrešnim — izostavlja se („…“), tačan datum se navodi izričito
+        osnova = f"{_bez_datuma(osnova, stari_datum)} — datum ispravio advokat: {datum.strftime('%d.%m.%Y.')}"
+    return osnova[:500]
 
 
 def napomena_ispravke(rok_id: str) -> str:

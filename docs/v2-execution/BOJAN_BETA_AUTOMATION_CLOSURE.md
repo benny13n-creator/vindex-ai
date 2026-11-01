@@ -521,3 +521,73 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 **Preostali rizici (postojeća ograničenja, iz N8/N9):** stvarna nadležnost nema izvor u korpusu (deterministička NAPOMENA O IZVORU); provera stava prakse je leksička (negacija, F8); baza zakona Vindex (Pinecone) još ima tekst čl. 55a pre 63/2026 (svaki navod se označava, važeći citat je u bloku); Kzz 602/2022 nije u bazi sudske prakse Vindex (navodi se uz tu oznaku).
 
 **Kapija S09: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S10 — kompletan lokalni end-to-end — `PROVEN_CLOSED` (jedan defekt nađen i ispravljen)
+
+**Preflight:** `14c05fb8` (S09). **Dokaz:** dva povezana toka nad JEDNIM sintetičkim predmetom, oba sa stvarnim Tesseract OCR-om.
+- `tests/test_s10_bojan_ceo_tok.py`: stvarne rute, stvaran intake radnik, stvaran SMTP transport (STARTTLS + AUTH) prema lokalnom serveru na 127.0.0.1, audit lanac. Zamenjeni su samo modeli (tvrdnje = redovi, Genome = specifikacija nad stvarnim oznakama).
+- `frontend-v2-ng/tests/live-s10-bojan-ceo-tok-e2e.mjs`: šta advokat VIDI, u Chromium-u nad pravim `api.app`.
+
+| Korak ugovora | Python (stvarne rute) | Browser (šta advokat vidi) |
+|---|---|---|
+| 1–4 klijent, COI, opis i cilj, jedan predmet | ✓ (veza klijent–predmet, „Cilj:“ u opisu) | ✓ čarobnjak, COI „nije pronađen sukob“ |
+| 5 četiri formata + OCR | ✓ PDF, DOCX, sken (`ocr_used`), PNG (`ocr_used`) — svi u ISTOM predmetu, sa tekstom | ✓ 4/4, stvaran OCR 2 dokumenta |
+| 6 pregled i ispravka | ✓ obavezna ispravka entiteta; original ostaje | (zlatni prijem, S03) |
+| 7 B5 tvrdnje sa izvorom | ✓ svaka tvrdnja vezana za stvaran dokument | ✓ „Izvor: <dokument>“ uz obe tvrdnje |
+| 8 B7 lažna i stvarna | ✓ obe kandidat → odbij / potvrdi → radnja samo za potvrđenu | ✓ dvostepeno Odbaci, Potvrdi, istorija |
+| 9 hronologija | ✓ rokovi sa dokumentom izvora | ✓ (PDF hronologija) |
+| 10 rokovi i odluke | ✓ dve obaveze ISTOG dana ostaju dve; potvrdi / odbij; **ispravka OCR roka** | ✓ Danas: svaka obaveza nosi SVOJU rečenicu; OCR rok „(OCR, proveriti)“ |
+| 11 ročište | ✓ predlog → zakazano (dupli klik = 1) | ✓ „Proveri i zakaži“, tačno jedno |
+| 12 Case Actions + Genome | ✓ radnja samo za potvrđenu protivrečnost; osvežavanje bez duplikata | ✓ odluke ostaju posle reload-a |
+| 13 naplata | ✓ izdata → plaćena, zastareo prikaz 409 | ✓ stavka → faktura → izdata → plaćena |
+| 14 PDF/CSV | ✓ `[ODBIJENO]`, `[NEPOTVRĐENO]`, potvrđen bez oznake; CSV `1234.56` „plaćena“ | ✓ preuzeti i pročitani |
+| 15 nadležnost i čl. 55a | ✓ deterministički slojevi (ZPP čl. 42; raspon DA) | — (u pregledaču je odgovor modela simuliran; ruta pitanja i injekcija: S09) |
+| 16 podsetnik kroz lokalni SMTP | ✓ 1 poruka: potvrđen rok + zakazano ročište; odbijen i nepotvrđen nikad; duplo pokretanje = 0 | — |
+| 17 reload, retry, konkurentnost | ✓ ponovljena finalizacija i osvežavanje bez duplikata; 2 istovremena finalize → 1 dokument | ✓ reload |
+| 18 korisnik B | ✓ 11 ruta (predmet, Genome, dokument, posao, prikačivanje, sporna tačka, rok, ročište, faktura, PDF, osvežavanje) → 403/404, ništa promenjeno; CSV bez A | ✓ API 404 + pregledač ne prikazuje |
+
+**Ekstremni slučajevi:**
+| Slučaj | Dokaz |
+|---|---|
+| dva istovremena finalize | S10 (u memoriji: 1 dokument); **PostgreSQL:** `test_ocr001_trka_postgres` |
+| dva istoimena fajla | S10: dva `scan.pdf` → dva dokumenta |
+| dve obaveze istog dana | S10 Python + browser (sada i RAZLIČITI nazivi) |
+| model vrati nepotpun odgovor | S10: `case_dna_persisted=False`; tvrdnje, odluke, radnje i `case_dna` netaknuti |
+| OCR ne čita sken | S10: sitna slika → `prazan_tekst`, nije prikačena; S03 E4b u pregledaču |
+| pad baze između upisa dokumenta i događaja | postojeće: `test_ba05_rokovi_iz_izvora::test_prekid_pri_upisu…`, `test_ba04_dogadjaj_prihvatanja_postgres::test_pad_posle_potvrdjenog_upisa…`, `live-prijem-oporavak-e2e` (ubijen proces) |
+| pad pri izvršenju posledice | postojeće: `test_ns006_t16_chaos::test_c_trajno_pokvarena_posledica_ide_u_dead_letter`, `test_ba05_rokovi_iz_izvora::test_posledica_ostaje_nezavrsena…` |
+| duplo pokretanje podsetnika | S10 (lokalni SMTP): drugo pokretanje 0 poruka |
+| promena ročišta posle prvog dnevnog pokretanja | S10: posle prvog slanja ročište pomereno → drugo pokretanje 0; promena u istoriji (`rociste_izmena`, S04) |
+| DST | postojeće: `live-n3-rocista-e2e` R6 (prelaz na zimsko vreme); browser S10 računa datume po Europe/Belgrade |
+| zastarela UI sesija | S10: faktura 409; S02 zastareo prozor odluke; S04 R4 ročište 409 |
+| izvoz pri nesigurnim AI podacima | S10 PDF: nepotvrđen `[NEPOTVRĐENO]`, odbijen `[ODBIJENO]`; S07 |
+
+**Defekt (PROVEN u S10 toku, pre ispravke):** dve obaveze ISTOG dana iz glavnog V2 puta (Smart Intake) imale su nazive „Rok iz dokumenta (odgovor na tužbu)“ i „… — 2. rok sa istim datumom“, gde je u zagradi VRSTA DOKUMENTA. Treća je imala naziv „(dokument)“. U Danas, u kalendaru i u emailu advokat nije mogao da zna koju obavezu potvrđuje. BA05 put (rokovi iz izvora) je već upisivao rečenicu, ali je Smart Intake upisivao prvi, pa je BA05 njegov red prepoznavao kao pokriven. Sporedno: moj prvi S10 orakl (`"odgovor na tuzbu" in poruka`) i tri postojeća orakla prolazili su SAMO zato što je simulirana vrsta dokumenta slučajno glasila „odgovor na tužbu“.
+
+**Ispravka (`routers/smart_intake.py`, `shared/rok_ispravka.py`, `routers/rok_odluka.py`), bez migracije:**
+- Smart Intake koristi kanonski `shared.rokovi.naslov_roka_iz_izvora(citat, ocr)` (isti naslov i OCR oznaka kao BA05), ali SAMO kad je preslikavanje nesporno: broj obaveza modela za datum = broj dokaznih rečenica, rečenice se razlikuju i svaka sadrži datum. Inače ostaje raniji naziv sa rednim brojem. Bez migracije 144 naziv je deo identiteta, pa dve obaveze nikad ne dobijaju isti naziv (nalaz pregleda HIGH 1–3).
+- Ispravka datuma bez advokatovog teksta preuzima citat, izostavlja SAMO ispravljeni datum („…“, brojčano ili sa nazivom meseca) i dodaje „— datum ispravio advokat: DD.MM.GGGG.“. Ranije bi citat nosio pogrešan datum uz tačan datum podsetnika.
+
+**Izmenjeni postojeći orakli (sada jači):** `test_ba01_obaveze_podsetnici` (stavka emaila = rečenica obaveze + njen datum; odbijena se ne pojavljuje); `test_n9_integrisani_tok` i `test_bojan_e2e_n1_n7` (rečenica + „datum ispravio advokat“ + pogrešan AI datum se NE pojavljuje; ranija negativna PDF provera u n1_n7 nije mogla da padne, jer stari naziv nikad nije sadržao traženi tekst).
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s10_bojan_ceo_tok.py` | 3/3 (stvaran OCR, lokalni SMTP) |
+| `tests/test_s10_naziv_roka.py` | 10/10 (granični slučajevi iz pregleda) |
+| `live-s10-bojan-ceo-tok-e2e` | 22/22 (stvaran OCR); sa vraćenom ispravkom pada „advokat VIDI koja je koja obaveza“ |
+| Mutacije (binarno) | 7/7 UBIJENE (bez naslova iz rečenice; bez izostavljanja datuma; bez oznake ispravke; citat pogrešne obaveze; zaštita preslikavanja isključena; izostavlja sve datume; sirova OCR oznaka); dodatno u pregledaču: vraćena ispravka → „advokat VIDI“ pada |
+| Ciljana regresija rokova/prijema/podsetnika | 683 + 45 passed |
+| Browser regresija | `live-rok-odluka-e2e` 76/76, `live-n4-rokovi-e2e` 12/12, `live-ba01-hronologija` 37/37, `live-zlatni-prijem-e2e` 47/47, `live-danas` 54/54, `live-prijem` 53/53, `live-cg001-kontinuitet` 50/50, `live-s02-protivrecnost-e2e` 21/21, `live-n3-rocista-e2e` 24/24 |
+| Puna svita | 10 failed / 12.909 passed — osnovica (9) + `test_wave3_f4_dashboard_authority::test_v2_danas_router_source_unchanged_by_this_session`, koji meri `git diff HEAD` (necommitovan `rok_odluka.py`); posle commita: vidi ispod |
+| Nezavisni pregled | 4 HIGH (gubitak roka bez 144, isti citat, dugačak red, prazan orakl pada modela) + 4 MEDIUM → svi ispravljeni ili pokriveni; LOW praznine ugovora mapirane u tabeli iznad |
+
+**Preostali rizici:**
+- LOW: rečenica u nazivu je prvih 160 znakova reda (BA05 kanon). Ako datum nije unutar njih, naziv ostaje raniji (sa rednim brojem) — bezbedno, ali bez rečenice.
+- LOW: postojeći redovi u produkciji zadržavaju stare nazive; menjaju se samo novi kandidati.
+- LOW: nadležnost i čl. 55a u S10 su na nivou determinističkih funkcija, ne rute pitanja. Ruta pitanja sa simuliranim modelom ne prolazi kroz `ask_agent` (S09 meri omotač).
+- Trke nad pravom bazom: PostgreSQL testovi (S05, S06, S02), ne baza u memoriji.
+
+**Kapija S10: `PROVEN_CLOSED`.**
