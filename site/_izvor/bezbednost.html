@@ -38,7 +38,7 @@
   <div class="okvir pitanje">
     <h2 id="cuvanje-naslov" class="otkrij">Gde se čuvaju podaci?</h2>
     <div class="pitanje__odgovor otkrij">
-      <p>Vindex radi na infrastrukturi spoljnih pružalaca usluga. Svaki dobija samo podatke potrebne za svoj deo posla.</p>
+      <p>Vindex radi na infrastrukturi spoljnih pružalaca usluga. Tabela pokazuje koji pružalac obrađuje koje podatke.</p>
       <div class="tabela-omot">
         <table class="tabela">
           <caption class="sr-only">Pružaoci usluga i podaci koje obrađuju</caption>
@@ -94,8 +94,8 @@
     <h2 id="izvoz-naslov" class="otkrij">Kako se podaci izvoze?</h2>
     <div class="pitanje__odgovor otkrij">
       <ul class="lista">
-        <li><strong>Podaci naloga i predmeta:</strong> u klasičnom interfejsu (Podešavanja) preuzimate ZIP arhivu sa JSON
-          fajlovima: predmeti, klijenti, stavke naplate, beleške, ročišta, hronologija, komentari i podaci o dokumentima sa
+        <li><strong>Podaci naloga i predmeta:</strong> u Podešavanjima aplikacije (Privatnost i podaci) preuzimate ZIP arhivu sa
+          JSON fajlovima: predmeti, klijenti, stavke naplate, beleške, ročišta, hronologija, komentari i podaci o dokumentima sa
           izdvojenim tekstom.</li>
         <li><strong>Originalni fajlovi</strong> (PDF, DOCX i drugi) nisu u toj arhivi; dostavljaju se na zahtev.</li>
         <li><strong>Nacrt podneska</strong> preuzimate pojedinačno kao Word dokument.</li>
@@ -109,8 +109,9 @@
     <h2 id="brisanje-naslov" class="otkrij">Šta se dešava pri brisanju?</h2>
     <div class="pitanje__odgovor otkrij">
       <ul class="lista">
-        <li><strong>Nalog:</strong> brisanje naloga pokrećete sami u klasičnom interfejsu (Podešavanja). Ime i adresa naloga se
-          odmah anonimizuju; radnja je nepovratna.</li>
+        <li><strong>Nalog:</strong> anonimizaciju naloga pokrećete sami u Podešavanjima aplikacije (Privatnost i podaci), uz upis
+          adrese naloga kao potvrdu. Ime i adresa u profilu naloga se odmah anonimizuju; radnja je nepovratna. Anonimizacija
+          ne gasi prijavu na nalog.</li>
         <li><strong>Predmeti i spisi</strong> se pri tome zadržavaju, zbog obaveze advokata da čuva spise predmeta. Njihovo brisanje
           rešava se posebnim pisanim zahtevom.</li>
         <li><strong>Tekstualni segmenti u Pinecone-u</strong> se brisanjem naloga ne brišu; poseban rok za njih nije utvrđen.</li>

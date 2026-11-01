@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Za advokate — Vindex</title>
-<meta name="description" content="Primeri toka rada u advokatskoj kancelariji sa funkcijama koje danas postoje u Vindexu, uz granice svake funkcije.">
+<meta name="description" content="Jedan predmet od prvog dokumenta do nacrta odgovora na tužbu: kako advokat radi u Vindexu, korak po korak, sa izmišljenim okolnostima.">
 <link rel="canonical" href="https://vindex.rs/za-advokate">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0d0e10">
@@ -12,7 +12,7 @@
 <meta property="og:locale" content="sr_RS">
 <meta property="og:site_name" content="Vindex">
 <meta property="og:title" content="Za advokate — Vindex">
-<meta property="og:description" content="Primeri toka rada u advokatskoj kancelariji sa funkcijama koje danas postoje u Vindexu, uz granice svake funkcije.">
+<meta property="og:description" content="Jedan predmet od prvog dokumenta do nacrta odgovora na tužbu: kako advokat radi u Vindexu, korak po korak, sa izmišljenim okolnostima.">
 <meta property="og:url" content="https://vindex.rs/za-advokate">
 <meta property="og:image" content="https://vindex.rs/v2/site/snimci/registar.webp">
 <meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
@@ -21,7 +21,7 @@
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
 <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
-<link rel="stylesheet" href="/v2/site/sajt.css?v=b1f54f527a">
+<link rel="stylesheet" href="/v2/site/sajt.css?v=d2c0286ebb">
 <!-- Generisano: scripts/gradi_sajt.py iz site/_izvor/za-advokate.html i site/funkcije.json. Ne menjati ručno. -->
 </head>
 <body class="sajt">
@@ -52,63 +52,65 @@
 <section class="uvod uvod--strana" aria-labelledby="naslov">
   <div class="okvir">
     <p class="nadnaslov">Za advokate</p>
-    <h1 id="naslov">Primeri toka rada u advokatskoj kancelariji.</h1>
-    <p class="vodeci">Svaki primer opisuje rad sa funkcijama koje danas postoje u aplikaciji. Ovo su primeri toka rada sa izmišljenim
-      okolnostima, ne opisi stvarnih predmeta ni rezultata.</p>
+    <h1 id="naslov">Jedan predmet, od prvog dokumenta do nacrta.</h1>
+    <p class="vodeci">Kako izgleda rad u Vindexu na jednom predmetu naknade štete zbog povrede na radu, iz ugla advokata tužene
+      strane. Okolnosti su izmišljene; opisane su samo funkcije koje danas postoje u aplikaciji.</p>
   </div>
 </section>
 
-<section class="odeljak" aria-label="Primeri toka rada">
+<section class="odeljak" aria-labelledby="prica-naslov">
   <div class="okvir">
-    <ul class="mreza mreza--2">
-      <li>
-        <h2>Nov predmet sa dokumentima klijenta</h2>
-        <p>Klijent donese tužbu, otpusnu listu i punomoćje. Otvarate predmet iz dokumenta ili ručno, pa sve dokumente dodajete
-          odjednom kroz Prijem dokumenata. Skenirane stranice se čitaju OCR-om.</p>
-        <p class="tiho">Gde: Predmeti → Nov predmet; Predmet → Prijem dokumenata. Granica: kvalitet čitanja zavisi od skena.</p>
+    <h2 id="prica-naslov" class="sr-only">Tok jednog predmeta</h2>
+    <ol class="prica">
+      <li class="prica__korak">
+        <h3>Klijent donosi tužbu</h3>
+        <p>Klijent donosi tužbu koju mu je dostavio sud, sa prilozima među kojima je i otpusna lista tužioca, i potpisuje
+          punomoćje. Predmet otvarate iz tužbe: Vindex
+          pročita dokument i predloži podatke predmeta, a vi ih proverite pre otvaranja. Ostale dokumente dodajete odjednom;
+          skenirane stranice se čitaju OCR-om.</p>
+        <p class="prica__gde">Predmeti → Nov predmet → Iz dokumenta; Predmet → Prijem dokumenata</p>
       </li>
-      <li>
-        <h2>Pregled podataka iz dokumenta</h2>
-        <p>Vindex predloži broj predmeta, sud, stranke, iznos i rok iz dokumenta. Nesiguran podatak je označen; ispravljate ga, a
-          original ostaje sačuvan. Tvrdnje iz dokumenta ostaju vezane za taj dokument.</p>
-        <p class="tiho">Gde: Prijem dokumenata, Analiza → Dokazi. Granica: izdvojeni podaci su predlog.</p>
+      <li class="prica__korak">
+        <h3>Podaci iz dokumenata</h3>
+        <p>Iz svakog dokumenta izdvojeni su broj predmeta, sud, stranke, iznos i rok, svaki sa oznakom pouzdanosti. Nesiguran podatak
+          ispravljate; original ostaje sačuvan.</p>
+        <p class="prica__gde">Prijem dokumenata → pregled</p>
       </li>
-      <li>
-        <h2>Protivrečnosti i informacije koje nedostaju</h2>
-        <p>Pre pripremnog ročišta otvarate Analizu: vidite gde se tvrdnje iz dva dokumenta razlikuju i koje informacije nedostaju.
-          Svaka stavka pokazuje poreklo.</p>
-        <p class="tiho">Gde: Predmet → Analiza. Granica: deo stavki je AI analiza i tako je označen; nije procena ishoda.</p>
+      <li class="prica__korak">
+        <h3>Gde se dokumenti razlikuju</h3>
+        <p>U Analizi su tvrdnje svakog dokumenta vezane za dokument iz kog potiču. Ako se, na primer, datum povrede u tužbi i u
+          otpusnoj listi razlikuju, protivrečnost je prikazana uz oba izvora, a vi odlučujete da li je potvrđujete.</p>
+        <p class="prica__gde">Predmet → Analiza → Dokazi, Protivrečnosti</p>
       </li>
-      <li>
-        <h2>Pravno pitanje uz propise</h2>
-        <p>U predmetu postavljate pitanje o zastarelosti potraživanja. Odgovor navodi propise na koje se oslanja, a za datum
-          zastarelosti koristite kalkulator sa zakonskim osnovom.</p>
-        <p class="tiho">Gde: Predmet → Pravno pitanje; Rad na predmetu → Zastarelost. Granica: odgovor nije pravni savet; prekid i zastoj se ne računaju.</p>
+      <li class="prica__korak">
+        <h3>Rok za odgovor i ročište</h3>
+        <p>Uz tužbu je stigao poziv suda da se na tužbu odgovori u roku koji teče od dostavljanja. Takav rok Vindex ne
+          preračunava sam: datum roka unosite vi, a rok postaje obaveza na ekranu Danas tek kada ga potvrdite. Kada sud zakaže
+          pripremno ročište, unosite ga u predmet, a posle ročišta ga označavate kao održano ili odloženo.</p>
+        <p class="prica__gde">Danas; Predmet → Rad na predmetu → Ročišta</p>
       </li>
-      <li>
-        <h2>Nacrt podneska i overa</h2>
-        <p>Birate vrstu podneska i sud, opisujete sadržaj i dobijate nacrt sa označenim mestima bez potkrepljenja. Menjate tekst,
-          čuvate ga i odobravate; preuzimate ga kao Word dokument.</p>
-        <p class="tiho">Gde: Predmet → Nacrt podneska. Granica: nacrt je polazna tačka; ništa se ne šalje sudu.</p>
+      <li class="prica__korak">
+        <h3>Pravno pitanje</h3>
+        <p>Pitate da li je potraživanje zastarelo. Odgovor navodi propise na koje se oslanja, a datum zastarelosti računate
+          kalkulatorom uz zakonski osnov; prekid i zastoj, kao ni duži rok za štetu prouzrokovanu krivičnim delom, kalkulator
+          ne računa.</p>
+        <p class="prica__gde">Predmet → Pravno pitanje; Rad na predmetu → Zastarelost potraživanja</p>
       </li>
-      <li>
-        <h2>Jutarnji pregled obaveza</h2>
-        <p>Na ekranu Danas vidite zadatke za danas, ročišta i potvrđene rokove za narednih 30 dana i predložene rokove koji čekaju
-          odluku. Odatle otvarate predmet.</p>
-        <p class="tiho">Gde: Danas. Granica: Vindex danas ne šalje podsetnike e-poštom.</p>
+      <li class="prica__korak">
+        <h3>Nacrt odgovora na tužbu</h3>
+        <p>Birate vrstu podneska i sud i opisujete šta nacrt treba da sadrži. Nacrt dolazi sa označenim mestima gde model nije
+          našao izvor za navedeni član; i neoznačene navode proveravate. Nacrt menjate, odobravate i preuzimate kao Word
+          dokument.</p>
+        <p class="prica__gde">Predmet → Nacrt podneska → Nacrti na overi</p>
       </li>
-      <li>
-        <h2>Iskustvo kancelarije</h2>
-        <p>Kada otvorite predmet određene vrste, Vindex pokazuje slične ranije predmete vaše kancelarije i ishode koje je advokat
-          zabeležio. Odobreni nacrti postaju verifikovani radovi kancelarije.</p>
-        <p class="tiho">Gde: Znanje; Predmet → Iskustvo kancelarije. Granica: iskustvo nastaje samo iz vašeg rada — nova kancelarija ovde nema sadržaj.</p>
+      <li class="prica__korak">
+        <h3>Evidencija rada</h3>
+        <p>Dok radite na predmetu, tajmer meri vreme, a stavke dodajete po advokatskoj tarifi. Od izabranih stavki pravite nacrt fakture.</p>
+        <p class="prica__gde">Predmet → Naplata</p>
       </li>
-      <li>
-        <h2>Evidencija rada za naplatu</h2>
-        <p>Pokrećete tajmer dok radite na predmetu, dodajete stavke po advokatskoj tarifi i od izabranih stavki pravite nacrt fakture.</p>
-        <p class="tiho">Gde: Predmet → Naplata. Granica: nacrt fakture nije izdata faktura.</p>
-      </li>
-    </ul>
+    </ol>
+    <p class="prica__zakljucak">Sve ostaje u istom predmetu. Kada mu se vratite posle nekoliko nedelja, na vrhu piše šta se
+      promenilo, šta traži pažnju i koji je sledeći korak.</p>
     <div class="akcije">
       <a class="dugme" href="/beta">Prijavi se za rani pristup</a>
       <a class="tekst-link" href="/funkcionalnosti">Sve funkcionalnosti</a>
@@ -121,7 +123,7 @@
     <div class="podnozje__redovi">
       <div>
         <h2>Vindex</h2>
-        <p>Pravni radni prostor: predmeti, dokumenti, dokazi, rokovi i pravna pitanja, povezani sa svojim izvorom.</p>
+        <p>Pravni operativni sistem za advokate: dokumenti, dokazi, rokovi, pravna pitanja i nacrti jednog predmeta, povezani sa svojim izvorom.</p>
       </div>
       <nav aria-label="Sajt">
         <h2>Sajt</h2>
@@ -153,6 +155,6 @@
 </footer>
 </div>
 <script src="/v2/site/potpis.js"></script>
-<script src="/v2/site/sajt.js?v=b1f54f527a"></script>
+<script src="/v2/site/sajt.js?v=d2c0286ebb"></script>
 </body>
 </html>

@@ -7,8 +7,9 @@ Founder mandat „Website V3 / Growth Experience Sprint“ (2026-10-21). Ugovori
 
   1. Početna kaže šta je Vindex, zašto i šta je sledeći korak; jedini primarni
      poziv je „Prijavi se za rani pristup“ (/beta, postojeća waitlist ruta).
-  2. Sektori opisuju VRSTU posla, ne gotov proizvod: samo advokatske kancelarije
-     su označene kao ono za šta je Vindex danas napravljen.
+  2. (Premium Positioning, 2026-11-01 — zamenjuje V3 ugovor o sektorima) Sajt nema
+     katalog sektora ni „moguću primenu“: Vindex se predstavlja samo kao pravni
+     operativni sistem za advokate (MIR-04 korporativni rad je BLOCKED_REQUIREMENTS_DETAIL).
   3. /bezbednost odgovara na stvarna pitanja i ne krije materijalne činjenice
      (servisni ključ, bez rezervnih kopija, SCC nije potvrđen, Pinecone segmenti);
      poređenje sa opštim AI asistentom ne tvrdi da je Vindex bezbedniji.
@@ -59,9 +60,9 @@ def _odeljak(html, id_naslova):
 def test_prvi_ekran_kaze_sta_je_vindex_i_sledeci_korak(k):
     t = k.get("/").text
     hero = re.search(r'<section class="uvod uvod--glavni".*?</section>', t, flags=re.S).group(0)
-    assert "Od dokumenata do jasnih odluka." in hero
-    assert "Pravni radni prostor" in hero                       # kategorija
-    assert "vezan za izvor" in hero and "potvrdi" in hero       # razlika: izvor i potvrda
+    assert "Jedan prostor za čitav predmet." in hero          # Premium Positioning 2026-11-01
+    assert "Pravni operativni sistem" in hero                   # kategorija
+    assert "vezani za dokument" in hero and "potvrdi" in hero   # razlika: izvor i potvrda (obim: izdvojeno iz dokumenata)
     dugmad = re.findall(r'<a class="dugme[^"]*" href="([^"]+)">([^<]+)</a>', hero)
     assert dugmad == [("/beta", CTA)], dugmad                    # jedan primarni poziv
     assert 'href="/kako-radi">Pogledaj kako Vindex radi</a>' in hero
@@ -87,20 +88,21 @@ def test_rani_pristup_koristi_postojecu_waitlist_rutu_i_ne_obecava_nalog(k):
 
 
 def test_istaknute_funkcije_su_dostupne_i_vode_na_katalog(k):
+    """Premium Positioning: tri koraka toka sa stvarnim ekranom; svaki kaže i šta odlučuje advokat."""
     t = k.get("/").text
     clanci = re.findall(r'<article class="istaknuto[^"]*".*?</article>', t, flags=re.S)
-    assert 3 <= len(clanci) <= 5
+    assert len(clanci) == 3
     katalog = k.get("/funkcionalnosti").text
     for c in clanci:
-        for dt in ("Problem", "Šta Vindex radi", "Vaša korist"):
-            assert f"<dt>{dt}</dt>" in c
+        assert 'class="istaknuto__uloga"' in c                     # uloga advokata u svakom koraku
         sidro = re.search(r'href="/funkcionalnosti#([^"]+)"', c).group(1)
         assert f'id="{sidro}"' in katalog, sidro
         assert "Demonstracioni prikaz" in c
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 2. Sektori — vrsta posla, ne gotov proizvod
+# 2. Sektori — povučeni (Premium Positioning 2026-11-01): nijedna javna stranica
+#    ne nudi Vindex drugim delatnostima.
 # ═══════════════════════════════════════════════════════════════════════════
 
 SEKTORI = ["Advokatske kancelarije", "Javnobeležničke kancelarije", "Pravni sektori kompanija",
@@ -109,24 +111,19 @@ SEKTORI = ["Advokatske kancelarije", "Javnobeležničke kancelarije", "Pravni se
            "Korporativna administracija i ugovorni timovi", "Timovi sa mnogo dokumenata"]
 
 
-def test_sektori_razlikuju_danasnju_namenu_od_moguce_primene(k):
-    t = k.get("/").text
-    kartice = re.findall(r'<li class="sektor([^"]*)"[^>]*><span class="sektor__status">([^<]+)</span>\s*<h3>([^<]+)</h3>', t)
-    assert [n for _, _, n in kartice] == SEKTORI
-    for klasa, status, naziv in kartice:
-        if naziv == "Advokatske kancelarije":
-            assert "sektor--danas" in klasa and status == "Za ovo je Vindex napravljen"
-        else:
-            assert "sektor--danas" not in klasa and status == "Moguća primena", naziv
-    o = _odeljak(t, "sektori-naslov")
-    assert "nema posebne module" in o and "ne gotov proizvod" in o
+STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"]
 
 
-def test_sektori_ne_tvrde_sertifikaciju_odobrenje_ni_spremnost(k):
-    o = _odeljak(k.get("/").text, "sektori-naslov").lower()
-    for rx in (r"sertifikovan", r"certifi", r"odobren od", r"usklađen sa", r"spreman za", r"bank-grade",
-               r"koriste nas", r"klijenti iz", r"implementiran"):
-        assert not re.search(rx, o), rx
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_nema_kataloga_sektora_ni_moguce_primene(k, ruta):
+    t = k.get(ruta).text
+    assert 'class="sektor' not in t and 'id="sektori-naslov"' not in t
+    vidljivo = _cist(k, ruta)
+    for naziv in SEKTORI[1:]:
+        assert naziv not in vidljivo, f"{ruta}: {naziv}"
+    for rx in (r"moguća primena", r"korporativ", r"osiguravajuć", r"javnobeležnič", r"\bbanke\b"):
+        assert not re.search(rx, vidljivo, re.I), f"{ruta}: {rx}"
+    assert "/za-advokate" in t or ruta == "/za-advokate"            # publika je advokat
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -173,13 +170,17 @@ def test_poredjenje_sa_opstim_ai_asistentom_je_posteno(k):
 
 
 def test_opis_izvoza_i_brisanja_odgovara_kodu(k):
-    """Stranica kaže: ZIP sa JSON-om bez originala; brisanje naloga je samouslužno. Kod mora to i da radi."""
+    """Stranica kaže: ZIP sa JSON-om bez originala; anonimizacija naloga je samouslužna, u Podešavanjima aplikacije
+    (PR #57). Kod mora to i da radi, i to na putanji koju stranica navodi."""
     with open(os.path.join(KOREN, "routers", "data_export.py"), encoding="utf-8") as f:
         izvoz = f.read()
     assert "ZIP sa JSON fajlovima (bez originalnih fajlova dokumenata)" in izvoz
-    with open(os.path.join(KOREN, "index.html"), encoding="utf-8-sig") as f:
-        legacy = f.read()
-    assert 'onclick="obrisiNalogSelfService()"' in legacy
+    t = _cist(k, "/bezbednost")
+    assert t.count("Podešavanjima aplikacije (Privatnost i podaci)") == 2, "izvoz i anonimizacija: putanja u aplikaciji"
+    app = _v2("index.html")
+    assert ">Privatnost i podaci</h2>" in app and ">Preuzmi ZIP izvoz</button>" in app and ">Anonimizuj moj nalog</button>" in app
+    js = _v2("src/podesavanja-privatnost.js")
+    assert 'api.preuzmi("/api/export/complete"' in js and 'api.send("/api/gdpr/account", { metod: "DELETE"' in js
     # Pravni dokumenti više ne tvrde da samouslužno brisanje ne postoji.
     for ruta in ("/security", "/bezbednosni-list"):
         t = _cist(k, ruta)

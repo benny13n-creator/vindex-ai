@@ -570,9 +570,10 @@ def test_registar_je_potpun_i_dosledan():
 
 def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
     """Website V3: katalog nema statusne oznake (posetilac ne čita interne kodove), ali
-    sadrži TAČNO dostupne javne funkcije, interni status ostaje u `data-status`, javna
-    formulacija (sa granicom funkcije) je prikazana u celosti, a funkcija koja radi samo
-    u klasičnom interfejsu to i kaže."""
+    sadrži TAČNO dostupne javne funkcije, interni status ostaje u `data-status`, a javna
+    formulacija (sa granicom funkcije) je prikazana u celosti, uz putanju u aplikaciji.
+    Premium Positioning (2026-11-01): funkcija koja radi samo u klasičnom prikazu se ne
+    objavljuje — sajt ne upoređuje verzije aplikacije."""
     reg = _registar()
     na_sajtu = _stavke(_tekst(klijent, "/funkcionalnosti"))
     ocekivano = {f["id"]: f for f in reg["funkcije"] if f["javno"] and f["status"] in JAVNI_KATALOG}
@@ -583,10 +584,8 @@ def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
         assert status == f["status"], f"{fid}: status na sajtu {status}, u registru {f['status']}"
         # Ograničenje je deo javne formulacije — ne sme se izgubiti putem.
         assert re.sub(r"\s+", " ", f["javni_opis"]) in tekst, f"{fid}: javna formulacija nije prikazana u celosti"
-        if status == "LEGACY_ONLY":
-            assert "klasičnom interfejsu" in tekst, f"{fid}: ne kaže da radi samo u klasičnom interfejsu"
-        else:
-            assert "U aplikaciji:" in tekst, f"{fid}: ne kaže gde je u aplikaciji"
+        assert status != "LEGACY_ONLY", f"{fid}: funkcija samo iz klasičnog prikaza je u javnom katalogu"
+        assert "U aplikaciji:" in tekst, f"{fid}: ne kaže gde je u aplikaciji"
     vidljivo = _cist_tekst(klijent, "/funkcionalnosti")
     for s_ in ("Dostupno uz ograničenje", "Klasični interfejs", "U razvoju"):
         assert s_ not in vidljivo, f"katalog i dalje prikazuje statusnu oznaku {s_!r}"
