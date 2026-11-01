@@ -26,6 +26,8 @@ def _s02_advokat_potvrdjuje(monkeypatch):
     Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
     import tests.ns006_fake as _ns006_fake
     monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
 
 treba_ocr = pytest.mark.skipif(_OCR is None, reason="Tesseract nije dostupan — DOK-05 (sken) se ne može pročitati")
 ROK = gc.KASNIJA_PROMENA["rok"]
