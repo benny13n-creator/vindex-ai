@@ -90,6 +90,9 @@ AUDITABLE_ACTIONS: set[str] = {
     # N3 (2026-10-26) -- advokat odbacuje PREDLOG ročišta pročitan iz dokumenta
     # (`routers/rocista.py`); predlog bez ovog zapisa ostaje vidljiv kao predlog.
     "rociste_predlog_odbacen",
+    # S04 (N3) -- izmena zakazanog ročišta (otkazano / održano / odloženo / vraćeno, novi datum): ko, kada i šta je
+    # bilo pre. Red `rocista` se menja na mestu, pa bez ovog zapisa prethodno stanje ne postoji nigde.
+    "rociste_izmena",
     # S02 / B7 (odluka osnivača A, 2026-10-31) -- advokat potvrđuje ili odbacuje AI protivrečnost (spornu tačku).
     # Tek potvrđena je aktivna i nosi akciju; zapis je istorija odluke (ruta je fail-closed bez njega).
     "sporna_tacka_potvrdjena", "sporna_tacka_odbijena",

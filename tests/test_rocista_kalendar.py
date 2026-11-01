@@ -12,6 +12,18 @@ import pytest
 from starlette.requests import Request as StarletteRequest
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
+@pytest.fixture(autouse=True)
+def audit_zapisi(monkeypatch):
+    """S04: izmena ročišta je fail-closed bez zapisa istorije (`rociste_izmena`) — ovde je sink u memoriji."""
+    import shared.audit_immutable as AUD
+    zapisi = []
+
+    async def _upis(action, user_id=None, resource_type=None, resource_id=None, ip=None, metadata=None, correlation_id=None):
+        zapisi.append({"action": action, "resource_id": resource_id, "metadata": metadata or {}})
+        return "ok"
+    monkeypatch.setattr(AUD, "log_action", _upis)
+    return zapisi
+
 
 @pytest.fixture
 def anyio_backend():
@@ -322,7 +334,7 @@ async def test_lista_rocista_empty():
 
 
 @pytest.mark.anyio
-async def test_izmeni_rociste_success():
+async def test_izmeni_rociste_success(audit_zapisi):
     from routers.rocista import RocistePatchReq, izmeni_rociste
 
     updated_row = {"id": "r1", "status": "odrzano", "sud": "Sud C", "datum": "2026-07-01", "vreme": None}
@@ -335,6 +347,7 @@ async def test_izmeni_rociste_success():
 
     assert result["ok"] is True
     assert result["rociste"]["status"] == "odrzano"
+    assert [(z["action"], z["resource_id"], z["metadata"]["novo"]["status"]) for z in audit_zapisi] == [("rociste_izmena", "r1", "odrzano")]
 
 
 @pytest.mark.anyio

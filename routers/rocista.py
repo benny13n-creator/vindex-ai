@@ -339,6 +339,23 @@ async def izmeni_rociste(
                 detail=f"Za ovaj predmet je već zakazano kasnije ročište ({_nastavci[0].get('datum')}) — verovatno nastavak "
                        "odloženog. Da biste vratili ovo ročište, prvo otkažite to ročište. Ništa nije izmenjeno.")
 
+    # S04 (N3): prethodno stanje za istoriju izmene (red se menja na mestu). Nečitljivo → ništa se ne menja.
+    try:
+        _pre = await asyncio.to_thread(lambda: supa.table("rocista").select(
+            "predmet_id, sud, datum, vreme, sudnica, broj_predmeta_suda, status, napomena, updated_at")
+            .eq("id", rociste_id).eq("user_id", uid).limit(1).execute())
+        prethodno = (_pre.data or [None])[0]
+    except Exception as exc:
+        logger.error("[ROCISTA] prethodno stanje pre izmene nije pročitano id=%s: %s", rociste_id, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Stanje ročišta trenutno nije moguće proveriti. Ništa nije izmenjeno.")
+    if not prethodno:
+        raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
+    polja = sorted(updates)
+    # S04: bez `if_updated_at` (legacy /app, API) uslov je pročitano stanje — inače bi istovremena izmena između
+    # čitanja i upisa dala netačno „prethodno“ u istoriji. Isti 409 kao zastareo prikaz.
+    if not if_updated_at and prethodno.get("updated_at"):
+        if_updated_at = prethodno["updated_at"]
+
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # Final Beta Gate F17 (MEDIUM): optimistic-concurrency guard, same
@@ -366,6 +383,28 @@ async def izmeni_rociste(
 
     row = r.data[0]
     row["vreme"] = _norm_vreme(row.get("vreme"))
+
+    # S04 (N3): istorija izmene, tek POSLE potvrđenog upisa (0 redova = 409/404 iznad, bez zapisa). Fail-closed kao
+    # `routers/sporna_tacka.py`: bez zapisa istorije izmena se vraća (uslovno, samo ako je red i dalje naš upis) → 503.
+    def _stanje(x):
+        return {"status": x.get("status") or "zakazano", "datum": x.get("datum"), "vreme": _norm_vreme(x.get("vreme")),
+                "sud": x.get("sud"), "sudnica": x.get("sudnica")}
+    from shared.audit_immutable import log_action
+    zapis = await log_action("rociste_izmena", user_id=uid, resource_type="rociste", resource_id=rociste_id,
+                             metadata={"predmet_id": row.get("predmet_id"), "polja": polja,
+                                       "prethodno": _stanje(prethodno), "novo": _stanje(row)})
+    if not zapis:
+        vraceno = False
+        try:
+            _v = await asyncio.to_thread(lambda: supa.table("rocista").update({f: prethodno.get(f) for f in polja})
+                                         .eq("id", rociste_id).eq("user_id", uid).eq("updated_at", row.get("updated_at")).execute())
+            vraceno = bool(_v.data)
+        except Exception as exc:
+            logger.error("[ROCISTA] vraćanje izmene posle pada audita nije uspelo id=%s: %s", rociste_id, type(exc).__name__)
+        logger.error("[ROCISTA] audit izmene nije upisan id=%s, izmena %s", rociste_id, "vraćena" if vraceno else "NIJE vraćena")
+        raise HTTPException(status_code=503, detail=(
+            "Istorija izmene trenutno ne može da se zabeleži, pa izmena nije sačuvana. Pokušajte ponovo." if vraceno else
+            "Istorija izmene nije zabeležena, a izmena je možda sačuvana. Osvežite stranicu i proverite stanje ročišta."))
 
     if _materially_changed:
         try:

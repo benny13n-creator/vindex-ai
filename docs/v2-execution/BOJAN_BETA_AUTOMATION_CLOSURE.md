@@ -332,3 +332,53 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 **Fajlovi:** izmenjen samo `frontend-v2-ng/tests/live-zlatni-prijem-e2e.mjs`. Namerno nedirnuti: `routers/smart_intake.py`, `frontend-v2-ng/src/prijem-predmeta.js`, `uploaded_doc/extractor.py`, `shared/intake_worker.py`, COI.
 
 **Kapija S03: `PROVEN_EXISTING_NO_CHANGE`** (proizvod), uz ispravljen i pojačan testni orakl.
+
+---
+
+## S04 — BOJAN N3: ročišta i kalendar — `PROVEN_CLOSED`
+
+**Pokriva:** N3, INV-10, INV-13, INV-14 (model samo predlaže). **Preflight:** `d4a11ffc` (S03).
+
+**Postojeće ponašanje — dokazano bez izmene (osnovica na `d4a11ffc`):** Python ročišta/kalendar/Danas 454 passed; browser `live-n3-rocista-e2e` 24/24, `live-danas` 54/54, `live-rocista-pretraga` 38/38.
+| Slučaj | Dokaz |
+|---|---|
+| Pravi datum iz dokumenta; predlog nije ročište | R5 (izvor + citat, „Proveri i zakaži“ samo popunjava formu, u bazi nema ročišta dok advokat ne zakaže); `test_n3_rocista::test_poziv_kroz_stvaran_prijem_daje_predlog_a_ne_rociste` |
+| Datum akta NIJE datum ročišta | `test_n3_rocista` (`Primljeno dana`, `U Beogradu, dana`, 53 formulacije iz pregleda) |
+| Otkazano / odloženo / održano ne izgleda kao buduće | R1, R2 (baza, predmet i Danas usklađeni) |
+| Odlaganje + nastavak | R3 (staro ostaje kao istorija, novo zakazano u istom predmetu); S1-C2: vraćanje odloženog posle nastavka → 409 |
+| Dva klika na „Zakaži“ | R5 (tačno jedno ročište), 30-s zaštita u POST-u |
+| Zastareo prikaz / istovremena izmena | R4 (409, ništa prepisano, lista osvežena) |
+| DST Europe/Belgrade | R6 (26.10. gledano 24.10. uveče = „za 2 dana“) |
+| Neuspeh OCR-a | R5 (dokument bez teksta vidljivo naveden: iz njega se ne predlaže) |
+| Tenant B | R5 (predlozi 404, PATCH 404, odbacivanje 404) |
+| Kalendar i Danas isto stanje | R1/R2 (`#da-kalendar` i `#da-obaveze` posle svake promene) |
+
+**Defekt (PROVEN pre ispravke):** acceptance „Audit i istorija promena ostaju“ nije bio ispunjen. `PATCH /api/rocista/{id}` (otkazano, održano, odloženo, vraćeno, nov datum/vreme) prepisuje red na mestu. Jedini trag je događaj `ROCISTE_ZAKAZANO` sa `sud`/`datum`, bez prethodnog stanja. Ko je otkazao ročište i šta je bilo pre nije zapisano nigde: nema audita, nema trigera, nema tabele istorije. Audit postoji samo za brisanje i odbacivanje predloga. Reprodukcija: `tests/test_s04_rociste_audit.py`, pre ispravke 2/2 FAIL (0 zapisa).
+
+**Ispravka (`routers/rocista.py`, `shared/audit_immutable.py`), bez migracije:**
+- PATCH pre upisa čita prethodno stanje istog reda (vlasnik): nečitljivo → 503 i ništa nije izmenjeno; nema reda → 404;
+- bez `if_updated_at` (legacy /app, API) uslov upisa je pročitani `updated_at` → istovremena izmena daje 409 umesto netačnog „prethodno“;
+- posle potvrđenog upisa: `rociste_izmena` u `audit_immutable` {predmet_id, polja, prethodno, novo} (stanje iz baze);
+- **fail-closed kao `routers/sporna_tacka.py`:** bez zapisa istorije izmena se uslovno vraća (samo ako je red i dalje naš upis) i odgovor je 503. V2 5xx tumači kao „ishod nije poznat“ i osvežava listu;
+- odbijene izmene (409 zastareo, 409 nastavak, 404 tuđ) ne ostavljaju zapis.
+
+**Non-goals:** bez Google/Outlook kalendara, bez nove tabele ili ekrana istorije, bez izmene pravila predloga i Danas. Istorija je u lancu `audit_immutable`, a V2 je još ne prikazuje.
+
+**Izmenjeni postojeći testovi (promena ugovora):** `test_beta_gate_rociste_consistency.py` i `test_rocista_kalendar.py` pozivaju rutu sa lažnim `supa`, pa im stvaran `log_action` ne može da upiše (fail-closed → 503). Dobili su audit sink (autouse fixture). `test_izmeni_rociste_success` sada proverava i zapis istorije. Opis testa „bez if_updated_at kao ranije“ je ispravljen jer sada postoji implicitni uslov.
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s04_rociste_audit.py` | 4/4. Pokriva: istorija stanja i datuma sa tačnim prethodno/novo; odbijene izmene bez zapisa; pad audita → 503 i vraćeno; trka bez `if_updated_at` → 409 bez netačne istorije |
+| Mutacije (binarno) | 7/7 UBIJENE: bez audita, bez prethodnog stanja, akcija neregistrovana, „novo“ iz zahteva, bez vraćanja, bez implicitnog uslova, audit nije obavezan |
+| Ciljana regresija (ročišta, kalendar, Danas, audit) | 637 passed (pre fail-closed); posle: 143/143 u 4 direktno pogođena fajla |
+| Browser | `live-n3-rocista-e2e` 24/24, `live-danas` 54/54, `live-rocista-pretraga` 38/38, `live-matter` 56/56 |
+| Puna svita | **9 failed, 12890 passed, 421 skipped, 2 xfailed, 123 warnings** — isti ID-jevi kao osnovica `a45b34ba` (posle fail-closed ojačanja) |
+| Nezavisni pregled | 0 HIGH, 2 MEDIUM (trka bez `if_updated_at`; best-effort audit) → oba ispravljena; LOW: `_stanje(None)` izmišljao „zakazano“ → sada 404 |
+
+**Preostali rizici:**
+- LOW: izmena samo napomene beleži `polja: ["napomena"]` bez sadržaja napomene (namerno: ne kopirati slobodan tekst u lanac).
+- LOW: ponovljen isti status bez `if_updated_at` pravi drugi zapis „otkazano→otkazano“ (istorija klikova, bez promene stanja).
+- LOW: granica lokalnog dana ima samo browser dokaz (R6), bez zasebnog Python testa ponoći Europe/Belgrade naspram UTC.
+- LOW: V2 nema prikaz istorije ročišta; podaci postoje u lancu.
+- Produkcija: posle puštanja svaka izmena ročišta traži upis u `audit_immutable` (postojeća tabela). Ako je lanac nedostupan, izmena se odbija (503) umesto da prođe bez istorije.
