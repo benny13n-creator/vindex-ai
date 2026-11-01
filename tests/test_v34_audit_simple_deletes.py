@@ -192,6 +192,10 @@ def _run(call, store, audit, rid, uid):
 def test_1_success_emits_exactly_one_audit(name, call, table, owner, action, rtype):
     st, au = _store_for(table, owner), _Audit()
     assert _run(call, st, au, "res-A", A) == 200
+    if name == "rociste":
+        # PR #64 kapija: ZAHTEV sa prethodnim stanjem pre nepovratnog brisanja, „obrisano“ tek posle potvrđenog brisanja
+        assert [c["action"] for c in au.calls] == ["rociste_brisanje_zahtev", "rociste_delete"]
+        au.calls = au.calls[1:]
     assert len(au.calls) == 1, f"{name}: tačno jedan audit, dobijeno {len(au.calls)}"
     c = au.calls[0]
     assert c["action"] == action

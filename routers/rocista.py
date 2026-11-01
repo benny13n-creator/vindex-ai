@@ -394,7 +394,11 @@ async def izmeni_rociste(
     if not zapis:
         vraceno = False
         try:
-            _v = await asyncio.to_thread(lambda: supa.table("rocista").update({f: prethodno.get(f) for f in polja})
+            # PR #64 kapija (B): vraća se i `updated_at`, pa prethodno važeći token konkurentnosti ponovo važi. Ovo je
+            # ZASEBAN uslovni upis (kompenzacija), ne transakcija sa izmenom — ako ne uspe, odgovor to kaže.
+            _vrati = {f: prethodno.get(f) for f in polja}
+            _vrati["updated_at"] = prethodno.get("updated_at")
+            _v = await asyncio.to_thread(lambda: supa.table("rocista").update(_vrati)
                                          .eq("id", rociste_id).eq("user_id", uid).eq("updated_at", row.get("updated_at")).execute())
             vraceno = bool(_v.data)
         except Exception as exc:
@@ -571,9 +575,11 @@ async def obrisi_rociste(
     # guarantee. Now one Postgres RPC (migration 131): the delete and the
     # event insert happen inside that function's own single transaction --
     # either both commit or neither does.
-    # RC kapija (S04): brisanje je izmena ročišta — istorija sa prethodnim stanjem je obavezna, kao kod PATCH-a. Red se
-    # briše u RPC-u zajedno sa događajem (ne može se vratiti), pa se zapis upisuje PRE brisanja: bez zapisa ništa se ne
-    # briše (503). Nepostojeće/tuđe ročište → 404 bez zapisa (V34).
+    # RC kapija (S04) + PR #64 kapija (A): brisanje je izmena ročišta. Red se briše u RPC-u 133 zajedno sa trajnim
+    # događajem `SourceInvalidated` (ista transakcija, deterministički id po ročištu) — taj događaj je autoritativan
+    # dokaz da je brisanje IZVRŠENO, i nosi user_id. Prethodno stanje se zato beleži PRE brisanja kao ZAHTEV
+    # (`rociste_brisanje_zahtev`, obavezan: bez njega ništa se ne briše — 503), a `rociste_delete` („obrisano“) tek
+    # POSLE potvrđenog brisanja. Neuspelo ili tuđe brisanje nikad ne dobija „obrisano“. Nepostojeće/tuđe → 404 bez zapisa.
     try:
         _pre = await asyncio.to_thread(lambda: supa.table("rocista").select(
             "predmet_id, sud, datum, vreme, sudnica, broj_predmeta_suda, status, napomena")
@@ -585,24 +591,34 @@ async def obrisi_rociste(
     if not prethodno:
         raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
     from shared.audit_immutable import log_action
-    zapis = await log_action("rociste_delete", user_id=uid, resource_type="rociste", resource_id=rociste_id,
-                             metadata={"predmet_id": prethodno.get("predmet_id"), "prethodno": _stanje_rocista(prethodno),
-                                       "zapis_pre_brisanja": True})
-    if not zapis:
-        logger.error("[ROCISTA] audit brisanja nije upisan id=%s — ništa nije obrisano", rociste_id)
+    stanje_pre = {"predmet_id": prethodno.get("predmet_id"), "prethodno": _stanje_rocista(prethodno)}
+    zahtev = await log_action("rociste_brisanje_zahtev", user_id=uid, resource_type="rociste", resource_id=rociste_id,
+                              metadata=stanje_pre)
+    if not zahtev:
+        logger.error("[ROCISTA] zahtev brisanja nije zabeležen id=%s — ništa nije obrisano", rociste_id)
         raise HTTPException(status_code=503, detail="Istorija izmene trenutno ne može da se zabeleži, pa ročište nije obrisano. "
                                                     "Pokušajte ponovo.")
 
-    from services.event_bus import invalidate_rociste_atomic
+    from services.event_bus import _source_invalidation_event_id, invalidate_rociste_atomic
     from shared.ai_provenance import current_correlation_id
-    _deleted_predmet_id, invalidated = await invalidate_rociste_atomic(
-        rociste_id=rociste_id, user_id=uid, correlation_id=current_correlation_id(), supa=supa,
-    )
+    try:
+        _deleted_predmet_id, invalidated = await invalidate_rociste_atomic(
+            rociste_id=rociste_id, user_id=uid, correlation_id=current_correlation_id(), supa=supa,
+        )
+    except Exception as exc:
+        # ishod nepoznat (npr. veza prekinuta posle COMMIT-a): istina je u bazi — postoji li SourceInvalidated
+        logger.error("[ROCISTA] brisanje nije potvrđeno id=%s: %s — zabeležen je samo zahtev", rociste_id, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Brisanje ročišta nije potvrđeno. Osvežite stranicu i proverite stanje.")
     if not invalidated:
-        # trka (obrisano između čitanja i brisanja): zapis kaže „pre brisanja“, a ishod je ovde
-        logger.warning("[ROCISTA] ročište nestalo između zapisa i brisanja id=%s", rociste_id)
+        # drugi tok je obrisao ročište između čitanja i brisanja — OVAJ zahtev nije obrisao ništa
+        logger.warning("[ROCISTA] ročište nestalo između zahteva i brisanja id=%s", rociste_id)
         raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
 
+    # Izvršeno. Pad ovog zapisa ne poništava brisanje (nepovratno, dokazano događajem); prethodno stanje je već u zahtevu.
+    if not await log_action("rociste_delete", user_id=uid, resource_type="rociste", resource_id=rociste_id,
+                            metadata={**stanje_pre, "zahtev_id": zahtev,
+                                      "dogadjaj_id": _source_invalidation_event_id("rociste", rociste_id)}):
+        logger.error("[ROCISTA] zapis „obrisano“ nije upisan id=%s — dokaz: SourceInvalidated + zahtev", rociste_id)
     return {"ok": True}
 
 

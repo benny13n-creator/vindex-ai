@@ -161,7 +161,7 @@ def test_brisanje_ostavlja_istoriju_a_bez_nje_nista_ne_brise(lanac, monkeypatch)
     orig = AUD.log_action
 
     async def _pad(action, *a, **kw):
-        return None if action == "rociste_delete" else await orig(action, *a, **kw)
+        return None if action == "rociste_brisanje_zahtev" else await orig(action, *a, **kw)   # PR #64: zahtev PRE brisanja
     monkeypatch.setattr(AUD, "log_action", _pad)
     assert k.delete(f"/api/rocista/{r2['id']}", headers=A).status_code == 503
     monkeypatch.setattr(AUD, "log_action", orig)

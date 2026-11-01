@@ -184,12 +184,22 @@ async def _odluci(predmet_id: str, issue_id: str, odluka: str, uid: str, ip, vid
             raise HTTPException(status_code=503, detail=_NEIZVESNO)
         raise HTTPException(status_code=503, detail="Odluka nije sačuvana jer zapis odluke nije uspeo. Pokušajte ponovo.")
 
+    from services.event_bus import EventType, emit_durable
+    payload = {"issue_id": issue_id, "odluka": cilj["dogadjaj"], "trigger": "sporna_tacka_odluka"}
     try:
-        from services.event_bus import EventType, emit_durable
-        await emit_durable(EventType.MANUAL_CORRECTION_APPLIED, uid, predmet_id,
-                           {"issue_id": issue_id, "odluka": cilj["dogadjaj"], "trigger": "sporna_tacka_odluka"})
-    except Exception as exc:   # odluka je sačuvana; akcije se usklađuju na sledećem događaju predmeta
-        logger.warning("[SPORNA_TACKA] događaj posle odluke nije upisan issue=%s: %s", issue_id, exc)
+        await emit_durable(EventType.MANUAL_CORRECTION_APPLIED, uid, predmet_id, payload)
+    except Exception as exc:
+        # PR #64 kapija (C): bez događaja radnja odbijene protivrečnosti bi ostala otvorena do nekog drugog događaja.
+        # Isti direktan poziv kanonskog usklađivanja kao routers/predmeti_close.py (bez novog reda čekanja).
+        logger.warning("[SPORNA_TACKA] događaj posle odluke nije upisan issue=%s: %s — direktno usklađivanje", issue_id, exc)
+        try:
+            from services.case_evolution import _consequence_refresh_case_actions
+            from services.event_bus import Event
+            await _consequence_refresh_case_actions(Event(type=EventType.MANUAL_CORRECTION_APPLIED, user_id=uid,
+                                                          predmet_id=predmet_id, payload=payload,
+                                                          correlation_id=None, event_id=None))
+        except Exception as exc2:   # odluka je sačuvana; radnje se usklađuju na sledećem događaju predmeta
+            logger.error("[SPORNA_TACKA] ni direktno usklađivanje radnji nije uspelo issue=%s: %s", issue_id, exc2)
     return {"ok": True, "issue_id": issue_id, "status": cilj["status"], "promenjeno": True}
 
 

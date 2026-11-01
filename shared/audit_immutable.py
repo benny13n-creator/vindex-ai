@@ -93,6 +93,9 @@ AUDITABLE_ACTIONS: set[str] = {
     # S04 (N3) -- izmena zakazanog ročišta (otkazano / održano / odloženo / vraćeno, novi datum): ko, kada i šta je
     # bilo pre. Red `rocista` se menja na mestu, pa bez ovog zapisa prethodno stanje ne postoji nigde.
     "rociste_izmena",
+    # PR #64 kapija: zahtev brisanja ročišta sa prethodnim stanjem, upisan PRE nepovratnog brisanja (routers/rocista.py);
+    # „obrisano“ je i dalje `rociste_delete`, upisan tek posle potvrđenog brisanja.
+    "rociste_brisanje_zahtev",
     # S02 / B7 (odluka osnivača A, 2026-10-31) -- advokat potvrđuje ili odbacuje AI protivrečnost (spornu tačku).
     # Tek potvrđena je aktivna i nosi akciju; zapis je istorija odluke (ruta je fail-closed bez njega).
     "sporna_tacka_potvrdjena", "sporna_tacka_odbijena",
