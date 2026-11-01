@@ -105,6 +105,24 @@ def test_nema_apsolutnih_garancija(k, ruta):
         assert not re.search(rx, t), f"{ruta}: {rx}"
 
 
+def test_granice_iz_nezavisnog_pregleda_ostaju_vidljive(k):
+    """Nalazi adversarijalnog pregleda (2026-11-01), dokazani u kodu:
+    - relativni rok (teče od dostavljanja) se ne preračunava u datum (uploaded_doc/deadline_parser.py, N03-FD3);
+    - oznaka „bez izvora“ u nacrtu je samoprovera modela koja propušta opštepoznate članove (shared/drafting_grounding.py);
+    - anonimizacija ne gasi prijavu na nalog (routers/gdpr.py menja samo profil; frontend-v2-ng/index.html to i kaže);
+    - odobren nacrt ne ulazi uvek u znanje kancelarije (frontend-v2-ng/src/nacrt-predmeta.js);
+    - kalkulator ne računa duži rok za štetu iz krivičnog dela (zastarelost.py, čl. 377)."""
+    za = _povrsine(k.get("/za-advokate").text)
+    assert "ne preračunava sam" in za and "teče od dostavljanja" in za
+    assert "krivičnim delom" in za and "krivičnim delom" in _povrsine(k.get("/kako-radi").text)
+    for ruta in STRANICE:
+        t = _povrsine(k.get(ruta).text)
+        assert "nije potkrepljen izvorom" not in t, ruta           # tvrdnja o potpunom označavanju
+        assert not re.search(r"odobren nacrt postaje", t, re.I), ruta
+    assert "ne gasi prijavu na nalog" in _povrsine(k.get("/bezbednost").text)
+    assert "nije našao izvor" in _povrsine(k.get("/funkcionalnosti").text)
+
+
 def test_pocetna_je_kraca_i_vodi_jednim_pozivom(k):
     """Hijerarhija početne: uvod → vrednost → tok sa stvarnim ekranima → poverenje → poziv. Bez kataloga svih funkcija."""
     t = k.get("/").text

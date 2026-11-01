@@ -9,7 +9,7 @@ Interni dokument: **ne objavljuje se**, registar `site/funkcije.json` se ne serv
 |---|---|---|
 | Kategorija i hero | „Pravni radni prostor“ / „Od dokumenata do jasnih odluka.“ | „Pravni operativni sistem“ / **„Jedan prostor za čitav predmet.“** |
 | Početna | 7 odeljaka: 6 kartica, 4 funkcije u formatu Problem/Šta radi/Korist, tok, **10 sektora**, zaštita, poziv | 5 odeljaka: uvod → 4 vrednosti → tok rada + 3 stvarna ekrana → poverljivost → poziv. Sektori uklonjeni |
-| Visina početne | 8.281 px (1440) / 12.517 px (390) | 5.997 px / 8.326 px (−28 % / −33 %) |
+| Visina početne | 8.281 px (1440) / 12.517 px (390) | 6.022 px / 8.404 px (−27 % / −33 %) |
 | Kako radi | 7 koraka × 4 polja („Ne pretpostavlja“ kao zaseban niz upozorenja) | 6 koraka × 3 polja (Vindex / Vi odlučujete / Dobro je znati); materijalne granice zadržane |
 | Za advokate | 8 nepovezanih primera | jedan predmet (naknada štete zbog povrede na radu, tužena strana) od tužbe do nacrta, izmišljene okolnosti |
 | Funkcionalnosti | 49 stavki, od toga 5 „klasični interfejs“; J01 „V2 koristi istu sesiju“, interna adresa `/app-legacy?posle=app` vidljiva | 46 stavki, sve sa putanjom u aplikaciji; nula oznaka verzije; nova stavka C08 (odluka o protivrečnosti) |
@@ -133,7 +133,27 @@ LEGACY u generatoru, rečenica o podsetnicima, vraćeni sektori, „nacrt iz spi
   neuspeh ne prikazuje uspeh. Forma NIJE provereno end-to-end na produkciji (namerno: zabrana upisa).
 - Snimci: `docs/website-v2/snimci/premium-pre-*.webp` (produkcija `2c6663a8`) i `premium-posle-*.webp` (grana).
 
-## 8. Preostali rizici
+## 8. Nezavisni adversarijalni pregled (5 perspektiva) i ispravke
+
+Pregled je radio nad kodom, ne nad registrom. Svaki nalaz je ponovo proveren u kodu pre ispravke (PROVEN).
+
+| # | Ozbiljnost | Nalaz | Dokaz | Ispravka |
+|---|---|---|---|---|
+| 1 | HIGH | /za-advokate: „rok prepoznat u dopisu suda čeka potvrdu na Danas“, a rok za odgovor teče od dostavljanja i ne preračunava se u datum | `uploaded_doc/deadline_parser.py` N03-FD3; `routers/rok_odluka.py` | „Takav rok Vindex ne preračunava sam: datum roka unosite vi…“ |
+| 2 | MEDIUM | „označena mesta gde član nije potkrepljen izvorom“: samoprovera modela propušta opštepoznate članove, a bez provere nema oznaka | `shared/drafting_grounding.py:34-38`; `nacrt-predmeta.js:562` | „gde model nije našao izvor za navedeni član; i neoznačene navode proveravate“ (F01, /kako-radi, /za-advokate) |
+| 3 | MEDIUM | anonimizacija ne gasi prijavu na nalog (prikriveno) | `routers/gdpr.py:232-235`; `frontend-v2-ng/index.html:532` | /bezbednost i J07: „Anonimizacija ne gasi prijavu na nalog.“ |
+| 4 | MEDIUM | „Odobren nacrt postaje rad kancelarije“, a ne uvek (ocena kvaliteta, indeksiranje, nacrt iz spisa) | `nacrt-predmeta.js:145-148` | uklonjeno sa /za-advokate; G02: „može postati … aplikacija to kaže“ |
+| 5 | MEDIUM | „prijava za rani pristup“ vs samostalna registracija: posetilac misli da mora da čeka | `/api/register` | završni odeljak početne: „Nalog sa ograničenim brojem kredita možete otvoriti i sami, u aplikaciji.“ |
+| 6 | LOW | uvod: „svaki podatak važeći tek kad ga advokat potvrdi“ — stavke AI analize se ne potvrđuju | C01 | „predloženi rok, podatak i nacrt postaju važeći…“ |
+| 7 | LOW | „podatke naloga izvozite“ — izvoz nema profil i podešavanja | `frontend-v2-ng/index.html:519` | „podatke predmeta izvozite“ |
+| 8 | LOW | kalkulator ne računa duži rok za štetu iz krivičnog dela (čl. 377), relevantno za povredu na radu | `zastarelost.py:42,68` | dodato u /kako-radi, /za-advokate i D06 |
+
+Regresioni test: `test_granice_iz_nezavisnog_pregleda_ostaju_vidljive` (mutacija nalaza 1 → test pada).
+Proizvodni nalaz VAN sajta (ne ispravlja se ovde): `routers/zastarelost.py:95-170` (`/api/rokovi/procesni`, kalkulator procesnih
+rokova u klasičnom prikazu) ima pogrešne vrednosti (odgovor na tužbu kao 30 radnih dana, neradni dani suda, brojevi članova).
+Sajt ga ne pominje (D10, javno: ne); zaseban zadatak za osnivača.
+
+## 9. Preostali rizici
 
 - Snimci aplikacije su od 2026-10-21/24; tokovi koje prikazuju (registar, dokumenti, rad na predmetu, Danas) nisu promenjeni na
   način koji bi ih učinio netačnim, ali novi elementi (dugmad odluke o protivrečnosti, status ročišta) nisu na snimcima.
