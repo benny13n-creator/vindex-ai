@@ -413,3 +413,27 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 **Preostali rizici (nasleđeni iz BA01 ledgera, nepromenjeni):** subjekat obaveze u drugom redu teksta je nerešiva dvosmislenost (granica); kolone 144/145 u produkciji PROVEN (S00), njihovi UNIQUE indeksi UNKNOWN (nema DB URL-a; zaštita od duplikata u produkciji je INFERRED iz spajanja #61, dokazana samo nad lokalnim PostgreSQL-om).
 
 **Kapija S05: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S06 — BOJAN N5: evidencija rada i naplate — `PROVEN_EXISTING_NO_CHANGE`
+
+**Pokriva:** N5, INV-10, INV-13. **Preflight:** `c507bbab` (S05). Kod nije menjan.
+
+| Adversarial slučaj | Dokaz |
+|---|---|
+| Dva konkurentna zaustavljanja tajmera | `test_n5_naplata` (trka → 1 stavka, drugi 409), `test_billing_timer_race`, `test_ns005_a2_idempotency::test_I` |
+| Ponovljen unos posle timeout-a | `IdempotencyMiddleware` za `POST /billing/entries`, `/billing/faktura`, `/billing/timer/*`: isti ključ → isti odgovor, 1 stavka (`test_ns005_a2_idempotency::test_B_H`, `test_D` drugo telo 409, skladište nedostupno → 503 bez efekta); V2 posle nepoznatog ishoda ponovo čita listu (`live-naplata` D.ishod) |
+| Decimalni iznosi, sabiranje, valuta | `test_n5_naplata` (zbirovi i PDV na decimalama), `test_z017_naplata_domen`, **PostgreSQL** `test_wave9_billing_invariant` |
+| Statusni prelazi; plaćena se ne vraća u stanje koje otključava finansijska polja | `test_n5_naplata` (tabela prelaza, `iz_statusa` → 409, uslovni upis) |
+| Zastareo klijent | `test_n5_naplata` (zastareo prikaz, istovremene promene statusa); `live-n5-naplata-e2e` |
+| Audit uspešne promene | `faktura_status_promenjen` (`test_n5_naplata`), `test_v36_audit_billing_entry`, `test_v37_audit_faktura_create` |
+| Tuđ predmet/faktura | `test_n5_naplata` (B 404), `test_n05_tenant_negative` |
+| Pad upisa stavke ne gubi rad | `test_n5_naplata` (tajmer se vraća), `test_n5_false_success` |
+| „Plaćena“ nije bankarska potvrda | V2: „označena kao plaćena“, „označena kao izdata (nije poslata klijentu ni prijavljena u SEF)“; nema bankarske sinhronizacije (`naplata-predmeta.js:29-30`) |
+
+**Rezultati:** Python naplata 16 fajlova: 235 passed, plus **46 nad stvarnim PostgreSQL 17**. RC billing gate i invarijanta naplate su bez `VINDEX_TEST_PG_DSN` preskakani, pa su pokrenuti nad lokalnim klasterom: 46/46. Ukupno 281 passed, 0 skipped. Tenant izolacija i idempotentnost (`test_n05_tenant_negative`, `test_ns005_a2_idempotency`, takođe uz PG): 41/41, 0 skipped. Browser: `live-n5-naplata-e2e` 16/16, `live-naplata` 83/83.
+
+**Preostali rizici (postojeća ograničenja, nisu kvar po ugovoru S06):** nema delimičnih uplata, datuma uplate ni druge valute osim RSD; storno nije izložen u V2 (odluka osnivača). Naplata ne prolazi kroz audit kad advokat označi plaćeno van V2 — van opsega.
+
+**Kapija S06: `PROVEN_EXISTING_NO_CHANGE`.**
