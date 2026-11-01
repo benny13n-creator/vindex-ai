@@ -434,6 +434,6 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 
 **Rezultati:** Python naplata 16 fajlova: 235 passed, plus **46 nad stvarnim PostgreSQL 17**. RC billing gate i invarijanta naplate su bez `VINDEX_TEST_PG_DSN` preskakani, pa su pokrenuti nad lokalnim klasterom: 46/46. Ukupno 281 passed, 0 skipped. Tenant izolacija i idempotentnost (`test_n05_tenant_negative`, `test_ns005_a2_idempotency`, takođe uz PG): 41/41, 0 skipped. Browser: `live-n5-naplata-e2e` 16/16, `live-naplata` 83/83.
 
-**Preostali rizici (postojeća ograničenja, nisu kvar po ugovoru S06):** nema delimičnih uplata, datuma uplate ni druge valute osim RSD; storno nije izložen u V2 (odluka osnivača). Naplata ne prolazi kroz audit kad advokat označi plaćeno van V2 — van opsega.
+**Preostali rizici (postojeća ograničenja, nisu kvar po ugovoru S06):** nema delimičnih uplata, datuma uplate ni druge valute osim RSD; storno nije izložen u V2 (odluka osnivača).
 
 **Kapija S06: `PROVEN_EXISTING_NO_CHANGE`.**
