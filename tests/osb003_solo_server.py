@@ -107,7 +107,9 @@ if os.environ.get("VX_GENOME_IZVORI") == "1":
 # S02 / B7 (samo uz VX_KONTRADIKCIJE=1): Genome predlaže dve protivrečnosti nad STVARNIM tvrdnjama iz prompta
 # (CLAIM-NNN, DOK-NN) — lažnu (dva roka za različite takse) i stvarnu (dva datuma uručenja) — da browser test proveri
 # odluku advokata (kandidat → potvrda / odbijanje). Ostali e2e ostaju nepromenjeni.
-if os.environ.get("VX_KONTRADIKCIJE") == "1":
+# VX_KONTRADIKCIJE=2 (RC kapija): ista sporna tačka „Datum urucenja resenja“ dobija i DRUGU relaciju nad istim tvrdnjama —
+# odluka važi za celu tačku, pa UI to mora da kaže na obe kartice (tests/live-s02-tacka-vise-e2e.mjs).
+if os.environ.get("VX_KONTRADIKCIJE") in ("1", "2"):
     import copy as _copy2, re as _re2  # noqa: E402
     import routers.case_dna as _CD2  # noqa: E402
     from tests import ns006_realni_predmet as _RP2  # noqa: E402
@@ -126,6 +128,9 @@ if os.environ.get("VX_KONTRADIKCIJE") == "1":
             if ca and cb:
                 g["kontradikcije"].append({"issue_label": labela, "claim_refs": [ca[0], cb[0]], "relation_type": "cinjenica_cinjenica",
                                            "opis": f"{a} / {b}", "tezina": "vazna"})
+                if os.environ.get("VX_KONTRADIKCIJE") == "2" and labela.startswith("Datum urucenja"):
+                    g["kontradikcije"].append({"issue_label": labela, "claim_refs": [ca[0], cb[0]], "relation_type": "cinjenica_norma",
+                                               "opis": f"{a} / {b} (rok iz zakona)", "tezina": "vazna"})
         return json.dumps(g, ensure_ascii=False)
     mp.setattr(_CD2, "_pozovi_genome_api", _genome_s02)
 # VCR002 T07 (samo uz VX_AGENTI=1): savetnici — zamenjen je SAMO poziv modela (/run i niz: `_pozovi_agent_api`,

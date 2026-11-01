@@ -124,11 +124,15 @@
     /* S02 / B7 (odluka osnivača A): protivrečnost iz analize je predlog. Aktivna je i nosi radnju tek kad je advokat
      * potvrdi; odbačena ostaje u istoriji. Server odlučuje (POST …/sporne-tacke/{id}/potvrdi|odbij, 409 ako se stanje
      * promenilo); prikaz se uvek ponovo čita sa servera — ishod se ne tvrdi po kliknutom dugmetu. */
-    function odlukaKontradikcije(x) {
+    function odlukaKontradikcije(x, uTacki) {
       /* Dugmad prema odluci koja VAŽI (server: `odluka.vazi`): čeka odluku → Potvrdi / Odbaci; potvrđena → Odbaci
        * (promena odluke); odbačena → Ipak potvrdi. Odbacivanje je dvostepeno (prvi klik traži potvrdu). Šalje se stanje
        * koje je advokat VIDEO — ako se u međuvremenu promenilo, server odbija (409) i ništa se ne beleži. */
       var vazi = x.odluka.vazi, div = el("div", "an-odluka"), dugmad = [];
+      /* Odluka se beleži za SPORNU TAČKU (server), ne za jednu karticu: kad tačka ima više protivrečnosti, to se kaže
+       * pre klika i u poruci posle — dugme na jednoj kartici ne sme da izgleda kao odluka „samo o ovoj“. */
+      var sve = uTacki > 1 ? " (cela sporna tačka — svih " + uTacki + " protivrečnosti)" : "";
+      if (sve) div.append(el("p", "an-item__meta", "Odluka važi za celu spornu tačku „" + (x.sporna_tacka || "") + "“ — za svih " + uTacki + " protivrečnosti u njoj."));
       var st = el("p", "an-item__meta"); st.hidden = true; st.setAttribute("role", "status");
       var moja = gen, predmetId = trenutni && trenutni.id, korisnik = sesija.stanje().korisnik;
       function dugme(radnja, tekst, cls) {
@@ -144,8 +148,8 @@
             oblik: function (y) { return y && typeof y.status === "string"; } });
         if (moja !== gen) return;
         var g = r.greska || {}, poruka;
-        if (r.ok) poruka = radnja === "potvrdi" ? "Potvrdili ste protivrečnost „" + (x.sporna_tacka || "") + "“. Odluka je zabeležena."
-          : "Odbacili ste „" + (x.sporna_tacka || "") + "“. Odluka je zabeležena; protivrečnost ostaje u istoriji i može se ponovo potvrditi.";
+        if (r.ok) poruka = radnja === "potvrdi" ? "Potvrdili ste protivrečnost „" + (x.sporna_tacka || "") + "“" + sve + ". Odluka je zabeležena."
+          : "Odbacili ste „" + (x.sporna_tacka || "") + "“" + sve + ". Odluka je zabeležena; protivrečnost ostaje u istoriji i može se ponovo potvrditi.";
         else if (g.kod === "CONFLICT") poruka = "Stanje ove sporne tačke se u međuvremenu promenilo. Ništa nije zabeleženo; prikaz je ponovo učitan.";
         else if (g.ishodNepoznat) poruka = "Ishod odluke nije poznat (veza je prekinuta). Prikaz je ponovo učitan — proverite stanje pre ponovnog pokušaja.";
         else {
@@ -276,6 +280,10 @@
 
       /* PROTIVREČNOSTI */
       var k = g.kontradikcije || {};
+      var uTacki = {};
+      niz(k.aktivne).concat(niz(k.za_pregled)).forEach(function (x) {
+        if (x.odluka && x.odluka.issue_id) uTacki[x.odluka.issue_id] = (uTacki[x.odluka.issue_id] || 0) + 1;
+      });
       function kontr(x) {
         var info = [x.relacija ? RELACIJA[x.relacija] : "", x.tezina ? "težina: " + TEZINA[x.tezina] : "", STANJE_K[x.stanje] || "",
           x.kontinuitet === "NIJE_POTVRDJEN" ? "kontinuitet nije potvrđen" : x.kontinuitet === "NEPOZNAT" ? "kontinuitet nije proveren" : ""].filter(Boolean).join(" · ");
@@ -288,7 +296,7 @@
         });
         if (ul.childNodes.length) dodaci.push(ul);
         if (niz(x.bez_izvora).length) dodaci.push(meta("Bez dokumenta: " + x.bez_izvora.length + " učesnik(a) — izvor nije poznat i ne pogađa se."));
-        if (x.odluka && x.odluka.issue_id) dodaci.push(odlukaKontradikcije(x));
+        if (x.odluka && x.odluka.issue_id) dodaci.push(odlukaKontradikcije(x, uTacki[x.odluka.issue_id] || 1));
         var li = stavkaListe(x.sporna_tacka || "Sporna tačka", x.poreklo, dodaci);
         li.dataset.kontradikcija = x.id; li.dataset.stanje = x.stanje;
         return li;
