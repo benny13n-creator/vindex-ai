@@ -730,3 +730,82 @@ Render env (pauza, petlja, `CRON_SECRET` = `CRON_TOKEN`); brojači u logovima cr
 | BA-08 | S08 | ISOLATED + LIVE (pre sprinta) | |
 
 Nijedna stavka nije REAL_USER_ACCEPTED.
+
+---
+
+## RC KAPIJA — Bojan Beta Release Candidate Gate (2026-11-01)
+
+Odluka osnivača: uslovno odobrenje za push grane i Draft PR; nema spajanja, deploy-a ni produkcionih upisa.
+
+### Faza 1 — integritet izvora i diffa
+- `git fetch`: `origin/main` = `a45b34ba` = produkcija (`/health` `a45b34b`); merge-base grane = `a45b34ba`; main nema novih commitova → nema divergencije.
+- Grana pre RC: 14 commitova (`72fbb980` … `b32ac71a`), 77 fajlova, +3969/−163; radno stablo čisto.
+- Nema migracija, `.sql`, binarnih ni generisanih fajlova; sken diffa na ključeve/JWT/DSN sa lozinkom: 0 nalaza.
+- Van etapa: `api.py` (samo registracija `sporna_tacka` rute), `strategy_simulator`/`case_context`/`gap_engine` (B7 oznake za AI), `index.html` (naslov „Predlozi analize“) — sve deo S02.
+
+### Faza 2 — PostgreSQL dokaz u CI-ju
+- **Uzrok (PROVEN):** `tests/ns007_pg.py` je čitao samo `VX_TEST_PG_DSN`; CI (`tests.yml`, `production-runtime.yml`) postavlja `VINDEX_PG_TEST_DSN`. Na `main` (run 41205099892, py3.11): **18 testova preskočeno** sa razlogom „VX_TEST_PG_DSN nije podešen“ (ns007 ugovor/paritet, mir001 t08, vcr002 migracija 137). Testovi sa `VINDEX_TEST_PG_DSN` se u CI-ju izvršavaju (podrazumevani port 55433), ns4f čita CI naziv.
+- **Ispravka (samo test-pomoćnik):** `VX_TEST_PG_DSN`, inače `VINDEX_PG_TEST_DSN`; DSN mora biti loopback (inače pad); podešen a nedostupan DSN = PAD, ne preskok.
+- **Lokalni dokaz sa CI nazivom promenljive:** 23 passed (18 + 5 S02 PG), 0 preskočeno; bez DSN-a 5 skipped sa novim razlogom; ne-loopback → RuntimeError; ugašena baza → RuntimeError (bez DSN-a u poruci); `VX_TEST_PG_DSN` ima prednost.
+- Dodatno: `tests/test_s10_bojan_ceo_tok.py` dodat u OCR korak `production-runtime.yml` (stvaran Tesseract bez srpskog paketa); u `tests.yml` se preskakao (nema Tesseract-a). Lokalno pod py3.11, samo `eng`: 3/3.
+
+### Faza 3 — nezavisni adversarijalni pregled (agent bez mog zaključka) i ispravke
+| Nalaz | Ozbiljnost | Ishod |
+|---|---|---|
+| Oživljena protivrečnost nasleđuje odluku: kompletno opažanje zatvori relaciju (`NOT_OBSERVED`), advokat odluči videvši samo preostale, kasnije opažanje ponovo otvori ISTI red (122) sa starim `created_at` i starim članovima → postaje „potvrdio advokat“ i dobija radnju (ili tiho „odbijena“) | **HIGH (B7)** | PROVEN čitanjem SQL-a 122/125 i PG testom; **ISPRAVLJENO** |
+| Trka: opažanje prođe `xmin` proveru pre odluke, a članove upiše posle nje sa `observed_at` < odluka | MEDIUM | **ISPRAVLJENO** istim mehanizmom |
+| Pad audita + pad vraćanja: odluka ostaje bez zapisa | MEDIUM | **ISPRAVLJENO**: odluka bez audit zapisa se NE primenjuje; vraćanje proverava pogođen red, vraća i `closed_at` |
+| Istorija ročišta nije beležila `napomena` / `broj_predmeta_suda` | MEDIUM | **ISPRAVLJENO** |
+| `DELETE /api/rocista/{id}` brisao bez istorije, audit best-effort posle brisanja | MEDIUM | **ISPRAVLJENO**: zapis sa prethodnim stanjem PRE brisanja; bez zapisa ništa se ne briše (503). Ostale 3 proste DELETE rute (V34) zadržavaju best-effort |
+| Dugme na jednoj kartici odlučuje za celu spornu tačku | MEDIUM (UX) | **UBLAŽENO**: kartica i poruka izričito kažu „cela sporna tačka — svih N“; odluka po pojedinačnoj protivrečnosti = odluka proizvoda (preostalo) |
+| Ispravljen rok: dva roka iz rečenica koje se razlikuju samo datumom, ispravljena na isti datum, dobijaju isti naziv; neki oblici datuma (Ćirilica, „avgusta“, ISO, rimski mesec) se ne izostavljaju | LOW | preostalo (Smart Intake put pravi samo brojčane datume) |
+| Prikaz čita najviše 200 protivrečnosti po predmetu, najstarije prve | LOW | preostalo |
+| Legacy akcije iz starog pravila zatvaraju se sa razlogom `CINJENICA_VISE_NE_VAZI` | LOW | preostalo |
+| Izolacija vlasnika/tenanta, legacy zapisi, zastareo prozor, dupli klik, AI potrošači, CAS ročišta, `_citati_nesporni`, izostavljanje datuma po mesecima | — | pregled NIJE uspeo da obori |
+
+**Mehanizam ispravke HIGH (bez migracije):** ruta odluke već računa šta advokat vidi (OPEN/REVIEW_REQUIRED kontradikcije i aktivne tvrdnje). Taj **obuhvat** se upisuje u audit zapis odluke (`metadata.obuhvat`). `shared/issue_v2.efektivna_odluka` priznaje odluku samo ako je kontradikcija u obuhvatu poslednje odluke (po `seq`) i sve njene aktivne tvrdnje su u njemu; status teme i vrsta zapisa moraju se slagati. Bez zapisa / čitanje nije uspelo → „čeka odluku“. Čitač `procitaj_obuhvat_odluka` stranici po `seq` kao `rok_potvrda.procitaj_lanac` (taj fajl nije menjan — zaključan testovima izvora).
+
+**Dokazi Faze 3:**
+- PG 17 (`test_s02_odluka_postgres`, 6/6): nov test oživljavanja posle potvrde I posle odbijanja → oživljena relacija `CEKA_ODLUKU`, prvobitna zadržava odluku.
+- `test_s02_kontradikcije_potvrda` 21/21 (+3: pravilo obuhvata, audit nosi tačan obuhvat, pad audita + pad vraćanja → status `CONFIRMED` u bazi ali NIJE aktivna i nema radnje).
+- Ročišta: `test_s04_rociste_audit` (+2), `test_v34` (`test_4b` fail-closed za ročište), ciljano 196 passed.
+- Mutacije (binarno): B7 4/4 UBIJENE (bez provere obuhvata; audit bez obuhvata; tvrdnje van obuhvata; projekcija bez obuhvata); ročišta 3/3 UBIJENE (istorija bez napomene; brisanje uprkos padu zapisa; brisanje bez prethodnog stanja); UI: stari `analiza-predmeta.js` → `live-s02-tacka-vise-e2e` 9/11.
+- Test-fixture-i koji modeluju „advokat je potvrdio“ (CONFIRMED direktno u lažnoj bazi) dobijaju obuhvat iz ISTE baze (`tests/s02_vidjeno.py`) — ne zaobilazi pravilo; propust iz S02 u `ns006_demo` (demo nije prolazio na `b32ac71a`) ispravljen.
+- Browser: `live-s02-protivrecnost` 21/21, `live-s02-tacka-vise` 11/11 (nov), `live-n3-rocista` 24/24, `live-s10-bojan-ceo-tok` 22/22, `live-rok-odluka` 76/76, `live-cg001-kontinuitet` 50/50, `live-analiza` 46/46, `live-pregled-zivi` 30/30, `live-pripremljeno` 54/54, `live-radna-lista` 25/25, `ns006-demo` 6/6, `ns007-demo` 5/5, `ns008-demo` 7/7, `live-c3b` 47/47, `live-law-brain` 45/45, `live-n6` 11/11, `live-solo-tok` 23/23, `live-sw-isolation` 28/28, `live-prijava-problema` 25/25, `site-e2e` 316/316. `live-pre136-e2e` pada ISTO na `origin/main` (`a45b34ba`) — postojeće, van ove grane.
+- **Baza 142–145 (produkcija, GET):** kolone/tabele PROVEN (S00/S11). UNIQUE: 142 `email_podsetnik_dogadjaj_kljuc` je deo `CREATE TABLE` (postojanje tabele ga snažno implicira — INFERRED); **144 `uq_hronologija_obaveza_kljuc` i 145 `uq_hronologija_dogadjaj_event` = UNKNOWN** (PostgREST ne izlaže indekse, nema DB URL-a). Provera za osnivača (samo čitanje, SQL editor): `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public' AND indexname IN ('uq_hronologija_obaveza_kljuc','uq_hronologija_dogadjaj_event'); SELECT conname FROM pg_constraint WHERE conname='email_podsetnik_dogadjaj_kljuc';`
+
+**Puna svita (lokalno, Windows, `VINDEX_PG_TEST_DSN` kao u CI-ju, posle RC ispravki):** 16 failed / 13.300 passed / 341 skipped; **0 PG testova preskočeno**. Od 16: 9 = poznata lokalna osnovica (`faza1_izvor_pod` ×6, `ns003_protocol`, `rc_cold_start` ×2); 11 pada ISTO na `b32ac71a` (lokalno okruženje: `trio` backend ×8, `faza1_pristupacnost` ×3 — CI na `main` ima 0 padova); 2 su bile prave regresije RC ispravke (`ns007_t17_audit`, `ns007_t21_attacks` — fixture potvrđene teme bez obuhvata) → ispravljene, 8/8. Merodavan je CI na PR-u.
+
+### Faza 4 — remote RC
+Grana pushovana, Draft PR prema `main` (vidi PR). Nije spojeno, nije pušteno, nijedan produkcioni zapis.
+
+**Ograničenja CI dokaza (poznata, ne skrivaju se):** `v2-ng.yml` se pokreće samo za `feature/vindex-v2-*` — V2 browser testovi (S02, S10, ročišta…) u CI-ju ovog PR-a NE rade; dokaz je lokalni (gore). `tests.yml` nema Tesseract — OCR testovi tamo se preskaču; S10 tok sada radi u OCR koraku `production-runtime.yml`.
+
+### Faza 5 — bezbednost isporuke emaila (samo čitanje; ništa nije poslato, cron ostaje isključen)
+
+**Stanje produkcije (GET, 2026-11-01):** `/health` = `a45b34b`; `email-cron.yml` `disabled_manually` (od 2026-10-28 21:33 CET), poslednje pokretanje 2026-10-28 14:39 UTC na `6e623b2f`; `email_podsetnik_dogadjaj` i `email_podsetnik_pokretanje` 0 redova; `korisnik_email_notif`: **1 profil, aktivan, vlasnik je osnivač (gmail), ali su SVA TRI PRAGA isključena (`dan_1 = dan_3 = dan_7 = false`)**.
+
+**Posledica (PROVEN čitanjem koda, `routers/email_notif.py::_obradi_korisnika`):** bez uključenog praga korisnik se preskače pre bilo kakvog čitanja. Ponovno uključen cron bi danas „uspešno“ završio sa `poslato=0` i ne bi dokazao ništa.
+
+**Putevi slanja i izolacija primaoca:**
+| Put | Ko pokreće | Kome šalje | Upisuje u 142 | Dokazuje |
+|---|---|---|---|---|
+| `POST /email-notif/test` (`interval` 1/3/7) | prijavljen korisnik, za sebe | SAMO `profiles.email` pozivaoca | ne | SMTP → stvarno sanduče, isti šablon i naslov kao podsetnik; NE dokazuje raspored |
+| `POST /email-notif/send-reminders` (cron ključ ILI osnivački JWT) | `email-cron.yml` ili osnivač | SVI aktivni profili sa uključenim pragom | da (`pokretanje`, rezervacije) | ceo dnevni put |
+| `proveri_hitne_podsetnike` (posle potvrde roka/ročišta) | radnja korisnika, pozadinski | samo taj korisnik | da | hitni put; za rok SUTRA pre dnevnog slanja ne šalje ništa (`dnevno_proslo` je netačno) |
+
+**Da li se može dokazati „tačno jedna poruka, samo odobrenom sanduču“?**
+- Probni put: DA, po konstrukciji (adresa je isključivo `profiles.email` pozivaoca, nema upisa u tabele podsetnika).
+- Dnevni put: DA, uz uslove koji se proveravaju neposredno pre i posle (ruta ih sama ne garantuje): jedini profil sa uključenim pragom je osnivačev; njegov jedini potvrđen događaj u prozoru je sintetički rok SUTRA; posle pokretanja SVE rezervacije u `email_podsetnik_dogadjaj` pripadaju osnivaču i ima ih tačno 1. Ako bilo koji drugi korisnik u međuvremenu uključi prag, naknadna provera to otkriva — zato se postupak prekida na prvom odstupanju.
+- UNKNOWN: `VINDEX_EMAIL_PODSETNICI_PAUZA` i jednakost `CRON_SECRET` (Render) = `CRON_TOKEN` (GitHub) — Render env nije vidljiv. Osnivački JWT put ne zavisi od ključa; pauza bi dala `greske=1`, „pauzirani“ (i upisala red za današnji dan).
+
+**Postupak jedne poruke (PREDLOG — izvršava osnivač ili ja tek posle izričitog odobrenja):**
+1. (osnivač, `/app` Podešavanja) uključiti samo prag „1 dan“; adresa primaoca je `profiles.email` osnivača — to je odobreno test sanduče, osim ako osnivač ne odredi drugo (drugo sanduče = drugi nalog → van ovlašćenja ove sesije).
+2. Korak A — probni: „Pošalji probni podsetnik (1 dan)“ → očekivano: jedna poruka „TEST — …“ u sandučetu. Bez upisa u 142.
+3. Korak B — dnevni put (tek ako A uspe): sintetički predmet „TEST podsetnik“, jedan rok SUTRA, potvrđen kroz Danas PRE dnevnog slanja.
+4. Neposredno pre: GET — aktivni profili sa uključenim pragom = {osnivač}; `email_podsetnik_dogadjaj` = 0 redova.
+5. Jedno pokretanje: osnivački JWT `POST /email-notif/send-reminders` (cron ostaje isključen) ILI uključiti `email-cron.yml` → `workflow_dispatch` jednom → ponovo isključiti.
+6. Odmah posle: odgovor `poslato=1, greske=0, neisporuceno=0`; GET — tačno 1 red u `email_podsetnik_dogadjaj`, `user_id` = osnivač, stanje poslato; poruka u sandučetu.
+7. Tek tada: `LIVE_DELIVERY_VERIFIED`. Odstupanje na bilo kom koraku → stop, ništa se ne ponavlja.
+
+**Potrebno od osnivača:** (a) izričito odobrenje koraka A i B; (b) potvrda da je test sanduče adresa njegovog naloga (ili drugi nalog/adresa); (c) za B: izbor puta (JWT iz pregledača ILI uključivanje workflow-a), uvid u Render env (pauza) ili prihvatanje da to otkrije sam odgovor rute.
