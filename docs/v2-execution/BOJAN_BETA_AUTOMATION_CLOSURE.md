@@ -437,3 +437,32 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 **Preostali rizici (postojeća ograničenja, nisu kvar po ugovoru S06):** nema delimičnih uplata, datuma uplate ni druge valute osim RSD; storno nije izložen u V2 (odluka osnivača).
 
 **Kapija S06: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S07 — BOJAN N6: izveštaji i izvozi — `PROVEN_EXISTING_NO_CHANGE` (proizvod) + dodate regresije
+
+**Pokriva:** N6, INV-04, INV-06, INV-10. **Preflight:** `4b1850ca` (S06). Proizvod nije menjan.
+
+| Zahtev | Dokaz |
+|---|---|
+| PDF čuva č/ć/đ i ćirilicu | `test_n6_izvestaji::test_pdf_srpska_slova…`, `…test_pdf_cirilica_ostaje_ili_je_preslovljena_uz_napomenu`; browser: tekst stvarno preuzetog PDF-a (pymupdf) sadrži „Zlatić protiv Đorđević“ |
+| Ročišta sa stanjem | isti testovi; browser „odloženo“ |
+| Nepotvrđen rok nije potvrđen; odbijen nije izvršiv | PDF `[NEPOTVRĐENO]`, `[ODBIJENO]`, `[STANJE ODLUKE NEPOZNATO]` samo na rokovima (`predmet_pdf.py:262-271`); mesečni bez odbijenih/izvršenih (`test_izvrsen_rok_nije_u_narednih_14_dana`, `test_mesecni_izvestaj_tacnost`) |
+| Mesečni ne broji nacrt/storno kao naplaćeno | `test_mesecni_izvestaj_tacnost`, `test_b2_mesecni_fakturisano` |
+| Markup u korisničkom tekstu ne pravi 500 | `test_pdf_tekst_sa_znakom_manje_ne_obara_izvestaj` |
+| CSV: status fakture i decimalni iznosi | browser: kolone „Broj/Status fakture“, „plaćena“; **novo:** iznos tačno `1234.56` |
+| Sadržaj iz stvarno generisanih fajlova | PDF tekst kroz pymupdf, CSV čitan sa diska (browser) |
+| Tenant B | **novo:** B traži PDF predmeta A → 404 bez PDF-a; B-ov CSV ima samo njegovu stavku |
+| Mali viewport | **novo:** 390 px, `isMobile`, PDF i CSV preuzeti dodirom, isti sadržaj, bez horizontalnog pomeranja |
+| AI nagađanja nisu potvrđene činjenice | PDF sadrži samo opis advokata, dokumente, beleške, hronologiju i ročišta. AI protivrečnosti i analize nisu u izvozu. AI poreklo hronološkog reda vidljivo je u koloni „Akter“ („Genome (AI)“, „Copilot (AI)“ …), a rokovi nose stanje odluke |
+
+**Provereno i nije kvar:** godišnji izveštaj sabira `float` pa zaokružuje na 2 decimale (`billing_reports.py:182-218`). Za realne iznose greška je ~1e-12 ≪ 0,005, a CSV upisuje iznos onako kako ga baza vrati.
+
+**Dokazi:** Python izveštaji/izvoz 7 fajlova: 140 passed, 0 skipped. Browser `live-n6-izvestaji-e2e`: pre 8/8, posle **11/11** (3 nove provere). Mutacije nad proizvodom za nove provere: PDF ruta bez filtera vlasnika → B provera pada; CSV zaokružen iznos → decimalna provera pada (2/2 UBIJENE, proizvod vraćen bajt-identično).
+
+**Preostali rizici:** LOW: V2 nudi samo PDF predmeta i CSV naplate; mesečni izveštaj je dostupan u legacy /app (`/billing/report/mesecni`), u V2 nije (N6-8, bez novih kategorija). LOW: DejaVu font u produkcionoj slici je preduslov za ćirilicu u PDF-u (Dockerfile `fonts-dejavu-core`); inače se preslovljava uz napomenu.
+
+**Fajlovi:** izmenjen samo `frontend-v2-ng/tests/live-n6-izvestaji-e2e.mjs`.
+
+**Kapija S07: `PROVEN_EXISTING_NO_CHANGE`.**
