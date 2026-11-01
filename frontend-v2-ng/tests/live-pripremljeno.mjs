@@ -330,6 +330,14 @@ for (const [rad, izmena] of [[HP, (t) => { t.content_json.kljucne_cinjenice[0].t
   zapisi("bezbednost", `detalj ${rad === HP ? "pripreme" : "prakse"}: HTML iz sadržaja je tekst, ne izvršava se`, e.xss === null && /<(img|svg|script)/.test(await DOK(s)), String(e.xss));
   await s.zatvori();
 }
+{
+  // S01 (B5): priprema bez navoda — prazno stanje ne tvrdi „potvrđene činjenice“ (navod iz dokumenta nije potvrda).
+  const s = await scenario({ hash: `#/pripremljeno/${HP}`, kuke: { izmeni: ({ p, metod }, t) => { if (metod === "GET" && p.endsWith(HP)) { t.content_json.kljucne_cinjenice = []; return t; } return null; } } });
+  await detaljGotov(s.p);
+  const t = await DOK(s);
+  zapisi("istina", "bez navoda: prazno stanje ne govori o potvrđenim činjenicama", /U spisu nema navoda iz dokumenata ni tvrdnji koje je uneo advokat\./.test(t) && !/potvrđenih činjenica/.test(t));
+  await s.zatvori();
+}
 for (const [w, tema, hash] of [[360, "light", "#/danas"], [360, "dark", `#/pripremljeno/${HP}`], [1440, "light", `#/pripremljeno/${PI}`]]) {
   const s = await scenario({ w, h: 800, tema, hash });
   if (hash === "#/danas") await danasGotov(s.p); else await detaljGotov(s.p);

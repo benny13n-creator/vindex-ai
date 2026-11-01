@@ -63,6 +63,8 @@ IZVOR_TIP = "v2_contradiction"
 
 TIP_AKCIJE = "RAZRESITI_KONTRADIKCIJU"
 
+from shared.issue_v2 import ODLUKA_POTVRDJENA, efektivna_odluka  # noqa: E402 — jedan vlasnik odluke o spornoj tački
+
 # Ista mapa koju Rule 3 već koristi -- ne uvodi se paralelna skala.
 _TEZINA_PRIORITET = {"kriticna": "critical", "vazna": "high", "manja": "medium"}
 _PODRAZUMEVANI_PRIORITET = "high"
@@ -139,6 +141,21 @@ def u_akcije(kontradikcije: Iterable[dict]) -> list[dict]:
     return [u_akciju(k) for k in sorted(kontradikcije or [], key=lambda k: str(k.get("id") or ""))]
 
 
+async def _obuhvati_odluka(supa, issues: dict, uid: Optional[str]) -> dict:
+    """S02 / B7: šta je advokat video pri poslednjoj odluci o svakoj odlučenoj spornoj tački
+    (`shared/issue_v2.procitaj_obuhvat_odluka`). Pad čitanja → prazno: sve odluke čekaju (bezbedna strana)."""
+    import asyncio
+    from shared.issue_v2 import STATUS_POTVRDJENA, STATUS_RAZRESENA, procitaj_obuhvat_odluka
+    odlucene = [i for i, t in issues.items() if t.get("status") in (STATUS_POTVRDJENA, STATUS_RAZRESENA)]
+    if not odlucene:
+        return {}
+    try:
+        return await asyncio.to_thread(procitaj_obuhvat_odluka, supa, odlucene, uid)
+    except Exception as exc:
+        logger.warning("[V2-PROJ] obuhvat odluka o spornim tačkama nije pročitan: %s", type(exc).__name__)
+        return {}
+
+
 async def ucitaj_v2_kontradikcije(supa, predmet_id: str, uid: Optional[str] = None) -> list[dict]:
     """OTVORENE V2 kontradikcije predmeta, sa labelom, članovima i dokumentima.
 
@@ -151,7 +168,7 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str, uid: Optional[str] = No
         return []
 
     def _teme():
-        q = supa.table("predmet_issues").select("id,label,status").eq("predmet_id", predmet_id)
+        q = supa.table("predmet_issues").select("id,label,status,close_reason,updated_at").eq("predmet_id", predmet_id)
         return (q.eq("user_id", uid) if uid else q).execute()
     iss = await asyncio.to_thread(_teme)
     issues = {i["id"]: i for i in ((iss.data if iss else None) or [])}
@@ -160,7 +177,7 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str, uid: Optional[str] = No
 
     kon = await asyncio.to_thread(
         lambda: supa.table("predmet_contradictions")
-                   .select("id,issue_id,relation_type,state,tezina")
+                   .select("id,issue_id,relation_type,state,tezina,created_at")
                    .in_("issue_id", list(issues.keys()))
                    .eq("state", "OPEN").execute()
     )
@@ -170,13 +187,15 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str, uid: Optional[str] = No
 
     cl = await asyncio.to_thread(
         lambda: supa.table("predmet_contradiction_claims")
-                   .select("contradiction_id,dokaz_id,removed_at")
+                   .select("contradiction_id,dokaz_id,removed_at,observed_at")
                    .in_("contradiction_id", [k["id"] for k in kontradikcije]).execute()
     )
     clanovi: dict[str, list[str]] = {}
+    clanovi_od: dict[str, list] = {}
     for c in ((cl.data if cl else None) or []):
         if c.get("removed_at") is None:
             clanovi.setdefault(c["contradiction_id"], []).append(c["dokaz_id"])
+            clanovi_od.setdefault(c["contradiction_id"], []).append(c.get("observed_at"))
 
     svi_dokazi = sorted({d for v in clanovi.values() for d in v})
     dok_po_dokazu: dict[str, str] = {}
@@ -191,6 +210,7 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str, uid: Optional[str] = No
     else:
         povucene = set()
 
+    obuhvati = await _obuhvati_odluka(supa, issues, uid)
     out = []
     for k in kontradikcije:
         # MIR001 TASK-07: povučena tvrdnja (izvor obrisan, `deleted_at`) nije strana sporne tačke. Tačka kojoj nisu ostale
@@ -203,6 +223,10 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str, uid: Optional[str] = No
             **k,
             "issue_label": (issues.get(k["issue_id"]) or {}).get("label"),
             "issue_status": (issues.get(k["issue_id"]) or {}).get("status"),
+            "issue_close_reason": (issues.get(k["issue_id"]) or {}).get("close_reason"),
+            "issue_odluka_at": (issues.get(k["issue_id"]) or {}).get("updated_at"),
+            "odluka_obuhvat": obuhvati.get(str(k["issue_id"])),
+            "clanovi_od": clanovi_od.get(k["id"], []),
             "claim_ids": claim_ids,
             "dokument_ids": sorted({dok_po_dokazu.get(c) for c in claim_ids if dok_po_dokazu.get(c)}),
         })
@@ -221,7 +245,7 @@ async def ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id: str, uid: str, mak
     if not predmet_id or not uid:
         return []
     iss = await asyncio.to_thread(
-        lambda: supa.table("predmet_issues").select("id,label,status")
+        lambda: supa.table("predmet_issues").select("id,label,status,close_reason,updated_at")
                    .eq("predmet_id", predmet_id).eq("user_id", uid).execute()
     )
     issues = {i["id"]: i for i in ((iss.data if iss else None) or [])}
@@ -237,19 +261,39 @@ async def ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id: str, uid: str, mak
         return []
     cl = await asyncio.to_thread(
         lambda: supa.table("predmet_contradiction_claims")
-                   .select("contradiction_id,dokaz_id,removed_at,removed_reason")
+                   .select("contradiction_id,dokaz_id,removed_at,removed_reason,observed_at")
                    .in_("contradiction_id", [k["id"] for k in kontradikcije]).execute()
     )
     clanovi: dict[str, list[dict]] = {}
     for c in ((cl.data if cl else None) or []):
         clanovi.setdefault(c["contradiction_id"], []).append(
             {"dokaz_id": c["dokaz_id"], "uklonjen": c.get("removed_at") is not None,
-             "razlog_uklanjanja": c.get("removed_reason")})
+             "razlog_uklanjanja": c.get("removed_reason"), "observed_at": c.get("observed_at")})
+    obuhvati = await _obuhvati_odluka(supa, issues, uid)
     return [{**k, "issue_label": (issues.get(k["issue_id"]) or {}).get("label"),
              "issue_status": (issues.get(k["issue_id"]) or {}).get("status"),
+             "issue_close_reason": (issues.get(k["issue_id"]) or {}).get("close_reason"),
+             "issue_odluka_at": (issues.get(k["issue_id"]) or {}).get("updated_at"),
+             "odluka_obuhvat": obuhvati.get(str(k["issue_id"])),
+             "clanovi_od": [c["observed_at"] for c in clanovi.get(k["id"], []) if not c["uklonjen"]],
              "clanovi": sorted(clanovi.get(k["id"], []), key=lambda c: str(c["dokaz_id"])),
              "claim_ids": sorted(str(c["dokaz_id"]) for c in clanovi.get(k["id"], []) if not c["uklonjen"])}
             for k in kontradikcije]
+
+
+async def kontradikcije_analize_za_ai(supa, predmet_id: str, uid: str, case_dna: Any) -> list[dict]:
+    """S02 / B7 — `case_dna.kontradikcije` za AI potrošače, uz odluku advokata (`shared/issue_v2.oznaci_kontradikcije_analize`):
+    odbijene izostavljene, ostale označene. Neuspelo čitanje V2 → stanje odluke NEPOZNATA (ne izmišlja se potvrda)."""
+    sirove = case_dna.get("kontradikcije") if isinstance(case_dna, dict) and "greska" not in case_dna else None
+    if not sirove:
+        return []
+    from shared.issue_v2 import oznaci_kontradikcije_analize
+    try:
+        v2 = await ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id, uid)
+    except Exception as exc:
+        logger.warning("[V2-PROJ] odluke o protivrečnostima nisu pročitane predmet=%s: %s", predmet_id, exc)
+        v2 = None
+    return oznaci_kontradikcije_analize(sirove, v2)
 
 
 async def predmet_ima_v2(supa, predmet_id: str) -> bool:
@@ -298,7 +342,10 @@ async def v2_akcije_za_predmet(supa, predmet_id: str, case_dna: Optional[dict] =
 
     `case_dna` (CG001): najnovije opažanje; ako ga domen ne može vezati za aktivnu spornu tačku, akcija to kaže.
     `uid` (vlasnik predmeta): sporne tačke i tvrdnje samo vlasnika — ista odluka kao prikaz i read-model."""
-    kontradikcije = await ucitaj_v2_kontradikcije(supa, predmet_id, uid=uid)
+    # S02 / B7 (odluka osnivača A): akciju „Razrešiti kontradikciju“ nosi SAMO protivrečnost koju je advokat potvrdio
+    # (i to sadržaj koji je video — `efektivna_odluka`). Kandidat je za pregled, odbijena je istorija — nijedna ne pravi akciju.
+    kontradikcije = [k for k in await ucitaj_v2_kontradikcije(supa, predmet_id, uid=uid)
+                     if efektivna_odluka(k) == ODLUKA_POTVRDJENA]
     if not kontradikcije:
         return []
     oznake = await oznacene_kontradikcije(supa, predmet_id, kontradikcije, case_dna, observation_version, uid=uid)

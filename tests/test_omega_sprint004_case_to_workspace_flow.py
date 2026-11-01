@@ -15,6 +15,9 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
+
+_S02_LEGACY_RULE3 = pytest.mark.skip(reason=(
+    'S02 / B7 (odluka osnivača A, 2026-10-31): legacy Rule 3 — akcija RAZRESITI_KONTRADIKCIJU iz case_dna.kontradikcije bez V2 sporne tačke — je uklonjen: nepotvrđena protivrečnost ne nosi akciju. Zamenu dokazuju tests/test_omega_sprint003_action_engine.py::test_rule3_nepotvrdjene_kontradikcije_iz_analize_ne_prave_akcije i tests/test_s02_kontradikcije_potvrda.py.'))
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from services.event_bus import Event, EventType
@@ -188,6 +191,7 @@ async def test_new_document_finding_flows_to_workspace_with_no_manual_refresh():
     assert all(a["tip"] == "PRIBAVITI_DOKAZ" for a in workspace["predstojece"])
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.anyio
 async def test_new_contradiction_produces_a_new_workspace_action():
     """Scenario 2: a new contradiction appears in case_dna.kontradikcije ->
@@ -365,6 +369,7 @@ async def test_restart_produces_identical_workspace_output():
     assert first["ukupno_aktivnih"] == second["ukupno_aktivnih"] == 4
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.anyio
 async def test_500_documents_one_case_workspace_shows_only_what_matters():
     """Scenario 6: a 500-document batch (simulated as its already-settled

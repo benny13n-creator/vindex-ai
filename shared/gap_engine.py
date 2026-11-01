@@ -162,6 +162,11 @@ def gaps_from_contradictions(case_dna: dict | None) -> list[dict]:
             continue
         loc1 = k.get("lokacija_1") or ""
         loc2 = k.get("lokacija_2") or ""
+        # S02 / B7: stanje odluke advokata (shared/issue_v2.oznaci_kontradikcije_analize), ako ga je pozivalac dodao.
+        _odluka = k.get("_odluka_advokata")
+        if _odluka and _odluka != "POTVRDJENA":
+            opis = ("[nepotvrđena — predlog analize, advokat nije odlučio] " if _odluka != "NEPOZNATA"
+                    else "[stanje odluke advokata nepoznato] ") + opis
         out.append(_gap(
             tip=GAP_TIP_KONTRADIKCIJA, izvor="genome_kontradikcije", razlog=opis,
             # Operation Single Brain (2026-08-07): normalize_tezina() validates the raw
@@ -175,6 +180,8 @@ def gaps_from_contradictions(case_dna: dict | None) -> list[dict]:
             hipoteza=True,
         ))
         out[-1]["dedupe_key"] = contradiction_dedupe_key(k)
+        if _odluka:
+            out[-1]["odluka_advokata"] = _odluka
     return out
 
 

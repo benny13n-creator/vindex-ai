@@ -20,6 +20,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+_S02_LEGACY_RULE3 = pytest.mark.skip(reason=(
+    'S02 / B7 (odluka osnivača A, 2026-10-31): legacy Rule 3 — akcija RAZRESITI_KONTRADIKCIJU iz case_dna.kontradikcije bez V2 sporne tačke — je uklonjen: nepotvrđena protivrečnost ne nosi akciju. Zamenu dokazuju tests/test_omega_sprint003_action_engine.py::test_rule3_nepotvrdjene_kontradikcije_iz_analize_ne_prave_akcije i tests/test_s02_kontradikcije_potvrda.py.'))
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import routers.case_dna as cd  # noqa: E402
@@ -103,6 +106,7 @@ def _kontr(id1, id2, lok1="DOK-01 str.1", lok2="DOK-03 str.2", opis="Rešenje se
 # SCENARIO MATRIX — §5 mandata
 # ═══════════════════════════════════════════════════════════════════════════
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_case1_dva_razlicita_dokumenta():
     a = (await _rule3([_kontr(UUID_A, UUID_B)]))[0]
@@ -110,6 +114,7 @@ async def test_case1_dva_razlicita_dokumenta():
     assert a["dokaz"]["dokument_id_2"] == UUID_B
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_case2_intra_dokumentna_kontradikcija_nije_duplikat():
     """26% stvarnih kontradikcija je unutar JEDNOG dokumenta (dva iskaza).
@@ -121,6 +126,7 @@ async def test_case2_intra_dokumentna_kontradikcija_nije_duplikat():
     assert a["dokaz"]["dokument_id_2"] == UUID_A
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_case3_prva_strana_nerazresena():
     a = (await _rule3([_kontr(None, UUID_B)]))[0]
@@ -129,6 +135,7 @@ async def test_case3_prva_strana_nerazresena():
     assert "dokument_id_1" in a["dokaz"]
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_case4_druga_strana_nerazresena():
     a = (await _rule3([_kontr(UUID_A, None, lok2="Zakon o radu cl. 179")]))[0]
@@ -137,6 +144,7 @@ async def test_case4_druga_strana_nerazresena():
     assert "dokument_id_2" in a["dokaz"]
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_case5_obe_strane_nerazresene_fail_closed():
     a = (await _rule3([_kontr(None, None, lok1="N/A", lok2="N/A")]))[0]
@@ -144,6 +152,7 @@ async def test_case5_obe_strane_nerazresene_fail_closed():
     assert a["dokaz"]["dokument_id_2"] is None
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_case6_uparenost_lokacije_i_identiteta():
     """Zamena strana je korupcija provenijencije. Test mora pasti ako
@@ -160,6 +169,7 @@ async def test_case6_uparenost_lokacije_i_identiteta():
 # FAIL-CLOSED I PRISUSTVO KLJUČEVA
 # ═══════════════════════════════════════════════════════════════════════════
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_legacy_kontradikcija_bez_kljuceva_daje_none_a_ne_gresku():
     """Svih 19 kontradikcija u produkciji je ekstrahovano PRE A002 i nema ove
@@ -172,6 +182,7 @@ async def test_legacy_kontradikcija_bez_kljuceva_daje_none_a_ne_gresku():
     assert a["dokaz"]["dokument_id_2"] is None
 
 
+@_S02_LEGACY_RULE3   # posle S02 bi prolazio nad praznom listom radnji (bez provere)
 @pytest.mark.asyncio
 async def test_kljucevi_uvek_postoje_u_svakoj_akciji():
     """Izostavljen ključ znači „ova verzija ne podržava provenijenciju",
@@ -183,6 +194,7 @@ async def test_kljucevi_uvek_postoje_u_svakoj_akciji():
         assert "dokument_id_2" in a["dokaz"]
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_nema_pogadjanja_iz_lokacije():
     """Kad A002 nije razrešio, Rule 3 ne sme sam da parsira `DOK-NN`."""
@@ -196,6 +208,7 @@ async def test_nema_pogadjanja_iz_lokacije():
 # NEPROMENJENO PONAŠANJE — dokaz aditivnosti
 # ═══════════════════════════════════════════════════════════════════════════
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_izvor_dokumenti_ostaje_prikazni_tekst():
     """`izvor_dokumenti` se NE prenamenjuje u UUID-ove — postojeći invarijant
@@ -205,6 +218,7 @@ async def test_izvor_dokumenti_ostaje_prikazni_tekst():
     assert a["izvor_dokumenti"] == ["DOK-01 str.1", "DOK-03 str.2"]
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_dedupe_key_i_identitet_netaknuti():
     """Dodavanje provenijencije ne sme pomeriti identitet kontradikcije."""
@@ -217,6 +231,7 @@ async def test_dedupe_key_i_identitet_netaknuti():
     assert a_bez["dedupe_key"] == a_sa["dedupe_key"]
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_postojeca_dokaz_polja_nepromenjena():
     a = (await _rule3([_kontr(UUID_A, UUID_B)]))[0]
@@ -243,6 +258,7 @@ async def _izvuci_genome(docs, genome):
         return await cd._extract_genome(docs)
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_e2e_uuid_iz_a002_stize_do_workspace_potrosaca():
     """Jedan deterministički UUID praćen kroz CEO stvarni lanac:
@@ -298,6 +314,7 @@ async def test_e2e_uuid_iz_a002_stize_do_workspace_potrosaca():
     assert stavka["izvor"]["izvor_dokumenti"] == ["DOK-01 str.1", "DOK-03 str.2"]
 
 
+@_S02_LEGACY_RULE3
 @pytest.mark.asyncio
 async def test_e2e_preimenovanje_fajla_ne_menja_preneti_identitet():
     """A002 je vezan za `redni_broj`, ne za naziv — provera da se ta osobina

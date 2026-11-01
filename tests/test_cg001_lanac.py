@@ -14,6 +14,17 @@ from tests.ns006_fake import dispecuj, ocisti, pripremi, zaglavlje
 from tests.test_cg001_incident_uplata import (A, B, C, D, D1, D2, ISSUE, KONTR, P, _DOK01, _DOK02, _red,
                                               dokazi_v1, dokazi_v2)
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 UID = "uid-A"
 LABEL = "Razlika u iznosu uplate"
 
@@ -49,7 +60,8 @@ def _tabele(dokazi, *, v2_ab=False, case_dna=None, istorija=()):
         "case_actions": [], "rocista": [],
     }
     if v2_ab:
-        t["predmet_issues"] = [{"id": ISSUE, "predmet_id": P, "user_id": UID, "label": LABEL, "status": "DISCOVERED",
+        # S02 / B7: aktivna (akcija, kontinuitet) je samo sporna tačka koju je advokat potvrdio — CONFIRMED.
+        t["predmet_issues"] = [{"id": ISSUE, "predmet_id": P, "user_id": UID, "label": LABEL, "status": "CONFIRMED",
                                 "created_at": "2026-10-28T21:58:21Z", "updated_at": "2026-10-28T21:58:21Z", "xmin": "1"}]
         t["predmet_contradictions"] = [{"id": KONTR, "issue_id": ISSUE, "relation_type": "cinjenica_cinjenica", "state": "OPEN",
                                         "tezina": "manja", "state_reason": None, "created_at": "2026-10-28T21:58:21Z",
@@ -108,8 +120,9 @@ def test_lanac_posle_ispravke_isti_redosled_dogadjaja(lanac):
     assert g1["verzija"] == 1 and g1["kontradikcije"][0]["claim_ids"] is None
     _, ugovor = _gv2(k)
     kon = ugovor["kontradikcije"]
-    assert kon["izvor"] == "analiza" and kon["aktivne"][0]["stanje"] == "NEPOTVRDJENA_TVRDNJAMA"   # vidljivo, ne tiho
-    assert kon["aktivne"][0]["ucesnici"] == [] and kon["aktivne"][0]["reference_proverene"] is False
+    # S02 / B7: analiza bez veze na tvrdnje se ne može potvrditi — vidljiva pod „traži pregled“, nikad aktivna.
+    assert kon["izvor"] == "analiza" and kon["aktivne"] == [] and kon["za_pregled"][0]["stanje"] == "NEPOTVRDJENA_TVRDNJAMA"   # vidljivo, ne tiho
+    assert kon["za_pregled"][0]["ucesnici"] == [] and kon["za_pregled"][0]["reference_proverene"] is False
 
     # 21:58:33 — tvrdnje DOK-02 izdvojene; 21:58:45 — drugi refresh
     baza.tabele["predmet_dokazi"].extend(_red(i, t, D2, user_id=UID) for i, t in _DOK02)

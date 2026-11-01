@@ -83,7 +83,10 @@ async function pitaj(p, q) { await p.fill("#pp-pitanje", q); await p.click("#pp-
   zapisi("A.tekst", "odeljci odgovora („--- NASLOV“) postaju naslovi; ** i ikonice uklonjeni", JSON.stringify(e.naslovi) === '["BRZA PROCENA","PRAVNI ZAKLJUČAK",""]'.replace(',""', '') || e.naslovi.slice(0, 2).join() === "BRZA PROCENA,PRAVNI ZAKLJUČAK", e.naslovi.join("|"));
   zapisi("A.tekst", "tekst bez ** i bez ⚠️/📊; pravna napomena backend-a zadržana (jednom)", !/\*\*/.test(e.tekst) && !/⚠|📊/.test(e.tekst) && (e.tekst.match(/Pravna napomena/g) || []).length === 1);
   zapisi("A.tekst", "HTML u odgovoru je tekst (ništa se ne izvršava)", e.tekst.includes("<img src=x") && e.xss === null);
-  zapisi("A.kontekst", "kontekst predmeta potvrđen", /uz beleške i utvrđene činjenice/.test(e.kontekst || ""));
+  // S01 (B5): navod iz dokumenta nije utvrđena činjenica — ekran ne sme da tvrdi više od backend konteksta.
+  zapisi("A.kontekst", "kontekst predmeta potvrđen, bez tvrdnje da su navodi utvrđene činjenice",
+    /uz beleške i tvrdnje iz dokumenata/.test(e.kontekst || "") && /ne utvrđene činjenice/.test(e.kontekst || "")
+    && !/uz beleške i utvrđene činjenice/.test(e.kontekst || ""), e.kontekst);
   zapisi("A.cinjenice", "činjenice iz dokumenta odvojeno, označene kao „nije utvrđena činjenica“", e.cinjenice.length === 1 && /nije utvrđena činjenica/.test(e.ceo));
   // Osvežavanje istog predmeta (npr. posle beleške) ne briše odgovor.
   await s.p.click("#tab-rad");
@@ -125,7 +128,7 @@ for (const [naziv, q, provera] of [
 }
 // VCR001 T04: razlog zašto kontekst nije ušao — prazan predmet NIJE „nije mogao da se pročita“.
 for (const [stanje, re, ne] of [
-  ["PRAZAN", /još nema beleški ni utvrđenih činjenica/, /nije mogao da se pročita/],
+  ["PRAZAN", /još nema beleški ni tvrdnji iz dokumenata/, /nije mogao da se pročita/],
   ["IZOSTAVLJEN", /izostavljen iz odgovora iz bezbednosnih razloga/, /nije mogao da se pročita/],
   ["NIJE_PROCITAN", /nije mogao da se pročita/, /još nema beleški/],
 ]) {

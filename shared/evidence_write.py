@@ -195,6 +195,98 @@ class GreskaDokaza(ValueError):
 # 1. UTEMELJENJE (provenance) — INVARIANT 2
 # ═══════════════════════════════════════════════════════════════════════════
 
+# S01 / B5 (2026-10-31): pogodak mora biti ono što dokument kaže.
+#   1. POČETAK: pogodak koji počinje usred rečenice nije navod dokumenta — izostavljen početak može da nosi
+#      negaciju, pripisivanje ili uslov („Tuženi NIJE isplatio zaradu“ → „isplatio zaradu“; „Tužilac tvrdi da je
+#      zakup plaćen“ → „zakup plaćen“). Ispred početka sme biti samo interpunkcija, navodnici ili JEDNA oznaka
+#      nabrajanja („1)“, „a)“, „(2)“, „IV“).
+#   2. GRANICA REČENICE (kad nije sigurno — nije granica; greška ide na bezbednu stranu, „AI analiza“):
+#      - . ! ? ispred razmaka, osim kad sledi malo slovo, kad je tačka deo skraćenice/inicijala („br.“, „dr.“,
+#        „d.o.o.“, „M.“) ili kraj datuma („01.02.2026.“). Tačka iza rednog broja jeste granica („Član 1. Ugovorna …“),
+#        pa „… br. 15/2026. Tuženi …“ ostaje poznat redak propust.
+#      - prelom reda, nikad kad sledeći red počinje malim slovom; inače samo kad je prethodni red ZATVOREN: završava
+#        se . ! ? ; (i pre navodnika), zaglavlje je (nijedna reč sa dva ili više malih slova; ili jedna reč velikim
+#        početnim slovom, najmanje 5 slova — „Obrazloženje“), broj predmeta
+#        („Posl. br. P 7714/2026“) ili oznaka „Naziv: vrednost“ čija vrednost liči na ime/broj („Tuženi: Primer DOO iz
+#        Čačka“ — ne „Svedok: Ne sećam se da je“); ili kad sledeći red počinje oznakom nabrajanja ili je takva oznaka.
+#        Inače je to rečenica prelomljena u više redova (PDF/OCR): „Nije tačno da⏎Tuženi duguje …“ je jedna rečenica.
+#      - „:“ i „;“ unutar reda nisu granica (iza njih često ide pripisan navod).
+#   3. KRAJ REČI/BROJA: pogodak ne sme da preseče reč ili broj („iznosi 500“ u „iznosi 5000“ / „500 000“, „125“ u
+#      „125.000,00“).
+# Kraj REČENICE se ne zahteva: izostavljen nastavak ograđuje tvrdnju („… samo delimično“, „…, navodi tužilac“), ali
+# je ne obrće — poznato ograničenje (ledger S01). Takva tvrdnja ne dobija „Iz dokumenta“: lokacija se ne vraća.
+_GRANICA_RECENICE = re.compile(r"[.!?](?=\s)|\r\n|[\n\r\f\u2028\u2029]")
+_SKRACENICA = re.compile(r"(?:\b(?:br|čl|cl|st|tač|tac|dr|mr|ing|prof|tj|npr|ul|gosp|str|sl)|d\.o\.o|a\.d|\b[A-ZČĆŽŠĐ]"
+                         r"|\b\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})\.$", re.IGNORECASE)
+_OZNAKA_REDA = re.compile(r"[A-ZČĆŽŠĐА-ЯЂЈЉЊЋЏ][^\s:]*(?:\s+[^\s:]+){0,2}:\s*(\S.*)$")
+_MALE_U_OZNACI = {"iz", "u", "sa", "od", "i", "na", "za", "kod", "do", "br", "ul", "из", "у", "са", "од", "и", "на", "за"}
+# Ceo red je oznaka broja predmeta („Posl. br. P 7714/2026“, „Broj: Gž 12/2025“, „P 4711/2026“) — ne red koji se
+# samo ZAVRŠAVA referencom („… ugovorom br. 15/2026⏎Tuženi …“).
+_BROJ_PREDMETA = re.compile(r"(?:(?:posl\.?\s*)?(?:br\.?|broj)(?:\s+predmeta)?:?\s*)?"
+                            r"[A-Za-zА-Яа-яČĆŽŠĐčćžšđ]{0,4}\s?[\w-]*\d+/\d{2,4}\.?", re.IGNORECASE)
+_NEZAVRSEN_KRAJ = {"DA", "JE", "I", "A", "ILI", "NIJE", "NE", "SU", "SE", "KOJI", "KOJA",
+                   "ДА", "ЈЕ", "И", "А", "ИЛИ", "НИЈЕ", "НЕ", "СУ", "СЕ"}
+_NABRAJANJE = re.compile(r"(?:\(?(?:\d{1,3}|[a-zа-шčćžšđ])[.)]|\(?[IVXLC]{1,6}[.)]?)\s")
+_UVOD = re.compile(r"[\W_]*(?:(?:\(?(?:\d{1,3}|[a-zа-шčćžšđ]|[IVXLC]{1,6})[.)]|[IVXLC]{1,6}(?=\s))[\W_]*)?", re.UNICODE)
+
+
+def _oznaka(red: str) -> bool:
+    """„Naziv: vrednost“ čija vrednost liči na ime, naziv ili broj — ne na rečenicu (uvod u navod)."""
+    m = _OZNAKA_REDA.match(red.strip())
+    if not m:
+        return False
+    vrednost = m.group(1).split()
+    return len(vrednost) <= 6 and all(not w[:1].islower() or w.lower().strip(",.") in _MALE_U_OZNACI for w in vrednost)
+
+
+def _red_zatvoren(red: str) -> bool:
+    red = red.strip()
+    if not red:
+        return True
+    reci = re.findall(r"[^\W\d_]+", red)
+    return (red.rstrip("\"'“”»’)")[-1:] in (".", "!", "?", ";")
+            or (bool(reci) and not any(sum(c.islower() for c in r) >= 2 for r in reci)  # zaglavlje, ali ne
+                and reci[-1].upper() not in _NEZAVRSEN_KRAJ)                            # „NIJE TAČNO DA JE⏎…“
+            or (len(red.split()) == 1 and red[:1].isupper() and len(reci[0]) >= 5)     # naslov („Obrazloženje“)
+            or (len(red.split()) <= 5 and bool(_BROJ_PREDMETA.fullmatch(red))) or _oznaka(red))
+
+
+def _granice_recenice(tekst: str, od: int, do: int):
+    for m in _GRANICA_RECENICE.finditer(tekst, od, do):
+        if m.group() in ".!?":
+            if tekst[m.end():m.end() + 20].lstrip()[:1].islower() or _SKRACENICA.search(tekst[max(0, m.start() - 12):m.end()]):
+                continue
+        else:
+            pocetak_reda = max(tekst.rfind(z, 0, m.start()) for z in "\n\r\f\u2028\u2029") + 1
+            sledeci = tekst[m.end():m.end() + 200].lstrip().split("\n", 1)[0]
+            if not _NABRAJANJE.match(sledeci) and (sledeci[:1].islower() or not (
+                    _red_zatvoren(tekst[pocetak_reda:m.start()]) or _oznaka(sledeci))):
+                continue  # rečenica se nastavlja u sledećem redu
+        yield m
+
+
+def _pocinje_recenicu(tekst: str, start: int) -> bool:
+    granice = [m.end() for m in _granice_recenice(tekst, 0, start)]
+    return _UVOD.fullmatch(tekst[granice[-1] if granice else 0:start]) is not None
+
+
+def _ne_sece_rec(tekst: str, end: int) -> bool:
+    # Seče pogodak koji se završava slovom/cifrom a nastavlja slovom/cifrom („500“|„0“), decimalom („125“|„.000“) ili
+    # grupom hiljada odvojenom razmakom/apostrofom („500“|„ 000“).
+    return not (end > 0 and tekst[end - 1:end].isalnum()
+                and re.match(r"\w|[.,]\d|[ \u00a0\u202f'’]\d{3}(?!\d)", tekst[end:end + 5]))
+
+
+def _ws_sa_prelomima(tekst: str) -> str:
+    """Isti oblik kao `analiza.validator._normalize_ws` (NFC, svaki niz belina → jedan znak, strip), ali niz belina
+    koji sadrži prelom reda postaje „\\n“, a veličina slova ostaje (granica reda je gleda) — pozicije se poklapaju
+    1:1 sa `_normalize_ws` (izuzetak: retka slova kojima `lower()` menja dužinu, npr. „İ“)."""
+    import unicodedata
+    s = unicodedata.normalize("NFC", tekst)
+    s = re.sub(r"\s+", lambda m: "\n" if re.search(r"[\n\r\f\u2028\u2029]", m.group()) else " ", s)
+    return s.strip()
+
+
 def lociraj_tvrdnju(tekst: str, tvrdnja: str) -> dict:
     """AKCIJA 2 (2026-07-24): programski pronalazi GDE se tvrdnja nalazi u
     izvornom dokumentu -- isti substring-matching princip kao
@@ -225,6 +317,8 @@ def lociraj_tvrdnju(tekst: str, tvrdnja: str) -> dict:
     pos = tekst.lower().find(probe.lower())
     if pos >= 0:
         start_offset, end_offset = pos, pos + len(probe)
+        if not (_pocinje_recenicu(tekst, start_offset) and _ne_sece_rec(tekst, end_offset)):
+            return dict(_PRAZNA_LOKACIJA)
     else:
         # Pokušaj 2: whitespace-normalizovano pretraživanje (isti obrazac
         # kao validate_clause_excerpts), sa proporcionalnim mapiranjem
@@ -238,6 +332,9 @@ def lociraj_tvrdnju(tekst: str, tvrdnja: str) -> dict:
         except Exception:
             npos = -1
         if npos < 0:
+            return dict(_PRAZNA_LOKACIJA)
+        _ws = _ws_sa_prelomima(tekst)
+        if not (_pocinje_recenicu(_ws, npos) and _ne_sece_rec(_ws, npos + len(probe_norm))):
             return dict(_PRAZNA_LOKACIJA)
         razmera = len(tekst) / max(len(tekst_norm), 1)
         start_offset = int(npos * razmera)

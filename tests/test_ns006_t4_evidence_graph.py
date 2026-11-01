@@ -18,6 +18,13 @@ import pytest
 
 from tests.ns006_fake import pripremi, ocisti, zaglavlje
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_video_sadrzaj(monkeypatch):
+    """S02 / B7: CONFIRMED sporne tačke u ovom fajlu potvrdio je advokat posle uvida u njihov trenutni sadržaj."""
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 PA = "11111111-1111-4111-8111-11111111111a"
 D1, D2, D3 = "d1000000-0000-4000-8000-000000000001", "d2000000-0000-4000-8000-000000000002", "d3000000-0000-4000-8000-000000000003"
 TEKST_D1 = ("REŠENJE O OTKAZU UGOVORA O RADU. Radni odnos zaposlenog Marka Petrovića prestaje "
@@ -69,7 +76,8 @@ def _napuni(k, baza):
     lociran = _jedan("Radni odnos")
     nelociran = _jedan("Poslodavac je")
     # V2 kontradikcija kakvu ostavlja RPC 120/121 (issue + contradiction + 2 člana)
-    baza.tabele["predmet_issues"].append({"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "uručenje rešenja", "status": "DISCOVERED"})
+    baza.tabele["predmet_issues"].append({"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "uručenje rešenja", "status": "CONFIRMED",
+                                           "updated_at": "2999-12-31T00:00:00+00:00"})   # S02 / B7: potvrdio advokat
     baza.tabele["predmet_contradictions"].append({"id": "k1", "issue_id": "i1", "relation_type": "cinjenica_cinjenica", "state": "OPEN", "tezina": "vazna"})
     for c in (covek, lociran):
         baza.tabele["predmet_contradiction_claims"].append({"contradiction_id": "k1", "dokaz_id": c["id"], "removed_at": None})

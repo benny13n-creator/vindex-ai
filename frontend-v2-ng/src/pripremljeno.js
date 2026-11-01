@@ -138,8 +138,9 @@
           null, [el("p", "an-item__meta", "Iz evidencije ročišta predmeta (ne iz analize)")]);
       }));
       koren.append(s1);
+      // S01 (B5): navod iz dokumenta nije potvrđena činjenica — prazno stanje ne sme tvrditi više od porekla stavki.
       var s2 = sekcija("Ključne činjenice iz spisa");
-      if (!niz(c.kljucne_cinjenice).length) s2.append(el("p", "list-state", "U spisu nema potvrđenih činjenica."));
+      if (!niz(c.kljucne_cinjenice).length) s2.append(el("p", "list-state", "U spisu nema navoda iz dokumenata ni tvrdnji koje je uneo advokat."));
       else s2.append(lista(c.kljucne_cinjenice, function (x) { return stavkaPorekla(tekst(x.tekst), x.poreklo, [izvor(x.dokument_naziv, x.strana_procena)]); }));
       koren.append(s2);
       if (niz(c.protivrecnosti).length) {

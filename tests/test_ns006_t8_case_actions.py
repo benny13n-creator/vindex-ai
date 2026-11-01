@@ -25,6 +25,17 @@ import pytest
 
 from tests.ns006_fake import pripremi, ocisti, zaglavlje
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 PA = "11111111-1111-4111-8111-11111111111a"
 DANAS = date.today()
 
@@ -105,7 +116,7 @@ def test_otkazano_rociste_zatvara_akciju(okr):
 def test_v2_kontradikcija_otvara_i_zatvara(okr):
     _, baza = okr(dokazi=[{"id": "c1", "predmet_id": PA, "user_id": "uid-A", "tvrdnja": "a", "deleted_at": None},
                           {"id": "c2", "predmet_id": PA, "user_id": "uid-A", "tvrdnja": "b", "deleted_at": None}],
-                  issues=[{"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "datum uručenja", "status": "DISCOVERED"}],
+                  issues=[{"id": "i1", "predmet_id": PA, "user_id": "uid-A", "label": "datum uručenja", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],  # S02 / B7: potvrdio advokat
                   kontradikcije=[{"id": "k1", "issue_id": "i1", "relation_type": "cinjenica_cinjenica", "state": "OPEN", "tezina": "kriticna"}],
                   clanovi=[{"contradiction_id": "k1", "dokaz_id": "c1", "removed_at": None},
                            {"contradiction_id": "k1", "dokaz_id": "c2", "removed_at": None}])

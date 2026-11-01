@@ -18,6 +18,17 @@ from tests.test_mir001_t03_kontinuitet import _genome_model, _klasifikuj, _sekci
 from tests.test_osb002_solo_tok import A, B, _do_kraja_dogadjaja, solo  # noqa: F401
 from tests.test_vcr002_t03_visedokumentni_predmet import _atomsko_rpc, _brisanje_rpc
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 treba_ocr = pytest.mark.skipif(_OCR is None, reason="Tesseract nije dostupan — DOK-05 (sken) se ne može pročitati")
 ROK = gc.KASNIJA_PROMENA["rok"]
 

@@ -25,6 +25,17 @@ from tests.test_mir001_t02_prijem_spisa import _OCR, _dok_predmeta, primi_spis
 from tests.test_osb002_solo_tok import A, B, _do_kraja_dogadjaja, solo  # noqa: F401
 from tests.test_vcr002_t03_visedokumentni_predmet import _atomsko_rpc, _brisanje_rpc
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 treba_ocr = pytest.mark.skipif(_OCR is None, reason="Tesseract nije dostupan — DOK-05 (sken) se ne može pročitati")
 _ZAGLAVLJA = ("PRIVREDNI SUD", "Broj predmeta", "SINTETICKI PREDMET")
 
@@ -159,7 +170,12 @@ def test_svaki_kljucni_navod_ima_stvarni_izvor_i_nije_utvrdjen(spis):
     g = _gv2(k, pid)
     stavke = g["cinjenice"]["stavke"]
     assert len(stavke) == len(zive)
-    assert {s["poreklo"] for s in stavke} == {"SOURCE_FACT"}  # navod pronađen u dokumentu, ne činjenica suda
+    # S01 (B5): zamenski model vraća REDOVE PDF-a; red koji samo nastavlja rečenicu iz prethodnog reda („Nosaci solarnih
+    # panela nisu ostetili⏎hidroizolaciju krova.“) nije navod dokumenta — bez početka rečenice (i negacije) je AI analiza.
+    nastavci = {"izvedena hidroizolacija na spoju atike.", "hidroizolaciju krova."}
+    po = {s["vrednost"]: s["poreklo"] for s in stavke}
+    assert nastavci <= set(po) and {po[v] for v in nastavci} == {"AI_ANALYSIS"}
+    assert {p for v, p in po.items() if v not in nastavci} == {"SOURCE_FACT"}  # navod pronađen u dokumentu, ne činjenica suda
     assert g["metapodaci"]["kompletnost"] == "COMPLETE"
 
 

@@ -224,14 +224,19 @@ def kontekst_tvrdnji(dokazi: Iterable[dict], v2_kontradikcije: Optional[list], b
     tacke: list[str] = []
     for i, k in enumerate(v2_kontradikcije or []):
         ids = [str(c) for c in (k.get("claim_ids") or [])]
-        if k.get("state") not in SPORNA_STANJA or len(ids) < 2:
-            continue
+        from shared.issue_v2 import ODLUKA_ODBIJENA, ODLUKA_POTVRDJENA, efektivna_odluka
+        odluka = efektivna_odluka(k)
+        if k.get("state") not in SPORNA_STANJA or len(ids) < 2 or odluka == ODLUKA_ODBIJENA:
+            continue   # S02: odbijena sporna tačka nije sporna
         labela = _tekst(k.get("issue_label"), 200) or "sporna tačka"
         if not bezbedan(labela, "sporna_tacka#%d" % i):
             labela = "sporna tačka"
+        potvrdjena = k.get("state") == "OPEN" and odluka == ODLUKA_POTVRDJENA
         for c in ids:
-            sporne.setdefault(c, []).append(labela)
-        stanje = "za pregled" if k.get("state") == "REVIEW_REQUIRED" else "aktivna"
+            sporne.setdefault(c, []).append(labela if potvrdjena else labela + " (nepotvrđena)")
+        stanje = ("aktivna, potvrdio advokat" if potvrdjena
+                  else "ponovo opažena posle zatvaranja — traži pregled" if k.get("state") == "REVIEW_REQUIRED"
+                  else "nepotvrđena — analiza je predlaže, advokat je nije potvrdio")
         tacke.append(f"- {labela} ({stanje}; tvrdnji u sukobu: {len(ids)})")
     redovi = []
     for i, d in enumerate(dokazi or []):
@@ -656,11 +661,27 @@ def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokaz
         aktivni = [u for u in ucesnici if not u["uklonjen"]]
         dok_ids = sorted({u["dokument_id"] for u in aktivni if u["dokument_id"]})
         relacija = k.get("relation_type") if k.get("relation_type") in _RELACIJE else None
+        from shared.issue_v2 import ODLUKA_CEKA, ODLUKA_ODBIJENA, ODLUKA_POTVRDJENA, efektivna_odluka
+        stanje, status, odluka = STANJE_KONTRADIKCIJE.get(k.get("state"), UNKNOWN), k.get("issue_status"), efektivna_odluka(k)
+        # S02 / B7 (odluka osnivača A): otvorena protivrečnost je aktivna tek kad je advokat potvrdi (sadržaj koji je video);
+        # odbijena je istorija; sadržaj nastao posle odluke traži novu odluku.
+        if odluka == ODLUKA_ODBIJENA:
+            stanje = "ODBIJENA"
+        elif stanje == "AKTIVNA" and odluka != ODLUKA_POTVRDJENA:
+            stanje = "NEPOTVRDJENA"
+        moze = k.get("issue_id") and stanje in ("AKTIVNA", "NEPOTVRDJENA", "ZA_PREGLED", "ODBIJENA")
+        napomena = None
+        if odluka == ODLUKA_CEKA and status in ("CONFIRMED", "RESOLVED"):
+            napomena = ("Posle vaše ranije odluke analiza je ovoj spornoj tački dodala tvrdnje ili novu vrstu protivrečnosti — "
+                        "ranija odluka ne važi za nov sadržaj; potrebna je nova odluka.")
         return {
             "id": str(k["id"]), "id_vrsta": "izvor", "poreklo": AI_ANALYSIS, "reference_proverene": True,
+            "odluka": ({"issue_id": str(k.get("issue_id") or ""), "status": status, "odluka_at": k.get("issue_odluka_at"),
+                        "vazi": odluka} if moze else None),
+            "napomena": napomena,
             "sporna_tacka": _tekst(k.get("issue_label"), 300), "sporna_tacka_id": str(k.get("issue_id") or ""),
             "relacija": relacija, "tezina": k.get("tezina") if k.get("tezina") in _TEZINE else None,
-            "stanje": STANJE_KONTRADIKCIJE.get(k.get("state"), UNKNOWN), "razlog_stanja": _tekst(k.get("state_reason"), 300),
+            "stanje": stanje, "razlog_stanja": _tekst(k.get("state_reason"), 300),
             "ucesnici": aktivni, "povuceni_ucesnici": len(ucesnici) - len(aktivni),
             "dokumenti": dok_ids,
             "bez_izvora": [u["tvrdnja_id"] for u in aktivni if not u["dokument_id"]],
@@ -668,21 +689,34 @@ def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokaz
         }
 
     v2_stavke = [_v2_stavka(k) for k in sorted(v2, key=lambda x: str(x.get("id")))]
+    # S02 / B7: verzija sadržaja sporne tačke koju advokat vidi — ruta odluke odbija odluku ako se sadržaj u
+    # međuvremenu promenio (nova tvrdnja ili relacija iz pozadinskog opažanja).
+    from shared.issue_v2 import verzija_sadrzaja
+    _po_temi: dict = {}
+    for k in v2:
+        if k.get("state") in ("OPEN", "REVIEW_REQUIRED"):
+            _po_temi.setdefault(str(k.get("issue_id") or ""), []).append(k)
+    _verzija = {t: verzija_sadrzaja(ks) for t, ks in _po_temi.items()}
+    for s in v2_stavke:
+        if s.get("odluka"):
+            s["odluka"]["sadrzaj"] = _verzija.get(s["odluka"]["issue_id"], verzija_sadrzaja([]))
     aktivne_v2 = [s for s in v2_stavke if s["stanje"] == "AKTIVNA"]
-    za_pregled = [s for s in v2_stavke if s["stanje"] == "ZA_PREGLED"]
-    zatvorene = [s for s in v2_stavke if s["stanje"] not in ("AKTIVNA", "ZA_PREGLED")]
+    za_pregled = [s for s in v2_stavke if s["stanje"] in ("ZA_PREGLED", "NEPOTVRDJENA")]
+    zatvorene = [s for s in v2_stavke if s["stanje"] not in ("AKTIVNA", "ZA_PREGLED", "NEPOTVRDJENA")]
+    # Otvorene V2 (potvrđene ili kandidati) — „ili-ili“ prema analizi i kontinuitet važe za sve otvorene, ne samo potvrđene.
+    otvorene_v2 = [s for s in v2_stavke if s["stanje"] in ("AKTIVNA", "NEPOTVRDJENA")]
 
     legacy_sirove = (case_dna or {}).get("kontradikcije") if isinstance(case_dna, dict) and "greska" not in (case_dna or {}) else None
 
     # CG001: najnovija analiza čije tvrdnje domen ne može da veže za aktivnu spornu tačku (REVIEW_REQUIRED se ne
     # upisuje). Sačuvana veza ostaje aktivna i netaknuta, ali nosi oznaku; novije opažanje ide među „traži pregled“.
-    if aktivne_v2 and isinstance(legacy_sirove, list):
+    if otvorene_v2 and isinstance(legacy_sirove, list):
         from shared.issue_v2 import KONTINUITET_NEPOZNAT, status_kontinuiteta
         # Žive tvrdnje filtriraju opažanje samo ako su zaista pročitane; nepročitane ne smeju tiho ugasiti oznaku.
         zive = set(po_id) if dokazi is not None and izvori.get("dokazi", "OK") == "OK" else None
         st = status_kontinuiteta(v2, case_dna, observation_version, zive) or {"oznake": {}, "nerazreseno": []}
         nerazreseno = st["nerazreseno"]
-        for s in aktivne_v2:
+        for s in otvorene_v2:
             if s["id"] not in st["oznake"]:
                 continue
             s["kontinuitet"] = st["oznake"][s["id"]]
@@ -710,7 +744,9 @@ def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokaz
                              "nisu iste niti prošireni skup ranijih — kontinuitet nije potvrđen."),
             })
     legacy = []
-    if not aktivne_v2 and isinstance(legacy_sirove, list):
+    # S02 / B7: „ili-ili“ važi za PREDMET (kao Case Actions, MIR001 TASK-07) — predmet sa bilo kojom V2 spornom tačkom
+    # ne prikazuje protivrečnosti iz analize; inače bi se odbijene vratile kao „čekaju odluku“ kad se odbije poslednja.
+    if not v2_stavke and isinstance(legacy_sirove, list):
         for i, k in enumerate(legacy_sirove):
             if not isinstance(k, dict):
                 continue
@@ -739,8 +775,10 @@ def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokaz
                 "napomena": "Analiza navodi ovu kontradikciju, ali ona nije vezana za tvrdnje predmeta.",
             })
 
-    izvor = "v2" if aktivne_v2 else ("analiza" if legacy else ("v2" if v2_stavke else None))
-    aktivne = aktivne_v2 if aktivne_v2 else legacy
+    izvor = "v2" if otvorene_v2 else ("analiza" if legacy else ("v2" if v2_stavke else None))
+    # S02 / B7: protivrečnost iz analize koja nije vezana za tvrdnje ne može se potvrditi — samo pregled, nikad aktivna.
+    aktivne = aktivne_v2
+    za_pregled = za_pregled + legacy
     sve = aktivne + za_pregled + zatvorene
     return {
         "stanje": OK if sve else PRAZNO,

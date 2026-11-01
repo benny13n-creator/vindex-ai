@@ -73,7 +73,8 @@ Pravni elementi su konkretni uslovi koje ovaj dokument pokriva (npr. "uzročna v
 
 "kljucne_cinjenice": pravno odlučne činjenice iz OVOG izvoda, najviše 8, poređane od najodlučnije. Svaka je DOSLOVAN
 izvod iz teksta — prepiši rečenicu ili njen deo tačno kako stoji (ista slova, bez dodavanja dijakritika, ista
-interpunkcija), bez spajanja podataka iz različitih rečenica. Prednost imaju priznanja, odluke suda, rokovi, uručenja,
+interpunkcija), bez spajanja podataka iz različitih rečenica. Deo rečenice uvek počinje od POČETKA rečenice, da
+negacija („nije“), navod stranke („tužilac tvrdi da“) ili uslov ne otpadnu. Prednost imaju priznanja, odluke suda, rokovi, uručenja,
 iznosi i datumi — bez obzira na to gde se u izvodu nalaze. Ne navodi opšte opise („tužilac je pretrpeo štetu“).
 
 Vrati SAMO JSON bez markdown fenci."""

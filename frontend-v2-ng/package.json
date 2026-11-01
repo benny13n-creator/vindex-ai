@@ -59,6 +59,10 @@
     "e2e:nazivi": "node tests/live-nazivi-e2e.mjs",
     "verify:live-prijem-pracenje": "node tests/live-prijem-pracenje.mjs",
     "e2e:rok-odluka": "node tests/live-rok-odluka-e2e.mjs",
+    "e2e:s02-protivrecnost": "node tests/live-s02-protivrecnost-e2e.mjs",
+    "e2e:s02-tacka-vise": "node tests/live-s02-tacka-vise-e2e.mjs",
+    "e2e:n3-rocista": "node tests/live-n3-rocista-e2e.mjs",
+    "e2e:s10-bojan-ceo-tok": "node tests/live-s10-bojan-ceo-tok-e2e.mjs",
     "e2e:vrsta-dokumenta": "node tests/live-vrsta-dokumenta-e2e.mjs",
     "e2e:prijava-problema": "node tests/live-prijava-problema-e2e.mjs",
     "verify:live-podesavanja": "node tests/live-podesavanja.mjs"

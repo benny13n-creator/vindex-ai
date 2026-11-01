@@ -81,6 +81,41 @@ const redovi = csv.trim().split(/\r?\n/).map(r => r.split(";"));
 zapisi("CSV", "evidencija naplate: zaglavlje sa statusom fakture, stavka A sa „plaćena“, bez stavke B",
   redovi[0].slice(-2).join("|") === "Broj fakture|Status fakture" && redovi.some(r => r.includes("Sastav tužbe") && r.at(-1) === "plaćena" && r.at(-2) === `${g}/0007`)
   && !csv.includes("TAJNA"), csv.slice(0, 300));
+zapisi("CSV", "iznos stavke tačno 1234.56 (decimalno, bez zaokruživanja)", redovi.some(r => r.includes("Sastav tužbe") && r[7] === "1234.56"), csv.slice(0, 300));
+
+// ══ S07: tenant B direktno traži izvoz predmeta A (stvarne rute, token B) ══
+const kaoB = (put) => new Promise(r => { const q = http.request(BASE + put, { headers: { Authorization: "Bearer tok-B" } }, s => { let b = ""; s.on("data", c => b += c); s.on("end", () => r({ s: s.statusCode, b })); }); q.on("error", () => r({ s: 0, b: "" })); q.end(); });
+const bPdf = await kaoB(`/api/predmeti/${PA}/pdf-export`), bCsv = await kaoB(`/billing/report/csv?od=${g}-01-01&do=${g}-12-31`);
+zapisi("B", "B ne dobija PDF predmeta A (404), a njegov CSV nema stavke A", bPdf.s === 404 && !bPdf.b.includes("%PDF")
+  && bCsv.s === 200 && bCsv.b.includes("TAJNA stavka") && !bCsv.b.includes("Sastav tužbe"), JSON.stringify([bPdf.s, bCsv.s, bCsv.b.slice(0, 200)]));
+
+// ══ S07: preuzimanje na malom ekranu (390 px) ══
+const ctxM = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce", acceptDownloads: true });
+await ctxM.route("**/*", r => {
+  const u = new URL(r.request().url());
+  if (u.hostname !== "127.0.0.1") { spoljni.push(u.href); return r.abort(); }
+  if (u.pathname === "/static/vindex.js") return r.fulfill({ status: 200, contentType: "text/javascript", body: "/* legacy blokiran */" });
+  return r.continue();
+});
+await ctxM.addInitScript(([k, v]) => { if (!sessionStorage.getItem("vx-init")) { sessionStorage.setItem("vx-init", "1"); localStorage.setItem(k, v); } },
+  [KLJUC, JSON.stringify({ access_token: "tok-A", refresh_token: "r", expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: "uid-A" } })]);
+const pm = await ctxM.newPage();
+pm.setDefaultTimeout(10000);
+pm.on("pageerror", e => greskeJS.push(String(e)));
+await pm.goto(BASE + `/app#/predmeti/${PA}`);
+await pm.waitForSelector("#iz-pdf", { state: "visible" });
+const [dlM] = await Promise.all([pm.waitForEvent("download"), pm.tap("#iz-pdf")]);
+const pdfM = join(dir, "izvestaj-m.pdf"); await dlM.saveAs(pdfM);
+const tM = spawnSync(PY, ["-c", "import sys,pymupdf;print('\\n'.join(s.get_text() for s in pymupdf.open(sys.argv[1])))", pdfM], { encoding: "utf-8", env }).stdout || "";
+await pm.goto(BASE + `/app#/predmeti/${PA}/naplata`);
+await pm.waitForSelector("#np-csv", { state: "visible" });
+const [dlM2] = await Promise.all([pm.waitForEvent("download"), pm.tap("#np-csv")]);
+const csvM = (await readFile(await dlM2.path(), "utf-8")).replace(/^﻿/, "");
+const sirina = await pm.evaluate(() => document.documentElement.scrollWidth);
+zapisi("mobilni", "390 px: PDF i CSV preuzeti dodirom, isti sadržaj, bez horizontalnog pomeranja",
+  (await readFile(pdfM)).subarray(0, 4).toString() === "%PDF" && tM.includes("Zlatić protiv Đorđević") && /Sastav tužbe/.test(csvM) && sirina <= 390,
+  JSON.stringify([tM.slice(0, 60), csvM.slice(0, 60), sirina]));
+await ctxM.close();
 
 zapisi("bezbednost", "0 spoljnih veza", spoljni.length === 0, JSON.stringify(spoljni.slice(0, 3)));
 zapisi("bezbednost", "bez JS grešaka i bez 5xx", greskeJS.length === 0 && api500.length === 0, JSON.stringify([greskeJS.slice(0, 3), api500.slice(0, 3)]));

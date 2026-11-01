@@ -33,6 +33,7 @@ const D = {
   foto: join(dir, "03 Dostavnica fotografija.png"), docx: join(dir, "04 Ugovor o radu.docx"),
   doc: join(dir, "05 Stari ugovor.doc"), lazni: join(dir, "06 Lazni ugovor.docx"),
   pdf2: join(dir, "07 Opomena digitalna.pdf"), pdf3: join(dir, "08 Zalba digitalna.pdf"), pdf4: join(dir, "09 Prilog digitalni.pdf"), pdf5: join(dir, "10 Punomocje digitalno.pdf"), pdf6: join(dir, "11 Racun digitalni.pdf"),
+  sitna: join(dir, "12 Sitna fotografija.png"),
 };
 const gen = spawnSync(PY, ["-c", `
 import io
@@ -63,11 +64,16 @@ for i, r in enumerate(["RESENJE O OTKAZU UGOVORA O RADU", "Zaposlena: Milica Zla
     tw.append((50, 80 + i * 34), r, font=fitz.Font("helv"), fontsize=20)
 tw.write_text(s); pix = s.get_pixmap(dpi=200); d.close()
 k = fitz.open(); s2 = k.new_page(width=595, height=842); s2.insert_image(s2.rect, stream=pix.tobytes("png")); k.save(r"${D.sken}"); k.close()
-# fotografija dokumenta (PNG)
+# fotografija dokumenta (PNG), čitljiva kao u tests/test_n1_zlatni_prijem.py (S03: sitan bitmap font Tesseract čita
+# pogrešno — „05.02.2028“ — pa ga ekstraktor s pravom odbija; to je zaseban negativni slučaj „sitna“ ispod)
+d = fitz.open(); s = d.new_page(width=595, height=842); tw = fitz.TextWriter(s.rect)
+for i, r in enumerate(["DOSTAVNICA", "Primalac: Milica Zlatic", "Uruceno dana 05.02.2026. godine."]):
+    tw.append((50, 80 + i * 34), r, font=fitz.Font("helv"), fontsize=20)
+tw.write_text(s); open(r"${D.foto}", "wb").write(s.get_pixmap(dpi=200).tobytes("png")); d.close()
 im = Image.new("RGB", (1200, 700), "white"); dr = ImageDraw.Draw(im)
 for i, r in enumerate(["DOSTAVNICA", "Primalac: Milica Zlatic", "Uruceno dana 05.02.2026."]):
     dr.text((60, 60 + i * 80), r, fill="black")
-im.save(r"${D.foto}")
+im.save(r"${D.sitna}")
 x = docx.Document()
 for r in ["UGOVOR O RADU", "Poslodavac: Zlatna Linija DOO Beograd", "Zaposlena: Milica Zlatic", "Zarada: 70.000,00 dinara mesecno."]:
     x.add_paragraph(r)
@@ -223,7 +229,8 @@ zapisi("G", ocrDostupan ? "sva 4 dokumenta su prikačena ISTOM predmetu (1 predm
 zapisi("G", "svaki dokument nosi poreklo (posao prijema A) i vlasnika A", dokPred.every(x => x.user_id === "uid-A" && posloviA.some(j => j.id === x.posao && j.predmet_id === PID && j.prikacen)),
   JSON.stringify(z.poslovi));
 zapisi("G", "digitalni PDF i DOCX imaju izdvojen tekst", dokPred.filter(x => /01 Tuzba|04 Ugovor/.test(x.naziv_fajla)).every(x => x.ima_tekst));
-if (ocrDostupan) zapisi("G", "OCR: sken i fotografija pročitani stvarnim OCR-om", bezTeksta.length === 0, JSON.stringify(bezTeksta));
+if (ocrDostupan) zapisi("G", "OCR: sken i fotografija pročitani stvarnim OCR-om", bezTeksta.length === 0 && ocr === 2
+  && [ime(D.sken), ime(D.foto)].every(n => dokPred.some(x => x.naziv_fajla === n && x.ima_tekst)), JSON.stringify([ocr, bezTeksta]));
 else {
   zapisi("G", "bez OCR-a: sken i fotografija NISU prikačeni i nisu dobili izmišljen tekst", !dokPred.some(x => x.naziv_fajla === ime(D.sken) || x.naziv_fajla === ime(D.foto))
     && bezTeksta.length === 0, JSON.stringify(dokPred.map(x => x.naziv_fajla)));
@@ -437,6 +444,22 @@ zapisi("E", "lista nečitljiva posle nepoznatog ishoda: otvaranje pod istim nazi
   zakljucano && await p.isDisabled("#npo-otvori"), await tekstEl("npo-poruka"));
 z = await zlatni();
 zapisi("E", "zaključano: tačno 1 predmet tog naziva", z.predmeti.filter(x => x.naziv === NAZIV3).length === 1);
+
+// E4b (S03) sitna fotografija: stvaran OCR vraća delimično pogrešan tekst — ne sme biti prikačena kao pročitana
+if (ocrDostupan) {
+  await p.goto(BASE + "/app#/predmeti/" + encodeURIComponent(PID) + "/prijem");
+  await cekaj(() => { const f = document.getElementById("pd-forma"); return f && !f.closest("[hidden]"); });
+  const dokPre = (await zlatni()).dokumenti.length;
+  await p.setInputFiles("#pd-fajlovi", [D.sitna]);
+  await p.click("#pd-otpremi");
+  await cekaj(() => document.querySelectorAll("#pd-poslovi li.intake").length >= 1);
+  await obradi();
+  const tSitna = await doKraja("pd", ime(D.sitna));
+  const zS = await zlatni();
+  zapisi("E", "sitna fotografija (stvaran OCR, nepouzdan tekst): NIJE prikačena, razlog rečen, bez „pročitan OCR-om“",
+    zS.dokumenti.length === dokPre && !zS.dokumenti.some(x => x.naziv_fajla === ime(D.sitna))
+    && /NIJE prikačen/.test(tSitna) && /nije izdvojen tekst/.test(tSitna) && !/pročitan OCR-om/.test(tSitna), tSitna.slice(0, 400));
+}
 
 // E5 sukob interesa: ime klijenta je stranka u AKTIVNOM predmetu (tuženi iz zlatnog predmeta)
 await naNovPredmet();

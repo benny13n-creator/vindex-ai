@@ -415,11 +415,18 @@ async def test_obrisi_rociste_foreign_user_gets_404_no_emit():
 
     fake = MagicMock()
     fake.rpc.return_value.execute.return_value = MagicMock(data=[{"predmet_id": None, "invalidated": False}])
+    # RC kapija: ruta prvo čita ročište (istorija izmene pre brisanja). Čitanje ovde VRATI red (trka: nestao između
+    # čitanja i brisanja) da bi se do kraja proverila brana samog RPC-a — id AND user_id u istoj transakciji.
+    citanje = fake.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value
+    citanje.execute.return_value = MagicMock(data=[{"predmet_id": "p", "datum": "2026-12-01"}])
 
     req = MagicMock(spec=StarletteRequest)
     req.headers, req.client, req.state = {}, None, MagicMock()
 
-    with patch("routers.rocista._get_supa", return_value=fake):
+    async def _zapis(*a, **kw):
+        return "audit-id"
+
+    with patch("routers.rocista._get_supa", return_value=fake), patch("shared.audit_immutable.log_action", _zapis):
         with pytest.raises(HTTPException) as exc_info:
             await obrisi_rociste("roc-not-mine", req, user={"user_id": "attacker"})
         assert exc_info.value.status_code == 404

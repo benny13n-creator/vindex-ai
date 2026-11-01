@@ -473,7 +473,12 @@ async def build_case_context(predmet_id: str, uid: str, supa, include_documents:
         tip_predmeta=tip_predmeta, expected_docs=EXPECTED_DOCS,
     )
     problemi = identify_case_problems(rizik, tip_predmeta)
-    gaps = collect_case_gaps(problemi, case_dna)
+    # S02 / B7: protivrečnost koju je advokat odbio ne ulazi u kontekst; ostale nose stanje odluke (nepotvrđena ≠ utvrđena).
+    case_dna_gap = case_dna
+    if isinstance(case_dna, dict) and case_dna.get("kontradikcije"):
+        from services.v2_projection import kontradikcije_analize_za_ai
+        case_dna_gap = {**case_dna, "kontradikcije": await kontradikcije_analize_za_ai(supa, predmet_id, uid, case_dna)}
+    gaps = collect_case_gaps(problemi, case_dna_gap)
     readiness = compute_case_readiness(raw["case_actions"], gaps, genome_computed=genome_computed)
     top_action = top_open_action(raw["case_actions"])
 

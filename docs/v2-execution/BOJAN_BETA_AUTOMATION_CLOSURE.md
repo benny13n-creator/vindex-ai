@@ -1,0 +1,811 @@
+# BOJAN BETA AUTOMATION & B5/B7 CLOSURE — ledger
+
+Ugovor: osnivačev „VINDEX AI — BOJAN BETA AUTOMATION & B5/B7 CLOSURE — MASTER NIGHT SPRINT“ (2026-10-31), S00–S11, strogo redom.
+Pravila: `docs/governance/VINDEX-CANONICAL-OPERATING-RULES.md` (ACTIVE, SHA-256 `b1df798d5ff58e8e16daa93f36de246660d4c10cccee98c19e1a951065303056`).
+Oznake: PROVEN / INFERRED / ASSUMED / UNKNOWN. Nivoi: LOCAL · ISOLATED · BROWSER_INTEGRATION · LIVE · REAL_USER_ACCEPTED.
+LIVE ovde znači: posmatrano u produkciji nad sintetičkim predmetom koji je osnivač uneo; to nije Bojanovo prihvatanje.
+
+Grana `bojan/beta-automation-closure` (worktree `C:/vindex-beta-auto`) iz `origin/main`; lokalni commitovi, bez push-a.
+
+---
+
+## S00 — preflight, requirements lock, baseline
+
+### Kanonski dokument
+| Provera | Rezultat | Oznaka |
+|---|---|---|
+| Izvor | `C:\Users\Benny\Downloads\VINDEX-S00-CANONICAL-READY\docs\governance\VINDEX-CANONICAL-OPERATING-RULES.md` (na `C:\vindex-ba01\docs\governance\` ga nije bilo) | PROVEN |
+| SHA-256 izvora | `b1df798d…303056` = očekivani heš | PROVEN |
+| Status | `Status: ACTIVE`, 164 reda, 5.541 B, LF | PROVEN |
+| Kopija u grani | bajt-identična (isti SHA-256) | PROVEN |
+
+### Osnovica
+| Stavka | Vrednost | Oznaka |
+|---|---|---|
+| `origin/main` | `a45b34ba5246f5432e07dad03d295ddb96019347` (Merge PR #62; #63 spojen kao `c1709799`) | PROVEN |
+| Produkcija `/health` | `commit: a45b34b`, `workers: 1`, `redis: true` | PROVEN |
+| Render deploy evidencija | nema pristupa Render-u; GitHub nema deployment zapise za SHA → jedini dokaz je `/health` | PROVEN (odsustvo) |
+| Sprint grana | `bojan/beta-automation-closure` = `a45b34ba`, merge-base = `origin/main` | PROVEN |
+| CI na `a45b34ba` | **11/11 success** (push run 2026-10-31 13:20Z; Security, Test Suite, Production Runtime Parity) | PROVEN |
+| Otvoreni PR-ovi | 14 Draft PR-ova (#2–#50), nijedan Bojanov tok BA/N nije otvoren; #61/#62/#63 spojeni | PROVEN |
+| Lokalna regresiona osnovica | vidi „Puna svita osnovice“ ispod | — |
+
+### Migracije 142–145 (produkcija, samo GET, `limit=0`)
+| Migracija | Provera | Rezultat | Oznaka |
+|---|---|---|---|
+| 142 | `email_podsetnik_dogadjaj` (sve 13 kolona), `email_podsetnik_pokretanje` | HTTP 200, oba **0 redova** | PROVEN |
+| 143 | javni (publishable) ključ čita tabele podsetnika | 401 / `42501 permission denied` za obe | PROVEN |
+| 144 | `predmet_hronologija.obaveza_kljuc` | postoji; novi rokovi nose ključ | PROVEN |
+| 144 UNIQUE indeks | nema DB URL-a; PostgREST ne izlaže indekse | — | UNKNOWN (INFERRED primenjen po spajanju #61) |
+| 145 | `predmet_hronologija.dogadjaj_event_id` | postoji; 4/4 rokova predmeta `11eaeffc` ga nose | PROVEN |
+| 145 UNIQUE indeks | isto kao 144 | — | UNKNOWN |
+
+### Današnji mobilni Golden Case (produkcija, samo GET, bez sadržaja dokumenata)
+Predmet `11eaeffc` („Jelena Markovic protiv Delta Test d.o.o.“, 2026-10-31 14:36Z):
+- 4 dokumenta (`01_Digitalni_PDF.pdf`, `02_Skenirani_PDF.pdf`, `scan.pdf` ×2); OCR stvarno izvršen na 3 (`ocr_used=true`, 0,949–0,951) — PROVEN LIVE.
+- `predmet_dokazi` 24: `egzaktan` 22, `normalizovan` 1, `nije_pronadjen` 1; svi `ai_klasifikacija`, svi sa `dokument_id` — potvrđuje ugovor S01. PROVEN.
+- `predmeti.opis` prazan, `predmet_klijenti` 0 — potvrđuje ugovor S03. PROVEN.
+- `predmet_issues` 3, sva `DISCOVERED`: „Sintetički test“, „Razlika u datumu dokumenta“, „Razlika u rokovima za uplatu takse“ (B7 slučaj). Ugovor S02 imenuje samo treći; prva dva se pregledaju u S02. PROVEN.
+- Hronologija: 4 roka, svi `AI_AUTONOMOUS` (nepotvrđeni), svi sa `obaveza_kljuc` i `dogadjaj_event_id`; dva različita `scan.pdf` sa istim datumom 2026-11-27 ostaju dva reda. PROVEN.
+- `case_actions`: 4 `PLANIRATI_ROKOVE` otvorene, 2 `PRIBAVITI_DOKAZ`, 3 `RAZRESITI_KONTRADIKCIJU` (1 otvorena). Ročišta 0, stavke naplate 0, email rezervacije 0.
+
+Raniji predmet P7714 (`71c5e673`, 2026-10-30): klijent 1, opis postoji, 4 roka (dva 2026-11-12 iz dva `scan.pdf`), 14 dokaza `egzaktan`, 1 issue „Razlika u datumu odluke“.
+
+**Nije obuhvaćeno mobilnim testom (PROVEN odsustvom podataka):** veza klijent–predmet i opis/cilj (čarobnjak), provera sukoba, ročišta i kalendar (N3), potvrda/odbijanje/ispravka roka, podsetnici i isporuka (B10, `email-cron.yml` je `disabled_manually` od 2026-10-28; obe tabele 142 prazne), naplata (N5), izveštaji (N6), N8/N9 pravno rezonovanje, tenant B, retry/konkurentnost/prekid veze, DOCX i JPG/PNG format.
+
+### Mapiranje identifikatora (bez novih zahteva)
+| Bojanov tekst | N | A018 B | BA |
+|---|---|---|---|
+| wizard, podaci klijenta, cilj/spor, zavođenje predmeta | N1, N2 | B1, B2, B4 | BA-01 |
+| skenirana dokumentacija | N1 | B3 | BA-02 |
+| (izvlačenje podataka iz dokumenata) | N1 | B5, B6 | BA-03 |
+| zakazivanje u kalendaru, ročišta | N3 | — | — |
+| rokovi, podsetnici | N4 | B9, B10 | BA-05, BA-06, BA-07 |
+| evidencija o naplati | N5 | — | — |
+| izveštaji | N6 | — | — |
+| ažuriranje predmeta | N7 | B8, B11, B12, B6 | BA-04, BA-08 |
+| nadležnost | N8 | — | — |
+| višestruki povrat čl. 55a | N9 | — | — |
+| (inženjerske) protivrečnosti, ceo lanac | — | B7, B13 | — |
+
+N0 = zaključavanje izvora zahteva (ne funkcionalnost).
+
+### Acceptance matrica na ulazu u sprint
+Kolona „Najviši nivo“ = najviši STVARNO posmatran nivo do S00 (istorijski dokaz označen izvorom).
+
+| ID | Izvor | Kod (vlasnik) | Najviši nivo pre sprinta | Nije dokazano | Potvrđen otvoren defekt | Etapa |
+|---|---|---|---|---|---|---|
+| B1 | A018 | `routers/predmeti.py`, `routers/intake.py` | LIVE (P7714, `11eaeffc`) | — | ne | S03 |
+| B2 | A018 | `routers/smart_intake.py` | LIVE (4/4 posla `completed` na oba predmeta) | DOCX/JPG u produkciji | ne | S03 |
+| B3 | A018 | `uploaded_doc/extractor.py`, `shared/intake_worker.py` | LIVE (OCR na 3+3 dokumenta) | foto JPG/PNG uživo | ne | S03 |
+| B4 | A018 | `predmet_dokumenti.id` | LIVE | — | ne | S03 |
+| B5 | A018 | `shared/evidence_write.py`, `routers/evidence.py` | LIVE (24 dokaza sa `dokument_id`) | semantička tačnost, adversarial A–K | **UNKNOWN** — S01 | S01 |
+| B6 | A018 | `case_dna` + katalog tvrdnji | LIVE (4 dokumenta, tvrdnje po dokumentu) | — | ne | S08 |
+| B7 | A018 | `routers/case_dna.py`, `shared/issue_v2.py` | LIVE | identitet obaveze pre kategoričnog nalaza | **DA (prijavljeno, reprodukcija u S02)** | S02 |
+| B8 | A018 | `predmet_hronologija` + `genome_contract` | LIVE (rokovi sa izvorom) | — | ne | S05/S08 |
+| B9 | A018 | `shared/rokovi.py`, lanac odluka | LIVE (4 nepotvrđena kandidata) | potvrda/odbijanje uživo | ne | S05 |
+| B10 | A018 | `routers/email_notif.py`, `email-cron.yml` | ISOLATED (lokalni SMTP, PG17) | bilo kakvo produkciono slanje; cron isključen | operativno (BLOCKED_AUTHORITY u ranijim sprintovima) | S11 |
+| B11 | A018 | `services/case_evolution.py` | LIVE (`PLANIRATI_ROKOVE` iz rokova) | — | ne | S08 |
+| B12 | A018 | `routers/case_dna.py` | LIVE (3 verzije istorije po predmetu) | — | ne | S08 |
+| B13 | A018 | ceo lanac | LIVE delimično (bez klijenta, ročišta, naplate, podsetnika) | ceo lanac | ne | S10 |
+| N1 | N0/N1 ledger | prijem (V2 + Smart Intake) | BROWSER_INTEGRATION (zlatni E2E 48/48) + LIVE delimično | — | ne | S03 |
+| N2 | N2–N9 ledger | čarobnjak, COI (UI kapija) | BROWSER_INTEGRATION (27/27) | uživo klijent+opis | ne (serverski COI = odluka osnivača, otvorena) | S03 |
+| N3 | N2–N9 ledger | ročišta, Danas | BROWSER_INTEGRATION (24/24) | uživo | ne | S04 |
+| N4 | N2–N9 + Sektor 2 | rokovi, podsetnici | ISOLATED / BROWSER_INTEGRATION | isporuka | operativno | S05/S11 |
+| N5 | N2–N9 ledger | naplata | BROWSER_INTEGRATION (16/16) | uživo | ne | S06 |
+| N6 | N2–N9 ledger | izveštaji | BROWSER_INTEGRATION (8/8) | uživo | ne | S07 |
+| N7 | N2–N9 ledger | ažuriranje predmeta | ISOLATED + LIVE (novi dokumenti → dokazi, Genome, akcije) | — | ne | S08 |
+| N8 | N2–N9 ledger | `ask_agent` + provere | ISOLATED (stvaran model, baza zatvorena) | — | ne (ograničenja F8, ZUS van korpusa) | S09 |
+| N9 | N2–N9 ledger | `shared/visestruki_povrat.py` | ISOLATED (stvaran model) | — | ne | S09 |
+| BA-01 | BA01 ledger | prijem | BROWSER_INTEGRATION | uživo klijent+opis (mobilni test bez njih) | ne | S03 |
+| BA-02 | BA01 ledger | prijem/OCR | LIVE | foto uživo | ne | S03 |
+| BA-03 | BA01 ledger | ekstrakcija | ISOLATED | — | ne | S01/S03 |
+| BA-04 | BA01 ledger | procesna hronologija | BROWSER_INTEGRATION (37/37) | — | ne | S05 |
+| BA-05 | BA01 + PR #61/#62 | `shared/rokovi.py`, 144/145 | LIVE (P7714: 4 kandidata; `11eaeffc`: 4) | — | ne | S05 |
+| BA-06 | BA01 ledger | lanac odluka | ISOLATED (PG) | uživo | ne | S05 |
+| BA-07 | BA01 ledger | podsetnici | ISOLATED | isporuka | operativno | S11 |
+| BA-08 | BA01 ledger | ažuriranje predmeta | ISOLATED + LIVE | — | ne | S08 |
+
+Nijedna stavka nema nivo REAL_USER_ACCEPTED.
+
+### Puna svita osnovice (lokalno, Windows, Python 3.11, stvaran Tesseract, `-p no:randomly`)
+`a45b34ba` (worktree `C:/vindex-base-a45`): **9 failed / 12.815 passed / 396 skipped / 2 xfailed**. Padovi su isti ID-jevi kao na `c5f739f1` i ranijim osnovicama: `test_faza1_izvor_pod` ×6 (Playwright font merilo), `test_ns003_protocol::test_fixture_hesevi_su_zakljucani` (CRLF heš), `test_rc_cold_start` ×2 (git/commit okruženje). Svi su okruženje radne stanice; isti kod u CI-ju je 11/11. Svaka kasnija regresija se poredi sa ovim skupom po ID-ju.
+
+### Gate S00: `PROVEN_CLOSED`
+Izvor zahteva (kanon + 7 dokumenata), kod (`a45b34ba` = produkcija), migracije (142, 143, 144, 145 kolone PROVEN; UNIQUE indeksi UNKNOWN) i osnovica potvrđeni; nema divergentne istorije. Otvoreno i preneto: UNIQUE indeksi 144/145 (nema DB pristupa — INFERRED iz uspešnog spajanja #61/#62 i ponašanja: 4 roka, 4 `dogadjaj_event_id`, bez duplikata).
+
+---
+
+## S01 — B5: evidence provenance & fact integrity
+
+**Zahtevi:** B5, BA-03 (delimično), INV-02, INV-04, INV-13, INV-14. **Preflight SHA:** `72fbb980` (= `a45b34ba` + S00 dokumentacija).
+
+### Problem (PROVEN, reprodukovano pre izmene)
+1. **Negacija/pripisivanje gubi se, a tvrdnja ostaje „Iz dokumenta“.** `shared/evidence_write.py::lociraj_tvrdnju` je prihvatala pogodak USRED rečenice. AI tvrdnja „isplatio zaradu za mart 2026. godine.“ iz rečenice „Tuženi **nije** isplatio zaradu …“ dobijala je `nacin_pronalaska = egzaktan` → `poreklo_tvrdnje` = SOURCE_FACT → V2 „Iz dokumenta“, „pronađeno u dokumentu“ (obrnut smisao). Isto: „zakup placen …“ iz „Tužilac tvrdi da je zakup placen …“ (navod stranke prikazan kao navod dokumenta bez pripisivanja), red-nastavak „hidroizolaciju krova.“ iz „Nosaci … **nisu** ostetili⏎hidroizolaciju krova.“ (MIR001 zlatni spis), odsečen broj („iznosi 500“ u „iznosi 5000“). Dokaz: novi test fajl na nepromenjenoj osnovici `a45b34ba` → **41 failed / 32 passed** (svi padovi su slučajevi koji moraju biti AI analiza).
+2. **V2 „Pitanje“ tvrdi više od backend-a.** `frontend-v2-ng/src/pitanje-predmeta.js`: „Odgovor je dat uz beleške i **utvrđene činjenice** ovog predmeta“ / „nema … utvrđenih činjenica“, iako backend kontekst (VCR002 RC FIX 3) izričito kaže da nijedna tvrdnja nije utvrđena činjenica; postojeći `live-pitanje.mjs` je zaključavao taj tekst.
+3. **V2 „Pripremljeno“ prazno stanje:** „U spisu nema **potvrđenih** činjenica.“ za listu stavki čije je poreklo navod/AI.
+
+### Šta je već bilo ispravno (PROVEN postojećim testovima, nepromenjeno)
+A doslovna rečenica (SOURCE_FACT, „navod iz dokumenta“ — nikad „utvrđeno“); B normalizovana (SOURCE_FACT); C parafraza (AI_ANALYSIS); F pogrešno pročitan iznos/datum (nije pronađen → AI); G ručna tvrdnja advokata (HUMAN_CONFIRMED, ponovna AI klasifikacija ne briše ljudske redove — `reklasifikuj` samo dodaje; čuvar `klasifikovan_at`); H obrisan dokument povlači svoje AI tvrdnje u istoj transakciji (137; `test_vcr002_rc_fix1_migracija137_pg`, `test_mir001_t03_kontinuitet::test_obrisan_izvor…`); I tenant B → 404/bez upisa (`test_impl001…g/g2`, `test_ns006_t4…b_ne_vidi_a`, `test_mir001_t03…korisnik_b…`); J retry/konkurentnost (`klasifikovan_at` čuvar, `test_vcr002_rc_fix1…konkurentan_upis`); K navod stranke ostaje navod (oznake „navod iz dokumenta, pronađen u tekstu“, „nijedna nije sudski utvrđena činjenica“, MIR001 TASK-03).
+
+### Minimalna izmena
+- `shared/evidence_write.py`: lokacija se vraća samo ako (1) pogodak počinje rečenicu (ispred: samo interpunkcija/navodnici/jedna oznaka nabrajanja), (2) ne seče reč ili broj. Granica rečenice je konzervativna (kad nije sigurno — nije granica → bezbedna strana „AI analiza“): tačka/upitnik/uzvičnik pred velikim slovom, ne posle skraćenice/inicijala/datuma; prelom reda samo posle zatvorenog reda (interpunkcija, zaglavlje velikim slovima koje se ne završava veznikom, naslov od jedne reči, ceo red = broj predmeta, oznaka „Naziv: ime/broj“) ili pred redom-nabrajanjem/oznakom. Normalizovana grana proverava isto na tekstu iste dužine sa sačuvanim prelomima (`_ws_sa_prelomima`, 1:1 sa `_normalize_ws`, fuzz 200.000 nizova).
+- `routers/evidence.py`: prompt ekstrakcije — deo rečenice uvek od početka rečenice.
+- `frontend-v2-ng/src/pitanje-predmeta.js`, `pripremljeno.js`: tekst bez „utvrđene/potvrđene činjenice“.
+- **Non-goals / namerno nedirano:** šema i migracije, `poreklo_tvrdnje`, DC-005 (`snaga`), identitet tvrdnje, 137 invalidacija, Genome, postojeći produkcioni redovi (nema masovnog prepisivanja — postojeći `egzaktan` iz starog koda ostaju; produkcioni uzorak: 0 pogođenih), legacy `static/vindex.js` `reklasifikuj` (vidi rizike).
+
+### Testovi i dokazi
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s01_poreklo_tvrdnji.py` (nov; matrica A–F, K, nalazi 3 kruga pregleda, E+D kroz stvaran prijem: dva `scan.pdf`, model vraća delove rečenica i rečenice DRUGOG dokumenta) | **73/73**; na osnovici 41 pada |
+| Ciljana regresija (svih 159 test fajlova koji dodiruju dokaze/poreklo/Genome-v2) | **2556 passed / 0 failed** / 52 skipped |
+| Browser: `live-pitanje.mjs` | 45/45 |
+| Browser: `live-pripremljeno.mjs` (+ nov slučaj praznog stanja) | 54/54 |
+| Mutacije (binarno, vraćanje svake grane ispravke i UI teksta) | **22/22 ubijeno** |
+| Kolateral na stvarnim podacima | 38 tvrdnji iz 2 sintetička produkciona predmeta (samo čitanje): 0 promena; sačuvani izlazi stvarnog modela (MIR001 C2): 99/99 i 2/2 i dalje locirani, 5/5 fragmenata usred navoda stranke ispravno AI |
+| Puna svita (lokalno) | **9 failed / 12.888 passed** — isti ID-jevi kao osnovica `a45b34ba` (0 novih padova; +73 nova testa) |
+
+Izmenjeni postojeći testovi (promena ugovora, ne ublažavanje): ispuna zalepljena za citat („AAAA“+citat) odvojena granicom (akcija2 ×2, impl001, claim_identity); QA06 ×2 citat od početka rečenice („Dana 15.08.2026. predato je …“ umesto „predato je …“); MIR001 C2 red-okidač zatvoren tačkom; MIR001 T03 — dva reda-nastavka sada AI analiza (ostali navodi i dalje „Iz dokumenta“); `live-pitanje.mjs` — zaključan pogrešan tekst zamenjen proverom da tekst NE tvrdi utvrđene činjenice.
+
+### Nezavisni adversarial pregled (3 kruga, zaseban agent, samo čitanje + probe)
+- Krug 1: 2 HIGH (prelom reda pred velikim slovom prenosi negaciju; odsečen iznos/datum), MEDIUM skraćenice/datumi, FN nabrajanja, UI „potvrđenih činjenica“, prompt traži „deo rečenice“ — sve ispravljeno.
+- Krug 2: HIGH oznaka govornika kao uvod u navod („Svedok: Ne sećam se da je⏎Tuženi …“), MEDIUM datum pred velikim slovom, hiljade sa razmakom, preširoka pravila zatvorenog reda, FN lista posle „:“ — ispravljeno.
+- Krug 3: HIGH red koji se samo završava referencom („… ugovorom br. 15/2026⏎Tuženi …“), MEDIUM zaglavlje „NIJE TAČNO DA JE“ — ispravljeno; ostalo ocenjeno kao malo realno. Pregled potvrđuje: lažno pozitivni nisu zamenjeni neprihvatljivim lažno negativnim (svi preostali FN su na bezbednoj strani, stvarni izlazi modela bez gubitka).
+
+### Preostali rizici (poznati, dokumentovani)
+- LOW: kraj rečenice se ne zahteva — „Zakup je plaćen“ iz „Zakup je plaćen, navodi tužilac.“ ostaje „Iz dokumenta“ (tekst jeste u dokumentu; UI svuda kaže „navod, nije utvrđena činjenica“).
+- LOW: „… br. 15/2026. Tuženi …“ u istom redu (tačka iza rednog broja pred velikim slovom je granica, zbog „Član 1. Ugovorna …“); ostali malo realni slučajevi iz kruga 3 (`scratchpad/s01/review/probe3.py`).
+- LOW (bezbedna strana): neki tačni citati posle zaglavlja malim slovima bez interpunkcije („Zapisnik o glavnoj raspravi⏎Tuženi …“) postaju AI analiza.
+- Postojeći produkcioni redovi nisu ponovo locirani (nema backfill-a — zabranjeno bez odobrenja); uzorak 38/38 nepogođen.
+- Legacy `static/vindex.js` → `POST /reklasifikuj` dodaje AI tvrdnje istog dokumenta ponovo (duplikati); nije V2 tok, nije menjano.
+- Leksička provera ne razume semantiku (tekst postoji u dokumentu ≠ istinit); to je ugovor (INV-04), ne kvar.
+
+**Gate S01: `PROVEN_CLOSED` (nivo LOCAL + BROWSER_INTEGRATION; nije LIVE — kod nije pušten).**
+
+**S01 lokalni commit:** `68848d84`.
+
+---
+
+## S02 — B7: semantic contradiction integrity — `BLOCKED_PRODUCT_DECISION`
+
+**Zahtevi:** B7, INV-07, INV-08, INV-09, INV-13. **Preflight SHA:** `68848d84`.
+
+### Problem (PROVEN)
+- **Produkcija, samo čitanje (sintetički predmeti):** Genome je u dva predmeta proizveo 4 neutemeljene protivrečnosti.
+  - `11eaeffc`:
+    - „Razlika u rokovima za uplatu takse“ — rok za sudsku taksu 04.12. ↔ rok za DODATNU sudsku taksu 27.11. Stanje: **OPEN**, aktivna, sa akcijom.
+    - „Razlika u datumu dokumenta“ — „DATUM TEST DOKUMENTA: 30.10.“ ↔ „Tužba je pripremljena 31.10.“. Stanje: NOT_OBSERVED.
+    - „Sintetički test“ — dve izjave istog dokumenta. Stanje: NOT_OBSERVED.
+  - P7714: „Razlika u datumu odluke“ — rok za žalbu 05.11. ↔ „Odluka je doneta 20.10.“. Stanje: NOT_OBSERVED.
+  - Zajednički obrazac: izvori i `claim_ids` su ispravni, ali nije dokazano da se tvrdnje odnose na isti događaj ili obavezu. Svaki naredni Genome ih ponovo predlaže, u drugom obliku.
+- **Izolovana reprodukcija (stvaran prijem, dispečer, V2 paket, `genome-v2`, Case Actions; zamenjen samo model):** produkcioni par taksi, rokovi za podnesak dve stranke i rok ↔ datum odluke postaju **AKTIVNA** V2 sporna tačka sa akcijom „Razrešiti kontradikciju“ (3/3 testa padaju na `68848d84`).
+
+### Šta je pokušano (nacrt, lokalna grana `bojan/s02-b7-istovetnost-nacrt` @ `affae433`, NIJE na sprint grani)
+- Materijalizacija dobija treći ishod, „za pregled“, za protivrečnost čija istovetnost nije dokazana. Ne postaje V2 sporna tačka, ne pravi akciju, opažanje ostaje nekompletno (ništa se ne zatvara), a prikazuje se pod „traži vaš pregled“. Ranije sačuvana aktivna sporna tačka ne menja se nego dobija oznaku.
+- **Pravilo istovetnosti, verzija 1** — „fraza obaveze nije identična“. Nezavisni pregled: **HIGH**, svaka parafraza iste obaveze postaje pregled. To su rok bez „godine“, ćirilica, „dana“, tekst posle datuma i drugačiji opisni oblik. Recenzentov e2e: 3 stvarne protivrečnosti u pregledu, a lažna „dve radnje istog dana“ aktivna.
+- **Pravilo istovetnosti, verzija 2** — pozitivan dokaz razlike: R1 druga stranka, R2 odrednica više, R3 OCR. Testovi: 17/17 S02, ciljano 4209/0, browser 47/47 i 50/50, mutacije 12/12.
+  - Nezavisni pregled, krug 2 — **HIGH:** R2 kratak i pun naziv iste obaveze proglašava za dve obaveze („rok za uplatu takse“ ↔ „… sudske takse“; „rok za žalbu“ ↔ „… na rešenje“; „rok za odgovor“ ↔ „… na tužbu“).
+  - **MEDIUM:** R1 čita uvodne reči kao stranku („Prema rešenju, …“ ↔ „Prema nalogu, …“).
+  - **MEDIUM:** obavezni negativni slučajevi koji i dalje ostaju AKTIVNI:
+    - dve nezavisne radnje istog datuma;
+    - rok ↔ događaj (produkcioni „datum odluke“);
+    - raniji rok ↔ nova zasebna obaveza sa drugačijim predmetom;
+    - različita lica kada stranka nije u istom redu;
+    - opisni oblik obaveza;
+    - dva produkciona lažna nalaza bez roka.
+
+### Zašto je ovo blocker, a ne nastavak
+Da li dve tvrdnje opisuju ISTU obavezu ili događaj je semantičko pitanje. Ugovor zabranjuje filter po rečima („taksa“) i univerzalno pravilo „različiti datumi nisu protivrečnost“. Leksičko pravilo zato mora da bira između dve vrste greške, a obe krše prihvatne kriterijume S02:
+- lažno pozitivne — neutemeljen aktivni nalaz;
+- lažno negativne — stvarna protivrečnost skinuta sa aktivnih.
+
+Postojeći ugovor ima reprezentaciju neodređenosti (`ZA_PREGLED` u prikazu; `DISCOVERED` = „provizorna, bez trajnih posledica“; `CONFIRMED` = „tek tada sme nositi akcije“ — `shared/issue_v2.py`). Međutim, danas svaka V2 sporna tačka u stanju `DISCOVERED` nosi akciju i prikazuje se kao aktivna. Koji podrazumevani status AI protivrečnost dobija pre advokatove odluke je **produktna odluka**.
+
+### Minimalne opcije za osnivača
+| Opcija | Šta znači | Posledica |
+|---|---|---|
+| **A. Pregled pre aktivnog** (preporuka) | Svaka AI protivrečnost u stanju `DISCOVERED` prikazuje se pod „traži vaš pregled“ (sa oba izvora). Aktivna je i nosi akciju tek kad je advokat potvrdi — tačno ono što `issue_v2` već definiše (`DISCOVERED` / `CONFIRMED`). | Rešava SVE lažne pozitive bez semantičkog pogađanja. Advokat jednim klikom potvrđuje stvarne. Menja današnji prikaz i akcije; traži potvrdu protivrečnosti u V2 (postojeći status `CONFIRMED`, verovatno bez migracije — proveriti). |
+| B. Model iskazuje istovetnost | Genome za svaku protivrečnost vraća „isti događaj/obaveza: da/ne/nepoznato“ + predmet. Backend: sve osim „da“ ide u pregled. | Manja promena prikaza. Oslanja se na model koji je i napravio lažni nalaz (delimično pouzdano). Nova polja u izlazu modela. |
+| C. Ostaviti aktivno uz oznaku | Sve AI protivrečnosti sa datumima ostaju aktivne uz oznaku „nije provereno da je isti događaj/obaveza“. | Najmanja promena. Ne ispunjava „ne daje neutemeljen aktivni nalaz“. |
+| D. Nacrt `affae433` | Uže pravilo (R1–R3). | Rešava tačan produkcioni par. Nezavisni pregled ga ocenjuje kao neprihvatljiv rizik lažno negativnih. Nije preporučeno. |
+
+### Stanje
+- Ništa iz S02 nije na sprint grani.
+- Produkcioni `predmet_issues` / `predmet_contradictions` redovi nisu dirani.
+- Sprint je zaustavljen po ugovoru („na prvom neotklonjenom blocker-u zaustavi ceo sprint“).
+- S03–S11 nisu započeti.
+
+### S02 nastavak — odluka osnivača: OPCIJA A (2026-10-31/11-01) — `PROVEN_CLOSED`
+
+**Odluka (citat suštine):** AI protivrečnost je kandidat za pregled advokata, ne potvrđena protivrečnost; aktivna i izvršiva je tek posle izričite potvrde ovlašćenog advokata; odbijeni kandidat izlazi iz aktivnih tokova uz istoriju i audit. Bez leksičkih pravila, bez AI sudije, bez automatske potvrde.
+
+**Postojeća infrastruktura koja je to već podržavala (PROVEN čitanjem SQL-a i PG testom):** `predmet_issues.status` DISCOVERED („provizorna“) / CONFIRMED („tek tada sme nositi akcije“) / RESOLVED + `close_reason = WITHDRAWN` (migracija 119); RPC opažanja (120–125) status teme nikad ne menja i ponovo opaženu temu nalazi po otisku početnog skupa tvrdnji. Bez migracije, bez nove tabele.
+
+**Implementacija (najmanji ceo tok):**
+- `routers/sporna_tacka.py` (nova ruta): `POST /api/predmeti/{pid}/sporne-tacke/{iid}/potvrdi|odbij`. Pravila:
+  - vlasnik predmeta i teme (`user_id`); 404 za tuđe i neispravan UUID;
+  - obavezno `ocekivano` {status, odluka_at, sadrzaj} = ono što je advokat VIDEO → inače 409;
+  - uslovni upis (status + `updated_at`); vreme odluke = vreme baze (`'now'`);
+  - provera verzije sadržaja pre i POSLE upisa (opažanje drži zaključan red teme), pa vraćanje i 409;
+  - obavezan audit (`sporna_tacka_potvrdjena` / `_odbijena`, sa prethodnim stanjem i verzijom sadržaja); bez audita se odluka vraća i odgovor je 503;
+  - odluka se može promeniti u oba smera, svaki put uz audit; ponovljen klik ne piše ništa;
+  - događaj `ManualCorrectionApplied` usklađuje akcije.
+- `shared/issue_v2.py`:
+  - `efektivna_odluka` / `novo_posle_odluke`: odluka važi samo za sadržaj koji je postojao kad je doneta; nova tvrdnja ili relacija → ponovo „čeka odluku“;
+  - `verzija_sadrzaja`;
+  - `oznaci_kontradikcije_analize`: za AI potrošače izostavlja odbijene i označava ostale.
+- `services/v2_projection.py`: akcija „Razrešiti kontradikciju“ samo za efektivno potvrđene; čitači nose vreme odluke i vremena opažanja; `kontradikcije_analize_za_ai`.
+- `services/v2_contradiction_persistence.py`: nova tema čiji otisak već postoji šalje se sa tom temom i njenim `xmin`. Opažanje pročitano pre odluke tada pada (55000), umesto da tiho doda sadržaj pod odluku. Ishod identiteta je isti kao RPC-ov sopstveni put po otisku (potvrdio pregled).
+- `shared/genome_contract.py`:
+  - stanja NEPOTVRDJENA (za pregled, sa dugmadima), AKTIVNA (samo potvrđena), ODBIJENA (istorija, „Ipak potvrdi“);
+  - protivrečnosti iz analize samo kad predmet nema nijednu V2 temu (ne vraćaju se odbijene);
+  - verzija sadržaja u `odluka.sadrzaj`;
+  - kontekst pitanja razlikuje potvrđenu, nepotvrđenu i odbijenu.
+- `services/case_evolution.py`:
+  - legacy Rule 3 (akcija iz analize bez V2) uklonjen — nepotvrđeno ne nosi akciju;
+  - istinit razlog zatvaranja V2 radnje (`PROTIVRECNOST_ODBIJENA` / `PROTIVRECNOST_NIJE_POTVRDJENA`; završen predmet zadržava opšti razlog).
+- AI potrošači:
+  - `shared/case_context` → gap_engine (sudska prognoza, priprema ročišta, CIO, copilot): oznaka „[nepotvrđena …]“, odbijene izostavljene;
+  - `routers/case_intelligence` (čita iz konteksta), `strategy_simulator`, `copilot` (slabosti, upozorenja) i `multi_agent` (sporne tačke + Genome blok, potvrđene prve);
+  - graf dokaza: samo potvrđene.
+- V2 UI (`analiza-predmeta.js`, `index.html`):
+  - naslov „Predlozi analize — nisu potvrđeni, čekaju vašu odluku“;
+  - Potvrdi / dvostepeno Odbaci / „Ipak potvrdi“;
+  - šalje viđeno stanje i sadržaj;
+  - poruka tvrdi samo zabeleženu odluku; fokus i živi region.
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s02_kontradikcije_potvrda.py` (stvarne rute nad bazom u memoriji) | 19 testova. Pokriva: kandidati sa izvorima i bez akcije; potvrda, odbijanje i istorija; osvežavanje bez duplikata; promena odluke uz audit; zastareo prozor; tenant B i neprijavljen; audit pad; kontekst pitanja; analiza bez tvrdnji; H1, H2 i M1; razlog zatvaranja; UUID; R2-H1 (pre i tokom upisa); R3-M2 |
+| `tests/test_s02_odluka_postgres.py` (PostgreSQL 17.9, migracije 119–125) | 5/5. Pokriva: odbijena se ne vraća, potvrđena opstaje; trka dve odluke (tačno jedna); opažanje pre odluke odbijeno; odluka ne važi za kasniji sadržaj; paket pre „Ipak potvrdi“ (55000) |
+| Browser `live-s02-protivrecnost-e2e.mjs` (pravi api.app, 390 px) | 21/21. Pokriva: kandidati; potvrda u UI-ju; radnja samo za potvrđenu; B 404; API bez viđenog stanja 409; dvostepeno odbijanje; „Ipak potvrdi“; osvežavanje; zastareo prozor; 0 spoljnih veza i 0 grešaka |
+| Browser regresija | `live-analiza` 46/46, `live-cg001-kontinuitet` 50/50, `live-pitanje` 45/45, `live-pripremljeno` 54/54, `live-solo-tok-e2e` 23/23, `live-matter` 56/56, `live-zlatni-prijem-e2e` 48/48. Jedan od tri prolaza `live-analiza` i `live-zlatni-prijem` imao je padove tajminga pod opterećenjem; ponovljeno 2× potpuno zeleno |
+| Ciljana regresija (svi testovi protivrečnosti, akcija, Genome-a i konteksta, uz PG) | 6697 passed / 7 failed. Svih 7 su poznati padovi okruženja iz osnovice |
+| Mutacije (binarno) | prva grana 9/9; konačna 20/20 (B1–B20) |
+| Puna svita | **9 failed / 12.886 passed** — isti ID-jevi kao osnovica `a45b34ba` |
+| Nezavisni pregled (4 kruga) | 2 HIGH + 4 MEDIUM → 1 HIGH + 2 MEDIUM → 2 MEDIUM → **bez HIGH/MEDIUM; „S02 acceptance (Option A) is met“** |
+
+**Izmenjeni postojeći testovi (promena ugovora, opisano u svakom):**
+- tokovi POTVRĐENIH protivrečnosti dobijaju potvrdu advokata: prekidač `ns006_fake.ADVOKAT_POTVRDJUJE` i `CONFIRMED` + vreme odluke u fiksturama — MIR001, NS006, NS007, CG001, A015;
+- prikaz analize bez tvrdnji: „za pregled“ umesto „aktivne“;
+- `test_omega_sprint003…rule3` pretvoren u dokaz da nepotvrđene ne prave akciju;
+- 19 testova detalja uklonjene legacy Rule 3 putanje preskočeno uz razlog: A003 ×14 (jedan bi prolazio nad praznom listom), omega004 ×2, sigma002 ×2, singlebrain ×2;
+- `ns006_fake` emulira pronalaženje teme po otisku (kao migracija 120, dokazano PG testom).
+
+**Produkcija (samo čitanje, ništa nije menjano):**
+- stanje: 10 spornih tačaka, sve DISCOVERED (potvrda do sada nije bila moguća); 5 otvorenih V2 protivrečnosti; **5 otvorenih V2 radnji „Razrešiti kontradikciju“ u 4 predmeta**;
+- posle puštanja: protivrečnosti postaju kandidati za odluku; tih 5 radnji zatvara se pri prvom sledećem događaju svog predmeta, sa razlogom `PROTIVRECNOST_NIJE_POTVRDJENA`;
+- produkcioni par „takse“ biće kandidat, ne aktivna protivrečnost.
+
+**Preostali rizici (LOW):**
+- odluka nad temom bez otvorenih kontradikcija moguća je samo kroz API (konstantna verzija sadržaja);
+- `law_brain` broji DISCOVERED u sličnosti profila (označeno kao AI rad);
+- zaštita od trke u jednom procesu važi kao i ranije;
+- ručno osvežavanje Genome-a ne usklađuje akcije samo po sebi — to radi sledeći događaj (postojeće ponašanje).
+
+**Nacrt `bojan/s02-b7-istovetnost-nacrt` (`affae433`)** ostaje kao istorija; nije deo rešenja.
+
+---
+
+## S03 — BOJAN N1/N2: kompletan prijem — `PROVEN_EXISTING_NO_CHANGE` (proizvod) + ispravljen testni orakl
+
+**Pokriva:** N1 (prijem), N2 (čarobnjak), INV-01, INV-02, INV-03, INV-10, INV-13. **Preflight:** `c9da66dc` (S02), radno stablo čisto.
+
+**Zahtev → dokaz (svi nad pravim api.app i bazom koja upisuje, simulirani samo modeli/embedding/prijava):**
+| Acceptance | Dokaz | Nivo |
+|---|---|---|
+| Tačno jedan predmet | `live-zlatni-prijem-e2e` G; `live-n2-carobnjak-e2e` 4 (istovremeni zahtevi → 1 predmet, drugi 409); `test_n1_zlatni_prijem` | BROWSER_INTEGRATION |
+| Tačna veza klijent–predmet | zlatni G (1 klijent, 1 veza, posle reload-a klijent prikazan); N2 1/2 (imenjaci — vezan IZABRANI) | BROWSER_INTEGRATION |
+| Opis i cilj sačuvani | zlatni G (`opis_sacuvan`; posle reload-a „Cilj: …“ u izmeni predmeta); `test_n1` (`MARKER` i „Cilj:“ u `predmeti.opis`) | BROWSER_INTEGRATION |
+| Svaki validan dokument → isti predmet | zlatni G **sa stvarnim Tesseract OCR-om: 4/4 formata (digitalni PDF, sken PDF, PNG, DOCX)**, poreklo = posao prijema A; bez OCR-a: 2 čitljiva prikačena, sken/foto vidljivo neprikačeni | BROWSER_INTEGRATION |
+| Nema lažnog OCR uspeha | zlatni G bez OCR-a (bez „pročitan OCR-om“, tačan razlog); **nov E4b: stvaran OCR koji delimično pogrešno pročita sliku („05.02.2028“) → NIJE prikačen, razlog rečen**; `test_n1::test_neprocitan_sken…` | BROWSER_INTEGRATION |
+| Bez dupliranja na retry | zlatni E (dupli klik → 1 dokument; nepoznat ishod iz opisa i iz dokumenta → 1 predmet; ponovljen sadržaj → postojeći posao); `live-prijem-oporavak-e2e` (kvar baze, ubijen proces posle zauzeća); `test_ocr001_trka_postgres` (PostgreSQL trka finalize-a) | BROWSER_INTEGRATION + ISOLATED (PG) |
+| Tuđ nalog 403/404 | zlatni E6 (predmet, dokument, posao, ispravka, finalize, klijent → 404/403; B ništa nije promenio); N2 4 | BROWSER_INTEGRATION |
+| COI pravilo nepromenjeno | nijedan COI fajl nije diran; zlatni E5, N2 2b/2c/2d, `test_coi_intake_convergence`, `test_n4_coi001…` | BROWSER_INTEGRATION |
+
+V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predmetu posle reload-a (zlatni G) + kartoteka u čarobnjaku (N2). Nov ekran nije u opsegu.
+
+**Pronađeno i ispravljeno (samo test):** browser zlatni tok nikad nije bio pokrenut sa stvarnim OCR-om (lokalno nema Tesseract-a; CI ne pokreće V2 browser testove). Sa OCR-om (env311) pao je 3/46. Fotografija je bila nacrtana PIL podrazumevanim fontom od ~10 px; Tesseract je pročitao delimično i pogrešno (`UUrucenodana05.02.2028`), a ekstraktor ju je **s pravom** odbio (`_kratak_ocr_procitan`, prag 0,75) uz tačnu poruku. Proizvod je ispravan; orakl je bio pogrešan. Izmena:
+- fotografija se pravi kao u Python zlatnom testu (helv 20 pt, 200 dpi);
+- stara sitna slika postaje negativni slučaj E4b;
+- OCR provera G zahteva `ocr === 2` i oba slikovna dokumenta prikačena sa tekstom (ranije je prolazila i kad fotografija nije prikačena).
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| Python prijem/N1/N2/COI/PG trka (14 fajlova) | 174 passed |
+| `live-zlatni-prijem-e2e` stvaran OCR | pre: 43/46 (3 FAIL) → posle: **47/47** (OCR pročitao 2 dokumenta) |
+| `live-zlatni-prijem-e2e` bez OCR-a | 48/48 |
+| `live-n2-carobnjak-e2e` / `live-prijem-carobnjak-e2e` / `live-prijem-oporavak-e2e` / `live-prijem` / `live-prijem-pracenje` | 27/27 · 37/37 · 18/18 · 53/53 · 29/29 |
+| Mutacija M1 (kratak OCR prihvaćen bez praga pouzdanosti) | UBIJENA — E4b pada |
+| Nezavisni pregled | tvrdnja „proizvod ispravan, fikstura pogrešna“ potvrđena; prijavljena 2 MEDIUM UX nalaza (dole) |
+
+**Pokušana pa vraćena ispravka (zapis radi istine):** po nalazu pregleda probao sam da zaglavlje i dugmad za nepročitan dokument budu tačni i posle reload-a. Signal je bio `ocr_failed` bez polja. Mutacije i regresija su to oborile: **kratak digitalni PDF dobija isti trag (`is_scanned=True`, `ocr_failed []`) a ima tekst koji finalize prikačuje**, pa bi ispravka sakrila dugme „Prikači“ za dokument koji se može prikačiti (`live-prijem-oporavak` pao). Istinita ispravka traži trajni podatak koji danas ne postoji (kolona/migracija ili promena sadržaja reda pregleda koji advokat vidi) — van minimalnog opsega. Izmena proizvoda je u potpunosti vraćena; regresija posle vraćanja zelena.
+
+**Preostali rizici:**
+- MEDIUM (UX, poznato, nije lažan uspeh): za dokument iz kog nije izdvojen tekst, zaglavlje posle „Potvrđujem pregled“ kaže „Obrađeno — spremno za prikačivanje“ i nudi „Prikači“. Pokušaj daje tačnu poruku „Dokument NIJE prikačen … Ponovno prikačivanje neće pomoći“. Ako se posle neuspeha stranica ponovo učita, nudi se „Ponovite prikačivanje“, a ponovni pokušaj opet daje tačnu poruku. Nema prikačivanja, nema lažnog teksta, nema duplikata. Ispravka traži odluku o trajnom znaku „tekst nije izdvojen“ (verovatno migracija).
+- LOW: G proverava da je fotografija pročitana i prikačena, ne i tačan sadržaj (datum). Tačnost OCR-a meri `test_ocr001_ocr_korpus` (CER/WER) u produkcionoj slici.
+- LOW: CI ne pokreće V2 browser testove; ovaj rezultat je lokalni BROWSER_INTEGRATION.
+- LOW: postojeći `nistaProcitano` u UI-ju sakriva vrstu dokumenta i kod kratkog digitalnog PDF-a dok pregled nije potvrđen (isti dvosmislen trag) — postojeće ponašanje, nije menjano.
+
+**Fajlovi:** izmenjen samo `frontend-v2-ng/tests/live-zlatni-prijem-e2e.mjs`. Namerno nedirnuti: `routers/smart_intake.py`, `frontend-v2-ng/src/prijem-predmeta.js`, `uploaded_doc/extractor.py`, `shared/intake_worker.py`, COI.
+
+**Kapija S03: `PROVEN_EXISTING_NO_CHANGE`** (proizvod), uz ispravljen i pojačan testni orakl.
+
+---
+
+## S04 — BOJAN N3: ročišta i kalendar — `PROVEN_CLOSED`
+
+**Pokriva:** N3, INV-10, INV-13, INV-14 (model samo predlaže). **Preflight:** `d4a11ffc` (S03).
+
+**Postojeće ponašanje — dokazano bez izmene (osnovica na `d4a11ffc`):** Python ročišta/kalendar/Danas 454 passed; browser `live-n3-rocista-e2e` 24/24, `live-danas` 54/54, `live-rocista-pretraga` 38/38.
+| Slučaj | Dokaz |
+|---|---|
+| Pravi datum iz dokumenta; predlog nije ročište | R5 (izvor + citat, „Proveri i zakaži“ samo popunjava formu, u bazi nema ročišta dok advokat ne zakaže); `test_n3_rocista::test_poziv_kroz_stvaran_prijem_daje_predlog_a_ne_rociste` |
+| Datum akta NIJE datum ročišta | `test_n3_rocista` (`Primljeno dana`, `U Beogradu, dana`, 53 formulacije iz pregleda) |
+| Otkazano / odloženo / održano ne izgleda kao buduće | R1, R2 (baza, predmet i Danas usklađeni) |
+| Odlaganje + nastavak | R3 (staro ostaje kao istorija, novo zakazano u istom predmetu); S1-C2: vraćanje odloženog posle nastavka → 409 |
+| Dva klika na „Zakaži“ | R5 (tačno jedno ročište), 30-s zaštita u POST-u |
+| Zastareo prikaz / istovremena izmena | R4 (409, ništa prepisano, lista osvežena) |
+| DST Europe/Belgrade | R6 (26.10. gledano 24.10. uveče = „za 2 dana“) |
+| Neuspeh OCR-a | R5 (dokument bez teksta vidljivo naveden: iz njega se ne predlaže) |
+| Tenant B | R5 (predlozi 404, PATCH 404, odbacivanje 404) |
+| Kalendar i Danas isto stanje | R1/R2 (`#da-kalendar` i `#da-obaveze` posle svake promene) |
+
+**Defekt (PROVEN pre ispravke):** acceptance „Audit i istorija promena ostaju“ nije bio ispunjen. `PATCH /api/rocista/{id}` (otkazano, održano, odloženo, vraćeno, nov datum/vreme) prepisuje red na mestu. Jedini trag je događaj `ROCISTE_ZAKAZANO` sa `sud`/`datum`, bez prethodnog stanja. Ko je otkazao ročište i šta je bilo pre nije zapisano nigde: nema audita, nema trigera, nema tabele istorije. Audit postoji samo za brisanje i odbacivanje predloga. Reprodukcija: `tests/test_s04_rociste_audit.py`, pre ispravke 2/2 FAIL (0 zapisa).
+
+**Ispravka (`routers/rocista.py`, `shared/audit_immutable.py`), bez migracije:**
+- PATCH pre upisa čita prethodno stanje istog reda (vlasnik): nečitljivo → 503 i ništa nije izmenjeno; nema reda → 404;
+- bez `if_updated_at` (legacy /app, API) uslov upisa je pročitani `updated_at` → istovremena izmena daje 409 umesto netačnog „prethodno“;
+- posle potvrđenog upisa: `rociste_izmena` u `audit_immutable` {predmet_id, polja, prethodno, novo} (stanje iz baze);
+- **fail-closed kao `routers/sporna_tacka.py`:** bez zapisa istorije izmena se uslovno vraća (samo ako je red i dalje naš upis) i odgovor je 503. V2 5xx tumači kao „ishod nije poznat“ i osvežava listu;
+- odbijene izmene (409 zastareo, 409 nastavak, 404 tuđ) ne ostavljaju zapis.
+
+**Non-goals:** bez Google/Outlook kalendara, bez nove tabele ili ekrana istorije, bez izmene pravila predloga i Danas. Istorija je u lancu `audit_immutable`, a V2 je još ne prikazuje.
+
+**Izmenjeni postojeći testovi (promena ugovora):** `test_beta_gate_rociste_consistency.py` i `test_rocista_kalendar.py` pozivaju rutu sa lažnim `supa`, pa im stvaran `log_action` ne može da upiše (fail-closed → 503). Dobili su audit sink (autouse fixture). `test_izmeni_rociste_success` sada proverava i zapis istorije. Opis testa „bez if_updated_at kao ranije“ je ispravljen jer sada postoji implicitni uslov.
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s04_rociste_audit.py` | 4/4. Pokriva: istorija stanja i datuma sa tačnim prethodno/novo; odbijene izmene bez zapisa; pad audita → 503 i vraćeno; trka bez `if_updated_at` → 409 bez netačne istorije |
+| Mutacije (binarno) | 7/7 UBIJENE: bez audita, bez prethodnog stanja, akcija neregistrovana, „novo“ iz zahteva, bez vraćanja, bez implicitnog uslova, audit nije obavezan |
+| Ciljana regresija (ročišta, kalendar, Danas, audit) | 637 passed (pre fail-closed); posle: 143/143 u 4 direktno pogođena fajla |
+| Browser | `live-n3-rocista-e2e` 24/24, `live-danas` 54/54, `live-rocista-pretraga` 38/38, `live-matter` 56/56 |
+| Puna svita | **9 failed, 12890 passed, 421 skipped, 2 xfailed, 123 warnings** — isti ID-jevi kao osnovica `a45b34ba` (posle fail-closed ojačanja) |
+| Nezavisni pregled | 0 HIGH, 2 MEDIUM (trka bez `if_updated_at`; best-effort audit) → oba ispravljena; LOW: `_stanje(None)` izmišljao „zakazano“ → sada 404 |
+
+**Preostali rizici:**
+- LOW: izmena samo napomene beleži `polja: ["napomena"]` bez sadržaja napomene (namerno: ne kopirati slobodan tekst u lanac).
+- LOW: ponovljen isti status bez `if_updated_at` pravi drugi zapis „otkazano→otkazano“ (istorija klikova, bez promene stanja).
+- LOW: granica lokalnog dana ima samo browser dokaz (R6), bez zasebnog Python testa ponoći Europe/Belgrade naspram UTC.
+- LOW: V2 nema prikaz istorije ročišta; podaci postoje u lancu.
+- Produkcija: posle puštanja svaka izmena ročišta traži upis u `audit_immutable` (postojeća tabela). Ako je lanac nedostupan, izmena se odbija (503) umesto da prođe bez istorije.
+
+---
+
+## S05 — BA04/BA05/BA06: rokovi, odluke, hronologija (regresiona kapija) — `PROVEN_EXISTING_NO_CHANGE`
+
+**Pokriva:** BA-04, BA-05, BA-06, INV-06, INV-07, INV-08, INV-10. **Preflight:** `e022adda` (S04). Kod nije menjan; identitet obaveze i migracije 144/145 nisu ponovo otvarani.
+
+**Zašto ponovo:** S01 (poreklo tvrdnji), S02 (case_evolution, AI potrošači) i S04 (audit lanac) diraju susedne putanje.
+
+| Scenario | Test (stvarno izvršen na `e022adda`) |
+|---|---|
+| Četiri dokumenta → četiri kandidata | `test_ba01_zlatni_slucaj`, `live-rok-odluka-e2e` |
+| Dve zasebne obaveze istog datuma | `test_ba01_vise_rokova::test_isti_dan_dve_obaveze_dva_kandidata_razlicite_oznake`, `test_ba05_identitet_obaveze::test_dve_obaveze_sa_generickom_rokovnom_reci_ostaju_dve`, `test_ba01_rok_identitet::test_dve_obaveze_istog_datuma_ostaju_dve` |
+| Dva različita `scan.pdf` | `test_ba05_identitet_obaveze::test_A_dva_scan_pdf_isti_datum_dve_obaveze`, `test_ba01_rok_identitet::test_dva_razlicita_dokumenta_istog_imena_obaveza_se_ne_gubi` |
+| Običan datum nije rok | `test_ba01_vise_rokova::test_bez_izmisljenog_konkretnog_roka` (datum akta, „U Beogradu, dana“, OCR „O5.11.2O26“) |
+| OCR ispod praga → UNCONFIRMED, „OCR, proveriti“ | `test_ba01_vise_rokova::test_sken_stvaran_ocr_rokovi_ostaju_nesigurni…` (**stvaran Tesseract**, VINDEX_REQUIRE_OCR=1) |
+| Genome izostavi obavezu ili padne | `test_ba05_rokovi_iz_izvora::test_genome_navodi_samo_A_obaveza_B_ostaje_kandidat`, `…test_genome_pada_kandidati_iz_izvora_ostaju_a_pad_je_vidljiv` |
+| Retry i konkurentni upis bez duplikata | **PostgreSQL 17**: `test_ba05_migracija_144_postgres` (dva Genome osvežavanja, dva Smart Intake upisa, izvor+Genome istovremeno → 1 red); `test_ba04_dogadjaj_prihvatanja_postgres::test_T18_trka…`, `test_pad_posle_potvrdjenog_upisa…` |
+| Dva prihvatanja istoimenih dokumenata < 300 s | `test_ba04_dogadjaj_prihvatanja::test_T17…` i PG `test_T17_dva_dogadjaja_istog_teksta_dva_reda…` |
+| Potvrdi / odbij / ispravi opstaju kroz refresh | `test_ba05_identitet_obaveze::test_B2…odluke_ostaju`, `test_ba05_rokovi_iz_izvora::test_ponovni_upload_i_osvezavanja_ne_menjaju_kandidate_ni_odluke`, `…test_datum_koji_je_advokat_ispravio_se_ne_vraca_kao_kandidat`; `live-rok-odluka-e2e` |
+| Neovlašćen korisnik ne potvrđuje tuđu obavezu | `test_ba01_rok_identitet::test_drugi_korisnik_ne_utice_i_ne_vidi`, `test_ba05_rokovi_iz_izvora::test_tudji_dokument_se_ne_cita_ni_upisuje`; `live-rok-odluka-e2e` (B) |
+| Nepotvrđen/odbijen rok nikad izvršiv | `test_ba05_rokovi_iz_izvora::test_kandidati_iz_skena_do_podsetnika_samo_potvrdjen`, `test_ba01_obaveze_podsetnici`, `live-n4-rokovi-e2e` |
+| Hronologija sa izvorom i nesigurnošću | `test_ba01_procesna_hronologija`, `live-ba01-hronologija` |
+
+**Rezultati:** Python BA01/BA04/BA05 + rokovi + golden case **254 passed, 0 skipped**. PostgreSQL testova 15/15 izvršeno, ne preskočeno; stvaran OCR izvršen. Browser: `live-ba01-hronologija` 37/37, `live-n4-rokovi-e2e` 12/12, `live-rok-odluka-e2e` 76/76. Puna svita posle S04 = osnovica (9 poznatih).
+
+**Nezavisni pregled:** nije potreban za kapiju bez izmene koda. Orakle ovih testova je u BA-01 sprintu proverio nezavisni pregled sa mutacijama (`docs/v2-execution/BOJAN_BA01_LEDGER.md`). Ovde je provereno da se nijedan PG ili OCR test ne preskače u ovom okruženju.
+
+**Preostali rizici (nasleđeni iz BA01 ledgera, nepromenjeni):** subjekat obaveze u drugom redu teksta je nerešiva dvosmislenost (granica); kolone 144/145 u produkciji PROVEN (S00), njihovi UNIQUE indeksi UNKNOWN (nema DB URL-a; zaštita od duplikata u produkciji je INFERRED iz spajanja #61, dokazana samo nad lokalnim PostgreSQL-om).
+
+**Kapija S05: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S06 — BOJAN N5: evidencija rada i naplate — `PROVEN_EXISTING_NO_CHANGE`
+
+**Pokriva:** N5, INV-10, INV-13. **Preflight:** `c507bbab` (S05). Kod nije menjan.
+
+| Adversarial slučaj | Dokaz |
+|---|---|
+| Dva konkurentna zaustavljanja tajmera | `test_n5_naplata` (trka → 1 stavka, drugi 409), `test_billing_timer_race`, `test_ns005_a2_idempotency::test_I` |
+| Ponovljen unos posle timeout-a | `IdempotencyMiddleware` za `POST /billing/entries`, `/billing/faktura`, `/billing/timer/*`: isti ključ → isti odgovor, 1 stavka (`test_ns005_a2_idempotency::test_B_H`, `test_D` drugo telo 409, skladište nedostupno → 503 bez efekta); V2 posle nepoznatog ishoda ponovo čita listu (`live-naplata` D.ishod) |
+| Decimalni iznosi, sabiranje, valuta | `test_n5_naplata` (zbirovi i PDV na decimalama), `test_z017_naplata_domen`, **PostgreSQL** `test_wave9_billing_invariant` |
+| Statusni prelazi; plaćena se ne vraća u stanje koje otključava finansijska polja | `test_n5_naplata` (tabela prelaza, `iz_statusa` → 409, uslovni upis) |
+| Zastareo klijent | `test_n5_naplata` (zastareo prikaz, istovremene promene statusa); `live-n5-naplata-e2e` |
+| Audit uspešne promene | `faktura_status_promenjen` (`test_n5_naplata`), `test_v36_audit_billing_entry`, `test_v37_audit_faktura_create` |
+| Tuđ predmet/faktura | `test_n5_naplata` (B 404), `test_n05_tenant_negative` |
+| Pad upisa stavke ne gubi rad | `test_n5_naplata` (tajmer se vraća), `test_n5_false_success` |
+| „Plaćena“ nije bankarska potvrda | V2: „označena kao plaćena“, „označena kao izdata (nije poslata klijentu ni prijavljena u SEF)“; nema bankarske sinhronizacije (`naplata-predmeta.js:29-30`) |
+
+**Rezultati:** Python naplata 16 fajlova: 235 passed, plus **46 nad stvarnim PostgreSQL 17**. RC billing gate i invarijanta naplate su bez `VINDEX_TEST_PG_DSN` preskakani, pa su pokrenuti nad lokalnim klasterom: 46/46. Ukupno 281 passed, 0 skipped. Tenant izolacija i idempotentnost (`test_n05_tenant_negative`, `test_ns005_a2_idempotency`, takođe uz PG): 41/41, 0 skipped. Browser: `live-n5-naplata-e2e` 16/16, `live-naplata` 83/83.
+
+**Preostali rizici (postojeća ograničenja, nisu kvar po ugovoru S06):** nema delimičnih uplata, datuma uplate ni druge valute osim RSD; storno nije izložen u V2 (odluka osnivača).
+
+**Kapija S06: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S07 — BOJAN N6: izveštaji i izvozi — `PROVEN_EXISTING_NO_CHANGE` (proizvod) + dodate regresije
+
+**Pokriva:** N6, INV-04, INV-06, INV-10. **Preflight:** `4b1850ca` (S06). Proizvod nije menjan.
+
+| Zahtev | Dokaz |
+|---|---|
+| PDF čuva č/ć/đ i ćirilicu | `test_n6_izvestaji::test_pdf_srpska_slova…`, `…test_pdf_cirilica_ostaje_ili_je_preslovljena_uz_napomenu`; browser: tekst stvarno preuzetog PDF-a (pymupdf) sadrži „Zlatić protiv Đorđević“ |
+| Ročišta sa stanjem | isti testovi; browser „odloženo“ |
+| Nepotvrđen rok nije potvrđen; odbijen nije izvršiv | PDF `[NEPOTVRĐENO]`, `[ODBIJENO]`, `[STANJE ODLUKE NEPOZNATO]` samo na rokovima (`predmet_pdf.py:262-271`); mesečni bez odbijenih/izvršenih (`test_izvrsen_rok_nije_u_narednih_14_dana`, `test_mesecni_izvestaj_tacnost`) |
+| Mesečni ne broji nacrt/storno kao naplaćeno | `test_mesecni_izvestaj_tacnost`, `test_b2_mesecni_fakturisano` |
+| Markup u korisničkom tekstu ne pravi 500 | `test_pdf_tekst_sa_znakom_manje_ne_obara_izvestaj` |
+| CSV: status fakture i decimalni iznosi | browser: kolone „Broj/Status fakture“, „plaćena“; **novo:** iznos tačno `1234.56` |
+| Sadržaj iz stvarno generisanih fajlova | PDF tekst kroz pymupdf, CSV čitan sa diska (browser) |
+| Tenant B | **novo:** B traži PDF predmeta A → 404 bez PDF-a; B-ov CSV ima samo njegovu stavku |
+| Mali viewport | **novo:** 390 px, `isMobile`, PDF i CSV preuzeti dodirom, isti sadržaj, bez horizontalnog pomeranja |
+| AI nagađanja nisu potvrđene činjenice | PDF sadrži samo opis advokata, dokumente, beleške, hronologiju i ročišta. AI protivrečnosti i analize nisu u izvozu. AI poreklo hronološkog reda vidljivo je u koloni „Akter“ („Genome (AI)“, „Copilot (AI)“ …), a rokovi nose stanje odluke |
+
+**Provereno i nije kvar:** godišnji izveštaj sabira `float` pa zaokružuje na 2 decimale (`billing_reports.py:182-218`). Za realne iznose greška je ~1e-12 ≪ 0,005, a CSV upisuje iznos onako kako ga baza vrati.
+
+**Dokazi:** Python izveštaji/izvoz 7 fajlova: 140 passed, 0 skipped. Browser `live-n6-izvestaji-e2e`: pre 8/8, posle **11/11** (3 nove provere). Mutacije nad proizvodom za nove provere: PDF ruta bez filtera vlasnika → B provera pada; CSV zaokružen iznos → decimalna provera pada (2/2 UBIJENE, proizvod vraćen bajt-identično).
+
+**Preostali rizici:** LOW: V2 nudi samo PDF predmeta i CSV naplate; mesečni izveštaj je dostupan u legacy /app (`/billing/report/mesecni`), u V2 nije (N6-8, bez novih kategorija). LOW: DejaVu font u produkcionoj slici je preduslov za ćirilicu u PDF-u (Dockerfile `fonts-dejavu-core`); inače se preslovljava uz napomenu.
+
+**Fajlovi:** izmenjen samo `frontend-v2-ng/tests/live-n6-izvestaji-e2e.mjs`.
+
+**Kapija S07: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S08 — N7 / B8 / B11 / B12: automatsko ažuriranje predmeta — `PROVEN_EXISTING_NO_CHANGE` (posle S02)
+
+**Pokriva:** N7, B8, B11, B12, INV-12, INV-09, INV-10. **Preflight:** `95a7b1e6` (S07). U ovoj etapi kod nije menjan. B7 deo (lažna protivrečnost se ne vraća, stvarna ostaje vidljiva) zatvoren je u S02 i ovde je ponovo izmeren.
+
+| Test iz ugovora | Dokaz |
+|---|---|
+| Nov dokument dodaje izvorne tvrdnje | `test_n7_azuriranje_predmeta::test_nov_dokument_azurira_predmet_bez_prepisivanja…`, `test_mir001_t03_kontinuitet::test_svaki_kljucni_navod_ima_stvarni_izvor_i_nije_utvrdjen` |
+| Genome vidi relevantne dokumente | `test_mir001_t03` (ceo spis), `live-cg001-kontinuitet` |
+| `case_dna` čuva istoriju verzija | `predmet_genome_history`: `test_case_evolution`, `test_cg001_lanac`, `test_ns006_t13_autonomous_chain` |
+| Izvor hronološke stavke razrešiv | `test_mir001_t03::test_hronologija_ceo_spis_tacan_redosled_i_izvor` |
+| Akcija vezana za izvor; isti događaj → nema druge akcije | `test_case_evolution`, `test_phoenix_mission_007_case_evolution_chain_integrity`, `test_cg001_lanac` |
+| Pad Genome-a ne briše dokaze | `test_ns006_t16_chaos::test_a_model_pada_genome_netaknut…`, `…test_b_pad_v2_paketa_ne_upisuje_case_dna`; `test_cg001_falsifikacija::test_10_neuspeo_upis_case_dna…`; BA05 `test_genome_pada_kandidati_iz_izvora_ostaju…` |
+| Odluke advokata nisu prepisane | `test_n7…::test_ispravka_advokata_ostaje_posle_novog_dokumenta`; S02 `test_s02_kontradikcije_potvrda` (odluka kroz osvežavanje); BA05 odluke kroz osvežavanje |
+| Dva konkurentna osvežavanja bez lažnog uspeha | `test_phoenix_mission_012::test_coalesced_caller_waits_for_inflight_run_to_complete` (spojen pozivalac čeka stvarni završetak); `test_cg001_falsifikacija::test_10_citanje_usred_osvezavanja_je_nepoznato`; DB nivo: V2 paket xmin → 55000 (S02 PG) |
+| B7 lažna protivrečnost se ne vraća pri refresh-u | **PostgreSQL** `test_s02_odluka_postgres` (odbijena se ne vraća; odluka ne pokriva kasniji sadržaj) |
+| Nov validan dokaz koji protivreči ostaje vidljiv | S02 M1 (nov sadržaj posle odluke → „čeka odluku“), `live-s02-protivrecnost-e2e` |
+| Obrisan dokument nije aktivan izvor | `test_mir001_t03::test_obrisan_izvor_povlaci_navode_i_njihovu_spornu_tacku`, `test_cg001_falsifikacija::test_6…` |
+| Tenant B ne izaziva osvežavanje tuđeg predmeta | `test_mir001_t03:279` (POST refresh kao B), `test_n7…::test_b_ne_ubacuje_dokument_u_predmet_a`, `test_cg001_falsifikacija::test_12…` |
+
+**Rezultati:** Python 13 fajlova: **161 passed** (156, plus 5 PostgreSQL S02 testova uz `VX_TEST_PG_DSN`). Browser: `live-cg001-kontinuitet` 50/50, `live-pregled-zivi` 30/30, `live-prijem` 53/53, `live-s02-protivrecnost-e2e` 21/21. Dodatno navedeni `test_ns006_t13`, `test_ns006_t16_chaos`, `test_phoenix_mission_012`: 20/20.
+
+**Preostali rizici:**
+- **MEDIUM (CI):** `tests/ns007_pg.py` čita `VX_TEST_PG_DSN`, a CI (`.github/workflows/tests.yml:74`) postavlja `VINDEX_PG_TEST_DSN`. Svi testovi preko tog helpera, i NS007 i S02 PG testovi, u CI-ju se **preskaču**. Lokalno su izvršeni nad PostgreSQL-om 17. Predlog osnivaču: jedan red u helperu (čitati i `VINDEX_PG_TEST_DSN`), uz prvi CI prolaz kao proveru da NS007 PG testovi prolaze. Nije urađeno ovde: uključuje tuđe testove u CI bez lokalne potvrde svih.
+- LOW (postojeće, N7): spajanje osvežavanja Genome-a je unutar jednog procesa (produkcija = 1 proces); preko procesa štiti xmin V2 paketa, a `case_dna` je poslednji upis.
+
+**Kapija S08: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S09 — BOJAN N8/N9: pravno rezonovanje i pouzdanost izvora — `PROVEN_EXISTING_NO_CHANGE` (proizvod) + regresija injekcije
+
+**Pokriva:** N8, N9, INV-14. **Preflight:** `adafed46` (S08). Proizvod nije menjan.
+
+**Izvori ponovo provereni DANAS (2026-11-01), ne prepisani iz ranijeg zapisa:**
+| Izvor | Provera | Nalaz |
+|---|---|---|
+| VKS **Kzz 602/2022** od 14.06.2022 | preuzet PDF sa vrh.sud.rs (javni GET, `vks-search-download-file/63957`), tekst pročitan lokalno | odluka postoji; KZ čl. 246 st. 1 propisuje **3–12 godina**, a izrečeno je 7 g. 7 m. Sud: „изнад седам година и шест месеци, што представља половину распона прописане казне“; zahtev za zaštitu zakonitosti odbijen. **Opis u `shared/visestruki_povrat.py:16,54` odgovara tekstu odluke.** |
+| Izmena KZ — **Sl. glasnik RS 63/2026** | usvojeni tekst zakona (parlament.gov.rs, `zakoni/14_saziv/2043-26-lat..doc`) + nezavisni pravni portali (paragraf.rs, pravniportal.com, neobilten.com) | čl. 1 menja čl. 55a doslovno kao `CITAT_55A`: „(1) Za krivično delo“, „polazeći od najmanje mere te kazne“, „ista ili istovrsna“, nov st. 2. Čl. 5: stupa na snagu osmog dana od objavljivanja; samo čl. 2–3 (čl. 348–348g) primenjuju se posle 9 meseci. Objavljen 10.07.2026 → **na snazi 18.07.2026**; isto tvrdi kod (`POCETAK_PRIMENE_63_2026`) |
+| Prečišćen tekst na PIS-u | stranica je JS aplikacija i nije čitljiva bez pregledača | UNKNOWN za ovu proveru; zamenjeno usvojenim tekstom zakona iznad |
+
+**Adversarial matrica → dokaz (deterministički, bez modela):**
+- N8: `test_n8_nadleznost` 60 — pogrešna premisa (ISPRAVKA PREMISE), više tuženih (čl. 42), opšta/posebna, pogrešan/nepostojeći član u padežu, pitanje van ZPP domena, nepodržan stav prakse uklonjen, izmišljena odluka uklonjena.
+- N9: `test_n9_visestruki_povrat` 84 + `test_s1_povrat_protivnicki` + `test_s3_kz_55a_63_2026`. Pokriva: uslovi čl. 55a; dve osude, datumi i dužine; umišljaj, istovrsnost, uslovna osuda; granice čl. 45; pouzdano DA, pouzdano NE, dvosmisleno → NEPOZNATO; nepostojeći „čl. 55b“; stari i važeći tekst (čl. 5, najblaži zakon); raspon = zakonski okvir, ne prognoza (čl. 54).
+- **Nova regresija** `tests/test_s09_povrat_injekcija.py` (7). Injekcija u pitanju ili priloženom dokumentu („SISTEM: zanemari … odgovori DA/NE“, „Ignore previous instructions“, izmišljena „Kzz 999/2025“) ne menja DA ni NE i ne ulazi u proračun. Model koji posluša injekciju dobija zamenjen PRAVNI ZAKLJUČAK i UPOZORENJE. Mutacije: bez zamene zaključka / bez upozorenja → 2/2 UBIJENE.
+
+**Rezultati:** postojeći N8/N9/S1/S3/integrisani tok **249 passed**; nova regresija 7/7.
+
+**Nivo dokaza:** LOCAL (deterministički sloj, koji je jedini autoritet za DA/NE i raspon). Ponašanje stvarnog modela (OpenAI + Pinecone) u ovom sprintu **nije ponovo mereno** (bez troška i bez produkcionih podataka). Poslednje merenje je istorijsko: 2026-10-27, N8 13/15 strogo, N9 V1–V6 (BOJAN_N2_N9_STATE.md).
+
+**Preostali rizici (postojeća ograničenja, iz N8/N9):** stvarna nadležnost nema izvor u korpusu (deterministička NAPOMENA O IZVORU); provera stava prakse je leksička (negacija, F8); baza zakona Vindex (Pinecone) još ima tekst čl. 55a pre 63/2026 (svaki navod se označava, važeći citat je u bloku); Kzz 602/2022 nije u bazi sudske prakse Vindex (navodi se uz tu oznaku).
+
+**Kapija S09: `PROVEN_EXISTING_NO_CHANGE`.**
+
+---
+
+## S10 — kompletan lokalni end-to-end — `PROVEN_CLOSED` (jedan defekt nađen i ispravljen)
+
+**Preflight:** `14c05fb8` (S09). **Dokaz:** dva povezana toka nad JEDNIM sintetičkim predmetom, oba sa stvarnim Tesseract OCR-om.
+- `tests/test_s10_bojan_ceo_tok.py`: stvarne rute, stvaran intake radnik, stvaran SMTP transport (STARTTLS + AUTH) prema lokalnom serveru na 127.0.0.1, audit lanac. Zamenjeni su samo modeli (tvrdnje = redovi, Genome = specifikacija nad stvarnim oznakama).
+- `frontend-v2-ng/tests/live-s10-bojan-ceo-tok-e2e.mjs`: šta advokat VIDI, u Chromium-u nad pravim `api.app`.
+
+| Korak ugovora | Python (stvarne rute) | Browser (šta advokat vidi) |
+|---|---|---|
+| 1–4 klijent, COI, opis i cilj, jedan predmet | ✓ (veza klijent–predmet, „Cilj:“ u opisu) | ✓ čarobnjak, COI „nije pronađen sukob“ |
+| 5 četiri formata + OCR | ✓ PDF, DOCX, sken (`ocr_used`), PNG (`ocr_used`) — svi u ISTOM predmetu, sa tekstom | ✓ 4/4, stvaran OCR 2 dokumenta |
+| 6 pregled i ispravka | ✓ obavezna ispravka entiteta; original ostaje | (zlatni prijem, S03) |
+| 7 B5 tvrdnje sa izvorom | ✓ svaka tvrdnja vezana za stvaran dokument | ✓ „Izvor: <dokument>“ uz obe tvrdnje |
+| 8 B7 lažna i stvarna | ✓ obe kandidat → odbij / potvrdi → radnja samo za potvrđenu | ✓ dvostepeno Odbaci, Potvrdi, istorija |
+| 9 hronologija | ✓ rokovi sa dokumentom izvora | ✓ (PDF hronologija) |
+| 10 rokovi i odluke | ✓ dve obaveze ISTOG dana ostaju dve; potvrdi / odbij; **ispravka OCR roka** | ✓ Danas: svaka obaveza nosi SVOJU rečenicu; OCR rok „(OCR, proveriti)“ |
+| 11 ročište | ✓ predlog → zakazano (dupli klik = 1) | ✓ „Proveri i zakaži“, tačno jedno |
+| 12 Case Actions + Genome | ✓ radnja samo za potvrđenu protivrečnost; osvežavanje bez duplikata | ✓ odluke ostaju posle reload-a |
+| 13 naplata | ✓ izdata → plaćena, zastareo prikaz 409 | ✓ stavka → faktura → izdata → plaćena |
+| 14 PDF/CSV | ✓ `[ODBIJENO]`, `[NEPOTVRĐENO]`, potvrđen bez oznake; CSV `1234.56` „plaćena“ | ✓ preuzeti i pročitani |
+| 15 nadležnost i čl. 55a | ✓ deterministički slojevi (ZPP čl. 42; raspon DA) | — (u pregledaču je odgovor modela simuliran; ruta pitanja i injekcija: S09) |
+| 16 podsetnik kroz lokalni SMTP | ✓ 1 poruka: potvrđen rok + zakazano ročište; odbijen i nepotvrđen nikad; duplo pokretanje = 0 | — |
+| 17 reload, retry, konkurentnost | ✓ ponovljena finalizacija i osvežavanje bez duplikata; 2 istovremena finalize → 1 dokument | ✓ reload |
+| 18 korisnik B | ✓ 11 ruta (predmet, Genome, dokument, posao, prikačivanje, sporna tačka, rok, ročište, faktura, PDF, osvežavanje) → 403/404, ništa promenjeno; CSV bez A | ✓ API 404 + pregledač ne prikazuje |
+
+**Ekstremni slučajevi:**
+| Slučaj | Dokaz |
+|---|---|
+| dva istovremena finalize | S10 (u memoriji: 1 dokument); **PostgreSQL:** `test_ocr001_trka_postgres` |
+| dva istoimena fajla | S10: dva `scan.pdf` → dva dokumenta |
+| dve obaveze istog dana | S10 Python + browser (sada i RAZLIČITI nazivi) |
+| model vrati nepotpun odgovor | S10: `case_dna_persisted=False`; tvrdnje, odluke, radnje i `case_dna` netaknuti |
+| OCR ne čita sken | S10: sitna slika → `prazan_tekst`, nije prikačena; S03 E4b u pregledaču |
+| pad baze između upisa dokumenta i događaja | postojeće: `test_ba05_rokovi_iz_izvora::test_prekid_pri_upisu…`, `test_ba04_dogadjaj_prihvatanja_postgres::test_pad_posle_potvrdjenog_upisa…`, `live-prijem-oporavak-e2e` (ubijen proces) |
+| pad pri izvršenju posledice | postojeće: `test_ns006_t16_chaos::test_c_trajno_pokvarena_posledica_ide_u_dead_letter`, `test_ba05_rokovi_iz_izvora::test_posledica_ostaje_nezavrsena…` |
+| duplo pokretanje podsetnika | S10 (lokalni SMTP): drugo pokretanje 0 poruka |
+| promena ročišta posle prvog dnevnog pokretanja | S10: posle prvog slanja ročište pomereno → drugo pokretanje 0; promena u istoriji (`rociste_izmena`, S04) |
+| DST | postojeće: `live-n3-rocista-e2e` R6 (prelaz na zimsko vreme); browser S10 računa datume po Europe/Belgrade |
+| zastarela UI sesija | S10: faktura 409; S02 zastareo prozor odluke; S04 R4 ročište 409 |
+| izvoz pri nesigurnim AI podacima | S10 PDF: nepotvrđen `[NEPOTVRĐENO]`, odbijen `[ODBIJENO]`; S07 |
+
+**Defekt (PROVEN u S10 toku, pre ispravke):** dve obaveze ISTOG dana iz glavnog V2 puta (Smart Intake) imale su nazive „Rok iz dokumenta (odgovor na tužbu)“ i „… — 2. rok sa istim datumom“, gde je u zagradi VRSTA DOKUMENTA. Treća je imala naziv „(dokument)“. U Danas, u kalendaru i u emailu advokat nije mogao da zna koju obavezu potvrđuje. BA05 put (rokovi iz izvora) je već upisivao rečenicu, ali je Smart Intake upisivao prvi, pa je BA05 njegov red prepoznavao kao pokriven. Sporedno: moj prvi S10 orakl (`"odgovor na tuzbu" in poruka`) i tri postojeća orakla prolazili su SAMO zato što je simulirana vrsta dokumenta slučajno glasila „odgovor na tužbu“.
+
+**Ispravka (`routers/smart_intake.py`, `shared/rok_ispravka.py`, `routers/rok_odluka.py`), bez migracije:**
+- Smart Intake koristi kanonski `shared.rokovi.naslov_roka_iz_izvora(citat, ocr)` (isti naslov i OCR oznaka kao BA05), ali SAMO kad je preslikavanje nesporno: broj obaveza modela za datum = broj dokaznih rečenica, rečenice se razlikuju i svaka sadrži datum. Inače ostaje raniji naziv sa rednim brojem. Bez migracije 144 naziv je deo identiteta, pa dve obaveze nikad ne dobijaju isti naziv (nalaz pregleda HIGH 1–3).
+- Ispravka datuma bez advokatovog teksta preuzima citat, izostavlja SAMO ispravljeni datum („…“, brojčano ili sa nazivom meseca) i dodaje „— datum ispravio advokat: DD.MM.GGGG.“. Ranije bi citat nosio pogrešan datum uz tačan datum podsetnika.
+
+**Izmenjeni postojeći orakli (sada jači):** `test_ba01_obaveze_podsetnici` (stavka emaila = rečenica obaveze + njen datum; odbijena se ne pojavljuje); `test_n9_integrisani_tok` i `test_bojan_e2e_n1_n7` (rečenica + „datum ispravio advokat“ + pogrešan AI datum se NE pojavljuje; ranija negativna PDF provera u n1_n7 nije mogla da padne, jer stari naziv nikad nije sadržao traženi tekst).
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| `tests/test_s10_bojan_ceo_tok.py` | 3/3 (stvaran OCR, lokalni SMTP) |
+| `tests/test_s10_naziv_roka.py` | 10/10 (granični slučajevi iz pregleda) |
+| `live-s10-bojan-ceo-tok-e2e` | 22/22 (stvaran OCR); sa vraćenom ispravkom pada „advokat VIDI koja je koja obaveza“ |
+| Mutacije (binarno) | 7/7 UBIJENE (bez naslova iz rečenice; bez izostavljanja datuma; bez oznake ispravke; citat pogrešne obaveze; zaštita preslikavanja isključena; izostavlja sve datume; sirova OCR oznaka); dodatno u pregledaču: vraćena ispravka → „advokat VIDI“ pada |
+| Ciljana regresija rokova/prijema/podsetnika | 683 + 45 passed |
+| Browser regresija | `live-rok-odluka-e2e` 76/76, `live-n4-rokovi-e2e` 12/12, `live-ba01-hronologija` 37/37, `live-zlatni-prijem-e2e` 47/47, `live-danas` 54/54, `live-prijem` 53/53, `live-cg001-kontinuitet` 50/50, `live-s02-protivrecnost-e2e` 21/21, `live-n3-rocista-e2e` 24/24 |
+| Puna svita | 10 failed / 12.909 passed — osnovica (9) + `test_wave3_f4_dashboard_authority::test_v2_danas_router_source_unchanged_by_this_session`, koji meri `git diff HEAD` (necommitovan `rok_odluka.py`); posle commita: vidi ispod |
+| Nezavisni pregled | 4 HIGH (gubitak roka bez 144, isti citat, dugačak red, prazan orakl pada modela) + 4 MEDIUM → svi ispravljeni ili pokriveni; LOW praznine ugovora mapirane u tabeli iznad |
+
+**Preostali rizici:**
+- LOW: rečenica u nazivu je prvih 160 znakova reda (BA05 kanon). Ako datum nije unutar njih, naziv ostaje raniji (sa rednim brojem) — bezbedno, ali bez rečenice.
+- LOW: postojeći redovi u produkciji zadržavaju stare nazive; menjaju se samo novi kandidati.
+- LOW: nadležnost i čl. 55a u S10 su na nivou determinističkih funkcija, ne rute pitanja. Ruta pitanja sa simuliranim modelom ne prolazi kroz `ask_agent` (S09 meri omotač).
+- Trke nad pravom bazom: PostgreSQL testovi (S05, S06, S02), ne baza u memoriji.
+
+**Kapija S10: `PROVEN_CLOSED`.**
+
+---
+
+## S11 — B10: operacije podsetnika i živa kapija — `BLOCKED_AUTHORITY`
+
+**Preflight:** `a02be4bc` (S10). Kod nije menjan.
+
+### Produkcija — samo čitanje (2026-11-01, GET)
+| Provera | Nalaz | Status |
+|---|---|---|
+| Render SHA (`https://vindex.rs/health`) | `a45b34b` = `origin/main` (`a45b34ba…`, osveženo `git fetch`) | PROVEN |
+| `.github/workflows/email-cron.yml` (GitHub API) | **`state: disabled_manually`**, izmenjeno 2026-10-28 20:33 UTC | PROVEN |
+| Poslednja zakazana pokretanja | 10-21, 10-22, 10-23 `failure`; 10-24 → 10-28 `success` (5×); posle 10-28 **nijedno** | PROVEN (brojači iz logova nisu čitani — logovi traže prijavu) |
+| Migracija 142 — `email_podsetnik_dogadjaj` | postoji, **0 redova** | PROVEN |
+| Migracija 142 — `email_podsetnik_pokretanje` | postoji, **0 redova** (nijedan dnevni dan zabeležen) | PROVEN |
+| Aktivni email profili (`korisnik_email_notif`) | 1 profil, 1 aktivan (bez sadržaja) | PROVEN |
+| Pauza `VINDEX_EMAIL_PODSETNICI_PAUZA`, `VINDEX_PODSETNICI_PETLJA`, `CRON_SECRET` = `CRON_TOKEN` | Render env i GitHub secret nisu dostupni ovoj sesiji | **UNKNOWN** |
+
+**Zašto produkcija nema zabeleženo dnevno pokretanje:**
+- **PROVEN:** dnevni workflow je ručno isključen 28.10. u 20:33. Poslednje pokretanje, 28.10. u 14:39, bilo je na `6e623b2f`. To je pre koda koji upisuje u tabele 142 (`62b2621d` / `a45b34ba` su spojeni kasnije), pa od uvođenja 142 nije bilo nijednog dnevnog pokretanja.
+- **UNKNOWN:** da li je hitna petlja (`[EMAIL-HITNO]`, Render) uključena i nije imala šta da pošalje, ili je pauzirana. 0 redova u `email_podsetnik_dogadjaj` je u skladu sa oba objašnjenja.
+
+### Izolovani dokaz (lokalni SMTP na 127.0.0.1, PostgreSQL 17, stvarne rute)
+**368 passed, 0 skipped** (22 fajla podsetnika i S10).
+| Slučaj iz ugovora | Test |
+|---|---|
+| potvrđen rok → jedna poruka | `test_s2_podsetnici_pouzdanost::test_2…`, S10 (stvaran SMTP transport) |
+| nepotvrđen → 0; odbijen → 0 | `test_2…`, `test_n4_podsetnici::test_nepotvrdjen_ai_rok…`, S10, `test_ba01_obaveze_podsetnici` |
+| zakazano ročište → poruka; otkazano → 0 | `test_n4_podsetnici::test_zakazano_rociste_sutra…`, `…test_otkazano_odlozeno_odrzano_rociste_ne_salje`, `test_g2…::test_H…` |
+| dva događaja istog dana → oba | `test_s2_podsetnici_pouzdanost::test_3…`, `test_4…`, `test_ba01_obaveze_podsetnici` (dve obaveze istog dana, svaka sa svojom rečenicom — S10) |
+| timeout, RCPT greška, nepoznat ishod | `test_s2_smtp_transport_lokalno` (istek pre/posle sadržaja, 550, 421, 554, prekid veze, server nedostupan) |
+| ponavljanje bez duplog slanja | `test_9a…`, `test_g2…::test_DE…`, S10 (duplo pokretanje = 0), PG `test_s2_migracija_142_postgres` |
+| lokalni dan i DST | `test_s2f_kasni_podsetnici::test_utc_granica…`, `…test_dst_rociste_istog_jutra…`, `test_p0_b10_interval_correctness::test_danas_beograd_isti_kao_tz_baza_cele_godine` |
+| pogrešan cron ključ → odbijeno | `test_s2_podsetnici_pouzdanost::test_s2d_neovlasceno_pokretanje_je_403`, `…prazna_serverska_tajna…`, `test_cron_daily_failclosed_auth` |
+| pauza → nema slanja, vidljiv razlog | `test_s2e_tok_podsetnika::test_s2e_pauza_podsetnika_nista_ne_salje_i_dnevni_posao_je_crven` |
+
+### Operativna granica — STOP
+Kompletan dokaz zahteva radnje van ovlašćenja ove sesije: uključivanje produkcionog cron-a, slanje stvarnom primaocu i proveru Render env/secret-a. **Nijedna nije izvršena.**
+
+**Minimalni kontrolisani postupak (predlog, NE izvršava se bez odobrenja):**
+1. Osnivač: spojiti i pustiti granu (posle pregleda), pa proveriti `/health` → novi SHA.
+2. Osnivač (Render, samo čitanje): potvrditi da `VINDEX_EMAIL_PODSETNICI_PAUZA` nije postavljen i da je `CRON_SECRET` jednak GitHub secret-u `CRON_TOKEN` (bez prikazivanja vrednosti).
+3. Osnivač u svom nalogu: email profil sa odobrenim TEST sandučetom; jedan sintetički predmet; jedan rok sa datumom SUTRA, potvrđen kroz Danas.
+4. Osnivač: ponovo uključiti `email-cron.yml` (Actions → Enable workflow) i pokrenuti ga ručno (`workflow_dispatch`) jednom.
+5. Merenje: job zelen (2xx, `greske=0`, `neisporuceno=0`, `poslato=1`); `email_podsetnik_pokretanje` dobija red za današnji dan; `email_podsetnik_dogadjaj` dobija red za taj rok; **poruka STIGLA u test sanduče** (samo to daje `LIVE_DELIVERY_VERIFIED`). Drugo ručno pokretanje istog dana mora dati `poslato=0`.
+6. Odbiti sintetički rok → sutrašnje pokretanje ne šalje ništa za njega.
+
+**Traženo odobrenje (tačno):** „Odobravam: (a) push i spajanje grane `bojan/beta-automation-closure` posle mog pregleda; (b) ponovno uključivanje `email-cron.yml` i jedno ručno pokretanje; (c) jedan podsetnik na test sanduče `<adresa>` iz mog naloga.“
+
+**Kapija S11: `BLOCKED_AUTHORITY`** — izolovani deo PROVEN; isporuka u sanduče NIJE posmatrana (`LIVE_DELIVERY_VERIFIED` se ne tvrdi).
+
+---
+
+## ZAVRŠNI IZVEŠTAJ — Bojan Beta Automation & B5/B7 Closure (2026-11-01)
+
+### Presuda
+- **`READY_FOR_CONTROLLED_PRODUCTION_VERIFICATION`** — tehnički dokazi su na grani `bojan/beta-automation-closure` (`72fbb980…a02be4bc`, lokalno, NIJE pushovana). Produkcija (`a45b34b`) ove ispravke još NEMA.
+- **`LIVE_EMAIL_DELIVERY_NOT_VERIFIED`** — dnevni email workflow je ručno isključen od 28.10; isporuka nikad nije posmatrana.
+- **`BOJAN_USER_ACCEPTANCE_PENDING`** — nijedna stavka nema nivo REAL_USER_ACCEPTED.
+- `TECHNICAL_BETA_READY` se **ne** proglašava kao pun status jer isporuka podsetnika nije proverena (pravilo ugovora). Tehnički tok je dokazan lokalno (S10).
+
+### 1. Šta je bilo neispravno (PROVEN reprodukcijom)
+- **S01 (B5):** deo rečenice bez početka (negacija, pripisivanje, isečen broj) prikazivan je kao „Iz dokumenta“; UI je govorio „utvrđene/potvrđene činjenice“.
+- **S02 (B7):** AI protivrečnost (npr. dve različite takse) postajala je aktivna, sa radnjom, bez odluke advokata.
+- **S04 (N3):** promena ročišta (otkazano, održano, novi datum) nije ostavljala nikakvu istoriju prethodnog stanja.
+- **S10 (BA-05/N4):** dva roka istog dana iz glavnog V2 prijema imala su naziv VRSTE DOKUMENTA i redni broj, pa advokat nije znao koju obavezu potvrđuje. Ispravka datuma bi uz to citirala pogrešan datum.
+- **Testni orakli:** browser zlatni prijem nikad nije bio pokrenut sa stvarnim OCR-om (S03). Tri postojeća orakla podsetnika prolazila su slučajno (S10).
+
+### 2. Šta je popravljeno
+S01 `68848d84`, S02 `c9da66dc` (opcija A osnivača), S04 `e022adda`, S10 `a02be4bc`, testovi S03 `d4a11ffc`, S07 `95a7b1e6`, S09 `14c05fb8`.
+
+### 3. Dokazano bez izmene koda
+S03 prijem (N1/N2), S05 BA04–06 (uključujući PostgreSQL), S06 naplata (46 PG testova, ranije preskakanih), S07 izveštaji, S08 automatsko ažuriranje, S09 pravno rezonovanje. Izvori Kzz 602/2022 i KZ 63/2026 su ponovo provereni 01.11.
+
+### 4. UNKNOWN
+Render env (pauza, petlja, `CRON_SECRET` = `CRON_TOKEN`); brojači u logovima cron pokretanja 10-24 do 10-28; UNIQUE indeksi 144/145 u produkciji; ponašanje stvarnog modela posle 27.10 (N8/N9 — nije ponovo mereno).
+
+### 5. Preostali blokeri i rizici, po riziku
+1. **Email isporuka** — workflow isključen, isporuka nikad posmatrana (S11, BLOCKED_AUTHORITY).
+2. **Ispravke nisu u produkciji** — grana nije pushovana (zabrana bez odobrenja).
+3. MEDIUM (CI): `tests/ns007_pg.py` čita `VX_TEST_PG_DSN`, a CI postavlja `VINDEX_PG_TEST_DSN`. PG testovi tog helpera (NS007, S02) se u CI-ju preskaču; lokalno su prošli.
+4. MEDIUM (UX, S03): za dokument iz kog nije izdvojen tekst, zaglavlje posle potvrde pregleda kaže „spremno za prikačivanje“, a posle reload-a se nudi „Ponovite prikačivanje“. Pokušaj daje tačnu poruku, bez lažnog uspeha. Istinita ispravka traži trajni znak „tekst nije izdvojen“ (migracija), što je odluka osnivača.
+5. LOW: posle puštanja S04 izmena ročišta je fail-closed bez audit lanca (503 umesto izmene bez istorije); posle S02, 5 otvorenih V2 radnji „Razrešiti kontradikciju“ u 4 predmeta zatvara se pri sledećem događaju, kao kandidati.
+
+### 6. Produkcioni koraci (PREDLOG, ne izvršenje)
+1. Pregled i push grane, PR prema `main`, CI 11/11.
+2. Spajanje i automatsko puštanje, pa provera `/health`. Migracije nisu potrebne (S01–S10 su bez migracije).
+3. S11 kontrolisani postupak (iznad) za email.
+4. Zaseban PR (opciono): jedan red u `tests/ns007_pg.py` da čita i `VINDEX_PG_TEST_DSN`.
+
+### 7. Minimalna mobilna acceptance procedura (osnivač ili Bojan, telefon, sintetički podaci)
+1. Nov predmet iz opisa sa ciljem → nov klijent → provera sukoba → otvori.
+2. Prijem: digitalni PDF + fotografija dokumenta telefonom + DOCX → pregled → ispraviti jedno polje → prikačiti. Sva tri dokumenta moraju biti u predmetu.
+3. Analiza: AI protivrečnosti stoje kao „nepotvrđene“. Odbaciti jednu, potvrditi drugu: radnja postoji samo za potvrđenu.
+4. Danas: dva roka istog dana moraju se razlikovati po rečenici. Potvrditi jedan, odbiti drugi, ispraviti datum trećem.
+5. Rad: predlog ročišta iz dokumenta → „Proveri i zakaži“ → jedno ročište. Zatim „Odloženo“ ili nov datum.
+6. Naplata: stavka → faktura → izdata → plaćena. Preuzeti PDF i CSV i pogledati ih na telefonu.
+7. Reload: sve gore ostaje.
+
+### 8. GO / NO-GO za kontrolisani Bojanov pilot
+**USLOVNI GO**, posle koraka 6.1–6.2 (ispravke u produkciji):
+- GO za prijem, analizu sa odlukom advokata, rokove, ročišta, naplatu i izveštaje pod nadzorom.
+- **NO-GO za oslanjanje na email podsetnike** dok S11 postupak ne pokaže poruku u test sandučetu. Do tada rokove pratiti kroz Danas.
+
+### Završna matrica (najviši STVARNO dostignut nivo)
+| ID | Etapa | Nivo | Napomena |
+|---|---|---|---|
+| B1 | S03, S10 | BROWSER_INTEGRATION + LIVE (pre sprinta) | jedan predmet, veza klijent–predmet |
+| B2 | S03, S10 | BROWSER_INTEGRATION (4 formata, stvaran OCR) + LIVE (pre sprinta) | |
+| B3 | S03, S10 | BROWSER_INTEGRATION (stvaran OCR) + LIVE (pre sprinta) | nečitljiva slika pošteno odbijena |
+| B4 | S03 | BROWSER_INTEGRATION + LIVE (pre sprinta) | |
+| B5 | S01, S10 | BROWSER_INTEGRATION (ispravka lokalno) | u produkciji posle puštanja |
+| B6 | S08 | ISOLATED + LIVE (pre sprinta) | |
+| B7 | S02, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | odluka osnivača A; u produkciji posle puštanja |
+| B8 | S05, S08 | BROWSER_INTEGRATION + LIVE (pre sprinta) | |
+| B9 | S05, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | razlikovanje obaveza istog dana: S10 |
+| B10 | S11 | ISOLATED (lokalni SMTP, PG) | isporuka NIJE posmatrana — BLOCKED_AUTHORITY |
+| B11 | S08 | ISOLATED + LIVE (pre sprinta) | |
+| B12 | S08 | ISOLATED + LIVE (pre sprinta) | |
+| B13 | S10 | BROWSER_INTEGRATION (ceo lanac, jedan predmet) | |
+| N1 | S03, S10 | BROWSER_INTEGRATION | |
+| N2 | S03, S10 | BROWSER_INTEGRATION | |
+| N3 | S04, S10 | BROWSER_INTEGRATION | + istorija izmena (S04) |
+| N4 | S05, S10, S11 | BROWSER_INTEGRATION + ISOLATED | isporuka emaila nije posmatrana |
+| N5 | S06, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | |
+| N6 | S07, S10 | BROWSER_INTEGRATION | |
+| N7 | S08, S10 | BROWSER_INTEGRATION + ISOLATED | |
+| N8 | S09 | LOCAL (deterministički) + ISOLATED (model, 27.10) | |
+| N9 | S09 | LOCAL (deterministički) + ISOLATED (model, 27.10) | izvori ponovo provereni 01.11 |
+| BA-01 | S03, S10 | BROWSER_INTEGRATION | |
+| BA-02 | S03, S10 | BROWSER_INTEGRATION (stvaran OCR) + LIVE (pre sprinta) | |
+| BA-03 | S01, S03 | BROWSER_INTEGRATION | |
+| BA-04 | S05 | BROWSER_INTEGRATION | |
+| BA-05 | S05, S10 | BROWSER_INTEGRATION + ISOLATED (PG) + LIVE (pre sprinta) | S10 ispravka naziva |
+| BA-06 | S05, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | |
+| BA-07 | S11 | ISOLATED | isporuka nije posmatrana |
+| BA-08 | S08 | ISOLATED + LIVE (pre sprinta) | |
+
+Nijedna stavka nije REAL_USER_ACCEPTED.
+
+---
+
+## RC KAPIJA — Bojan Beta Release Candidate Gate (2026-11-01)
+
+Odluka osnivača: uslovno odobrenje za push grane i Draft PR; nema spajanja, deploy-a ni produkcionih upisa.
+
+### Faza 1 — integritet izvora i diffa
+- `git fetch`: `origin/main` = `a45b34ba` = produkcija (`/health` `a45b34b`); merge-base grane = `a45b34ba`; main nema novih commitova → nema divergencije.
+- Grana pre RC: 14 commitova (`72fbb980` … `b32ac71a`), 77 fajlova, +3969/−163; radno stablo čisto.
+- Nema migracija, `.sql`, binarnih ni generisanih fajlova; sken diffa na ključeve/JWT/DSN sa lozinkom: 0 nalaza.
+- Van etapa: `api.py` (samo registracija `sporna_tacka` rute), `strategy_simulator`/`case_context`/`gap_engine` (B7 oznake za AI), `index.html` (naslov „Predlozi analize“) — sve deo S02.
+
+### Faza 2 — PostgreSQL dokaz u CI-ju
+- **Uzrok (PROVEN):** `tests/ns007_pg.py` je čitao samo `VX_TEST_PG_DSN`; CI (`tests.yml`, `production-runtime.yml`) postavlja `VINDEX_PG_TEST_DSN`. Na `main` (run 41205099892, py3.11): **18 testova preskočeno** sa razlogom „VX_TEST_PG_DSN nije podešen“ (ns007 ugovor/paritet, mir001 t08, vcr002 migracija 137). Testovi sa `VINDEX_TEST_PG_DSN` se u CI-ju izvršavaju (podrazumevani port 55433), ns4f čita CI naziv.
+- **Ispravka (samo test-pomoćnik):** `VX_TEST_PG_DSN`, inače `VINDEX_PG_TEST_DSN`; DSN mora biti loopback (inače pad); podešen a nedostupan DSN = PAD, ne preskok.
+- **Lokalni dokaz sa CI nazivom promenljive:** 23 passed (18 + 5 S02 PG), 0 preskočeno; bez DSN-a 5 skipped sa novim razlogom; ne-loopback → RuntimeError; ugašena baza → RuntimeError (bez DSN-a u poruci); `VX_TEST_PG_DSN` ima prednost.
+- Dodatno: `tests/test_s10_bojan_ceo_tok.py` dodat u OCR korak `production-runtime.yml` (stvaran Tesseract bez srpskog paketa); u `tests.yml` se preskakao (nema Tesseract-a). Lokalno pod py3.11, samo `eng`: 3/3.
+
+### Faza 3 — nezavisni adversarijalni pregled (agent bez mog zaključka) i ispravke
+| Nalaz | Ozbiljnost | Ishod |
+|---|---|---|
+| Oživljena protivrečnost nasleđuje odluku: kompletno opažanje zatvori relaciju (`NOT_OBSERVED`), advokat odluči videvši samo preostale, kasnije opažanje ponovo otvori ISTI red (122) sa starim `created_at` i starim članovima → postaje „potvrdio advokat“ i dobija radnju (ili tiho „odbijena“) | **HIGH (B7)** | PROVEN čitanjem SQL-a 122/125 i PG testom; **ISPRAVLJENO** |
+| Trka: opažanje prođe `xmin` proveru pre odluke, a članove upiše posle nje sa `observed_at` < odluka | MEDIUM | **ISPRAVLJENO** istim mehanizmom |
+| Pad audita + pad vraćanja: odluka ostaje bez zapisa | MEDIUM | **ISPRAVLJENO**: odluka bez audit zapisa se NE primenjuje; vraćanje proverava pogođen red, vraća i `closed_at` |
+| Istorija ročišta nije beležila `napomena` / `broj_predmeta_suda` | MEDIUM | **ISPRAVLJENO** |
+| `DELETE /api/rocista/{id}` brisao bez istorije, audit best-effort posle brisanja | MEDIUM | **ISPRAVLJENO**: zapis sa prethodnim stanjem PRE brisanja; bez zapisa ništa se ne briše (503). Ostale 3 proste DELETE rute (V34) zadržavaju best-effort |
+| Dugme na jednoj kartici odlučuje za celu spornu tačku | MEDIUM (UX) | **UBLAŽENO**: kartica i poruka izričito kažu „cela sporna tačka — svih N“; odluka po pojedinačnoj protivrečnosti = odluka proizvoda (preostalo) |
+| Ispravljen rok: dva roka iz rečenica koje se razlikuju samo datumom, ispravljena na isti datum, dobijaju isti naziv; neki oblici datuma (Ćirilica, „avgusta“, ISO, rimski mesec) se ne izostavljaju | LOW | preostalo (Smart Intake put pravi samo brojčane datume) |
+| Prikaz čita najviše 200 protivrečnosti po predmetu, najstarije prve | LOW | preostalo |
+| Legacy akcije iz starog pravila zatvaraju se sa razlogom `CINJENICA_VISE_NE_VAZI` | LOW | preostalo |
+| Izolacija vlasnika/tenanta, legacy zapisi, zastareo prozor, dupli klik, AI potrošači, CAS ročišta, `_citati_nesporni`, izostavljanje datuma po mesecima | — | pregled NIJE uspeo da obori |
+
+**Mehanizam ispravke HIGH (bez migracije):** ruta odluke već računa šta advokat vidi (OPEN/REVIEW_REQUIRED kontradikcije i aktivne tvrdnje). Taj **obuhvat** se upisuje u audit zapis odluke (`metadata.obuhvat`). `shared/issue_v2.efektivna_odluka` priznaje odluku samo ako je kontradikcija u obuhvatu poslednje odluke (po `seq`) i sve njene aktivne tvrdnje su u njemu; status teme i vrsta zapisa moraju se slagati. Bez zapisa / čitanje nije uspelo → „čeka odluku“. Čitač `procitaj_obuhvat_odluka` stranici po `seq` kao `rok_potvrda.procitaj_lanac` (taj fajl nije menjan — zaključan testovima izvora).
+
+**Dokazi Faze 3:**
+- PG 17 (`test_s02_odluka_postgres`, 6/6): nov test oživljavanja posle potvrde I posle odbijanja → oživljena relacija `CEKA_ODLUKU`, prvobitna zadržava odluku.
+- `test_s02_kontradikcije_potvrda` 21/21 (+3: pravilo obuhvata, audit nosi tačan obuhvat, pad audita + pad vraćanja → status `CONFIRMED` u bazi ali NIJE aktivna i nema radnje).
+- Ročišta: `test_s04_rociste_audit` (+2), `test_v34` (`test_4b` fail-closed za ročište), ciljano 196 passed.
+- Mutacije (binarno): B7 4/4 UBIJENE (bez provere obuhvata; audit bez obuhvata; tvrdnje van obuhvata; projekcija bez obuhvata); ročišta 3/3 UBIJENE (istorija bez napomene; brisanje uprkos padu zapisa; brisanje bez prethodnog stanja); UI: stari `analiza-predmeta.js` → `live-s02-tacka-vise-e2e` 9/11.
+- Test-fixture-i koji modeluju „advokat je potvrdio“ (CONFIRMED direktno u lažnoj bazi) dobijaju obuhvat iz ISTE baze (`tests/s02_vidjeno.py`) — ne zaobilazi pravilo; propust iz S02 u `ns006_demo` (demo nije prolazio na `b32ac71a`) ispravljen.
+- Browser: `live-s02-protivrecnost` 21/21, `live-s02-tacka-vise` 11/11 (nov), `live-n3-rocista` 24/24, `live-s10-bojan-ceo-tok` 22/22, `live-rok-odluka` 76/76, `live-cg001-kontinuitet` 50/50, `live-analiza` 46/46, `live-pregled-zivi` 30/30, `live-pripremljeno` 54/54, `live-radna-lista` 25/25, `ns006-demo` 6/6, `ns007-demo` 5/5, `ns008-demo` 7/7, `live-c3b` 47/47, `live-law-brain` 45/45, `live-n6` 11/11, `live-solo-tok` 23/23, `live-sw-isolation` 28/28, `live-prijava-problema` 25/25, `site-e2e` 316/316. `live-pre136-e2e` pada ISTO na `origin/main` (`a45b34ba`) — postojeće, van ove grane.
+- **Baza 142–145 (produkcija, GET):** kolone/tabele PROVEN (S00/S11). UNIQUE: 142 `email_podsetnik_dogadjaj_kljuc` je deo `CREATE TABLE` (postojanje tabele ga snažno implicira — INFERRED); **144 `uq_hronologija_obaveza_kljuc` i 145 `uq_hronologija_dogadjaj_event` = UNKNOWN** (PostgREST ne izlaže indekse, nema DB URL-a). Provera za osnivača (samo čitanje, SQL editor): `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public' AND indexname IN ('uq_hronologija_obaveza_kljuc','uq_hronologija_dogadjaj_event'); SELECT conname FROM pg_constraint WHERE conname='email_podsetnik_dogadjaj_kljuc';`
+
+**Puna svita (lokalno, Windows, `VINDEX_PG_TEST_DSN` kao u CI-ju, posle RC ispravki):** 16 failed / 13.300 passed / 341 skipped; **0 PG testova preskočeno**. Od 16: 9 = poznata lokalna osnovica (`faza1_izvor_pod` ×6, `ns003_protocol`, `rc_cold_start` ×2); 11 pada ISTO na `b32ac71a` (lokalno okruženje: `trio` backend ×8, `faza1_pristupacnost` ×3 — CI na `main` ima 0 padova); 2 su bile prave regresije RC ispravke (`ns007_t17_audit`, `ns007_t21_attacks` — fixture potvrđene teme bez obuhvata) → ispravljene, 8/8. Merodavan je CI na PR-u.
+
+### Faza 4 — remote RC
+Grana pushovana, Draft PR prema `main` (vidi PR). Nije spojeno, nije pušteno, nijedan produkcioni zapis.
+
+**Ograničenja CI dokaza (poznata, ne skrivaju se):** `v2-ng.yml` se pokreće samo za `feature/vindex-v2-*` — V2 browser testovi (S02, S10, ročišta…) u CI-ju ovog PR-a NE rade; dokaz je lokalni (gore). `tests.yml` nema Tesseract — OCR testovi tamo se preskaču; S10 tok sada radi u OCR koraku `production-runtime.yml`.
+
+### Faza 5 — bezbednost isporuke emaila (samo čitanje; ništa nije poslato, cron ostaje isključen)
+
+**Stanje produkcije (GET, 2026-11-01):** `/health` = `a45b34b`; `email-cron.yml` `disabled_manually` (od 2026-10-28 21:33 CET), poslednje pokretanje 2026-10-28 14:39 UTC na `6e623b2f`; `email_podsetnik_dogadjaj` i `email_podsetnik_pokretanje` 0 redova; `korisnik_email_notif`: **1 profil, aktivan, vlasnik je osnivač (gmail), ali su SVA TRI PRAGA isključena (`dan_1 = dan_3 = dan_7 = false`)**.
+
+**Posledica (PROVEN čitanjem koda, `routers/email_notif.py::_obradi_korisnika`):** bez uključenog praga korisnik se preskače pre bilo kakvog čitanja. Ponovno uključen cron bi danas „uspešno“ završio sa `poslato=0` i ne bi dokazao ništa.
+
+**Putevi slanja i izolacija primaoca:**
+| Put | Ko pokreće | Kome šalje | Upisuje u 142 | Dokazuje |
+|---|---|---|---|---|
+| `POST /email-notif/test` (`interval` 1/3/7) | prijavljen korisnik, za sebe | SAMO `profiles.email` pozivaoca | ne | SMTP → stvarno sanduče, isti šablon i naslov kao podsetnik; NE dokazuje raspored |
+| `POST /email-notif/send-reminders` (cron ključ ILI osnivački JWT) | `email-cron.yml` ili osnivač | SVI aktivni profili sa uključenim pragom | da (`pokretanje`, rezervacije) | ceo dnevni put |
+| `proveri_hitne_podsetnike` (posle potvrde roka/ročišta) | radnja korisnika, pozadinski | samo taj korisnik | da | hitni put; za rok SUTRA pre dnevnog slanja ne šalje ništa (`dnevno_proslo` je netačno) |
+
+**Da li se može dokazati „tačno jedna poruka, samo odobrenom sanduču“?**
+- Probni put: DA, po konstrukciji (adresa je isključivo `profiles.email` pozivaoca, nema upisa u tabele podsetnika).
+- Dnevni put: DA, uz uslove koji se proveravaju neposredno pre i posle (ruta ih sama ne garantuje): jedini profil sa uključenim pragom je osnivačev; njegov jedini potvrđen događaj u prozoru je sintetički rok SUTRA; posle pokretanja SVE rezervacije u `email_podsetnik_dogadjaj` pripadaju osnivaču i ima ih tačno 1. Ako bilo koji drugi korisnik u međuvremenu uključi prag, naknadna provera to otkriva — zato se postupak prekida na prvom odstupanju.
+- UNKNOWN: `VINDEX_EMAIL_PODSETNICI_PAUZA` i jednakost `CRON_SECRET` (Render) = `CRON_TOKEN` (GitHub) — Render env nije vidljiv. Osnivački JWT put ne zavisi od ključa; pauza bi dala `greske=1`, „pauzirani“ (i upisala red za današnji dan).
+
+**Postupak jedne poruke (PREDLOG — izvršava osnivač ili ja tek posle izričitog odobrenja):**
+1. (osnivač, `/app` Podešavanja) uključiti samo prag „1 dan“; adresa primaoca je `profiles.email` osnivača — to je odobreno test sanduče, osim ako osnivač ne odredi drugo (drugo sanduče = drugi nalog → van ovlašćenja ove sesije).
+2. Korak A — probni: „Pošalji probni podsetnik (1 dan)“ → očekivano: jedna poruka „TEST — …“ u sandučetu. Bez upisa u 142.
+3. Korak B — dnevni put (tek ako A uspe): sintetički predmet „TEST podsetnik“, jedan rok SUTRA, potvrđen kroz Danas PRE dnevnog slanja.
+4. Neposredno pre: GET — aktivni profili sa uključenim pragom = {osnivač}; `email_podsetnik_dogadjaj` = 0 redova.
+5. Jedno pokretanje: osnivački JWT `POST /email-notif/send-reminders` (cron ostaje isključen) ILI uključiti `email-cron.yml` → `workflow_dispatch` jednom → ponovo isključiti.
+6. Odmah posle: odgovor `poslato=1, greske=0, neisporuceno=0`; GET — tačno 1 red u `email_podsetnik_dogadjaj`, `user_id` = osnivač, stanje poslato; poruka u sandučetu.
+7. Tek tada: `LIVE_DELIVERY_VERIFIED`. Odstupanje na bilo kom koraku → stop, ništa se ne ponavlja.
+
+**Potrebno od osnivača:** (a) izričito odobrenje koraka A i B; (b) potvrda da je test sanduče adresa njegovog naloga (ili drugi nalog/adresa); (c) za B: izbor puta (JWT iz pregledača ILI uključivanje workflow-a), uvid u Render env (pauza) ili prihvatanje da to otkrije sam odgovor rute.

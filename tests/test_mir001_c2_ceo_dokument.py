@@ -19,6 +19,17 @@ from tests.test_mir001_t03_kontinuitet import _sekcije
 from tests.test_osb002_solo_tok import A, _do_kraja_dogadjaja, _novi_predmet, _otpremi, _radnik, solo  # noqa: F401
 from routers.evidence import _klasifikuj_dokument as _PRAVI_KLASIFIKATOR   # pre fixture-a (koji ga zamenjuje)
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_potvrdjuje(monkeypatch):
+    """S02 / B7 (odluka osnivača A): AI protivrečnost je kandidat dok je advokat ne potvrdi. Ovaj fajl proverava tok
+    POTVRĐENIH protivrečnosti (aktivne, akcije, kontinuitet, povlačenje izvora) — advokat je potvrdio sporne tačke.
+    Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
+    import tests.ns006_fake as _ns006_fake
+    monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 UVOD = "Recenica uvoda broj {i}: tuzilac opisuje okolnosti ugovora i tok saradnje sa tuzenim."
 
 
@@ -182,7 +193,8 @@ def test_kratak_dokument_jedan_poziv_kao_ranije(citac):
 def test_izmisljena_cinjenica_nije_utemeljena_u_izvoru(citac):
     k, b, poruke = citac
     _, pid = _novi_predmet(k, b)
-    d = _prikaci(k, b, pid, "Halucinacija.pdf", _redovi("PODNESAK", 60, ["HALUCINACIJA okidac", "CINJENICA: dug 1.000 dinara."]))
+    # S01 (B5): red-okidač je zatvoren (tačka) — inače je sledeći red nastavak iste rečenice, a ne navod.
+    d = _prikaci(k, b, pid, "Halucinacija.pdf", _redovi("PODNESAK", 60, ["HALUCINACIJA okidac.", "CINJENICA: dug 1.000 dinara."]))
     gv = k.get(f"/api/predmeti/{pid}/genome-v2", headers=A).json()
     po = {t["vrednost"]: t for t in gv["dokazi"]["tvrdnje"]}
     assert po["Tuzeni je platio ceo dug 01.01.2020."]["potpora"] != "LOCIRANA_U_DOKUMENTU"   # nema je u tekstu

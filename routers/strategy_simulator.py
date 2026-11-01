@@ -252,9 +252,13 @@ async def nova_partija(
                 genome_ctx += f"  Primarni cilj: {_sp['primarni_cilj']}\n"
             if _sp.get("rezervni_plan"):
                 genome_ctx += f"  Rezervni plan: {_sp['rezervni_plan']}\n"
-            _kontr = _g.get("kontradikcije") or []
+            # S02 / B7: odbijene se ne broje; nepotvrđene se tako i nazivaju.
+            from services.v2_projection import kontradikcije_analize_za_ai
+            _kontr = await kontradikcije_analize_za_ai(supa, req.predmet_id, uid, _g)
             if _kontr:
-                genome_ctx += f"  Kontradikcije: {len(_kontr)} pronađeno\n"
+                _potvrdjenih = sum(1 for _k in _kontr if _k.get("_odluka_advokata") == "POTVRDJENA")
+                genome_ctx += (f"  Kontradikcije: {_potvrdjenih} potvrdio advokat, "
+                               f"{len(_kontr) - _potvrdjenih} predlog analize (nepotvrđeno)\n")
             _ned = _g.get("nedostaje") or []
             if _ned:
                 genome_ctx += "  Nedostajuci dokazi: " + ", ".join(

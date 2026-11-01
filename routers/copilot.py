@@ -546,7 +546,12 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     # reusing shared/gap_engine.py rather than a new detector. Honestly empty/
     # None when Genome hasn't run, never a GPT guess filling the gap.
     from shared.gap_engine import gaps_from_contradictions, gaps_from_genome_nedostaje
-    _weakness_gaps = gaps_from_contradictions(genome) + gaps_from_genome_nedostaje(genome)
+    # S02 / B7: odbijene protivrečnosti se izostavljaju, nepotvrđene su označene (odluka advokata).
+    from services.v2_projection import kontradikcije_analize_za_ai
+    _genome_odl = genome
+    if isinstance(genome, dict) and genome.get("kontradikcije"):
+        _genome_odl = {**genome, "kontradikcije": await kontradikcije_analize_za_ai(supa, predmet_id, user_id, genome)}
+    _weakness_gaps = gaps_from_contradictions(_genome_odl) + gaps_from_genome_nedostaje(genome)
     _slabosti = [g["razlog"] for g in _weakness_gaps[:4] if g.get("razlog")]
     _verovatnoca_uspeha = genome.get("snaga_predmeta_procent") if genome and not genome.get("greska") else None
 
@@ -759,7 +764,12 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     # upozorenja[]/nedostaje[]/kontradikcije[] domain with zero cross-check.
     # Same Genome-derived treatment as _handle_analiza_predmeta's own
     # "slabosti" fix above.
-    _upozorenja_gaps = gaps_from_contradictions(genome_pred) + gaps_from_genome_nedostaje(genome_pred)
+    # S02 / B7: odbijene protivrečnosti se izostavljaju, nepotvrđene su označene (odluka advokata).
+    from services.v2_projection import kontradikcije_analize_za_ai
+    _genome_odl = genome_pred
+    if isinstance(genome_pred, dict) and genome_pred.get("kontradikcije"):
+        _genome_odl = {**genome_pred, "kontradikcije": await kontradikcije_analize_za_ai(supa, predmet_id, user_id, genome_pred)}
+    _upozorenja_gaps = gaps_from_contradictions(_genome_odl) + gaps_from_genome_nedostaje(genome_pred)
     _upozorenja = [g["razlog"] for g in _upozorenja_gaps[:4] if g.get("razlog")]
 
     return {

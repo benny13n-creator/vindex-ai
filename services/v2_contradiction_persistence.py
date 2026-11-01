@@ -329,6 +329,17 @@ def _ucitaj_verzije_tema(supa, predmet_id: str) -> dict[str, str]:
     return {r["id"]: str(r["xmin"]) for r in (res.data or []) if r.get("xmin") is not None}
 
 
+def _ucitaj_teme_po_otisku(supa, predmet_id: str) -> dict[str, str]:
+    """S02 / B7: `initial_claim_fingerprint` -> `predmet_issues.id` (ne-MERGED). Baza (migracija 120: ON CONFLICT po
+    otisku) bi „novu“ temu sa istim otiskom ionako vezala za TU temu; adapter je samo unapred imenuje, da bi upis išao uz
+    njen `xmin` — opažanje doneto pre odluke advokata o toj temi (npr. „Ipak potvrdi“ odbijene) tada pada sa 55000
+    umesto da pod potvrdu/odbijanje tiho doda sadržaj koji advokat nije video. Identitet i dalje odlučuje baza po otisku."""
+    res = (supa.table("predmet_issues").select("id,initial_claim_fingerprint,status")
+           .eq("predmet_id", predmet_id).execute())
+    return {r["initial_claim_fingerprint"]: r["id"] for r in (res.data or [])
+            if r.get("initial_claim_fingerprint") and r.get("status") != "MERGED"}
+
+
 async def persist_observation_package(
     *, predmet_id: str, user_id: str, event_id: Optional[str], predlozi: Any,
     tezina_po_indeksu: Optional[dict[int, str]] = None,
@@ -351,6 +362,7 @@ async def persist_observation_package(
     poznati = await asyncio.to_thread(_ucitaj_poznate_dokaze, supa, predmet_id)
     postojece = await asyncio.to_thread(_ucitaj_postojece_teme, supa, predmet_id)
     xmin_tema = await asyncio.to_thread(_ucitaj_verzije_tema, supa, predmet_id)
+    po_otisku = await asyncio.to_thread(_ucitaj_teme_po_otisku, supa, predmet_id)
 
     # Odluka o kontinuitetu ostaje u domenu. Ovaj sloj je ne donosi, ne dopunjuje
     # i ne preispituje — samo je prenosi, zajedno sa `xmin`-om koji dokazuje nad
@@ -391,6 +403,8 @@ async def persist_observation_package(
             continue
 
         ref = r["issue_id"] if odluka == ODLUKA_NASTAVAK else None
+        if ref is None:
+            ref = po_otisku.get(otisak_pocetnog_skupa(claim_ids))     # postojeća tema istog otiska (vidi gore)
         u_paketu = bool(ref) and str(ref).startswith("__nova__")
         stavke.append({
             "indeks": i,

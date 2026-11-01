@@ -642,6 +642,7 @@ from routers.sms                  import router as sms_router
 from routers.viber                import router as viber_router
 from routers.whatsapp_notif       import router as whatsapp_notif_router
 from routers.rok_odluka          import router as rok_odluka_router  # FAZA 6.5
+from routers.sporna_tacka        import router as sporna_tacka_router  # S02 / B7
 from routers.evidence             import router as evidence_router
 from routers.evidence_graph       import router as evidence_graph_router
 from routers.voice                import router as voice_router
@@ -742,6 +743,7 @@ app.include_router(sms_router)
 app.include_router(viber_router)
 app.include_router(whatsapp_notif_router)
 app.include_router(rok_odluka_router)
+app.include_router(sporna_tacka_router)
 app.include_router(evidence_router)
 app.include_router(evidence_graph_router)
 app.include_router(voice_router)

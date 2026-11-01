@@ -55,6 +55,10 @@ def stanje(k):
 
 def main():
     mp = pytest.MonkeyPatch()
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj  # S02: CONFIRMED tema = advokat video trenutni sadržaj
+    advokat_video_trenutni_sadrzaj(mp)
+    import tests.ns006_fake as _ns006_fake  # S02 / B7: demo prikazuje tok POTVRĐENE protivrečnosti (advokat potvrdio)
+    mp.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
     pozivi_modela = []
     try:
         k, baza = pripremi(mp, _tabele())

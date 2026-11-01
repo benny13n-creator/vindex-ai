@@ -782,8 +782,11 @@ async def _sporne_tacke_za_savetnika(supa, uid: str, predmet_id: str) -> str:
     from services.v2_projection import ucitaj_v2_kontradikcije_za_prikaz
     from shared.genome_contract import SPORNA_STANJA, kontekst_tvrdnji
     try:
-        kon = [k for k in await ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id, uid)
-               if k.get("state") in SPORNA_STANJA][:_MAKS_SPORNIH_TACAKA]
+        from shared.issue_v2 import ODLUKA_ODBIJENA, ODLUKA_POTVRDJENA, efektivna_odluka
+        # S02 / B7: odbijene se ne navode; potvrđene idu prve, da ih kandidati ne istisnu iz granice.
+        kon = sorted((k for k in await ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id, uid)
+                      if k.get("state") in SPORNA_STANJA and efektivna_odluka(k) != ODLUKA_ODBIJENA),
+                     key=lambda k: efektivna_odluka(k) != ODLUKA_POTVRDJENA)[:_MAKS_SPORNIH_TACAKA]
         ids = sorted({c for k in kon for c in (k.get("claim_ids") or [])})
         if not ids:
             return ""
@@ -1078,10 +1081,13 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                             f"[{n.get('hitnost','')}] {n.get('dokument','')}"
                             for n in ned[:3]
                         ) + "\n"
-                    kontr = genome.get("kontradikcije") or []
+                    # S02 / B7: odbijene se izostavljaju; nepotvrđena je tako označena (ista odluka kao „sporne tačke“).
+                    from services.v2_projection import kontradikcije_analize_za_ai
+                    kontr = await kontradikcije_analize_za_ai(supa, predmet_id, uid, genome)
                     if kontr:
                         g += f"  KONTRADIKCIJE ({len(kontr)}): " + "; ".join(
-                            k.get("opis", "")[:80] for k in kontr[:2]
+                            ("" if k.get("_odluka_advokata") == "POTVRDJENA" else "[nepotvrđena] ") + k.get("opis", "")[:80]
+                            for k in kontr[:2]
                         ) + "\n"
                     hm = genome.get("heatmap") or {}
                     if hm:

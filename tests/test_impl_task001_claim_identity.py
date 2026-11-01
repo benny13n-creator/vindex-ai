@@ -122,8 +122,8 @@ def test_extraction_version_nije_u_kljucu():
 
 def test_identitet_ne_zavisi_od_lokacije():
     """Isti tekst, dva potpuno različita mesta u dokumentu → isti identitet."""
-    tekst_a = "AAAA " + TVRDNJA + " BBBB"
-    tekst_b = "B" * 500 + TVRDNJA
+    tekst_a = "AAAA. " + TVRDNJA + " BBBB"  # S01 (B5): citat počinje rečenicu — ispuna je odvojena granicom, ne zalepljena za citat
+    tekst_b = "B" * 500 + ". " + TVRDNJA
     supa_a, supa_b = FakeSupa(), FakeSupa()
     for supa, tekst in ((supa_a, tekst_a), (supa_b, tekst_b)):
         upisi_dokaze(

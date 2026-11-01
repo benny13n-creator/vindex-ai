@@ -294,12 +294,13 @@ def _build_context_text(data: dict) -> str:
             lines.append("  Heatmap: " + " | ".join(
                 f"{k}={v}%" for k, v in hm.items() if isinstance(v, int)
             ))
-        # Kontradikcije
-        kontr = genome.get("kontradikcije") or []
+        # Kontradikcije — S02 / B7: iz kanonskog konteksta (case_context.contradictions), gde je odbijena izostavljena
+        # a nepotvrđena označena; ne iz sirovog Genome-a. Bez konteksta (neuspelo čitanje) — ne navode se.
+        kontr = ((data.get("case_context") or {}).get("contradictions") or {}).get("value") or []
         if kontr:
             lines.append(f"  KONTRADIKCIJE ({len(kontr)}):")
             for k in kontr[:3]:
-                lines.append(f"    ⚠ {k.get('opis','')[:120]} [{k.get('tezina','')}]")
+                lines.append(f"    ⚠ {(k.get('razlog') or '')[:160]} [{k.get('pouzdanost') or ''}]")
         upoz = genome.get("upozorenja") or []
         for u in upoz[:2]:
             lines.append(f"  ! {u[:120]}")

@@ -29,6 +29,8 @@ from tests.ns006_fake import pripremi, ocisti, zaglavlje  # noqa: E402
 
 def main(pad: str | None = None) -> dict:
     mp = pytest.MonkeyPatch()
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj  # S02: CONFIRMED tema = advokat video trenutni sadržaj
+    advokat_video_trenutni_sadrzaj(mp)
     try:
         k, baza = pripremi(mp, rp.tabele())
         from services.case_evolution import _consequence_refresh_case_actions

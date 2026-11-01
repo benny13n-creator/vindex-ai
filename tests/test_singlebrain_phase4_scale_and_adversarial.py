@@ -17,6 +17,9 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
+
+_S02_LEGACY_RULE3 = pytest.mark.skip(reason=(
+    'S02 / B7 (odluka osnivača A, 2026-10-31): legacy Rule 3 — akcija RAZRESITI_KONTRADIKCIJU iz case_dna.kontradikcije bez V2 sporne tačke — je uklonjen: nepotvrđena protivrečnost ne nosi akciju. Zamenu dokazuju tests/test_omega_sprint003_action_engine.py::test_rule3_nepotvrdjene_kontradikcije_iz_analize_ne_prave_akcije i tests/test_s02_kontradikcije_potvrda.py.'))
 from unittest.mock import MagicMock, patch
 
 from services.risk_engine import calculate_procesni_rizik, identify_case_problems
@@ -65,6 +68,7 @@ def test_identify_case_problems_deterministic_at_extreme_scale():
     assert p1 == p2
 
 
+@_S02_LEGACY_RULE3
 def test_case_evolution_target_actions_deterministic_with_100_contradictions():
     """Rule 3 (RAZRESITI_KONTRADIKCIJU) over 100 kontradikcije entries, including
     poisoned/out-of-enum tezina values mixed in -- every action must get a VALID

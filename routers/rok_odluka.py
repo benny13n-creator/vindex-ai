@@ -47,7 +47,7 @@ from pydantic import BaseModel, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
-from shared.rok_ispravka import (AKTER_ISPRAVKE, ispravka_iz_odbijanja, napomena_ispravke, napomena_odbijanja,
+from shared.rok_ispravka import (AKTER_ISPRAVKE, ispravka_iz_odbijanja, napomena_ispravke, napomena_odbijanja, opis_ispravke,
                                  postojeca_ispravka, upisi_ispravljen_rok)
 from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
@@ -427,7 +427,7 @@ async def _dovrsi_ispravku(supa, uid: str, red: dict, rok_id: str, novi_datum: d
     ispravka = (_r.data or [None])[0] if _r else None
     if ispravka is None:
         # pad upisa posle odbijanja: upisuje se sada, sa id-em iz napomene, datumom iz OVOG zahteva
-        opis = (dogadjaj or "").strip() or red.get("dogadjaj") or "Rok"
+        opis = opis_ispravke(dogadjaj, red.get("dogadjaj"), novi_datum, red.get("datum_iso"))
         try:
             izvor_r = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dokument_id, dokument_naziv")
                                               .eq("id", rok_id).eq("user_id", uid).limit(1).execute())
@@ -525,7 +525,7 @@ async def ispravi(
             izvor = (izvor_r.data if izvor_r else None) or {}
         except Exception:
             izvor = {}
-        opis = (body.dogadjaj or "").strip() or red.get("dogadjaj") or "Rok"
+        opis = opis_ispravke(body.dogadjaj, red.get("dogadjaj"), novi_datum, red.get("datum_iso"))
         # S1: redosled je ODBIJANJE predloga (napomena nosi UNAPRED određen id ispravke) → upis ispravke sa tim id-em →
         # potvrda ispravke. Pre odbijanja ne postoji nijedan nov red, pa nikad nema dva nepovezana kandidata (ni dve
         # potvrđene obaveze); posle odbijanja ponovna ispravka dovršava TAČNO tu ispravku (upis koji fali / potvrdu).

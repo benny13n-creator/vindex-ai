@@ -539,7 +539,9 @@ async def test_multiple_contradictions_all_captured_not_just_first():
     }))
     result = await build_case_context("p1", "u1", supa)
     opisi = {g["razlog"] for g in result["contradictions"]["value"]}
-    assert opisi == {"Kontradikcija 1", "Kontradikcija 2", "Kontradikcija 3"}
+    # S02 / B7: sve stižu, ali nijednu advokat nije potvrdio (nema V2 sporne tačke) — svaka je tako i označena.
+    oznaka = "[nepotvrđena — predlog analize, advokat nije odlučio] "
+    assert opisi == {oznaka + "Kontradikcija 1", oznaka + "Kontradikcija 2", oznaka + "Kontradikcija 3"}
 
 
 @pytest.mark.anyio

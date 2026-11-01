@@ -1833,9 +1833,12 @@ def sastavi_zivi_predmet(izv: dict) -> dict:
                      dokazi=izv["dokazi"], izvori=izv["izvori"], osvezeno=izv["osvezeno"])
     legacy = len((izv["case_dna"] or {}).get("kontradikcije") or []) if isinstance(izv["case_dna"], dict) else 0
     v2 = izv["v2_kontradikcije"]
-    # Protivrečnost po tvrdnji = samo AKTIVNE (OPEN) V2 kontradikcije; zatvorene su istorija.
+    # Protivrečnost po tvrdnji = samo AKTIVNE (OPEN) V2 kontradikcije koje je advokat potvrdio (S02 / B7); kandidat i
+    # odbijena nisu „u protivrečnosti“; zatvorene su istorija.
+    from shared.issue_v2 import ODLUKA_POTVRDJENA, efektivna_odluka
     ugovor["dokazi"] = sastavi_graf(dokazi=izv["dokazi"], dokumenti=izv["dokumenti"],
-                                    v2_kontradikcije=None if v2 is None else [k for k in v2 if k.get("state") == "OPEN"],
+                                    v2_kontradikcije=None if v2 is None else [
+                                        k for k in v2 if k.get("state") == "OPEN" and efektivna_odluka(k) == ODLUKA_POTVRDJENA],
                                     izvori=izv["izvori"], legacy_kontradikcija=legacy)
     ugovor["kontradikcije"] = sastavi_kontradikcije(v2=v2, case_dna=izv["case_dna"], dokazi=izv["dokazi"],
                                                     dokumenti=izv["dokumenti"], izvori=izv["izvori"],

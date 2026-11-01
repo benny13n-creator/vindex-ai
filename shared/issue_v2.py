@@ -485,6 +485,144 @@ def status_kontinuiteta(v2_otvorene: Iterable[dict], case_dna: Any, observation_
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# 3b. ODLUKA ADVOKATA (S02 / B7, odluka osnivača A, 2026-10-31)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Protivrečnost koju predlaže analiza je KANDIDAT. Aktivna je (i nosi akciju) samo ako je advokat potvrdio spornu
+# tačku; odbijena je istorija. Odluka važi za SADRŽAJ koji je postojao kad je doneta (`predmet_issues.updated_at`,
+# koji piše samo ruta odluke — RPC opažanja status teme ne menja): kontradikcija ili tvrdnja nastala POSLE odluke
+# (nova relacija, član dodat nastavkom) traži novu odluku — potvrda se ne nasleđuje na sadržaj koji advokat nije video,
+# niti odbijanje skriva novu protivrečnost. Ulaz je red iz `services/v2_projection` (polja `issue_status`,
+# `issue_close_reason`, `issue_odluka_at`, `created_at`, `clanovi_od` = vremena opažanja aktivnih članova).
+ODLUKA_POTVRDJENA = "POTVRDJENA"
+ODLUKA_ODBIJENA = "ODBIJENA"
+ODLUKA_CEKA = "CEKA_ODLUKU"
+
+
+def _vreme(v: Any):
+    from datetime import datetime, timezone
+    import re
+    m = re.match(r"\d{4}-\d{2}-\d{2}[T ][\d:.]+(?:Z|[+-]\d{2}:?\d{2})?", str(v or ""))
+    if not m:
+        return None
+    try:
+        t = datetime.fromisoformat(m.group(0).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def novo_posle_odluke(k: dict) -> bool:
+    """Da li kontradikcija ili neki njen aktivan član postoji tek POSLE odluke advokata o spornoj tački."""
+    odluka = _vreme(k.get("issue_odluka_at"))
+    if odluka is None:
+        return True
+    vremena = [_vreme(k.get("created_at"))] + [_vreme(t) for t in (k.get("clanovi_od") or [])]
+    return any(t is not None and t > odluka for t in vremena)
+
+
+def efektivna_odluka(k: dict) -> str:
+    """POTVRDJENA / ODBIJENA / CEKA_ODLUKU za jednu V2 kontradikciju (vidi zaglavlje odeljka).
+
+    Odluka važi samo za ono što je advokat VIDEO: `odluka_obuhvat` (iz audit zapisa odluke, `procitaj_obuhvat_odluka`)
+    mora sadržati ovu kontradikciju i sve njene aktivne tvrdnje. Vreme sâmo nije dovoljno: kontradikcija koju je
+    kompletno opažanje zatvorilo (`NOT_OBSERVED`) i kasnije ponovo otvorilo zadržava stari `created_at` i stare
+    članove, a advokat je pri odluci nije video (prikaz i verzija sadržaja obuhvataju samo OPEN/REVIEW_REQUIRED).
+    Bez obuhvata (nema audit zapisa, čitanje nije uspelo, stariji pozivalac) → čeka odluku."""
+    status = k.get("issue_status")
+    if status not in (STATUS_POTVRDJENA, STATUS_RAZRESENA) or novo_posle_odluke(k):
+        return ODLUKA_CEKA
+    vazi = ODLUKA_POTVRDJENA if status == STATUS_POTVRDJENA else ODLUKA_ODBIJENA
+    ob = k.get("odluka_obuhvat")
+    if not isinstance(ob, dict) or ob.get("vazi") != vazi:
+        return ODLUKA_CEKA
+    if k.get("id") is None:
+        # sporna tačka bez otvorenih kontradikcija (ruta odluke): važi ako je i odluka doneta nad praznim sadržajem
+        return vazi if not ob.get("obuhvat") else ODLUKA_CEKA
+    videni = (ob.get("obuhvat") or {}).get(str(k.get("id")))
+    if videni is None or not {str(c) for c in (k.get("claim_ids") or [])} <= {str(c) for c in videni}:
+        return ODLUKA_CEKA
+    return vazi
+
+
+AKCIJA_POTVRDE_TACKE = "sporna_tacka_potvrdjena"
+AKCIJA_ODBIJANJA_TACKE = "sporna_tacka_odbijena"
+_RESURS_TACKE = "predmet_issue"
+
+
+def obuhvat_sadrzaja(stavke: Iterable[dict]) -> dict:
+    """Šta je advokat video pri odluci: {id kontradikcije: [aktivne tvrdnje]} — upisuje se u audit zapis odluke."""
+    return {str(k.get("id")): sorted(str(c) for c in (k.get("claim_ids") or [])) for k in (stavke or [])}
+
+
+def procitaj_obuhvat_odluka(supa, issue_ids: Iterable[str], uid: Optional[str] = None) -> dict:
+    """{issue_id: {"vazi": POTVRDJENA|ODBIJENA, "obuhvat": {...}}} iz POSLEDNJEG audit zapisa odluke o svakoj spornoj
+    tački (po `seq`). Straničenje po ključu kao `shared.rok_potvrda.procitaj_lanac` (PostgREST `max-rows` tiho seče);
+    pad čitanja ide pozivaocu — on bira bezbednu stranu (čeka odluku). Tačka bez zapisa nije u rezultatu."""
+    ids = list(dict.fromkeys(str(x) for x in (issue_ids or []) if x))
+    out: dict = {}
+    for i in range(0, len(ids), 100):
+        grupa, poslednji = ids[i:i + 100], None
+        for _ in range(10_000):
+            q = (supa.table("audit_immutable").select("resource_id,action,metadata,seq")
+                 .eq("resource_type", _RESURS_TACKE).in_("resource_id", grupa)
+                 .in_("action", [AKCIJA_POTVRDE_TACKE, AKCIJA_ODBIJANJA_TACKE]))
+            if uid:
+                q = q.eq("user_id", uid)
+            if poslednji is not None:
+                q = q.gt("seq", poslednji)
+            strana = q.order("seq").limit(1000).execute().data or []
+            if not strana:
+                break
+            for red in strana:
+                seq = red.get("seq")
+                if isinstance(seq, bool) or not isinstance(seq, int) or (poslednji is not None and seq <= poslednji):
+                    raise RuntimeError("odluke o spornim tačkama: seq nije strogo rastući ceo broj")
+                poslednji = seq
+                md = red.get("metadata") or {}
+                out[str(red.get("resource_id"))] = {
+                    "vazi": ODLUKA_POTVRDJENA if red.get("action") == AKCIJA_POTVRDE_TACKE else ODLUKA_ODBIJENA,
+                    "obuhvat": md.get("obuhvat") if isinstance(md.get("obuhvat"), dict) else None}
+        else:
+            raise RuntimeError("odluke o spornim tačkama: prekoračen broj strana")
+    return {k: v for k, v in out.items() if v["obuhvat"] is not None}
+
+
+def verzija_sadrzaja(kontradikcije: Iterable[dict]) -> str:
+    """Otisak sadržaja sporne tačke koji advokat VIDI (otvorene / za pregled kontradikcije: id, relacija, aktivni članovi).
+    Klijent ga šalje uz odluku; ruta ga ponovo računa pre i posle upisa — ako je opažanje u međuvremenu dodalo tvrdnju
+    ili relaciju, odluka se ne beleži (409). Nije identitet ničega; samo poređenje „isto što sam video“."""
+    redovi = sorted(f"{k.get('id')}|{k.get('relation_type')}|{','.join(sorted(str(c) for c in (k.get('claim_ids') or [])))}"
+                    for k in (kontradikcije or []))
+    return hashlib.sha256("\n".join(redovi).encode("utf-8")).hexdigest()[:24]
+
+
+ODLUKA_NEPOZNATA = "NEPOZNATA"
+
+
+def oznaci_kontradikcije_analize(sirove: Any, v2: Optional[list]) -> list[dict]:
+    """`case_dna.kontradikcije` za AI potrošače (sažeci, predikcije, priprema): odbijena protivrečnost se IZOSTAVLJA,
+    svaka druga nosi `_odluka_advokata` (POTVRDJENA / CEKA_ODLUKU / NEPOZNATA). Veza sa V2 je SAMO tačan skup trajnih
+    tvrdnji (`claim_ids`); stavka bez skupa ili bez istog skupa u V2 je nepotvrđena (bezbedna strana). `v2 is None`
+    (V2 nije pročitan) → stanje odluke je NEPOZNATA, ništa se ne izostavlja niti tvrdi da je potvrđeno."""
+    stavke = [k for k in (sirove or []) if isinstance(k, dict)] if isinstance(sirove, list) else []
+    if v2 is None:
+        return [{**k, "_odluka_advokata": ODLUKA_NEPOZNATA} for k in stavke]
+    po_skupu: dict = {}
+    for k in v2:
+        skup = frozenset(str(c) for c in (k.get("claim_ids") or []))
+        if len(skup) >= MIN_TVRDNJI:
+            po_skupu.setdefault(skup, set()).add(efektivna_odluka(k))
+    out = []
+    for k in stavke:
+        odluke = po_skupu.get(frozenset(str(c) for c in (k.get("claim_ids") or [])), set())
+        if ODLUKA_ODBIJENA in odluke and not odluke - {ODLUKA_ODBIJENA}:
+            continue
+        out.append({**k, "_odluka_advokata": ODLUKA_POTVRDJENA if odluke == {ODLUKA_POTVRDJENA} else ODLUKA_CEKA})
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 4. PROMENA ČLANSTVA — šta je izostalo, a šta je razrešeno
 # ═══════════════════════════════════════════════════════════════════════════
 

@@ -68,7 +68,9 @@ def test_jedan_predmet_kroz_ceo_tok(lanac):
     import html as _html
     telo = _html.unescape(poslati[0][2]).lower()
     assert poslati[0][1] == "Vindex AI — Sutra: rok i ročište"
-    assert "ročište — osnovni sud u novom sadu, sudnica 7" in telo and "odgovor na tužbu" in telo and "09:30" in telo
+    assert "ročište — osnovni sud u novom sadu, sudnica 7" in telo and "09:30" in telo
+    # S10: ispravljen rok nosi rečenicu iz dokumenta bez pogrešnog datuma i izričito kaže da je datum ispravio advokat
+    assert "rok za odgovor na tuzbu" in telo and f"datum ispravio advokat: {(_danas_beograd() + timedelta(days=1)).strftime('%d.%m.%Y.')}" in telo and _sr(rok_ai) not in telo
 
     # N5: rad i faktura izdata → plaćena
     eid = k.post("/billing/entries", json={"predmet_id": pid, "opis": "Priprema ročišta", "iznos_rsd": 6000}, headers=A).json()["entry"]["id"]

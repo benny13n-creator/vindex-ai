@@ -58,9 +58,17 @@ class _Store:
 
 class _Q:
     def __init__(self, store, table):
-        self.s, self.t, self.f = store, table, {}
+        self.s, self.t, self.f, self.citanje = store, table, {}, False
 
     def delete(self):
+        return self
+
+    # RC kapija: rociste_delete čita prethodno stanje PRE brisanja (istorija izmene) — čitanje ne briše
+    def select(self, *a, **kw):
+        self.citanje = True
+        return self
+
+    def limit(self, n):
         return self
 
     def eq(self, col, val):
@@ -70,6 +78,10 @@ class _Q:
     def execute(self):
         hit = [r for r in self.s.rows
                if r.get("_t") == self.t and all(r.get(k) == v for k, v in self.f.items())]
+        if self.citanje:
+            res = MagicMock()
+            res.data = [dict(r) for r in hit]
+            return res
         for r in hit:
             self.s.rows.remove(r)
         res = MagicMock()
@@ -180,6 +192,10 @@ def _run(call, store, audit, rid, uid):
 def test_1_success_emits_exactly_one_audit(name, call, table, owner, action, rtype):
     st, au = _store_for(table, owner), _Audit()
     assert _run(call, st, au, "res-A", A) == 200
+    if name == "rociste":
+        # PR #64 kapija: ZAHTEV sa prethodnim stanjem pre nepovratnog brisanja, „obrisano“ tek posle potvrđenog brisanja
+        assert [c["action"] for c in au.calls] == ["rociste_brisanje_zahtev", "rociste_delete"]
+        au.calls = au.calls[1:]
     assert len(au.calls) == 1, f"{name}: tačno jedan audit, dobijeno {len(au.calls)}"
     c = au.calls[0]
     assert c["action"] == action
@@ -204,7 +220,7 @@ def test_3_foreign_owner_emits_no_audit_and_row_survives(name, call, table, owne
     assert any(r["id"] == "res-B" for r in st.rows), f"{name}: red korisnika B mora ostati"
 
 
-@pytest.mark.parametrize("name,call,table,owner,action,rtype", CASES)
+@pytest.mark.parametrize("name,call,table,owner,action,rtype", [c for c in CASES if c[0] != "rociste"])
 def test_4_audit_sink_failure_does_not_break_mutation(name, call, table, owner, action, rtype):
     """Best-effort ugovor -- meren na PRAVOJ granici.
 
@@ -247,3 +263,21 @@ def test_6_actions_are_registered():
     from shared.audit_immutable import AUDITABLE_ACTIONS
     for _, _, _, _, action, _ in CASES:
         assert action in AUDITABLE_ACTIONS, f"{action} mora biti u registru (V33)"
+
+
+def test_4b_rociste_audit_sink_failure_prevents_delete():
+    """RC kapija (S04): brisanje ročišta je izmena ročišta — pad audita (PRAVI log_action, otkaz u sinku) sprečava
+    brisanje (503), red ostaje. Ostale tri proste DELETE rute zadržavaju best-effort ugovor (test 4)."""
+    import shared.audit_immutable as ai
+    raised = []
+
+    def _boom_sink(*a, **k):
+        raised.append(1)
+        raise RuntimeError("audit DB down")
+    st = _store_for("rocista", "user_id")
+    with patch.object(ai, "_build_and_insert", _boom_sink):
+        code = _run(_rociste, st, ai.log_action, "res-A", A)
+    assert raised, "sink otkaz se nije ni desio -- test bi bio prazan"
+    assert code == 503
+    assert [r for r in st.rows if r["id"] == "res-A"], "red mora ostati -- brisanje bez istorije ne sme"
+

@@ -38,7 +38,7 @@ from shared.evidence_write import (  # noqa: E402
 
 # Tvrdnja duga 20–100 znakova (opseg u kome DC-005 sme da da "jaka").
 TVRDNJA = "Tuženi nije isplatio zaradu za decembar 2025. godine."
-TEKST = "A" * 300 + TVRDNJA + "B" * 300
+TEKST = "A" * 300 + ". " + TVRDNJA + "B" * 300  # S01 (B5): citat počinje rečenicu — ispuna je odvojena granicom, ne zalepljena za citat
 
 PREDMET = "11111111-1111-1111-1111-111111111111"
 DRUGI_PREDMET = "22222222-2222-2222-2222-222222222222"

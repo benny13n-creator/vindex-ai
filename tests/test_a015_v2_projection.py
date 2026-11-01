@@ -32,6 +32,13 @@ from services.v2_projection import (  # noqa: E402
 )
 from shared.contradiction_identity import contradiction_dedupe_key  # noqa: E402
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_video_sadrzaj(monkeypatch):
+    """S02 / B7: CONFIRMED sporne tačke u ovom fajlu potvrdio je advokat posle uvida u njihov trenutni sadržaj."""
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 PRED = "11111111-1111-4111-8111-111111111111"
 PRED_B = "22222222-2222-4222-8222-222222222222"
 I1 = "aaaa0001-0000-4000-8000-000000000001"
@@ -213,8 +220,9 @@ def test_bez_predmet_id_ne_cita_bazu():
 
 def test_cita_se_SAMO_opseg_predmeta():
     supa = _supa(
-        issues=[{"id": I1, "predmet_id": PRED, "label": "moja", "status": "DISCOVERED"},
-                {"id": I2, "predmet_id": PRED_B, "label": "tudja", "status": "DISCOVERED"}],
+        # S02 / B7: aktivna (akcija, kontinuitet) je samo sporna tačka koju je advokat potvrdio — CONFIRMED.
+        issues=[{"id": I1, "predmet_id": PRED, "label": "moja", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"},
+                {"id": I2, "predmet_id": PRED_B, "label": "tudja", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],
         kontradikcije=[{"id": K1, "issue_id": I1, "relation_type": "cinjenica_cinjenica",
                         "state": "OPEN", "tezina": "vazna"},
                        {"id": K2, "issue_id": I2, "relation_type": "cinjenica_cinjenica",
@@ -230,7 +238,7 @@ def test_cita_se_SAMO_opseg_predmeta():
 
 def test_zatvorena_kontradikcija_se_ne_projektuje():
     supa = _supa(
-        issues=[{"id": I1, "predmet_id": PRED, "label": "x", "status": "DISCOVERED"}],
+        issues=[{"id": I1, "predmet_id": PRED, "label": "x", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],
         kontradikcije=[{"id": K1, "issue_id": I1, "relation_type": "cinjenica_cinjenica",
                         "state": "RESOLVED", "tezina": "vazna"}])
     assert asyncio.run(v2_akcije_za_predmet(supa, PRED)) == []
@@ -238,7 +246,7 @@ def test_zatvorena_kontradikcija_se_ne_projektuje():
 
 def test_povuceni_clan_nije_u_projekciji():
     supa = _supa(
-        issues=[{"id": I1, "predmet_id": PRED, "label": "x", "status": "DISCOVERED"}],
+        issues=[{"id": I1, "predmet_id": PRED, "label": "x", "status": "CONFIRMED", "updated_at": "2999-12-31T00:00:00+00:00"}],
         kontradikcije=[{"id": K1, "issue_id": I1, "relation_type": "cinjenica_cinjenica",
                         "state": "OPEN", "tezina": "vazna"}],
         clanovi=[{"contradiction_id": K1, "dokaz_id": "c1", "removed_at": None},

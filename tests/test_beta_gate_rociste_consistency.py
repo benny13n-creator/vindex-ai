@@ -23,6 +23,19 @@ def anyio_backend():
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+def audit_zapisi(monkeypatch):
+    """S04: izmena ročišta je fail-closed bez zapisa istorije (`rociste_izmena`) — ovde je sink u memoriji."""
+    import shared.audit_immutable as AUD
+    zapisi = []
+
+    async def _upis(action, user_id=None, resource_type=None, resource_id=None, ip=None, metadata=None, correlation_id=None):
+        zapisi.append({"action": action, "resource_id": resource_id, "metadata": metadata or {}})
+        return "ok"
+    monkeypatch.setattr(AUD, "log_action", _upis)
+    return zapisi
+
+
 def _req(path="/api/rocista", method="POST"):
     scope = {
         "type": "http", "method": method, "headers": [],
@@ -61,8 +74,9 @@ def _supa_ok(data):
 
 @pytest.mark.anyio
 async def test_izmeni_rociste_without_if_updated_at_is_unconditional_as_before():
-    """Backward-compat: a caller not sending if_updated_at must behave
-    exactly as before -- no regression for the existing frontend."""
+    """Backward-compat: a caller not sending if_updated_at still succeeds. S04: the route now uses the row's own
+    updated_at (read just before the write) as the condition, so only a concurrent change in between yields 409
+    (tests/test_s04_rociste_audit.py)."""
     from routers.rocista import RocistePatchReq, izmeni_rociste
 
     updated_row = {"id": "r1", "status": "odrzano", "sud": "Sud C", "datum": "2026-07-01", "vreme": None, "predmet_id": "p1"}
