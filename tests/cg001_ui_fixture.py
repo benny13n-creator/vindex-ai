@@ -28,6 +28,8 @@ from tests.test_cg001_incident_uplata import A, B, D1, D2, KONTR, P, dokazi_v2  
 
 def main() -> dict:
     mp = pytest.MonkeyPatch()
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj  # S02: CONFIRMED tema = advokat video trenutni sadržaj
+    advokat_video_trenutni_sadrzaj(mp)
     try:
         g1 = {"verzija": 1, "_analiza_osnov": {"cinjenica": 7, "dokumenata": 2}, "kontradikcije": [{
             "opis": "TEST 01 navodi uplatu od 40.000 RSD, dok TEST 02 prikazuje 30.000 RSD.", "tezina": "manja",
@@ -68,6 +70,8 @@ def bez_dogadjaja(usred: bool = False) -> dict:
     opažanje verzije 1 — stanje između upisa paketa i upisa `case_dna`."""
     import copy
     mp = pytest.MonkeyPatch()
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj  # S02: CONFIRMED tema = advokat video trenutni sadržaj
+    advokat_video_trenutni_sadrzaj(mp)
     try:
         import routers.case_dna as cd
         pozivi = []

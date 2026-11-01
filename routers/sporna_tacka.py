@@ -69,30 +69,35 @@ def _sporna_tacka(supa, predmet_id: str, issue_id: str, uid: str) -> dict:
     pr = supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).limit(1).execute()
     if not (pr.data or []):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
-    r = (supa.table("predmet_issues").select("id,predmet_id,status,close_reason,label,updated_at")
+    r = (supa.table("predmet_issues").select("id,predmet_id,status,close_reason,closed_at,label,updated_at")
          .eq("id", issue_id).eq("predmet_id", predmet_id).eq("user_id", uid).limit(1).execute())
     if not (r.data or []):
         raise HTTPException(status_code=404, detail="Sporna tačka nije pronađena.")
     return r.data[0]
 
 
-def _stanje_sadrzaja(supa, red: dict) -> tuple[str, str]:
-    """(efektivna odluka sporne tačke kao celine, verzija sadržaja). POTVRDJENA/ODBIJENA samo ako SVE njene otvorene ili
-    za pregled kontradikcije (i aktivni članovi) postoje od pre odluke (`shared/issue_v2.efektivna_odluka`)."""
-    from shared.issue_v2 import ODLUKA_CEKA, efektivna_odluka, verzija_sadrzaja
+def _stanje_sadrzaja(supa, red: dict, uid: str) -> tuple[str, str, dict]:
+    """(efektivna odluka sporne tačke kao celine, verzija sadržaja, obuhvat sadržaja). POTVRDJENA/ODBIJENA samo ako je
+    SVE što je sada otvoreno ili za pregled (kontradikcije i aktivni članovi) bilo u obuhvatu poslednje odluke i postoji od
+    pre nje (`shared/issue_v2.efektivna_odluka`). Pad čitanja ide pozivaocu."""
+    from shared.issue_v2 import (ODLUKA_CEKA, STATUS_POTVRDJENA, STATUS_RAZRESENA, efektivna_odluka, obuhvat_sadrzaja,
+                                 procitaj_obuhvat_odluka, verzija_sadrzaja)
+    ob = (procitaj_obuhvat_odluka(supa, [red["id"]], uid).get(str(red["id"]))
+          if red.get("status") in (STATUS_POTVRDJENA, STATUS_RAZRESENA) else None)
     kon = (supa.table("predmet_contradictions").select("id,relation_type,created_at,state").eq("issue_id", red["id"])
            .in_("state", ["OPEN", "REVIEW_REQUIRED"]).execute()).data or []
     if not kon:
-        return efektivna_odluka({"issue_status": red.get("status"), "issue_odluka_at": red.get("updated_at")}), verzija_sadrzaja([])
+        return (efektivna_odluka({"issue_status": red.get("status"), "issue_odluka_at": red.get("updated_at"), "odluka_obuhvat": ob}),
+                verzija_sadrzaja([]), {})
     cl = (supa.table("predmet_contradiction_claims").select("contradiction_id,dokaz_id,observed_at,removed_at")
           .in_("contradiction_id", [k["id"] for k in kon]).execute()).data or []
     aktivni = [c for c in cl if c.get("removed_at") is None]
     stavke = [{"id": k["id"], "relation_type": k.get("relation_type"), "issue_status": red.get("status"),
-               "issue_odluka_at": red.get("updated_at"), "created_at": k.get("created_at"),
+               "issue_odluka_at": red.get("updated_at"), "odluka_obuhvat": ob, "created_at": k.get("created_at"),
                "clanovi_od": [c.get("observed_at") for c in aktivni if c["contradiction_id"] == k["id"]],
                "claim_ids": [c["dokaz_id"] for c in aktivni if c["contradiction_id"] == k["id"]]} for k in kon]
     ishodi = {efektivna_odluka(s) for s in stavke}
-    return (ishodi.pop() if len(ishodi) == 1 else ODLUKA_CEKA), verzija_sadrzaja(stavke)
+    return (ishodi.pop() if len(ishodi) == 1 else ODLUKA_CEKA), verzija_sadrzaja(stavke), obuhvat_sadrzaja(stavke)
 
 
 _PROMENJENO = "Sadržaj ili stanje ove sporne tačke se promenilo od kada ste je otvorili — osvežite prikaz. Ništa nije zabeleženo."
@@ -108,7 +113,7 @@ async def _odluci(predmet_id: str, issue_id: str, odluka: str, uid: str, ip, vid
     if staro not in _ODLUCIVO:
         raise HTTPException(status_code=409, detail="O ovoj spornoj tački se ne može odlučiti (spojena je). Ništa nije zabeleženo.")
     try:
-        vazi, sadrzaj = await asyncio.to_thread(_stanje_sadrzaja, supa, red)
+        vazi, sadrzaj, obuhvat = await asyncio.to_thread(_stanje_sadrzaja, supa, red, uid)
     except Exception as exc:
         logger.error("[SPORNA_TACKA] stanje sporne tačke nije pročitano issue=%s: %s", issue_id, exc)
         raise HTTPException(status_code=503, detail="Stanje sporne tačke trenutno nije moguće proveriti. Ništa nije zabeleženo.")
@@ -136,35 +141,47 @@ async def _odluci(predmet_id: str, issue_id: str, odluka: str, uid: str, ip, vid
         raise HTTPException(status_code=409, detail=_PROMENJENO)
     upisano_at = upisano[0].get("updated_at")      # vrednost kakvu je baza sačuvala (uslov za vraćanje)
 
-    async def _vrati(razlog: str) -> None:
-        vrati = {"status": staro, "close_reason": red.get("close_reason"),
-                 "closed_at": "now" if staro == "RESOLVED" else None, "updated_at": staro_at}
+    async def _vrati(razlog: str) -> bool:
+        """Uslovno vraća prethodno stanje (i `closed_at`). True samo ako je red stvarno vraćen. Ako nije, odluka je možda
+        ostala bez audit zapisa — tada `efektivna_odluka` ionako ne priznaje odluku bez obuhvata iz audita (čeka)."""
+        vrati = {"status": staro, "close_reason": red.get("close_reason"), "closed_at": red.get("closed_at"),
+                 "updated_at": staro_at}
         try:
-            await asyncio.to_thread(lambda: supa.table("predmet_issues").update(vrati).eq("id", issue_id)
-                                    .eq("user_id", uid).eq("status", cilj["status"]).eq("updated_at", upisano_at).execute())
+            r = await asyncio.to_thread(lambda: supa.table("predmet_issues").update(vrati).eq("id", issue_id)
+                                        .eq("user_id", uid).eq("status", cilj["status"]).eq("updated_at", upisano_at).execute())
+            if r.data:
+                return True
+            logger.critical("[SPORNA_TACKA] vraćanje (%s) nije pogodilo red issue=%s", razlog, issue_id)
         except Exception as exc:
             logger.critical("[SPORNA_TACKA] vraćanje (%s) nije uspelo issue=%s: %s — odluka bez potvrde sadržaja ili "
                             "audit zapisa", razlog, issue_id, exc)
+        return False
+
+    _NEIZVESNO = ("Odluka možda jeste upisana, ali bez zapisa odluke — zato se NE primenjuje (protivrečnost čeka odluku). "
+                  "Osvežite prikaz i odlučite ponovo.")
 
     # Opažanje drži zaključan red sporne tačke dok upisuje (migracija 122), pa je upis odluke čekao njegov kraj. Sadržaj
     # se zato proverava i POSLE upisa: ako je u međuvremenu dodata tvrdnja ili relacija, odluka se vraća — advokat nije
     # video ono na šta bi se odnosila.
     try:
-        _, sadrzaj_posle = await asyncio.to_thread(_stanje_sadrzaja, supa, {**red, "status": cilj["status"], "updated_at": upisano_at})
+        _, sadrzaj_posle, _ = await asyncio.to_thread(_stanje_sadrzaja, supa, {**red, "status": cilj["status"], "updated_at": upisano_at}, uid)
     except Exception as exc:
         logger.error("[SPORNA_TACKA] sadržaj posle upisa nije pročitan issue=%s: %s", issue_id, exc)
         sadrzaj_posle = None
     if sadrzaj_posle != vidjeno.sadrzaj:
-        await _vrati("sadržaj promenjen tokom odluke")
+        if not await _vrati("sadržaj promenjen tokom odluke"):
+            raise HTTPException(status_code=503, detail=_NEIZVESNO)
         raise HTTPException(status_code=409, detail=_PROMENJENO)
 
     from shared.audit_immutable import log_action
     zapis = await log_action(cilj["audit"], user_id=uid, resource_type="predmet_issue", resource_id=issue_id, ip=ip,
                              metadata={"predmet_id": predmet_id, "prethodni_status": staro, "prethodna_odluka_at": staro_at,
                                        "prethodno_vazi": vazi, "novi_status": cilj["status"], "sadrzaj": sadrzaj,
+                                       "obuhvat": obuhvat,
                                        "close_reason": cilj["close_reason"], "label": red.get("label")})
     if not zapis:
-        await _vrati("audit nije upisan")
+        if not await _vrati("audit nije upisan"):
+            raise HTTPException(status_code=503, detail=_NEIZVESNO)
         raise HTTPException(status_code=503, detail="Odluka nije sačuvana jer zapis odluke nije uspeo. Pokušajte ponovo.")
 
     try:

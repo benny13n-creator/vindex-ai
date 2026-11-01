@@ -268,10 +268,13 @@ def test_kontekst_pitanja_kaze_nepotvrdjeno_i_izostavlja_odbijeno():
               {"id": "c", "tvrdnja": "C", "dokument_id": "d2", "nacin_pronalaska": "egzaktan", "izvor_tvrdnje": "ai_klasifikacija"}]
     t0, t1 = "2026-10-31T10:00:00+00:00", "2026-10-31T11:00:00+00:00"           # opažanje, pa odluka advokata
     kon = [{"state": "OPEN", "issue_status": "DISCOVERED", "issue_label": "Kandidat", "claim_ids": ["a", "b"], "created_at": t0},
-           {"state": "OPEN", "issue_status": "RESOLVED", "issue_close_reason": "WITHDRAWN", "issue_label": "Odbijena",
+           {"id": "k2", "state": "OPEN", "issue_status": "RESOLVED", "issue_close_reason": "WITHDRAWN", "issue_label": "Odbijena",
             "claim_ids": ["b", "c"], "created_at": t0, "clanovi_od": [t0, t0], "issue_odluka_at": t1},
-           {"state": "OPEN", "issue_status": "CONFIRMED", "issue_label": "Potvrdjena", "claim_ids": ["a", "c"],
+           {"id": "k3", "state": "OPEN", "issue_status": "CONFIRMED", "issue_label": "Potvrdjena", "claim_ids": ["a", "c"],
             "created_at": t0, "clanovi_od": [t0, t0], "issue_odluka_at": t1}]
+    from tests.s02_vidjeno import obuhvat_reda
+    for x in kon[1:]:
+        x["odluka_obuhvat"] = obuhvat_reda(x)            # advokat je video baš ovaj sadržaj (audit zapis odluke)
     t = kontekst_tvrdnji(dokazi, kon)
     assert "Kandidat (nepotvrđena — analiza je predlaže, advokat je nije potvrdio" in t
     assert "Potvrdjena (aktivna, potvrdio advokat" in t
@@ -405,10 +408,10 @@ def test_sadrzaj_promenjen_tokom_upisa_vraca_odluku(predmet, monkeypatch):
     x = _po_labeli(_kon(k, pid)["za_pregled"])[URUCENJE[0]]
     pravo, pozivi = st._stanje_sadrzaja, []
 
-    def _posle_drugaciji(supa, red):
-        vazi, sadrzaj = pravo(supa, red)
+    def _posle_drugaciji(supa, red, uid):
+        vazi, sadrzaj, obuhvat = pravo(supa, red, uid)
         pozivi.append(1)
-        return vazi, (sadrzaj if len(pozivi) == 1 else sadrzaj + "-promenjen")
+        return vazi, (sadrzaj if len(pozivi) == 1 else sadrzaj + "-promenjen"), obuhvat
     monkeypatch.setattr(st, "_stanje_sadrzaja", _posle_drugaciji)
     assert _odluka(k, pid, x, "potvrdi").status_code == 409
     assert next(i for i in b.tabele["predmet_issues"] if i["id"] == x["odluka"]["issue_id"])["status"] == "DISCOVERED"
@@ -426,3 +429,81 @@ def test_bez_vidjenog_sadrzaja_nema_odluke(predmet):
     assert k.post(f"/api/predmeti/{pid}/sporne-tacke/{iid}/potvrdi", json=bez, headers=A).status_code == 409
     assert next(i for i in b.tabele["predmet_issues"] if i["id"] == iid)["status"] == "DISCOVERED"
     assert _audit(b, "sporna_tacka_potvrdjena") == []
+
+
+# ── RC kapija (nezavisni pregled pred spajanje) ─────────────────────────────────────────────────────────────────────
+def test_odluka_vazi_samo_za_obuhvat_iz_audita():
+    """HIGH: odluka važi samo za kontradikciju i tvrdnje koje je advokat VIDEO (obuhvat iz audit zapisa odluke)."""
+    from shared.issue_v2 import efektivna_odluka
+    t0, t1 = "2026-10-31T10:00:00+00:00", "2026-10-31T11:00:00+00:00"
+    red = {"id": "k1", "issue_status": "CONFIRMED", "issue_odluka_at": t1, "created_at": t0, "clanovi_od": [t0, t0],
+           "claim_ids": ["a", "b"]}
+    vidjeno = {"vazi": "POTVRDJENA", "obuhvat": {"k1": ["a", "b"]}}
+    assert efektivna_odluka({**red, "odluka_obuhvat": vidjeno}) == "POTVRDJENA"
+    assert efektivna_odluka(red) == "CEKA_ODLUKU"                                                  # nema zapisa odluke
+    assert efektivna_odluka({**red, "id": "k2", "odluka_obuhvat": vidjeno}) == "CEKA_ODLUKU"       # oživljena / nevidjena
+    assert efektivna_odluka({**red, "claim_ids": ["a", "b", "c"], "clanovi_od": [t0] * 3,
+                             "odluka_obuhvat": vidjeno}) == "CEKA_ODLUKU"                         # tvrdnja van obuhvata
+    assert efektivna_odluka({**red, "claim_ids": ["a"], "odluka_obuhvat": vidjeno}) == "POTVRDJENA"  # uklonjena tvrdnja
+    assert efektivna_odluka({**red, "odluka_obuhvat": {**vidjeno, "vazi": "ODBIJENA"}}) == "CEKA_ODLUKU"  # zapis ≠ stanje
+    odb = {**red, "issue_status": "RESOLVED", "issue_close_reason": "WITHDRAWN"}
+    assert efektivna_odluka({**odb, "odluka_obuhvat": {**vidjeno, "vazi": "ODBIJENA"}}) == "ODBIJENA"
+    assert efektivna_odluka({**odb, "id": "k2", "odluka_obuhvat": {**vidjeno, "vazi": "ODBIJENA"}}) == "CEKA_ODLUKU"
+
+
+def test_audit_odluke_nosi_obuhvat_videnog_sadrzaja(predmet):
+    k, b, pid = predmet
+    x = _po_labeli(_kon(k, pid)["za_pregled"])[URUCENJE[0]]
+    iid = x["odluka"]["issue_id"]
+    assert _odluka(k, pid, x, "potvrdi").status_code == 200
+    [zapis] = _audit(b, "sporna_tacka_potvrdjena")
+    kon = [r for r in b.tabele["predmet_contradictions"] if r["issue_id"] == iid and r["state"] in ("OPEN", "REVIEW_REQUIRED")]
+    ocekivano = {str(r["id"]): sorted(str(c["dokaz_id"]) for c in b.tabele["predmet_contradiction_claims"]
+                                      if c["contradiction_id"] == r["id"] and c.get("removed_at") is None) for r in kon}
+    assert zapis["metadata"]["obuhvat"] == ocekivano and all(len(v) == 2 for v in ocekivano.values())
+    assert [a["sporna_tacka"] for a in _kon(k, pid)["aktivne"]] == [URUCENJE[0]]
+
+
+def test_pad_audita_i_vracanja_ne_primenjuje_odluku(predmet, monkeypatch):
+    """MEDIUM: audit ne uspe I vraćanje ne uspe — status ostaje CONFIRMED u bazi, ali bez zapisa odluke protivrečnost
+    NIJE aktivna i nema radnje; odgovor kaže istinu (503, odluka se ne primenjuje), ne „nije sačuvana“."""
+    import routers.sporna_tacka as st
+    k, b, pid = predmet
+    x = _po_labeli(_kon(k, pid)["za_pregled"])[URUCENJE[0]]
+    pravi = st._get_supa
+
+    class _Tabela:
+        def __init__(self, t, brojac):
+            self._t, self._b = t, brojac
+
+        def __getattr__(self, ime):
+            return getattr(self._t, ime)
+
+        def update(self, vrednosti):
+            self._b.append(1)
+            if len(self._b) >= 2:
+                raise RuntimeError("pad vraćanja (test)")
+            return self._t.update(vrednosti)
+
+    class _Supa:
+        def __init__(self, s):
+            self._s, self._b = s, []
+
+        def __getattr__(self, ime):
+            return getattr(self._s, ime)
+
+        def table(self, ime):
+            return _Tabela(self._s.table(ime), self._b) if ime == "predmet_issues" else self._s.table(ime)
+    monkeypatch.setattr(st, "_get_supa", lambda: _Supa(pravi()))
+    b.audit_ispad = True
+    r = _odluka(k, pid, x, "potvrdi")
+    b.audit_ispad = False
+    assert r.status_code == 503, r.text                       # tekst 5xx odgovora api.py ne šalje klijentu (generička poruka)
+    assert next(i for i in b.tabele["predmet_issues"] if i["id"] == x["odluka"]["issue_id"])["status"] == "CONFIRMED"
+    assert _audit(b, "sporna_tacka_potvrdjena") == []
+    monkeypatch.setattr(st, "_get_supa", pravi)
+    _do_kraja_dogadjaja(b, najvise=10)
+    kon = _kon(k, pid)
+    assert kon["aktivne"] == [] and URUCENJE[0] in _po_labeli(kon["za_pregled"])
+    assert _akcije(b, pid) == []
+

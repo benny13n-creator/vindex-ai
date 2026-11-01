@@ -49,6 +49,8 @@ def _model_uticaja(prompt, pid):
 
 def main() -> dict:
     mp = pytest.MonkeyPatch()
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj  # S02: CONFIRMED tema = advokat video trenutni sadržaj
+    advokat_video_trenutni_sadrzaj(mp)
     try:
         danas = date.today()
         t = rp.tabele(danas=danas)

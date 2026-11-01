@@ -28,6 +28,8 @@ def _s02_advokat_potvrdjuje(monkeypatch):
     Sama odluka (potvrda/odbijanje, audit, izolacija) je dokazana u tests/test_s02_kontradikcije_potvrda.py."""
     import tests.ns006_fake as _ns006_fake
     monkeypatch.setattr(_ns006_fake, "ADVOKAT_POTVRDJUJE", True)
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
 
 E, F = "e0000000-0000-4000-8000-0000000000e1", "f0000000-0000-4000-8000-0000000000f1"
 CC = "cinjenica_cinjenica"

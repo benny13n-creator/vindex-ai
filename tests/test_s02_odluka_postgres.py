@@ -68,11 +68,28 @@ def _stavka(i, dokazi, ref=None, xmin=None):
             "expected_xmin": xmin}
 
 
+_VIDJENO: dict = {}      # obuhvat poslednje odluke po temi — ruta ga upisuje u audit zapis odluke (`obuhvat`)
+
+
+def _sadrzaj(c, issue):
+    """Šta advokat VIDI: otvorene / za pregled kontradikcije teme i njihove aktivne tvrdnje (`obuhvat_sadrzaja`)."""
+    from shared.issue_v2 import obuhvat_sadrzaja
+    kon = c.execute("SELECT id::text FROM predmet_contradictions WHERE issue_id=%s AND state IN ('OPEN','REVIEW_REQUIRED')",
+                    (issue,)).fetchall()
+    return obuhvat_sadrzaja([{"id": kid, "claim_ids": [r[0] for r in c.execute(
+        "SELECT dokaz_id::text FROM predmet_contradiction_claims WHERE contradiction_id=%s AND removed_at IS NULL", (kid,)).fetchall()]}
+        for (kid,) in kon])
+
+
 def _odluka(c, issue, staro, novo, close_reason=None):
-    """Isti upis kao routers/sporna_tacka.py (PostgREST UPDATE … WHERE id AND user_id AND status = očekivani)."""
+    """Isti upis kao routers/sporna_tacka.py (PostgREST UPDATE … WHERE id AND user_id AND status = očekivani); obuhvat
+    onoga što je advokat video ide u `_VIDJENO` (ruta: audit zapis odluke)."""
+    vidjeno = _sadrzaj(c, issue)
     r = c.execute("UPDATE predmet_issues SET status=%s, close_reason=%s, closed_at=CASE WHEN %s::text IS NULL THEN NULL ELSE now() END, "
                   "updated_at=now() WHERE id=%s AND user_id=%s AND status=%s RETURNING id",
                   (novo, close_reason, close_reason, issue, A, staro)).fetchall()
+    if r:
+        _VIDJENO[str(issue)] = {"vazi": "POTVRDJENA" if novo == "CONFIRMED" else "ODBIJENA", "obuhvat": vidjeno}
     return len(r)
 
 
@@ -139,10 +156,11 @@ def _efektivno(c, issue):
     out = {}
     for kid, rel, created in c.execute("SELECT id, relation_type, created_at FROM predmet_contradictions "
                                        "WHERE issue_id=%s AND state='OPEN'", (issue,)).fetchall():
-        od = [r[0].isoformat() for r in c.execute("SELECT observed_at FROM predmet_contradiction_claims "
-                                                  "WHERE contradiction_id=%s AND removed_at IS NULL", (kid,)).fetchall()]
-        out[rel] = efektivna_odluka({"issue_status": st, "issue_close_reason": close, "issue_odluka_at": odl.isoformat(),
-                                     "created_at": created.isoformat(), "clanovi_od": od})
+        cl = c.execute("SELECT dokaz_id::text, observed_at FROM predmet_contradiction_claims "
+                       "WHERE contradiction_id=%s AND removed_at IS NULL", (kid,)).fetchall()
+        out[rel] = efektivna_odluka({"id": str(kid), "issue_status": st, "issue_close_reason": close, "issue_odluka_at": odl.isoformat(),
+                                     "created_at": created.isoformat(), "clanovi_od": [t.isoformat() for _, t in cl],
+                                     "claim_ids": [d for d, _ in cl], "odluka_obuhvat": _VIDJENO.get(str(issue))})
     return out
 
 
@@ -182,3 +200,32 @@ def test_paket_pre_odluke_ne_dodaje_sadrzaj_pod_odluku(baza):
         with pytest.raises(psycopg.errors.ObjectNotInPrerequisiteState):
             _paket(c, pid, [nova_rel], kompletno=False)
         assert c.execute("SELECT count(*) FROM predmet_contradictions WHERE relation_type='cinjenica_norma'").fetchone()[0] == 0
+
+
+def test_ozivljena_kontradikcija_ne_nasledjuje_odluku(baza):
+    """RC pregled (HIGH): kompletno opažanje zatvori relaciju teme (NOT_OBSERVED), advokat zatim odluči o temi videvši
+    SAMO preostalu otvorenu relaciju; kasnije opažanje ponovo otvori zatvorenu relaciju NA ISTOM REDU (122) — sa starim
+    `created_at` i starim članovima. Ta relacija ne sme da nasledi odluku: advokat je nije video."""
+    import psycopg
+    import time
+    with psycopg.connect(baza, autocommit=True) as c:
+        pid, d = _predmet(c, 2)
+        [(_, issue, k1, _)] = _paket(c, pid, [_stavka(0, d)])
+        druga = lambda: {**_stavka(1, d, ref=issue, xmin=c.execute("SELECT xmin::text FROM predmet_issues WHERE id=%s",
+                                                                    (issue,)).fetchone()[0]), "relation_type": "cinjenica_norma"}
+        prva = lambda: _stavka(0, d, ref=issue, xmin=c.execute("SELECT xmin::text FROM predmet_issues WHERE id=%s",
+                                                                (issue,)).fetchone()[0])
+        _paket(c, pid, [prva(), druga()], kompletno=False)
+        k2 = c.execute("SELECT id FROM predmet_contradictions WHERE issue_id=%s AND relation_type='cinjenica_norma'", (issue,)).fetchone()[0]
+        _paket(c, pid, [prva()])                                                            # kompletno, bez druge relacije
+        assert c.execute("SELECT state FROM predmet_contradictions WHERE id=%s", (k2,)).fetchone()[0] == "NOT_OBSERVED"
+        for staro, novo, razlog in (("DISCOVERED", "CONFIRMED", None), ("CONFIRMED", "RESOLVED", "WITHDRAWN")):
+            assert _odluka(c, issue, staro, novo, razlog) == 1                              # advokat vidi samo prvu relaciju
+            vazi = "POTVRDJENA" if novo == "CONFIRMED" else "ODBIJENA"
+            assert _efektivno(c, issue) == {"cinjenica_cinjenica": vazi}
+            time.sleep(0.01)
+            _paket(c, pid, [prva(), druga()])                                               # druga relacija oživi
+            assert c.execute("SELECT state FROM predmet_contradictions WHERE id=%s", (k2,)).fetchone()[0] == "OPEN"
+            # potvrda je ne aktivira, odbijanje je ne skriva — čeka odluku
+            assert _efektivno(c, issue) == {"cinjenica_cinjenica": vazi, "cinjenica_norma": "CEKA_ODLUKU"}
+            _paket(c, pid, [prva()])                                                        # pa opet nestane

@@ -522,11 +522,70 @@ def novo_posle_odluke(k: dict) -> bool:
 
 
 def efektivna_odluka(k: dict) -> str:
-    """POTVRDJENA / ODBIJENA / CEKA_ODLUKU za jednu V2 kontradikciju (vidi zaglavlje odeljka)."""
+    """POTVRDJENA / ODBIJENA / CEKA_ODLUKU za jednu V2 kontradikciju (vidi zaglavlje odeljka).
+
+    Odluka važi samo za ono što je advokat VIDEO: `odluka_obuhvat` (iz audit zapisa odluke, `procitaj_obuhvat_odluka`)
+    mora sadržati ovu kontradikciju i sve njene aktivne tvrdnje. Vreme sâmo nije dovoljno: kontradikcija koju je
+    kompletno opažanje zatvorilo (`NOT_OBSERVED`) i kasnije ponovo otvorilo zadržava stari `created_at` i stare
+    članove, a advokat je pri odluci nije video (prikaz i verzija sadržaja obuhvataju samo OPEN/REVIEW_REQUIRED).
+    Bez obuhvata (nema audit zapisa, čitanje nije uspelo, stariji pozivalac) → čeka odluku."""
     status = k.get("issue_status")
     if status not in (STATUS_POTVRDJENA, STATUS_RAZRESENA) or novo_posle_odluke(k):
         return ODLUKA_CEKA
-    return ODLUKA_POTVRDJENA if status == STATUS_POTVRDJENA else ODLUKA_ODBIJENA
+    vazi = ODLUKA_POTVRDJENA if status == STATUS_POTVRDJENA else ODLUKA_ODBIJENA
+    ob = k.get("odluka_obuhvat")
+    if not isinstance(ob, dict) or ob.get("vazi") != vazi:
+        return ODLUKA_CEKA
+    if k.get("id") is None:
+        # sporna tačka bez otvorenih kontradikcija (ruta odluke): važi ako je i odluka doneta nad praznim sadržajem
+        return vazi if not ob.get("obuhvat") else ODLUKA_CEKA
+    videni = (ob.get("obuhvat") or {}).get(str(k.get("id")))
+    if videni is None or not {str(c) for c in (k.get("claim_ids") or [])} <= {str(c) for c in videni}:
+        return ODLUKA_CEKA
+    return vazi
+
+
+AKCIJA_POTVRDE_TACKE = "sporna_tacka_potvrdjena"
+AKCIJA_ODBIJANJA_TACKE = "sporna_tacka_odbijena"
+_RESURS_TACKE = "predmet_issue"
+
+
+def obuhvat_sadrzaja(stavke: Iterable[dict]) -> dict:
+    """Šta je advokat video pri odluci: {id kontradikcije: [aktivne tvrdnje]} — upisuje se u audit zapis odluke."""
+    return {str(k.get("id")): sorted(str(c) for c in (k.get("claim_ids") or [])) for k in (stavke or [])}
+
+
+def procitaj_obuhvat_odluka(supa, issue_ids: Iterable[str], uid: Optional[str] = None) -> dict:
+    """{issue_id: {"vazi": POTVRDJENA|ODBIJENA, "obuhvat": {...}}} iz POSLEDNJEG audit zapisa odluke o svakoj spornoj
+    tački (po `seq`). Straničenje po ključu kao `shared.rok_potvrda.procitaj_lanac` (PostgREST `max-rows` tiho seče);
+    pad čitanja ide pozivaocu — on bira bezbednu stranu (čeka odluku). Tačka bez zapisa nije u rezultatu."""
+    ids = list(dict.fromkeys(str(x) for x in (issue_ids or []) if x))
+    out: dict = {}
+    for i in range(0, len(ids), 100):
+        grupa, poslednji = ids[i:i + 100], None
+        for _ in range(10_000):
+            q = (supa.table("audit_immutable").select("resource_id,action,metadata,seq")
+                 .eq("resource_type", _RESURS_TACKE).in_("resource_id", grupa)
+                 .in_("action", [AKCIJA_POTVRDE_TACKE, AKCIJA_ODBIJANJA_TACKE]))
+            if uid:
+                q = q.eq("user_id", uid)
+            if poslednji is not None:
+                q = q.gt("seq", poslednji)
+            strana = q.order("seq").limit(1000).execute().data or []
+            if not strana:
+                break
+            for red in strana:
+                seq = red.get("seq")
+                if isinstance(seq, bool) or not isinstance(seq, int) or (poslednji is not None and seq <= poslednji):
+                    raise RuntimeError("odluke o spornim tačkama: seq nije strogo rastući ceo broj")
+                poslednji = seq
+                md = red.get("metadata") or {}
+                out[str(red.get("resource_id"))] = {
+                    "vazi": ODLUKA_POTVRDJENA if red.get("action") == AKCIJA_POTVRDE_TACKE else ODLUKA_ODBIJENA,
+                    "obuhvat": md.get("obuhvat") if isinstance(md.get("obuhvat"), dict) else None}
+        else:
+            raise RuntimeError("odluke o spornim tačkama: prekoračen broj strana")
+    return {k: v for k, v in out.items() if v["obuhvat"] is not None}
 
 
 def verzija_sadrzaja(kontradikcije: Iterable[dict]) -> str:

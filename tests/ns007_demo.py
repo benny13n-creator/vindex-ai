@@ -64,6 +64,8 @@ def _provajder(pozivi):
 
 def pokreni(stampaj=print, izvoz=False) -> dict:
     mp = pytest.MonkeyPatch()
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj  # S02: CONFIRMED tema = advokat video trenutni sadržaj
+    advokat_video_trenutni_sadrzaj(mp)
     st = {"pozivi": [], "koraci": {}}
     try:
         danas = date.today()

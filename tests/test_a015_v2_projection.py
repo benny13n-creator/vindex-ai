@@ -32,6 +32,13 @@ from services.v2_projection import (  # noqa: E402
 )
 from shared.contradiction_identity import contradiction_dedupe_key  # noqa: E402
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_video_sadrzaj(monkeypatch):
+    """S02 / B7: CONFIRMED sporne tačke u ovom fajlu potvrdio je advokat posle uvida u njihov trenutni sadržaj."""
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 PRED = "11111111-1111-4111-8111-111111111111"
 PRED_B = "22222222-2222-4222-8222-222222222222"
 I1 = "aaaa0001-0000-4000-8000-000000000001"

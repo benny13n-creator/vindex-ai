@@ -24,6 +24,13 @@ from shared.contradiction_materializer import ODBIJEN_IZVORI, materializuj
 from shared.genome_contract import promene_genome, sastavi_kontradikcije
 from shared.issue_v2 import ODLUKA_PREGLED, nepotvrdjen_kontinuitet, razresi_paket
 
+
+@pytest.fixture(autouse=True)
+def _s02_advokat_video_sadrzaj(monkeypatch):
+    """S02 / B7: CONFIRMED sporne tačke u ovom fajlu potvrdio je advokat posle uvida u njihov trenutni sadržaj."""
+    from tests.s02_vidjeno import advokat_video_trenutni_sadrzaj
+    advokat_video_trenutni_sadrzaj(monkeypatch)
+
 P = "3267fab3-1319-47f9-bcde-5889174ed0f4"
 D1 = "08e6c642-7c82-4a50-a863-c62797a6a0fd"
 D2 = "05b0b81a-f54b-4859-938a-1db1acbc0527"
@@ -193,7 +200,8 @@ def _v2(clanovi=(A, B), tezina="manja", cid=KONTR, issue=ISSUE, label="Razlika u
             "relation_type": "cinjenica_cinjenica", "state": state, "state_reason": None, "tezina": tezina,
             "created_at": "2026-10-28T21:58:21Z", "updated_at": "2026-10-28T21:58:21Z",
             "clanovi": [{"dokaz_id": c, "uklonjen": False, "razlog_uklanjanja": None} for c in sorted(clanovi)],
-            "claim_ids": sorted(clanovi)}
+            "claim_ids": sorted(clanovi),
+            "odluka_obuhvat": {"vazi": "POTVRDJENA", "obuhvat": {cid: sorted(clanovi)}}}
 
 
 def _genome(*stavke):
