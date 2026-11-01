@@ -307,6 +307,12 @@ class VoiceOrchestratorSession:
         # Wave 9 / D2: kapija PRE konekcije. Ako provera padne, `self.upstream`
         # ostaje None i nijedan bajt ne odlazi ka OpenAI Realtime API-ju.
         await proveri_voice_dozvolu(self.user)
+        # Early Access, Faza A: budžet PRE veze — Realtime ide mimo SDK brane.
+        from shared.ai_budget import AIBudzetOdbijen, rezervisi_realtime
+        try:
+            await rezervisi_realtime(self.user)
+        except AIBudzetOdbijen as exc:
+            raise VoiceEntitlementError(exc.poruka) from exc
         # S2 (protivnicki pregled): prinuda MORA biti i ovde, ne samo unutar
         # `_connect_openai_realtime`. `openai_ws_factory` je test seam koji
         # zamenjuje celu funkciju povezivanja -- izmereno je da tako veza moze

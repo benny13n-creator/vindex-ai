@@ -176,10 +176,17 @@ async def voice_realtime_ws(websocket: WebSocket) -> None:
         return
 
     try:
-        await asyncio.gather(
-            session.relay_client_to_upstream(),
-            session.relay_upstream_to_client(),
+        # Early Access, Faza A: Realtime se plaća po minutu — tvrd prozor sesije.
+        from shared.ai_budget import realtime_max_sekundi
+        await asyncio.wait_for(
+            asyncio.gather(
+                session.relay_client_to_upstream(),
+                session.relay_upstream_to_client(),
+            ),
+            timeout=realtime_max_sekundi(),
         )
+    except asyncio.TimeoutError:
+        logger.info("[VOICE_RT] sesija prekinuta po isteku dozvoljenog trajanja uid=%.8s", uid[:8] if uid else "?")
     except WebSocketDisconnect:
         logger.info("[VOICE_RT] klijent prekinuo vezu uid=%.8s", uid[:8] if uid else "?")
     except Exception as e:

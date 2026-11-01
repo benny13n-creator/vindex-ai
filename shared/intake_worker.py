@@ -155,7 +155,11 @@ class IntakeWorker:
             # ai_forensics (user_id NOT NULL) padao je sa 23502. Identitet je
             # vlasnik posla kako ga je server upisao pri upload-u (uploaded_by),
             # vezan samo za trajanje obrade ovog posla.
-            with scoped_request_context(user_id=_vlasnik_posla(job)):
+            # Early Access, Faza A: jedan posao = jedna AI operacija vlasnika posla, sa
+            # rezervacijom PRE prvog poziva provajdera (shared/ai_budget.py).
+            from shared.ai_budget import operacija as _ai_operacija
+            _vlasnik = _vlasnik_posla(job)
+            with scoped_request_context(user_id=_vlasnik),                     _ai_operacija(_vlasnik, sistemska=not _vlasnik, izvor="intake_worker"):
                 needs_review = await self._process(job)
             # Program Intake Sprint 004 (2026-08-05) -- ranije se OVDE
             # bezuslovno zvao mark_job_completed(), bez obzira da li je

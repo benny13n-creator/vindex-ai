@@ -101,14 +101,17 @@ async def _require_cron_or_founder(
 ) -> dict:
     """FastAPI dep: accepts X-Cron-Key header OR valid founder Bearer JWT."""
     cron_key = request.headers.get("X-Cron-Key", "")
+    from shared import ai_budget as _ai_budget
     if _CRON_SECRET and cron_key == _CRON_SECRET:
         founder_email = next(iter(FOUNDER_EMAILS), "")
+        _ai_budget.sistemska("cron_key")  # Early Access, Faza A: bez kredita, u granicama
         return {"user_id": "cron-scheduler", "email": founder_email}
     if credentials:
         payload = await asyncio.to_thread(_verify_token, credentials.credentials)
         if payload:
             email = (payload.get("email") or "").lower()
             if email in FOUNDER_EMAILS:
+                _ai_budget.vezi(payload.get("sub"), email, _ai_budget.OSNOVNA_FUNKCIJA, founder=True)
                 return {"user_id": payload.get("sub"), "email": email}
     raise HTTPException(status_code=403, detail="Restricted to founder or valid cron key.")
 

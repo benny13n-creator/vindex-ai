@@ -668,6 +668,8 @@ def _patch_prompt_guard() -> None:
         from security.prompt_guard import analyze as _analyze
         # Governance Wave 3 — CANONICAL RESPONSE FIREWALL (v. komentar niže).
         from security.response_firewall import enforce as _fw_enforce
+        # Early Access, Faza A — AI budžet je deo iste granice: bez njega nema poziva.
+        from shared import ai_budget as _ai_budget
     except Exception as exc:
         logger.error("[AI_GUARD] Nisam mogao da uvezem governance zavisnosti, guard NIJE aktivan: %s", exc)
         # `_guard_patched = True` sprečava beskonačno ponavljanje pokušaja.
@@ -792,12 +794,17 @@ def _patch_prompt_guard() -> None:
             if result is not None:
                 raise PromptInjectionBlocked(result.risk_score, result.flags)
         import time
+        # Early Access, Faza A: AI budžet PRE slanja (shared/ai_budget.py). Odbijanje
+        # se diže ovde, pre provenance-a — poziv nije ni pokušan.
+        _budzet = _ai_budget.pre_poziva("chat", kwargs)
         _t0 = time.monotonic()
         try:
             response = _orig_create(self, *args, **_with_timeout(kwargs))
         except Exception as exc:
+            _ai_budget.posle_poziva(_budzet, exc=exc)
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
+        _ai_budget.posle_poziva(_budzet, response)
         # BETA-HARDENING-001 / FS-004 — PROVENANCE JE TVRDIO USPEH ZA ODBIJEN ODGOVOR.
         #
         # Redosled je bio: `_capture_chat_provenance(... uspeh ...)` pa tek onda
@@ -841,12 +848,15 @@ def _patch_prompt_guard() -> None:
             if result is not None:
                 raise PromptInjectionBlocked(result.risk_score, result.flags)
         import time
+        _budzet = await _ai_budget.apre_poziva("chat", kwargs)
         _t0 = time.monotonic()
         try:
             response = await _orig_acreate(self, *args, **_with_timeout(kwargs))
         except Exception as exc:
+            _ai_budget.posle_poziva(_budzet, exc=exc)
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
+        _ai_budget.posle_poziva(_budzet, response)
         # Ista ispravka kao u sync grani (FS-004): async putanja ne sme da bude
         # slabija, a u ovom repou je brojnija.
         _ms = int((time.monotonic() - _t0) * 1000)
@@ -866,6 +876,12 @@ def _patch_prompt_guard() -> None:
 
     Completions.create = _guarded_create
     AsyncCompletions.create = _guarded_acreate
+
+    # Early Access, Faza A — SVAKI HTTP pokušaj ka provajderu, uključujući SDK-ove
+    # interne retry-je (max_retries=2, nevidljive wrapperu iznad), prolazi kroz
+    # `_build_request`, koji SDK zove jednom po pokušaju. Tu se pokušaj broji u
+    # operaciju; pokušaj bez aktivnog tiketa (resurs koji nije obavijen) se odbija.
+    _instaliraj_brojac_pokusaja()
 
     try:
         from openai.resources.embeddings import AsyncEmbeddings, Embeddings
@@ -897,23 +913,29 @@ def _patch_prompt_guard() -> None:
         # tests/test_gov2_runtime_interception.py).
         def _tracked_embed(self, *args, **kwargs):
             import time
+            _budzet = _ai_budget.pre_poziva("embedding", kwargs)
             _t0 = time.monotonic()
             try:
                 response = _orig_embed(self, *args, **_with_timeout(kwargs))
             except Exception as exc:
+                _ai_budget.posle_poziva(_budzet, exc=exc)
                 _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
                 raise
+            _ai_budget.posle_poziva(_budzet, response)
             _capture_embedding_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
             return response
 
         async def _tracked_aembed(self, *args, **kwargs):
             import time
+            _budzet = await _ai_budget.apre_poziva("embedding", kwargs)
             _t0 = time.monotonic()
             try:
                 response = await _orig_aembed(self, *args, **_with_timeout(kwargs))
             except Exception as exc:
+                _ai_budget.posle_poziva(_budzet, exc=exc)
                 _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
                 raise
+            _ai_budget.posle_poziva(_budzet, response)
             _capture_embedding_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
             return response
 
@@ -951,16 +973,19 @@ def _patch_prompt_guard() -> None:
         _orig_tts = Speech.create
         _orig_atts = AsyncSpeech.create
 
-        def _make_tracked_audio(orig, is_async: bool):
+        def _make_tracked_audio(orig, is_async: bool, vrsta: str):
             if is_async:
                 async def _tracked(self, *args, **kwargs):
                     import time
+                    _budzet = await _ai_budget.apre_poziva(vrsta, kwargs)
                     _t0 = time.monotonic()
                     try:
                         response = await orig(self, *args, **_with_timeout(kwargs))
                     except Exception as exc:
+                        _ai_budget.posle_poziva(_budzet, exc=exc)
                         _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
                         raise
+                    _ai_budget.posle_poziva(_budzet, response)
                     _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000))
                     return response
                 _tracked._vindex_guarded = True
@@ -968,21 +993,24 @@ def _patch_prompt_guard() -> None:
 
             def _tracked(self, *args, **kwargs):
                 import time
+                _budzet = _ai_budget.pre_poziva(vrsta, kwargs)
                 _t0 = time.monotonic()
                 try:
                     response = orig(self, *args, **_with_timeout(kwargs))
                 except Exception as exc:
+                    _ai_budget.posle_poziva(_budzet, exc=exc)
                     _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
                     raise
+                _ai_budget.posle_poziva(_budzet, response)
                 _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000))
                 return response
             _tracked._vindex_guarded = True
             return _tracked
 
-        Transcriptions.create      = _make_tracked_audio(_orig_stt,  False)
-        AsyncTranscriptions.create = _make_tracked_audio(_orig_astt, True)
-        Speech.create              = _make_tracked_audio(_orig_tts,  False)
-        AsyncSpeech.create         = _make_tracked_audio(_orig_atts, True)
+        Transcriptions.create      = _make_tracked_audio(_orig_stt,  False, "stt")
+        AsyncTranscriptions.create = _make_tracked_audio(_orig_astt, True,  "stt")
+        Speech.create              = _make_tracked_audio(_orig_tts,  False, "tts")
+        AsyncSpeech.create         = _make_tracked_audio(_orig_atts, True,  "tts")
     except Exception as exc:
         logger.warning("[AI_PROVENANCE] Audio provenance patch neuspešan (nije kritično): %s", exc)
 
@@ -1006,6 +1034,30 @@ def _patch_prompt_guard() -> None:
         "— svi GPT pozivi u aplikaciji sada strukturno zaštićeni (SEC-003) i "
         "beleže AI Provenance (Mission Atlas)"
     )
+
+
+_orig_build_request: dict = {}
+
+
+def _instaliraj_brojac_pokusaja() -> None:
+    from openai._base_client import AsyncAPIClient, SyncAPIClient
+
+    from shared.ai_budget import _zabelezi_pokusaj
+
+    for klasa in (SyncAPIClient, AsyncAPIClient):
+        orig = klasa._build_request
+        if getattr(orig, "_vindex_guarded", False):
+            continue
+
+        def _napravi(orig):
+            def _build_request(self, options, *, retries_taken: int = 0):
+                _zabelezi_pokusaj(retries_taken)
+                return orig(self, options, retries_taken=retries_taken)
+            _build_request._vindex_guarded = True
+            return _build_request
+
+        _orig_build_request[klasa] = orig
+        klasa._build_request = _napravi(orig)
 
 
 def _uninstall_prompt_guard() -> None:
@@ -1053,6 +1105,10 @@ def _uninstall_prompt_guard() -> None:
     _vrati("openai.resources.embeddings", ("Embeddings", "AsyncEmbeddings"), (_orig_embed, _orig_aembed))
     _vrati("openai.resources.audio.transcriptions", ("Transcriptions", "AsyncTranscriptions"), (_orig_stt, _orig_astt))
     _vrati("openai.resources.audio.speech", ("Speech", "AsyncSpeech"), (_orig_tts, _orig_atts))
+
+    for _klasa, _orig in list(_orig_build_request.items()):
+        _klasa._build_request = _orig
+    _orig_build_request.clear()
 
     _restore_openai_ctors()
 
