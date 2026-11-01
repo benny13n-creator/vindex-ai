@@ -27,20 +27,22 @@ DOMEN = "https://vindex.rs"
 
 STRANICE = [
     # (izvor, izlaz, ruta, naslov, opis, stavka menija)
-    ("index", "index.html", "/", "Vindex — od dokumenata do jasnih odluka",
-     "Vindex povezuje predmete, dokumente, dokaze, rokove i pravna pitanja u jedan radni prostor. Svaki podatak ostaje vezan za svoj izvor, a odluka ostaje advokatu.", None),
+    ("index", "index.html", "/", "Vindex — pravni operativni sistem za advokate",
+     "Vindex povezuje dokumente, činjenice, dokaze, rokove, pravna pitanja i nacrte jednog predmeta u jedan tok rada. Svaki podatak ostaje vezan za svoj izvor, a odluka ostaje advokatu.", None),
     ("kako-radi", "kako-radi.html", "/kako-radi", "Kako radi — Vindex",
-     "Tok rada u Vindexu od otvaranja predmeta do odluke advokata: šta radite vi, šta radi Vindex i gde je potrebna vaša potvrda.", "Kako radi"),
+     "Tok rada u Vindexu od otvaranja predmeta do nacrta podneska: šta radi Vindex, šta odlučujete vi i šta je dobro da znate.", "Kako radi"),
     ("funkcionalnosti", "funkcionalnosti.html", "/funkcionalnosti", "Funkcionalnosti — Vindex",
      "Funkcije koje Vindex danas nudi, grupisane po poslu: organizacija predmeta, čitanje dokumenata, dokazi, istraživanje, nacrti, rokovi i zaštita.", "Funkcionalnosti"),
     ("za-advokate", "za-advokate.html", "/za-advokate", "Za advokate — Vindex",
-     "Primeri toka rada u advokatskoj kancelariji sa funkcijama koje danas postoje u Vindexu, uz granice svake funkcije.", "Za advokate"),
+     "Jedan predmet od prvog dokumenta do nacrta odgovora na tužbu: kako advokat radi u Vindexu, korak po korak, sa izmišljenim okolnostima.", "Za advokate"),
     ("bezbednost", "bezbednost.html", "/bezbednost", "Bezbednost i zaštita podataka — Vindex",
      "Ko pristupa podacima, gde se čuvaju, šta se šalje AI modelu, kako se izvoze i brišu — opisano onako kako Vindex stvarno radi.", "Bezbednost"),
     ("beta", "beta.html", "/beta", "Rani pristup — Vindex",
      "Prijava za rani pristup Vindexu: kontrolisano uključivanje advokata i kancelarija u rad sa aplikacijom, uz podršku.", None),
 ]
-JAVNI_STATUSI = ["V2_AVAILABLE", "AVAILABLE_WITH_LIMITATIONS", "LEGACY_ONLY"]
+# Javno se prikazuje samo ono što radi u glavnom toku aplikacije. LEGACY_ONLY (klasični prikaz) se od 2026-11-01
+# ne prikazuje: sajt ne upoređuje verzije aplikacije (odluka osnivača), a funkcija bez ulaza u glavnom toku se izostavlja.
+JAVNI_STATUSI = ["V2_AVAILABLE", "AVAILABLE_WITH_LIMITATIONS"]
 CTA = "Prijavi se za rani pristup"
 
 # Katalog je grupisan po poslu koji korisnik obavlja (ne po tehničkim oblastima):
@@ -60,7 +62,7 @@ GRUPE = [
     ("rokovi", "Delujte na vreme",
      "Rokovi, ročišta i zadaci preko svih predmeta, sa vašom potvrdom svakog predloženog roka.", ["D"]),
     ("zastita", "Kontrola i zaštita",
-     "Pristup po nalogu, poreklo svakog podatka i istinit prikaz grešaka.", ["J", "K"]),
+     "Pristup po nalogu, poreklo svakog podatka, istinit prikaz grešaka, izvoz i anonimizacija naloga.", ["J", "K"]),
 ]
 e = html.escape
 
@@ -109,7 +111,7 @@ PODNOZJE = """<footer class="podnozje">
     <div class="podnozje__redovi">
       <div>
         <h2>Vindex</h2>
-        <p>Pravni radni prostor: predmeti, dokumenti, dokazi, rokovi i pravna pitanja, povezani sa svojim izvorom.</p>
+        <p>Pravni operativni sistem za advokate: dokumenti, dokazi, rokovi, pravna pitanja i nacrti jednog predmeta, povezani sa svojim izvorom.</p>
       </div>
       <nav aria-label="Sajt">
         <h2>Sajt</h2>
@@ -142,8 +144,8 @@ PODNOZJE = """<footer class="podnozje">
 
 
 def katalog(reg: dict) -> str:
-    """Katalog po poslu. Javno: samo dostupne funkcije (JAVNI_STATUSI); interni status
-    ostaje u `data-status` (testovi), a posetiocu se kaže samo gde funkcija radi.
+    """Katalog po poslu. Javno: samo funkcije dostupne u aplikaciji (JAVNI_STATUSI); interni status
+    ostaje u `data-status` (testovi), a posetiocu se kaže samo gde je funkcija u aplikaciji.
     Granica funkcije je deo njene javne formulacije i prikazuje se u celosti."""
     javne = [f for f in reg["funkcije"] if f["javno"] and f["status"] in JAVNI_STATUSI]
     poznate = {o for g in GRUPE for o in g[3]}
@@ -156,8 +158,7 @@ def katalog(reg: dict) -> str:
         nav.append(f'<li><a href="#{sidro}">{e(naslov)}</a></li>')
         redovi = []
         for f in stavke:
-            gde = ("Dostupno u klasičnom interfejsu aplikacije" if f["status"] == "LEGACY_ONLY"
-                   else "U aplikaciji: " + f["v2_ulaz"].replace("/app → ", ""))
+            gde = "U aplikaciji: " + f["v2_ulaz"].replace("/app → ", "")
             redovi.append(
                 f'<li class="stavka" id="f-{f["id"]}" data-id="{f["id"]}" data-status="{f["status"]}">'
                 f'<div><h3>{e(f["naziv"])}</h3><p>{e(f["javni_opis"])}</p><p class="stavka__gde">{e(gde)}</p></div></li>')
@@ -233,8 +234,9 @@ def matrica(reg: dict) -> str:
               "> Generisano iz `site/funkcije.json` skriptom `scripts/gradi_sajt.py`. Ne menjati ručno.",
               f"> Produkcija u trenutku provere: `{reg['produkcija']}`; datum provere: {reg['verifikovano']}.", "",
               "Status određuje šta sajt sme da kaže. Javno se prikazuju samo stavke sa `javno: true` i statusom",
-              "V2_AVAILABLE, AVAILABLE_WITH_LIMITATIONS i LEGACY_ONLY (katalog). PLANNED_APPROVED se od Website V3",
-              "ne objavljuje (planovi razvoja nisu javni; /razvoj je povučen).", "",
+              "V2_AVAILABLE ili AVAILABLE_WITH_LIMITATIONS (katalog). LEGACY_ONLY se od 2026-11-01 ne prikazuje (sajt ne",
+              "upoređuje verzije aplikacije), a PLANNED_APPROVED od Website V3 (planovi razvoja nisu javni; /razvoj je povučen).",
+              "Dokaz tvrdnji sa sajta: docs/website-v2/07_PREMIUM_POSITIONING_RELEASE.md.", "",
               "## Statusi", "", "| Status | Javna oznaka | Značenje | Broj stavki |", "|---|---|---|---|"]
     for s, d in reg["statusi"].items():
         redovi.append(f"| `{s}` | {d['javno'] or '— (ne prikazuje se)'} | {d['opis']} | {br.get(s, 0)} |")

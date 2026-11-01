@@ -140,9 +140,10 @@ body.sajt {
 .sajt .korak:first-of-type { border-top-color: var(--line-strong); }
 .sajt .korak__broj { color: var(--accent); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 .sajt .korak__gde { margin-top: 10px; color: var(--text-3); font-size: 0.9375rem; }
-.sajt .korak dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px 32px; margin: 0; }
+.sajt .korak dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin: 0; max-width: 72ch; }
 .sajt .korak dt { color: var(--text-3); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
 .sajt .korak dd { margin: 0; color: var(--text-1); }
+.sajt .korak dl > div:last-child dd { color: var(--text-2); }
 
 /* ── Katalog funkcija ──────────────────────────────────────── */
 .sajt .katalog { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 48px; align-items: start; }
@@ -292,15 +293,31 @@ body.sajt {
 .sajt.pokret .tok--pokret::after { transform: scaleX(0); transition: transform 1400ms var(--ease) 200ms; }
 .sajt.pokret .tok--pokret.vidljivo::after { transform: scaleX(1); }
 
-/* ── Sektori ──────────────────────────────────────────────── */
-.sajt .sektori { list-style: none; margin: 0 0 20px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-.sajt .sektor { padding: 20px; border: 1px solid var(--line); border-radius: 6px; background: rgba(13, 14, 16, 0.7); transition: border-color 200ms var(--ease), transform 200ms var(--ease); }
-.sajt .sektor:hover { border-color: var(--line-strong); transform: translateY(-2px); }
-.sajt .sektor h3 { font-size: 1.0625rem; margin: 10px 0 6px; }
-.sajt .sektor p { color: var(--text-2); margin: 0; font-size: 0.9375rem; }
-.sajt .sektor__status { display: inline-block; padding: 2px 8px; border: 1px solid var(--line-strong); border-radius: 3px; color: var(--text-2); font-size: 0.8125rem; }
-.sajt .sektor--danas { grid-column: span 2; border-color: rgba(122, 162, 220, 0.5); background: rgba(122, 162, 220, 0.08); }
-.sajt .sektor--danas .sektor__status { color: var(--accent-strong); border-color: rgba(122, 162, 220, 0.5); }
+/* ── Vrednosti (početna): urednička mreža sa brojem i linijom, bez dekorativnih kartica ── */
+.sajt .vrednosti { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 32px; }
+.sajt .vrednost { padding-top: 20px; border-top: 2px solid var(--text-1); }
+.sajt .vrednost__broj { display: block; margin-bottom: 18px; color: var(--accent-strong); font-size: 0.875rem; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.sajt .vrednost h3 { font-size: 1.3125rem; margin-bottom: 10px; }
+.sajt .vrednost p { color: var(--text-2); margin: 0; }
+
+/* ── Istaknuti koraci toka (početna) ──────────────────────── */
+.sajt .tok + .istaknuto { margin-top: clamp(32px, 5vw, 56px); }
+.sajt .istaknuto__korak { margin: 0 0 10px; color: var(--accent-strong); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+.sajt .istaknuto__tekst > p:not([class]) { color: var(--text-2); }
+.sajt .istaknuto__uloga { margin: 0 0 20px; padding-left: 14px; border-left: 2px solid var(--ok); color: var(--text-1); }
+
+/* ── Priča jednog predmeta (Za advokate) ──────────────────── */
+.sajt .prica { list-style: none; margin: 0; padding: 0; counter-reset: prica; max-width: 860px; }
+.sajt .prica__korak { position: relative; padding: 0 0 36px 64px; counter-increment: prica; }
+.sajt .prica__korak::before { content: counter(prica, decimal-leading-zero); position: absolute; left: 0; top: 0; width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center; border: 1px solid var(--line-strong); border-radius: 50%;
+  background: var(--bg-sheet); color: var(--accent-strong); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.sajt .prica__korak::after { content: ""; position: absolute; left: 20px; top: 48px; bottom: 8px; width: 1px; background: var(--line-strong); }
+.sajt .prica__korak:last-child::after { display: none; }
+.sajt .prica h3 { margin: 6px 0 8px; font-size: 1.375rem; }
+.sajt .prica p { color: var(--text-2); max-width: 68ch; }
+.sajt .prica__gde { margin: 0; color: var(--text-3) !important; font-size: 0.875rem; }
+.sajt .prica__zakljucak { max-width: 68ch; margin: 8px 0 0; padding: 20px 24px; border-left: 3px solid var(--accent); background: var(--bg-sheet); color: var(--text-1); }
 
 /* ── Završni poziv ────────────────────────────────────────── */
 .sajt .odeljak--zavrsni { text-align: center; position: relative; overflow: hidden; isolation: isolate; }
@@ -332,12 +349,14 @@ body.sajt {
 
 @media (max-width: 980px) {
   .sajt .kartice--3, .sajt .kartice--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sajt .vrednosti { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px 32px; }
   .sajt .istaknuto, .sajt .pitanje { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .sajt .istaknuto--obrnuto .istaknuto__tekst { order: 0; }
 }
 @media (max-width: 640px) {
   .sajt .kartice--2, .sajt .kartice--3, .sajt .kartice--4 { grid-template-columns: minmax(0, 1fr); }
-  .sajt .sektor--danas { grid-column: auto; }
+  .sajt .vrednosti { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .sajt .prica__korak { padding-left: 52px; }
   .sajt .uvod__koristi { flex-direction: column; gap: 6px; }
   /* Tabele na telefonu: svaki red je blok, a naziv kolone stoji uz vrednost (bez bočnog skrolovanja). */
   .sajt .tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -349,7 +368,7 @@ body.sajt {
 }
 @media (prefers-reduced-motion: reduce) {
   .sajt .ulaz { animation: none; }
-  .sajt .kartica:hover, .sajt .sektor:hover, .sajt .dugme--istaknuto:hover, .sajt .istaknuto:hover .snimak__okvir { transform: none; }
+  .sajt .kartica:hover, .sajt .dugme--istaknuto:hover, .sajt .istaknuto:hover .snimak__okvir { transform: none; }
 }
 
 /* ── Crna i boja kosti (odluka osnivača 2026-10-21) ───────────
@@ -373,11 +392,8 @@ body.sajt {
 .sajt .odeljak.odeljak--tih:not(.odeljak--zavrsni) { --bg: #eae5da; --bg-hover: #e0dacd; background: var(--bg); }
 .sajt .odeljak--zavrsni { background: var(--bg); }
 .sajt .podnozje { background: var(--bg); border-top: 1px solid var(--line); }
-.sajt .odeljak:not(.odeljak--zavrsni) .kartica,
-.sajt .odeljak:not(.odeljak--zavrsni) .sektor { background: var(--bg-sheet); }
+.sajt .odeljak:not(.odeljak--zavrsni) .kartica { background: var(--bg-sheet); }
 .sajt .odeljak:not(.odeljak--zavrsni) .kartica:hover { border-color: rgba(43, 82, 144, 0.45); background: var(--bg-panel); }
-.sajt .odeljak:not(.odeljak--zavrsni) .sektor--danas { border-color: rgba(43, 82, 144, 0.45); background: var(--accent-quiet); }
-.sajt .odeljak:not(.odeljak--zavrsni) .sektor--danas .sektor__status { border-color: rgba(43, 82, 144, 0.45); }
 .sajt .odeljak:not(.odeljak--zavrsni) .ko--potvrda { border-color: rgba(122, 91, 30, 0.45); }
 .sajt .odeljak:not(.odeljak--zavrsni) .ko--advokat { border-color: rgba(63, 107, 76, 0.45); }
 .sajt .odeljak:not(.odeljak--zavrsni) .snimak__okvir { border-color: #1f1f1f; }
