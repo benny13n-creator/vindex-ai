@@ -591,3 +591,142 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 - Trke nad pravom bazom: PostgreSQL testovi (S05, S06, S02), ne baza u memoriji.
 
 **Kapija S10: `PROVEN_CLOSED`.**
+
+---
+
+## S11 — B10: operacije podsetnika i živa kapija — `BLOCKED_AUTHORITY`
+
+**Preflight:** `a02be4bc` (S10). Kod nije menjan.
+
+### Produkcija — samo čitanje (2026-11-01, GET)
+| Provera | Nalaz | Status |
+|---|---|---|
+| Render SHA (`https://vindex.rs/health`) | `a45b34b` = `origin/main` (`a45b34ba…`, osveženo `git fetch`) | PROVEN |
+| `.github/workflows/email-cron.yml` (GitHub API) | **`state: disabled_manually`**, izmenjeno 2026-10-28 20:33 UTC | PROVEN |
+| Poslednja zakazana pokretanja | 10-21, 10-22, 10-23 `failure`; 10-24 → 10-28 `success` (5×); posle 10-28 **nijedno** | PROVEN (brojači iz logova nisu čitani — logovi traže prijavu) |
+| Migracija 142 — `email_podsetnik_dogadjaj` | postoji, **0 redova** | PROVEN |
+| Migracija 142 — `email_podsetnik_pokretanje` | postoji, **0 redova** (nijedan dnevni dan zabeležen) | PROVEN |
+| Aktivni email profili (`korisnik_email_notif`) | 1 profil, 1 aktivan (bez sadržaja) | PROVEN |
+| Pauza `VINDEX_EMAIL_PODSETNICI_PAUZA`, `VINDEX_PODSETNICI_PETLJA`, `CRON_SECRET` = `CRON_TOKEN` | Render env i GitHub secret nisu dostupni ovoj sesiji | **UNKNOWN** |
+
+**Zašto produkcija nema zabeleženo dnevno pokretanje:**
+- **PROVEN:** dnevni workflow je ručno isključen 28.10. u 20:33. Poslednje pokretanje, 28.10. u 14:39, bilo je na `6e623b2f`. To je pre koda koji upisuje u tabele 142 (`62b2621d` / `a45b34ba` su spojeni kasnije), pa od uvođenja 142 nije bilo nijednog dnevnog pokretanja.
+- **UNKNOWN:** da li je hitna petlja (`[EMAIL-HITNO]`, Render) uključena i nije imala šta da pošalje, ili je pauzirana. 0 redova u `email_podsetnik_dogadjaj` je u skladu sa oba objašnjenja.
+
+### Izolovani dokaz (lokalni SMTP na 127.0.0.1, PostgreSQL 17, stvarne rute)
+**368 passed, 0 skipped** (22 fajla podsetnika i S10).
+| Slučaj iz ugovora | Test |
+|---|---|
+| potvrđen rok → jedna poruka | `test_s2_podsetnici_pouzdanost::test_2…`, S10 (stvaran SMTP transport) |
+| nepotvrđen → 0; odbijen → 0 | `test_2…`, `test_n4_podsetnici::test_nepotvrdjen_ai_rok…`, S10, `test_ba01_obaveze_podsetnici` |
+| zakazano ročište → poruka; otkazano → 0 | `test_n4_podsetnici::test_zakazano_rociste_sutra…`, `…test_otkazano_odlozeno_odrzano_rociste_ne_salje`, `test_g2…::test_H…` |
+| dva događaja istog dana → oba | `test_s2_podsetnici_pouzdanost::test_3…`, `test_4…`, `test_ba01_obaveze_podsetnici` (dve obaveze istog dana, svaka sa svojom rečenicom — S10) |
+| timeout, RCPT greška, nepoznat ishod | `test_s2_smtp_transport_lokalno` (istek pre/posle sadržaja, 550, 421, 554, prekid veze, server nedostupan) |
+| ponavljanje bez duplog slanja | `test_9a…`, `test_g2…::test_DE…`, S10 (duplo pokretanje = 0), PG `test_s2_migracija_142_postgres` |
+| lokalni dan i DST | `test_s2f_kasni_podsetnici::test_utc_granica…`, `…test_dst_rociste_istog_jutra…`, `test_p0_b10_interval_correctness::test_danas_beograd_isti_kao_tz_baza_cele_godine` |
+| pogrešan cron ključ → odbijeno | `test_s2_podsetnici_pouzdanost::test_s2d_neovlasceno_pokretanje_je_403`, `…prazna_serverska_tajna…`, `test_cron_daily_failclosed_auth` |
+| pauza → nema slanja, vidljiv razlog | `test_s2e_tok_podsetnika::test_s2e_pauza_podsetnika_nista_ne_salje_i_dnevni_posao_je_crven` |
+
+### Operativna granica — STOP
+Kompletan dokaz zahteva radnje van ovlašćenja ove sesije: uključivanje produkcionog cron-a, slanje stvarnom primaocu i proveru Render env/secret-a. **Nijedna nije izvršena.**
+
+**Minimalni kontrolisani postupak (predlog, NE izvršava se bez odobrenja):**
+1. Osnivač: spojiti i pustiti granu (posle pregleda), pa proveriti `/health` → novi SHA.
+2. Osnivač (Render, samo čitanje): potvrditi da `VINDEX_EMAIL_PODSETNICI_PAUZA` nije postavljen i da je `CRON_SECRET` jednak GitHub secret-u `CRON_TOKEN` (bez prikazivanja vrednosti).
+3. Osnivač u svom nalogu: email profil sa odobrenim TEST sandučetom; jedan sintetički predmet; jedan rok sa datumom SUTRA, potvrđen kroz Danas.
+4. Osnivač: ponovo uključiti `email-cron.yml` (Actions → Enable workflow) i pokrenuti ga ručno (`workflow_dispatch`) jednom.
+5. Merenje: job zelen (2xx, `greske=0`, `neisporuceno=0`, `poslato=1`); `email_podsetnik_pokretanje` dobija red za današnji dan; `email_podsetnik_dogadjaj` dobija red za taj rok; **poruka STIGLA u test sanduče** (samo to daje `LIVE_DELIVERY_VERIFIED`). Drugo ručno pokretanje istog dana mora dati `poslato=0`.
+6. Odbiti sintetički rok → sutrašnje pokretanje ne šalje ništa za njega.
+
+**Traženo odobrenje (tačno):** „Odobravam: (a) push i spajanje grane `bojan/beta-automation-closure` posle mog pregleda; (b) ponovno uključivanje `email-cron.yml` i jedno ručno pokretanje; (c) jedan podsetnik na test sanduče `<adresa>` iz mog naloga.“
+
+**Kapija S11: `BLOCKED_AUTHORITY`** — izolovani deo PROVEN; isporuka u sanduče NIJE posmatrana (`LIVE_DELIVERY_VERIFIED` se ne tvrdi).
+
+---
+
+## ZAVRŠNI IZVEŠTAJ — Bojan Beta Automation & B5/B7 Closure (2026-11-01)
+
+### Presuda
+- **`READY_FOR_CONTROLLED_PRODUCTION_VERIFICATION`** — tehnički dokazi su na grani `bojan/beta-automation-closure` (`72fbb980…a02be4bc`, lokalno, NIJE pushovana). Produkcija (`a45b34b`) ove ispravke još NEMA.
+- **`LIVE_EMAIL_DELIVERY_NOT_VERIFIED`** — dnevni email workflow je ručno isključen od 28.10; isporuka nikad nije posmatrana.
+- **`BOJAN_USER_ACCEPTANCE_PENDING`** — nijedna stavka nema nivo REAL_USER_ACCEPTED.
+- `TECHNICAL_BETA_READY` se **ne** proglašava kao pun status jer isporuka podsetnika nije proverena (pravilo ugovora). Tehnički tok je dokazan lokalno (S10).
+
+### 1. Šta je bilo neispravno (PROVEN reprodukcijom)
+- **S01 (B5):** deo rečenice bez početka (negacija, pripisivanje, isečen broj) prikazivan je kao „Iz dokumenta“; UI je govorio „utvrđene/potvrđene činjenice“.
+- **S02 (B7):** AI protivrečnost (npr. dve različite takse) postajala je aktivna, sa radnjom, bez odluke advokata.
+- **S04 (N3):** promena ročišta (otkazano, održano, novi datum) nije ostavljala nikakvu istoriju prethodnog stanja.
+- **S10 (BA-05/N4):** dva roka istog dana iz glavnog V2 prijema imala su naziv VRSTE DOKUMENTA i redni broj, pa advokat nije znao koju obavezu potvrđuje. Ispravka datuma bi uz to citirala pogrešan datum.
+- **Testni orakli:** browser zlatni prijem nikad nije bio pokrenut sa stvarnim OCR-om (S03). Tri postojeća orakla podsetnika prolazila su slučajno (S10).
+
+### 2. Šta je popravljeno
+S01 `68848d84`, S02 `c9da66dc` (opcija A osnivača), S04 `e022adda`, S10 `a02be4bc`, testovi S03 `d4a11ffc`, S07 `95a7b1e6`, S09 `14c05fb8`.
+
+### 3. Dokazano bez izmene koda
+S03 prijem (N1/N2), S05 BA04–06 (uključujući PostgreSQL), S06 naplata (46 PG testova, ranije preskakanih), S07 izveštaji, S08 automatsko ažuriranje, S09 pravno rezonovanje. Izvori Kzz 602/2022 i KZ 63/2026 su ponovo provereni 01.11.
+
+### 4. UNKNOWN
+Render env (pauza, petlja, `CRON_SECRET` = `CRON_TOKEN`); brojači u logovima cron pokretanja 10-24 do 10-28; UNIQUE indeksi 144/145 u produkciji; ponašanje stvarnog modela posle 27.10 (N8/N9 — nije ponovo mereno).
+
+### 5. Preostali blokeri i rizici, po riziku
+1. **Email isporuka** — workflow isključen, isporuka nikad posmatrana (S11, BLOCKED_AUTHORITY).
+2. **Ispravke nisu u produkciji** — grana nije pushovana (zabrana bez odobrenja).
+3. MEDIUM (CI): `tests/ns007_pg.py` čita `VX_TEST_PG_DSN`, a CI postavlja `VINDEX_PG_TEST_DSN`. PG testovi tog helpera (NS007, S02) se u CI-ju preskaču; lokalno su prošli.
+4. MEDIUM (UX, S03): za dokument iz kog nije izdvojen tekst, zaglavlje posle potvrde pregleda kaže „spremno za prikačivanje“, a posle reload-a se nudi „Ponovite prikačivanje“. Pokušaj daje tačnu poruku, bez lažnog uspeha. Istinita ispravka traži trajni znak „tekst nije izdvojen“ (migracija), što je odluka osnivača.
+5. LOW: posle puštanja S04 izmena ročišta je fail-closed bez audit lanca (503 umesto izmene bez istorije); posle S02, 5 otvorenih V2 radnji „Razrešiti kontradikciju“ u 4 predmeta zatvara se pri sledećem događaju, kao kandidati.
+
+### 6. Produkcioni koraci (PREDLOG, ne izvršenje)
+1. Pregled i push grane, PR prema `main`, CI 11/11.
+2. Spajanje i automatsko puštanje, pa provera `/health`. Migracije nisu potrebne (S01–S10 su bez migracije).
+3. S11 kontrolisani postupak (iznad) za email.
+4. Zaseban PR (opciono): jedan red u `tests/ns007_pg.py` da čita i `VINDEX_PG_TEST_DSN`.
+
+### 7. Minimalna mobilna acceptance procedura (osnivač ili Bojan, telefon, sintetički podaci)
+1. Nov predmet iz opisa sa ciljem → nov klijent → provera sukoba → otvori.
+2. Prijem: digitalni PDF + fotografija dokumenta telefonom + DOCX → pregled → ispraviti jedno polje → prikačiti. Sva tri dokumenta moraju biti u predmetu.
+3. Analiza: AI protivrečnosti stoje kao „nepotvrđene“. Odbaciti jednu, potvrditi drugu: radnja postoji samo za potvrđenu.
+4. Danas: dva roka istog dana moraju se razlikovati po rečenici. Potvrditi jedan, odbiti drugi, ispraviti datum trećem.
+5. Rad: predlog ročišta iz dokumenta → „Proveri i zakaži“ → jedno ročište. Zatim „Odloženo“ ili nov datum.
+6. Naplata: stavka → faktura → izdata → plaćena. Preuzeti PDF i CSV i pogledati ih na telefonu.
+7. Reload: sve gore ostaje.
+
+### 8. GO / NO-GO za kontrolisani Bojanov pilot
+**USLOVNI GO**, posle koraka 6.1–6.2 (ispravke u produkciji):
+- GO za prijem, analizu sa odlukom advokata, rokove, ročišta, naplatu i izveštaje pod nadzorom.
+- **NO-GO za oslanjanje na email podsetnike** dok S11 postupak ne pokaže poruku u test sandučetu. Do tada rokove pratiti kroz Danas.
+
+### Završna matrica (najviši STVARNO dostignut nivo)
+| ID | Etapa | Nivo | Napomena |
+|---|---|---|---|
+| B1 | S03, S10 | BROWSER_INTEGRATION + LIVE (pre sprinta) | jedan predmet, veza klijent–predmet |
+| B2 | S03, S10 | BROWSER_INTEGRATION (4 formata, stvaran OCR) + LIVE (pre sprinta) | |
+| B3 | S03, S10 | BROWSER_INTEGRATION (stvaran OCR) + LIVE (pre sprinta) | nečitljiva slika pošteno odbijena |
+| B4 | S03 | BROWSER_INTEGRATION + LIVE (pre sprinta) | |
+| B5 | S01, S10 | BROWSER_INTEGRATION (ispravka lokalno) | u produkciji posle puštanja |
+| B6 | S08 | ISOLATED + LIVE (pre sprinta) | |
+| B7 | S02, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | odluka osnivača A; u produkciji posle puštanja |
+| B8 | S05, S08 | BROWSER_INTEGRATION + LIVE (pre sprinta) | |
+| B9 | S05, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | razlikovanje obaveza istog dana: S10 |
+| B10 | S11 | ISOLATED (lokalni SMTP, PG) | isporuka NIJE posmatrana — BLOCKED_AUTHORITY |
+| B11 | S08 | ISOLATED + LIVE (pre sprinta) | |
+| B12 | S08 | ISOLATED + LIVE (pre sprinta) | |
+| B13 | S10 | BROWSER_INTEGRATION (ceo lanac, jedan predmet) | |
+| N1 | S03, S10 | BROWSER_INTEGRATION | |
+| N2 | S03, S10 | BROWSER_INTEGRATION | |
+| N3 | S04, S10 | BROWSER_INTEGRATION | + istorija izmena (S04) |
+| N4 | S05, S10, S11 | BROWSER_INTEGRATION + ISOLATED | isporuka emaila nije posmatrana |
+| N5 | S06, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | |
+| N6 | S07, S10 | BROWSER_INTEGRATION | |
+| N7 | S08, S10 | BROWSER_INTEGRATION + ISOLATED | |
+| N8 | S09 | LOCAL (deterministički) + ISOLATED (model, 27.10) | |
+| N9 | S09 | LOCAL (deterministički) + ISOLATED (model, 27.10) | izvori ponovo provereni 01.11 |
+| BA-01 | S03, S10 | BROWSER_INTEGRATION | |
+| BA-02 | S03, S10 | BROWSER_INTEGRATION (stvaran OCR) + LIVE (pre sprinta) | |
+| BA-03 | S01, S03 | BROWSER_INTEGRATION | |
+| BA-04 | S05 | BROWSER_INTEGRATION | |
+| BA-05 | S05, S10 | BROWSER_INTEGRATION + ISOLATED (PG) + LIVE (pre sprinta) | S10 ispravka naziva |
+| BA-06 | S05, S10 | BROWSER_INTEGRATION + ISOLATED (PG) | |
+| BA-07 | S11 | ISOLATED | isporuka nije posmatrana |
+| BA-08 | S08 | ISOLATED + LIVE (pre sprinta) | |
+
+Nijedna stavka nije REAL_USER_ACCEPTED.
