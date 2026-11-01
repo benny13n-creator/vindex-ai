@@ -874,7 +874,10 @@ def test_produkciona_ruta_sa_kreditom_jedna_naplata(svet, monkeypatch):
 
 
 def test_brojac_pokusaja_je_instaliran_na_sdk_klasama():
+    """Ugovor: pre svakog poziva brana garantuje brojač na obe SDK klase (drugi testovi
+    u sviti ga smeju skinuti — v. test_brojac_se_obnavlja_ako_ga_je_neko_skinuo)."""
     from openai._base_client import AsyncAPIClient, SyncAPIClient
+    ai_budget._osiguraj_brojac()
     assert getattr(SyncAPIClient._build_request, "_vindex_guarded", False)
     assert getattr(AsyncAPIClient._build_request, "_vindex_guarded", False)
 
@@ -886,3 +889,21 @@ def test_rezim_off_je_jedini_izlaz_i_ne_dira_naplatu(svet, monkeypatch):
     svet.baza.krediti["uo"] = 0
     r = _zahtev(_napravi_app(), "/posle", "uo")
     assert r.status_code == 402 and svet.prov.broj == 1
+
+
+def test_brojac_se_obnavlja_ako_ga_je_neko_skinuo(svet):
+    """Izmereno u CI-ju (nasumičan redosled): `_uninstall_prompt_guard()` + vraćen sačuvan
+    wrapper ostavljali su chat granicu bez brojača pokušaja. Brana ga sada vraća pre
+    poziva — SDK retry-ji ostaju brojani."""
+    from openai._base_client import AsyncAPIClient, SyncAPIClient
+
+    from shared import ai_client
+    for klasa, orig in list(ai_client._orig_build_request.items()):
+        klasa._build_request = orig                      # simulacija spoljnog skidanja
+    assert not getattr(AsyncAPIClient._build_request, "_vindex_guarded", False)
+    svet.baza.krediti["uh"] = 10
+    svet.prov.rezim = "timeout"
+    _zahtev(_napravi_app(), "/posle", "uh")
+    assert getattr(SyncAPIClient._build_request, "_vindex_guarded", False)
+    assert getattr(AsyncAPIClient._build_request, "_vindex_guarded", False)
+    assert _POSLEDNJA_OP["op"].pokusaja == 3 == svet.prov.broj

@@ -709,6 +709,9 @@ def _patch_prompt_guard() -> None:
         # konstruktorima i AI bi bio mrtav bez razloga.
         if _ai_blocked:
             _restore_openai_ctors()
+        # Early Access, Faza A: wrapper može biti vraćen na klasu spolja (snimi/vrati
+        # obrazac iz docstring-a `_uninstall_prompt_guard`) bez brojača pokušaja.
+        _instaliraj_brojac_pokusaja()
         _guard_patched = True
         _guard_active = True
         _guard_failure_reason = None

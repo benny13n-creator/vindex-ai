@@ -67,7 +67,7 @@ Sve invarijante su **PROVEN**. Svaki dokaz je test u `tests/test_ai_cost_protect
 | Founder/pozadina ne zaobilaze projektni limit | projektni limit pre svakog poziva | `test_projektni_limit_vazi_i_za_foundera`, `test_sistemska_operacija…`, `test_pozadinski_…` |
 | Legitimni tokovi ostaju | namirenje umesto druge naplate; nenamirena rezervacija se vraća | `test_produkciona_ruta_sa_kreditom…`, `test_ruta_bez_naplate…`, `test_namirenje_multiplikatora…` |
 
-**Mutacije:** 10 od 10 mutacija je ubijeno. Mutirani su async wrapper, rezervacija, strogi brojač, brojač pokušaja, namirenje, provera identiteta, zadržavanje nepoznatog ishoda, `PermissionService` vezivanje, lista modela i projektni limit.
+**Mutacije:** 11 od 11 mutacija je ubijeno. Mutirani su async wrapper, rezervacija, strogi brojač, brojač pokušaja, namirenje, provera identiteta, zadržavanje nepoznatog ishoda, `PermissionService` vezivanje, lista modela, projektni limit i samoobnavljanje brojača.
 
 ## 3. Provajder (A3)
 
@@ -147,7 +147,14 @@ Cela svita je pokrenuta lokalno: Python 3.13, `-p no:randomly` (zaključan redos
 - Grana ne menja frontend.
 - Zaključak: nestabilnost pod opterećenjem (INFERRED).
 
-Testovi Faze A: `tests/test_ai_cost_protection.py` 40/40 i `tests/test_ai_cost_protection_postgres.py` 2/2 (PostgreSQL 17, migracije 107/108 doslovno).
+Testovi Faze A: `tests/test_ai_cost_protection.py` 41/41 i `tests/test_ai_cost_protection_postgres.py` 2/2 (PostgreSQL 17, migracije 107/108 doslovno).
+
+**Nalaz iz CI-ja (nasumičan redosled, PR #66, prvi commit):**
+- **Simptom:** 8 testova brane je palo, sa istim uzrokom.
+- **Uzrok:** `_uninstall_prompt_guard()` skida `_build_request` hook. Wrapper koji je pozivalac sačuvao zatim se vraća na klasu bez hook-a. Chat brana je i dalje radila, ali SDK retry-ji i neobavijeni resursi bi prošli **nebrojani**.
+- **Reprodukcija:** lokalno, `test_gov4_patch_lifecycle` pa `test_ai_cost_protection`: 8 padova.
+- **Ispravka:** brana pre svakog poziva proverava hook i vraća ga; ako ni to ne uspe, odbija poziv (`BROJAC_NEDOSTUPAN`). Ponovni patch guard-a takođe vraća hook.
+- **Dokaz:** novi test `test_brojac_se_obnavlja_ako_ga_je_neko_skinuo` i mutacija M11. Governance i budžet testovi daju 171/171 pod 10 nasumičnih seed-ova.
 
 ## 7. Preostali materijalni rizici
 

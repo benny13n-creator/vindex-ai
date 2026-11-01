@@ -567,6 +567,29 @@ def zabelezeno_odbijanje() -> Optional[AIBudzetOdbijen]:
     return d.get("odbijanje") if d else None
 
 
+def _osiguraj_brojac() -> None:
+    """Brojač pokušaja (`_build_request` hook) MORA stajati na SDK klasama dok brana radi.
+
+    Izmereno u CI-ju (nasumičan redosled testova): `_uninstall_prompt_guard()` skida
+    hook, a wrapper koji je pozivalac sačuvao vrati se na klasu bez njega — chat
+    wrapper i dalje radi, ali SDK retry-ji i neobavijeni resursi prolaze nebrojani.
+    Zato se hook proverava pri svakom pozivu i vraća; ako ni to ne uspe — odbija se."""
+    try:
+        from openai._base_client import AsyncAPIClient, SyncAPIClient
+        if (getattr(SyncAPIClient._build_request, "_vindex_guarded", False)
+                and getattr(AsyncAPIClient._build_request, "_vindex_guarded", False)):
+            return
+        from shared.ai_client import _instaliraj_brojac_pokusaja
+        _instaliraj_brojac_pokusaja()
+        if not (getattr(SyncAPIClient._build_request, "_vindex_guarded", False)
+                and getattr(AsyncAPIClient._build_request, "_vindex_guarded", False)):
+            raise RuntimeError("hook nije postavljen")
+        logger.warning("[AI_BUDZET] brojač pokušaja je nedostajao na SDK klasama — ponovo postavljen")
+    except Exception as exc:
+        raise AIBudzetOdbijen("BROJAC_NEDOSTUPAN",
+                              "AI budžet ne može da prati pozive. Odbijeno pre slanja.", 503) from exc
+
+
 def pre_poziva(vrsta: str, kwargs: dict):
     """Sinhrona brana pre JEDNOG logičkog poziva provajdera: granice → operacija →
     projektni limit → rezervacija. Diže `AIBudzetOdbijen` pre slanja ijednog tokena.
@@ -574,6 +597,7 @@ def pre_poziva(vrsta: str, kwargs: dict):
     if rezim() == "off":
         return None
     try:
+        _osiguraj_brojac()
         t = _pripremi(vrsta, kwargs)
         _osiguraj_rezervaciju(t.op)
     except AIBudzetOdbijen as exc:
@@ -587,6 +611,7 @@ async def apre_poziva(vrsta: str, kwargs: dict):
     if rezim() == "off":
         return None
     try:
+        _osiguraj_brojac()
         t = _pripremi(vrsta, kwargs)
         op = t.op
         if not (op.sistemska or op.founder or op.rezervisana):
