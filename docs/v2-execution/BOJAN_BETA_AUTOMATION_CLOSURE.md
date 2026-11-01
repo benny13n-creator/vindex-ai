@@ -285,3 +285,50 @@ Postojeći ugovor ima reprezentaciju neodređenosti (`ZA_PREGLED` u prikazu; `DI
 - ručno osvežavanje Genome-a ne usklađuje akcije samo po sebi — to radi sledeći događaj (postojeće ponašanje).
 
 **Nacrt `bojan/s02-b7-istovetnost-nacrt` (`affae433`)** ostaje kao istorija; nije deo rešenja.
+
+---
+
+## S03 — BOJAN N1/N2: kompletan prijem — `PROVEN_EXISTING_NO_CHANGE` (proizvod) + ispravljen testni orakl
+
+**Pokriva:** N1 (prijem), N2 (čarobnjak), INV-01, INV-02, INV-03, INV-10, INV-13. **Preflight:** `c9da66dc` (S02), radno stablo čisto.
+
+**Zahtev → dokaz (svi nad pravim api.app i bazom koja upisuje, simulirani samo modeli/embedding/prijava):**
+| Acceptance | Dokaz | Nivo |
+|---|---|---|
+| Tačno jedan predmet | `live-zlatni-prijem-e2e` G; `live-n2-carobnjak-e2e` 4 (istovremeni zahtevi → 1 predmet, drugi 409); `test_n1_zlatni_prijem` | BROWSER_INTEGRATION |
+| Tačna veza klijent–predmet | zlatni G (1 klijent, 1 veza, posle reload-a klijent prikazan); N2 1/2 (imenjaci — vezan IZABRANI) | BROWSER_INTEGRATION |
+| Opis i cilj sačuvani | zlatni G (`opis_sacuvan`; posle reload-a „Cilj: …“ u izmeni predmeta); `test_n1` (`MARKER` i „Cilj:“ u `predmeti.opis`) | BROWSER_INTEGRATION |
+| Svaki validan dokument → isti predmet | zlatni G **sa stvarnim Tesseract OCR-om: 4/4 formata (digitalni PDF, sken PDF, PNG, DOCX)**, poreklo = posao prijema A; bez OCR-a: 2 čitljiva prikačena, sken/foto vidljivo neprikačeni | BROWSER_INTEGRATION |
+| Nema lažnog OCR uspeha | zlatni G bez OCR-a (bez „pročitan OCR-om“, tačan razlog); **nov E4b: stvaran OCR koji delimično pogrešno pročita sliku („05.02.2028“) → NIJE prikačen, razlog rečen**; `test_n1::test_neprocitan_sken…` | BROWSER_INTEGRATION |
+| Bez dupliranja na retry | zlatni E (dupli klik → 1 dokument; nepoznat ishod iz opisa i iz dokumenta → 1 predmet; ponovljen sadržaj → postojeći posao); `live-prijem-oporavak-e2e` (kvar baze, ubijen proces posle zauzeća); `test_ocr001_trka_postgres` (PostgreSQL trka finalize-a) | BROWSER_INTEGRATION + ISOLATED (PG) |
+| Tuđ nalog 403/404 | zlatni E6 (predmet, dokument, posao, ispravka, finalize, klijent → 404/403; B ništa nije promenio); N2 4 | BROWSER_INTEGRATION |
+| COI pravilo nepromenjeno | nijedan COI fajl nije diran; zlatni E5, N2 2b/2c/2d, `test_coi_intake_convergence`, `test_n4_coi001…` | BROWSER_INTEGRATION |
+
+V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predmetu posle reload-a (zlatni G) + kartoteka u čarobnjaku (N2). Nov ekran nije u opsegu.
+
+**Pronađeno i ispravljeno (samo test):** browser zlatni tok nikad nije bio pokrenut sa stvarnim OCR-om (lokalno nema Tesseract-a; CI ne pokreće V2 browser testove). Sa OCR-om (env311) pao je 3/46. Fotografija je bila nacrtana PIL podrazumevanim fontom od ~10 px; Tesseract je pročitao delimično i pogrešno (`UUrucenodana05.02.2028`), a ekstraktor ju je **s pravom** odbio (`_kratak_ocr_procitan`, prag 0,75) uz tačnu poruku. Proizvod je ispravan; orakl je bio pogrešan. Izmena:
+- fotografija se pravi kao u Python zlatnom testu (helv 20 pt, 200 dpi);
+- stara sitna slika postaje negativni slučaj E4b;
+- OCR provera G zahteva `ocr === 2` i oba slikovna dokumenta prikačena sa tekstom (ranije je prolazila i kad fotografija nije prikačena).
+
+**Dokazi:**
+| Šta | Rezultat |
+|---|---|
+| Python prijem/N1/N2/COI/PG trka (14 fajlova) | 174 passed |
+| `live-zlatni-prijem-e2e` stvaran OCR | pre: 43/46 (3 FAIL) → posle: **47/47** (OCR pročitao 2 dokumenta) |
+| `live-zlatni-prijem-e2e` bez OCR-a | 48/48 |
+| `live-n2-carobnjak-e2e` / `live-prijem-carobnjak-e2e` / `live-prijem-oporavak-e2e` / `live-prijem` / `live-prijem-pracenje` | 27/27 · 37/37 · 18/18 · 53/53 · 29/29 |
+| Mutacija M1 (kratak OCR prihvaćen bez praga pouzdanosti) | UBIJENA — E4b pada |
+| Nezavisni pregled | tvrdnja „proizvod ispravan, fikstura pogrešna“ potvrđena; prijavljena 2 MEDIUM UX nalaza (dole) |
+
+**Pokušana pa vraćena ispravka (zapis radi istine):** po nalazu pregleda probao sam da zaglavlje i dugmad za nepročitan dokument budu tačni i posle reload-a. Signal je bio `ocr_failed` bez polja. Mutacije i regresija su to oborile: **kratak digitalni PDF dobija isti trag (`is_scanned=True`, `ocr_failed []`) a ima tekst koji finalize prikačuje**, pa bi ispravka sakrila dugme „Prikači“ za dokument koji se može prikačiti (`live-prijem-oporavak` pao). Istinita ispravka traži trajni podatak koji danas ne postoji (kolona/migracija ili promena sadržaja reda pregleda koji advokat vidi) — van minimalnog opsega. Izmena proizvoda je u potpunosti vraćena; regresija posle vraćanja zelena.
+
+**Preostali rizici:**
+- MEDIUM (UX, poznato, nije lažan uspeh): za dokument iz kog nije izdvojen tekst, zaglavlje posle „Potvrđujem pregled“ kaže „Obrađeno — spremno za prikačivanje“ i nudi „Prikači“. Pokušaj daje tačnu poruku „Dokument NIJE prikačen … Ponovno prikačivanje neće pomoći“. Ako se posle neuspeha stranica ponovo učita, nudi se „Ponovite prikačivanje“, a ponovni pokušaj opet daje tačnu poruku. Nema prikačivanja, nema lažnog teksta, nema duplikata. Ispravka traži odluku o trajnom znaku „tekst nije izdvojen“ (verovatno migracija).
+- LOW: G proverava da je fotografija pročitana i prikačena, ne i tačan sadržaj (datum). Tačnost OCR-a meri `test_ocr001_ocr_korpus` (CER/WER) u produkcionoj slici.
+- LOW: CI ne pokreće V2 browser testove; ovaj rezultat je lokalni BROWSER_INTEGRATION.
+- LOW: postojeći `nistaProcitano` u UI-ju sakriva vrstu dokumenta i kod kratkog digitalnog PDF-a dok pregled nije potvrđen (isti dvosmislen trag) — postojeće ponašanje, nije menjano.
+
+**Fajlovi:** izmenjen samo `frontend-v2-ng/tests/live-zlatni-prijem-e2e.mjs`. Namerno nedirnuti: `routers/smart_intake.py`, `frontend-v2-ng/src/prijem-predmeta.js`, `uploaded_doc/extractor.py`, `shared/intake_worker.py`, COI.
+
+**Kapija S03: `PROVEN_EXISTING_NO_CHANGE`** (proizvod), uz ispravljen i pojačan testni orakl.
