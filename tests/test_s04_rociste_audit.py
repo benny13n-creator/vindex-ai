@@ -43,7 +43,8 @@ def test_promene_stanja_i_datuma_ostavljaju_istoriju_sa_prethodnim_stanjem(lanac
     assert (m[2]["prethodno"]["vreme"], m[2]["novo"]["vreme"]) == ("10:00", "11:30")
     assert all(x["predmet_id"] == pid for x in m)
     # „novo“ je stanje reda POSLE upisa (i nepromenjena polja), ne samo telo zahteva
-    assert m[0]["novo"] == {"status": "otkazano", "datum": r1["datum"], "vreme": "10:00", "sud": SUD, "sudnica": None}
+    assert m[0]["novo"] == {"status": "otkazano", "datum": r1["datum"], "vreme": "10:00", "sud": SUD, "sudnica": None,
+                            "broj_predmeta_suda": None, "napomena": None}
     assert m[0]["prethodno"] == {**m[0]["novo"], "status": "zakazano"}
     assert sorted(m[2]["polja"]) == ["datum", "vreme"] and m[0]["polja"] == ["status"]
 
@@ -119,3 +120,55 @@ def test_bez_if_updated_at_istovremena_izmena_ne_daje_netacnu_istoriju(lanac, mo
     assert r.status_code == 409, r.text
     assert next(x for x in b.tabele["rocista"] if x["id"] == r1["id"])["status"] == "odrzano"
     assert [x["metadata"]["polja"] for x in _izmene(b, r1["id"])] == [["napomena"]]
+
+
+# ── RC kapija (nezavisni pregled pred spajanje) ─────────────────────────────────────────────────────────────────────
+def test_napomena_i_broj_predmeta_suda_imaju_prethodno_i_novo(lanac):
+    """MEDIUM: izmena samo napomene ili broja predmeta suda nije imala prethodnu vrednost u istoriji (prethodno == novo)."""
+    k, b = lanac
+    r1 = _zakazi(k, _predmet(k), 10)
+    assert k.patch(f"/api/rocista/{r1['id']}", json={"napomena": "prva"}, headers=A).status_code == 200
+    assert k.patch(f"/api/rocista/{r1['id']}", json={"napomena": "druga", "broj_predmeta_suda": "P 1/2026"}, headers=A).status_code == 200
+    m = [x["metadata"] for x in _izmene(b, r1["id"])]
+    assert [(x["prethodno"]["napomena"], x["novo"]["napomena"]) for x in m] == [(None, "prva"), ("prva", "druga")]
+    assert (m[1]["prethodno"]["broj_predmeta_suda"], m[1]["novo"]["broj_predmeta_suda"]) == (None, "P 1/2026")
+
+
+def _brisanja(b, rid):
+    return [x for x in b.tabele.get("audit_immutable", []) if x["action"] == "rociste_delete" and x["resource_id"] == rid]
+
+
+def test_brisanje_ostavlja_istoriju_a_bez_nje_nista_ne_brise(lanac, monkeypatch):
+    """MEDIUM: brisanje ročišta je izmena — zapis sa prethodnim stanjem je obavezan; pad zapisa → 503, ročište ostaje;
+    tuđe ročište → 404 bez zapisa i bez brisanja."""
+    import services.event_bus as EB
+    import shared.audit_immutable as AUD
+    k, b = lanac
+    pid = _predmet(k)
+    r1, r2 = _zakazi(k, pid, 10), _zakazi(k, pid, 11)
+
+    async def _rpc(rociste_id, user_id, correlation_id=None, supa=None):
+        """Baza u memoriji nema RPC 131/133 — isto pravilo: briše samo red vlasnika (id AND user_id)."""
+        red = next((x for x in b.tabele["rocista"] if x["id"] == rociste_id and x["user_id"] == user_id), None)
+        if red is None:
+            return None, False
+        b.tabele["rocista"].remove(red)
+        return red.get("predmet_id"), True
+    monkeypatch.setattr(EB, "invalidate_rociste_atomic", _rpc)
+    assert k.patch(f"/api/rocista/{r1['id']}", json={"napomena": "pre brisanja"}, headers=A).status_code == 200
+    assert k.delete(f"/api/rocista/{r1['id']}", headers=B).status_code == 404
+    assert _brisanja(b, r1["id"]) == [] and any(x["id"] == r1["id"] for x in b.tabele["rocista"])
+    orig = AUD.log_action
+
+    async def _pad(action, *a, **kw):
+        return None if action == "rociste_delete" else await orig(action, *a, **kw)
+    monkeypatch.setattr(AUD, "log_action", _pad)
+    assert k.delete(f"/api/rocista/{r2['id']}", headers=A).status_code == 503
+    monkeypatch.setattr(AUD, "log_action", orig)
+    assert any(x["id"] == r2["id"] for x in b.tabele["rocista"]) and _brisanja(b, r2["id"]) == []
+    assert k.delete(f"/api/rocista/{r1['id']}", headers=A).status_code == 200
+    assert not any(x["id"] == r1["id"] for x in b.tabele["rocista"])
+    [z] = _brisanja(b, r1["id"])
+    assert z["user_id"] == "uid-A" and z["metadata"]["prethodno"]["napomena"] == "pre brisanja"
+    assert z["metadata"]["prethodno"]["datum"] == r1["datum"] and z["metadata"]["predmet_id"] == r1["predmet_id"]
+

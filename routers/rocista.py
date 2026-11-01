@@ -386,9 +386,7 @@ async def izmeni_rociste(
 
     # S04 (N3): istorija izmene, tek POSLE potvrđenog upisa (0 redova = 409/404 iznad, bez zapisa). Fail-closed kao
     # `routers/sporna_tacka.py`: bez zapisa istorije izmena se vraća (uslovno, samo ako je red i dalje naš upis) → 503.
-    def _stanje(x):
-        return {"status": x.get("status") or "zakazano", "datum": x.get("datum"), "vreme": _norm_vreme(x.get("vreme")),
-                "sud": x.get("sud"), "sudnica": x.get("sudnica")}
+    _stanje = _stanje_rocista
     from shared.audit_immutable import log_action
     zapis = await log_action("rociste_izmena", user_id=uid, resource_type="rociste", resource_id=rociste_id,
                              metadata={"predmet_id": row.get("predmet_id"), "polja": polja,
@@ -545,6 +543,13 @@ async def hearing_followup(
     }
 
 
+def _stanje_rocista(x: dict) -> dict:
+    """S04 (N3): stanje ročišta u istoriji izmene — sva polja koja korisnik menja (prethodno → novo)."""
+    return {"status": x.get("status") or "zakazano", "datum": x.get("datum"), "vreme": _norm_vreme(x.get("vreme")),
+            "sud": x.get("sud"), "sudnica": x.get("sudnica"), "broj_predmeta_suda": x.get("broj_predmeta_suda"),
+            "napomena": x.get("napomena")}
+
+
 @router.delete("/api/rocista/{rociste_id}")
 @limiter.limit("30/minute")
 async def obrisi_rociste(
@@ -566,20 +571,37 @@ async def obrisi_rociste(
     # guarantee. Now one Postgres RPC (migration 131): the delete and the
     # event insert happen inside that function's own single transaction --
     # either both commit or neither does.
+    # RC kapija (S04): brisanje je izmena ročišta — istorija sa prethodnim stanjem je obavezna, kao kod PATCH-a. Red se
+    # briše u RPC-u zajedno sa događajem (ne može se vratiti), pa se zapis upisuje PRE brisanja: bez zapisa ništa se ne
+    # briše (503). Nepostojeće/tuđe ročište → 404 bez zapisa (V34).
+    try:
+        _pre = await asyncio.to_thread(lambda: supa.table("rocista").select(
+            "predmet_id, sud, datum, vreme, sudnica, broj_predmeta_suda, status, napomena")
+            .eq("id", rociste_id).eq("user_id", uid).limit(1).execute())
+        prethodno = (_pre.data or [None])[0]
+    except Exception as exc:
+        logger.error("[ROCISTA] stanje pre brisanja nije pročitano id=%s: %s", rociste_id, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Stanje ročišta trenutno nije moguće proveriti. Ništa nije obrisano.")
+    if not prethodno:
+        raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
+    from shared.audit_immutable import log_action
+    zapis = await log_action("rociste_delete", user_id=uid, resource_type="rociste", resource_id=rociste_id,
+                             metadata={"predmet_id": prethodno.get("predmet_id"), "prethodno": _stanje_rocista(prethodno),
+                                       "zapis_pre_brisanja": True})
+    if not zapis:
+        logger.error("[ROCISTA] audit brisanja nije upisan id=%s — ništa nije obrisano", rociste_id)
+        raise HTTPException(status_code=503, detail="Istorija izmene trenutno ne može da se zabeleži, pa ročište nije obrisano. "
+                                                    "Pokušajte ponovo.")
+
     from services.event_bus import invalidate_rociste_atomic
     from shared.ai_provenance import current_correlation_id
     _deleted_predmet_id, invalidated = await invalidate_rociste_atomic(
         rociste_id=rociste_id, user_id=uid, correlation_id=current_correlation_id(), supa=supa,
     )
     if not invalidated:
+        # trka (obrisano između čitanja i brisanja): zapis kaže „pre brisanja“, a ishod je ovde
+        logger.warning("[ROCISTA] ročište nestalo između zapisa i brisanja id=%s", rociste_id)
         raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
-
-    # V34: audit tek POSLE zero-row guarda -- 0 obrisanih redova znači 404 i
-    # nijedan zapis. log_action je best-effort po sopstvenom ugovoru, pa
-    # neuspeh audita ne menja ishod brisanja.
-    from shared.audit_immutable import log_action
-    await log_action("rociste_delete", user_id=uid,
-                     resource_type="rociste", resource_id=rociste_id)
 
     return {"ok": True}
 
