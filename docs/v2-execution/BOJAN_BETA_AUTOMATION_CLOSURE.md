@@ -382,3 +382,34 @@ V2 nema poseban ekran klijenta: „ponovo učitaj klijenta“ = klijent u predme
 - LOW: granica lokalnog dana ima samo browser dokaz (R6), bez zasebnog Python testa ponoći Europe/Belgrade naspram UTC.
 - LOW: V2 nema prikaz istorije ročišta; podaci postoje u lancu.
 - Produkcija: posle puštanja svaka izmena ročišta traži upis u `audit_immutable` (postojeća tabela). Ako je lanac nedostupan, izmena se odbija (503) umesto da prođe bez istorije.
+
+---
+
+## S05 — BA04/BA05/BA06: rokovi, odluke, hronologija (regresiona kapija) — `PROVEN_EXISTING_NO_CHANGE`
+
+**Pokriva:** BA-04, BA-05, BA-06, INV-06, INV-07, INV-08, INV-10. **Preflight:** `e022adda` (S04). Kod nije menjan; identitet obaveze i migracije 144/145 nisu ponovo otvarani.
+
+**Zašto ponovo:** S01 (poreklo tvrdnji), S02 (case_evolution, AI potrošači) i S04 (audit lanac) diraju susedne putanje.
+
+| Scenario | Test (stvarno izvršen na `e022adda`) |
+|---|---|
+| Četiri dokumenta → četiri kandidata | `test_ba01_zlatni_slucaj`, `live-rok-odluka-e2e` |
+| Dve zasebne obaveze istog datuma | `test_ba01_vise_rokova::test_isti_dan_dve_obaveze_dva_kandidata_razlicite_oznake`, `test_ba05_identitet_obaveze::test_dve_obaveze_sa_generickom_rokovnom_reci_ostaju_dve`, `test_ba01_rok_identitet::test_dve_obaveze_istog_datuma_ostaju_dve` |
+| Dva različita `scan.pdf` | `test_ba05_identitet_obaveze::test_A_dva_scan_pdf_isti_datum_dve_obaveze`, `test_ba01_rok_identitet::test_dva_razlicita_dokumenta_istog_imena_obaveza_se_ne_gubi` |
+| Običan datum nije rok | `test_ba01_vise_rokova::test_bez_izmisljenog_konkretnog_roka` (datum akta, „U Beogradu, dana“, OCR „O5.11.2O26“) |
+| OCR ispod praga → UNCONFIRMED, „OCR, proveriti“ | `test_ba01_vise_rokova::test_sken_stvaran_ocr_rokovi_ostaju_nesigurni…` (**stvaran Tesseract**, VINDEX_REQUIRE_OCR=1) |
+| Genome izostavi obavezu ili padne | `test_ba05_rokovi_iz_izvora::test_genome_navodi_samo_A_obaveza_B_ostaje_kandidat`, `…test_genome_pada_kandidati_iz_izvora_ostaju_a_pad_je_vidljiv` |
+| Retry i konkurentni upis bez duplikata | **PostgreSQL 17**: `test_ba05_migracija_144_postgres` (dva Genome osvežavanja, dva Smart Intake upisa, izvor+Genome istovremeno → 1 red); `test_ba04_dogadjaj_prihvatanja_postgres::test_T18_trka…`, `test_pad_posle_potvrdjenog_upisa…` |
+| Dva prihvatanja istoimenih dokumenata < 300 s | `test_ba04_dogadjaj_prihvatanja::test_T17…` i PG `test_T17_dva_dogadjaja_istog_teksta_dva_reda…` |
+| Potvrdi / odbij / ispravi opstaju kroz refresh | `test_ba05_identitet_obaveze::test_B2…odluke_ostaju`, `test_ba05_rokovi_iz_izvora::test_ponovni_upload_i_osvezavanja_ne_menjaju_kandidate_ni_odluke`, `…test_datum_koji_je_advokat_ispravio_se_ne_vraca_kao_kandidat`; `live-rok-odluka-e2e` |
+| Neovlašćen korisnik ne potvrđuje tuđu obavezu | `test_ba01_rok_identitet::test_drugi_korisnik_ne_utice_i_ne_vidi`, `test_ba05_rokovi_iz_izvora::test_tudji_dokument_se_ne_cita_ni_upisuje`; `live-rok-odluka-e2e` (B) |
+| Nepotvrđen/odbijen rok nikad izvršiv | `test_ba05_rokovi_iz_izvora::test_kandidati_iz_skena_do_podsetnika_samo_potvrdjen`, `test_ba01_obaveze_podsetnici`, `live-n4-rokovi-e2e` |
+| Hronologija sa izvorom i nesigurnošću | `test_ba01_procesna_hronologija`, `live-ba01-hronologija` |
+
+**Rezultati:** Python BA01/BA04/BA05 + rokovi + golden case **254 passed, 0 skipped**. PostgreSQL testova 15/15 izvršeno, ne preskočeno; stvaran OCR izvršen. Browser: `live-ba01-hronologija` 37/37, `live-n4-rokovi-e2e` 12/12, `live-rok-odluka-e2e` 76/76. Puna svita posle S04 = osnovica (9 poznatih).
+
+**Nezavisni pregled:** nije potreban za kapiju bez izmene koda. Orakle ovih testova je u BA-01 sprintu proverio nezavisni pregled sa mutacijama (`docs/v2-execution/BOJAN_BA01_LEDGER.md`). Ovde je provereno da se nijedan PG ili OCR test ne preskače u ovom okruženju.
+
+**Preostali rizici (nasleđeni iz BA01 ledgera, nepromenjeni):** subjekat obaveze u drugom redu teksta je nerešiva dvosmislenost (granica); kolone 144/145 u produkciji PROVEN (S00), njihovi UNIQUE indeksi UNKNOWN (nema DB URL-a; zaštita od duplikata u produkciji je INFERRED iz spajanja #61, dokazana samo nad lokalnim PostgreSQL-om).
+
+**Kapija S05: `PROVEN_EXISTING_NO_CHANGE`.**
