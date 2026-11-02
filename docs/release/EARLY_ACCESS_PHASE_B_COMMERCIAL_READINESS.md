@@ -1,83 +1,146 @@
-# Early Access — Faza B: komercijalna spremnost (B1–B4)
+# Early Access — Faza B: komercijalna spremnost
 
-**Grana:** `feature/early-access-commercial` (od `main` = `aaea99a4`), izolovana od Faze A (PR #66) i od Word grane.
-**Status:** `BLOCKED_WITH_EVIDENCE`. Svaka izmena koda ili sajta zavisi od odluka i podataka osnivača koji ne postoje u repozitorijumu (v. „Odluke osnivača“). Ovaj PR sadrži samo dokumentaciju.
-**Oznake:** PROVEN = pročitan kod ili fajl; INFERRED = zaključak; ASSUMED = pretpostavka; UNKNOWN = nije vidljivo odavde.
+**Grana:** `feature/early-access-commercial` (od `main` = `aaea99a4`). Izolovana je od Faze A (PR #66) i od Word grane.
 
-## B1. Sajt — tekst za Early Access
+**Status:**
 
-| Tvrdnja | Status |
+| Deo | Status |
 |---|---|
-| Ugovor odobrava „Existing Early Access text supplied by founder“, ali sam tekst nije priložen. Nema ga ni u repozitorijumu ni na Google Drive-u (pretraga po „Early Access“, „rani pristup“, „29 EUR“, „69 EUR“, „Isprobajte Vindex“). | PROVEN (pretraga) |
-| Sajt (`site/_izvor`, generator `scripts/gradi_sajt.py`) danas ima jedan poziv na akciju: „Prijavi se za rani pristup“ → `/beta`. Samostalna registracija je opisana tek na dnu `/beta`. | PROVEN |
-| Tekst na `/beta` je tačan: „Prijava je zahtev… sama prijava ne otvara nalog“, „Automatska potvrda se ne šalje e-poštom“, „nov nalog dobija ograničen broj kredita“. Ne obećava aktivaciju ni plaćenu uslugu. | PROVEN |
-| Javni sajt nigde ne prikazuje cene. | PROVEN (`git grep`) |
+| B1 | `B1_READY_FOR_FOUNDER_REVIEW` |
+| B2 | `B2_DECISIONS_PENDING` |
+| B3 | `B3_LEGAL_AND_OPERATIONAL_READINESS_PENDING` |
 
-**Odluka:** tekst se ne piše samostalno („do not independently rewrite approved marketing statements“). Dva poziva na akciju, „Isprobajte Vindex“ (`/app`, registracija) i „Zatražite pristup za kancelariju“ (`/beta`, postojeći zahtev), uvode se tek uz dostavljen tekst. To je jedan commit u `site/_izvor` + `gradi_sajt.py` (konstanta `CTA`) + test u `tests/test_website_premium_pozicioniranje.py`.
+**Oznake:** PROVEN = pročitan kod ili fajl, ili izmereno testom; INFERRED = zaključak; ASSUMED = pretpostavka; UNKNOWN = nije vidljivo odavde.
 
-## B2. Cene i prava — pregled doslednosti
+Sajt je **kandidat za izdanje, ne odobrenje za javnu kampanju.** Registracija i dalje ne traži potvrdu email-a; v. `FINAL_PHASE_A_RELEASE_GATE.md` §5 i §9 na PR #66.
 
-**Kanonski izvor:** `tier_config` (migracija 068), keš `shared/tier_config.py`, javni `GET /api/plan/info`. Izmena ide preko Admin konzole (`PATCH /api/admin/tier-config/{tier}`) i beleži se u `tier_config_audit` (upis je fail-soft: neuspeh se samo loguje, `routers/admin_dashboard.py:635`). PROVEN.
+---
 
-| Stavka | Stanje u kodu (seed 068 / fallback) | Odobreno | Doslednost |
-|---|---|---|---|
-| Basic mesečno | 29 € | 29 € | ✓ |
-| Professional mesečno | **79 €** (seed + `_FALLBACK` u `shared/tier_config.py:34`) | **69 €** | ✗ potrebna izmena u Admin konzoli; produkcijska vrednost UNKNOWN |
-| Professional godišnje | 758,40 € (= 79 × 12 × 0,8) | ne menja se bez posebnog odobrenja | ⚠ uz 69 €/mes aplikacija sama prikazuje „uštedite **8 %**“ umesto 20 % (`static/vindex.js:8366-8368`) |
-| Basic godišnje | 278,40 € (20 %) | ne menja se | ✓ |
-| Enterprise | 249 €/mes, 3 mesta, 49 €/dodatno mesto; **cena se prikazuje** u aplikaciji | „Team/Enterprise: individualna ponuda“; Enterprise cene se ne menjaju | ⚠ prikaz 249 € je u sukobu sa „individualna ponuda“; promena prikaza = odluka |
-| Uključena mesta | Basic 1, Professional 1 | — | ✓ |
-| **Uključeni AI fond** | **Ne postoji mehanizam.** Krediti se dodeljuju jednom (15 na registraciji). Nema mesečnog punjenja po tarifi. Konstante 200/600 „mesečnih pitanja“ (`shared/deps.py:62-63`) žive samo u `require_credits`, koja ima **0 pozivalaca**. | „pretplata sa uključenim AI fondom“ | ✗ **materijalno**: plaćeni Basic/Professional bi danas dobio 15 kredita ukupno |
-| Naplata | Aplikacija: dugme „Aktivirajte X →“ šalje email (`pricing_kontakt`, mailto + `PRICING_INTEREST` povratna informacija). Nema checkout-a ni automatske obnove. | bez automatske naplate | ✓ PROVEN |
-| Istek pretplate | `effective_tier()` vraća `basic` posle `subscription_expires_at` (`shared/permissions.py:91-96`); CRUD i podaci ostaju | — | ✓ PROVEN, bez brisanja podataka |
-| Stavke na karticama u aplikaciji | `_PT_BULLETS` su ručni tekst (npr. „Tim od 6 AI agenata“, „SEF e-faktura“), nisu izvedeni iz registra | — | UNKNOWN da li se poklapaju sa `minimum_plan` u produkcijskom registru |
+## B1. Tekst ranog pristupa — ZAVRŠENO
 
-**Minimalni redosled (odluke osnivača, bez koda):**
-1. Odluka o godišnjoj ceni Professional: zadržati 758,40 (8 %) ili posebno odobriti 662,40 (20 %).
-2. Odluka o uključenom AI fondu: broj kredita mesečno po tarifi i mehanizam dodele.
-3. Tek tada izmena Professional 79 → 69 u Admin konzoli. Za doslednost fallback-a u istom PR-u ide `_FALLBACK` 79 → 69 i test koji upoređuje fallback sa očekivanim cenama.
+**Izvor i gradnja:**
+- Izvor: `site/_izvor/beta.html`.
+- Generator: `scripts/gradi_sajt.py`. Generisani `site/*.html` čuvaju se u git-u, a `--provera` meri usklađenost.
+- Stil: `site/sajt.css`, dodata su tri pravila.
 
-## B3. Ručno B2B fakturisanje — spremnost
+**Šta je urađeno (PROVEN, testovi):**
+- **Tekst osnivača je doslovan.** Svaki blok je tačan tekst jednog elementa, istim redom i sa istim nivoom naslova (`#`/`##`/`###` → h1/h2/h3). Podebljani delovi su `<strong>`.
+- **U odeljcima teksta nema nijedne neodobrene reči.** Pored odobrenog teksta stoje samo oznake dva dugmeta, a i one su iz ugovora osnivača.
+- **Dva puta vode na postojeće tokove:**
+  - **„Isprobajte Vindex“ → `/app#register`.** Klasični `/app` otvara modal u režimu registracije (`static/vindex.js:8570`). V2 `/app` isti hash prosleđuje na `/app-legacy#register` (`frontend-v2-ng/src/runtime.js:46-48`). `POST /api/register` traži samo `email` i `password`.
+  - **„Zatražite pristup za kancelariju“ → `#zahtev`.** To je postojeća forma na istoj stranici (`POST /waitlist/prijava`, `site/sajt.js`). Forma, njena napomena o privatnosti (`/privacy#beta-prijava`) i poruke ishoda su nepromenjene.
+- **Uklonjeno sa `/beta`:** stari naslov „Prijavi se za rani pristup Vindexu.“, uvod o „kontrolisanom beta testiranju“, kartice „Šta dobijate“ i odeljak „Već imate nalog“.
+  - Rečenica „Ovo je beta: moguće je naići na greške“ je uklonjena. Materijalni uslov ostaje pokriven odobrenom rečenicom „pravne zaključke, rokove i dokumente proverava advokat“, kao i Uslovima korišćenja. **Osnivač može tražiti da se vrati.**
+- **Svesno NIJE menjano:** zajednički poziv „Prijavi se za rani pristup“ (zaglavlje i druge stranice, → `/beta`). Nova oznaka bila bi samostalno pisan tekst. Ako osnivač želi drugu oznaku, to je jedna konstanta (`CTA` u `gradi_sajt.py`).
+- **Nema obećanja ni plaćanja:** nigde se ne pominje neograničen pristup, mesečno punjenje kredita, automatsko odobrenje, cena ili valuta. Na sajtu nema kartice ni automatske naplate (test).
+
+**Dokazi:**
+
+| Provera | Rezultat |
+|---|---|
+| `tests/test_website_rani_pristup_b1.py` + `test_website_public` + `test_website_v3_rast` + `test_website_premium_pozicioniranje` + `test_website_v2_remediacija` | 359 passed |
+| Mutacije (binarno vraćanje): reč u tekstu, dodata rečenica, dugme na `/app`, h2 → p, bez podebljanja, obećanje mesečnog obnavljanja, forma van `#zahtev` | **7/7 ubijeno** |
+| `frontend-v2-ng/tests/site-e2e.mjs` (Chromium, stvaran `api.py`, svih 6 stranica × 6 širina) + B1 provere na 390 i 1440 | **326/326 PASS** |
+
+B1 provere u Playwright-u:
+- obe kartice su vidljive: u istom redu na 1440, jedna ispod druge na 390;
+- dugmad su visoka ≥ 40 px i nema preliva;
+- klik na „Zatražite…“ dovodi formu u vidno polje;
+- klik na „Isprobajte Vindex“ otvara modal u režimu Registracija, sa poljima ime, e-pošta i lozinka;
+- ništa nije poslato, a `/beta` nema spoljnih zahteva.
+
+---
+
+## B2. Komercijalne odluke — ČEKAJU OSNIVAČA
+
+**Kanonski izvor cena:** `tier_config` (migracija 068), javno preko `GET /api/plan/info`. Kartice u aplikaciji se crtaju iz tog odgovora (`static/vindex.js:8340-8395`). Izmena ide preko Admin konzole i beleži se u `tier_config_audit` (upis je fail-soft). Javni sajt ne prikazuje cene. PROVEN.
+
+### Godišnja cena Professional
+
+Seed 068 je mesečno 79 € i godišnje 758,40 € (= 79 × 12 × 0,8, tj. 20 %). Ušteda se **ne tvrdi fiksno** nigde: aplikacija je računa kao `round((1 − godišnje/12 / mesečno) × 100)` (`static/vindex.js:8366-8368`, PROVEN `git grep`).
+
+Opcije posle odobrenih 69 €/mes (12 × 69 = 828,00 €):
+
+| Opcija | Godišnje | Mesečni ekvivalent | Ušteda | Aplikacija prikazuje | Posledica |
+|---|---:|---:|---:|---|---|
+| A. Ne menjati godišnju | 758,40 € | 63,20 € | 69,60 € (8,41 %) | „uštedite **8 %**“ | Nije potrebno novo odobrenje. Prikaz je tačan, ali godišnji popust je drugačiji nego za Basic (20 %). |
+| B. Isti popust kao Basic (20 %) | 662,40 € | 55,20 € | 165,60 € (20,00 %) | „uštedite **20 %**“ | **Traži odobrenje osnivača.** U odnosu na A, 96,00 € manje po godišnjem korisniku. |
+| C. Godišnju ne prikazivati dok se ne odluči (`yearly_price_eur = NULL`) | — | — | — | samo mesečna | I ovo je izmena godišnje ponude u podacima, pa traži odobrenje. Godišnja naplata ionako ne postoji. |
+
+Basic je dosledan: 278,40 € = 29 × 12 × 0,8 (20 %).
+
+**Redosled:**
+1. Osnivač bira A, B ili C.
+2. Tek tada se u Admin konzoli menja Professional 79 → 69.
+3. U istom PR-u `_FALLBACK` (`shared/tier_config.py:34`) postaje 69, uz test koji poredi fallback i odobrene cene.
+
+Produkcijske vrednosti `tier_config` su UNKNOWN; mogle su biti menjane kroz konzolu.
+
+### Mesečni AI fond — predlog mehanizma (nije implementiran)
+
+**Stanje (PROVEN):**
+- Krediti se dodeljuju **jednom**: 15, trigger `on_auth_user_created_credits`.
+- Ne postoji mesečno punjenje ni dodela po tarifi.
+- Konstante `BASIC_MESECNI_KREDITI = 200` / `PRO_MESECNI_KREDITI = 600` (`shared/deps.py:62-63`, `api.py:357-358`) koristi samo `require_credits`, koja ima **0 pozivalaca**. Ne smatraju se pravima i ovde se ne predlažu kao vrednosti.
+
+**Najmanji revidiran mehanizam, samo od postojećih delova:**
+
+| Element | Postojeći deo | Novo |
+|---|---|---|
+| Iznos po tarifi | `tier_config` (kanonski, revidiran kroz `tier_config_audit`) | jedna kolona `mesecni_ai_krediti INTEGER NULL`. NULL znači da nema dodele. **Iznos određuje osnivač.** |
+| Dodela | atomični `refund_n_credits(user, n)` (migracija 107), isti put kao povraćaj | founder-only `POST /api/admin/krediti/dodela {user_id, period, razlog}` (`_require_founder`, kao `routers/admin_dashboard.py:183`) |
+| Revizioni trag | `audit_immutable` (INSERT-only hash lanac, `shared/audit_immutable.log_action`) | jedan zapis po dodeli: ko, kome, koliko, period, razlog, stanje pre i posle |
+| Idempotentnost | — | ponovljena dodela za isti (`user_id`, `period`) se odbija. Zahteva jedinstven ključ: ili jedinstven indeks nad postojećom tabelom audita, ili mala tabela `krediti_dodele` (`UNIQUE(user_id, period)`). **Izbor ide uz dizajn-pregled; nova tabela samo ako se dokaže da audit tabela ne može.** |
+| Raspored | — | **Ručno, bez cron-a**, dok pravila nisu odobrena (non-goal: „no automatic user-credit replenishment“) |
+
+**Odluke osnivača:**
+1. Iznos po tarifi.
+2. Prenos neiskorišćenih kredita: dodavanje (prenos) ili dopuna do iznosa (bez prenosa). Dopuna traži novu atomičnu SQL funkciju „dopuni do N“.
+3. Ko i kada dodeljuje.
+
+### Enterprise
+
+**Kanonski prikaz danas (PROVEN, seed 068 i kod kartica):** u aplikaciji se prikazuje **249 €/mes**, „Godišnja pretplata — uštedite 20 %“ (2.390,40 €), „Uključeno: 3 korisnika · dodatno mesto 49 €/mes“ i dugme „Kontaktirajte nas →“ (mailto). Javni sajt ga ne prikazuje.
+
+**Odluka:** da li Enterprise ostaje sa javno prikazanom cenom od 249 € ili prelazi na „individualna ponuda“. Ugovor iz Faze B je naveo „Team/Enterprise: individualna ponuda“, ali to nije izričito odobreno kao izmena.
+- Ako je odgovor „individualna ponuda“: `monthly_price_eur = 0` prikazuje „Kontakt cena“ (`ptRenderCard`), ali tada MRR procena u `routers/product_intelligence.py:128` računa 0. To je posledica koju treba prihvatiti ili rešiti zasebno.
+- **Ništa nije menjano.**
+
+---
+
+## B3. Ručno B2B fakturisanje — PRAVNA I OPERATIVNA SPREMNOST ČEKA
 
 | Uslov | Nalaz | Status |
 |---|---|---|
-| Pravni identitet prodavca | `terms.html:44`: „Benjamin Nađ, osnivač Vindex AI“. To je **fizičko lice**, bez PIB-a i matičnog broja i bez registrovanog subjekta. | PROVEN (tekst) |
-| Može li fizičko lice da izdaje B2B fakture za SaaS | Verovatno ne bez registracije (preduzetnik ili d.o.o.). B2B fakture u Srbiji idu kroz SEF (e-fakture). | INFERRED, **traži knjigovođu ili pravnika** |
+| Pravni identitet prodavca | `terms.html:44`: „Benjamin Nađ, osnivač Vindex AI“, fizičko lice, bez PIB-a i matičnog broja | PROVEN (tekst) |
+| Izdavanje B2B faktura za SaaS | verovatno traži registrovan subjekat (preduzetnik ili d.o.o.) i SEF | INFERRED, **traži knjigovođu ili pravnika** |
 | Poreski tretman (PDV, paušal, prag) | — | UNKNOWN |
-| Sadržaj fakture | zavisi od subjekta i PDV statusa | UNKNOWN |
-| Ručna potvrda uplate | Nema rute. Uplata bi se proveravala van aplikacije. | PROVEN (nema koda) |
-| Ovlašćena aktivacija tarife | Nema admin rute za `profiles.subscription_type` / `subscription_expires_at` / `user_credits`. Menja se samo direktno u bazi. | PROVEN |
-| Revizioni trag svake promene prava | Postoji samo za `tier_config` (`tier_config_audit`) i registar. **Nema traga za dodelu tarife ili kredita korisniku.** | PROVEN |
-| Period i istek | `subscription_expires_at` + `effective_tier` | PROVEN |
-| Otkaz i neobnavljanje | `terms.html` §„Pretplata, plaćanje i raskid“: raskid bilo kada, pravo do isteka plaćenog perioda. Odeljak važi „tek kada se uvede plaćeno korišćenje“. | PROVEN |
-| Pristup podacima posle isteka | spuštanje na basic; podaci ostaju; AI zavisi od kredita | PROVEN |
-| Fakturisanje advokat → klijent kao zamena | `routers/billing.py` je modul advokata prema njegovim klijentima i nema granicu obračuna za Vindex SaaS. **Ne koristiti.** | INFERRED |
+| Obavezni sadržaj fakture | zavisi od subjekta i PDV statusa | UNKNOWN |
+| Ručna potvrda uplate | nema rute; uplata bi se proveravala van aplikacije | PROVEN |
+| Ovlašćena aktivacija tarife | nema admin rute za `profiles.subscription_type`/`subscription_expires_at`/`user_credits`; menja se samo u bazi | PROVEN |
+| Revizioni trag promene prava | postoji samo za `tier_config` i registar; **nema traga za tarifu ili kredite korisnika** | PROVEN |
+| Period i istek | `subscription_expires_at` + `effective_tier` (`shared/permissions.py:91-96`) | PROVEN |
+| Otkaz i neobnavljanje | `terms.html` §„Pretplata, plaćanje i raskid“ važi „tek kada se uvede plaćeno korišćenje“ | PROVEN |
+| Podaci posle isteka | spuštanje na basic; podaci ostaju; AI zavisi od kredita | PROVEN |
+| Fakturisanje advokat → klijent kao zamena | `routers/billing.py` je modul advokata prema klijentima, bez granice obračuna za Vindex SaaS. **Ne koristiti.** | INFERRED |
 
-**Minimalna ispravka pre prve fakture (posebno odobrenje, nije u ovom sprintu):**
-1. Registrovan subjekat, PDV status i SEF nalog.
-2. Founder-only ruta „dodeli tarifu / produži / dodeli kredite“ sa upisom u revizioni trag. Mora koristiti postojeće `profiles` kolone i `deduct/refund` primitive (migracija 107); bez nove tabele prava.
-3. Ažurirani `terms.html`: aktiviranje odeljka o naplati i identitet prodavca.
+**Pre prve fakture (posebno odobrenje, ne u ovom sprintu):**
+1. Registrovan subjekat, PDV status i SEF.
+2. Founder-only ruta „dodeli ili produži tarifu“ sa zapisom u `audit_immutable`, po istom obrascu kao dodela kredita gore. Bez nove tabele prava.
+3. Ažurirani `terms.html`: identitet prodavca i aktiviranje odeljka o naplati.
 
-## B4. Prihvatanje — plan testova (za commit koji sledi posle odluka)
+---
+
+## B4. Prihvatanje — preostali testovi (posle odluka B2)
 
 | Kriterijum | Test |
 |---|---|
-| jedna prikazana cena | `/api/plan/info` == kartice u aplikaciji == sajt (ako se cena objavi); fallback == odobrene cene |
-| API i frontend prava dosledni | `_PT_BULLETS` stavke ↔ `minimum_plan` u registru |
-| bez neovlašćenog Professional pristupa | `PermissionService` nad basic nalogom → 403 za `strategija` i ostale professional funkcije (postojeći testovi + nov) |
+| jedna prikazana cena | `/api/plan/info` == kartice u aplikaciji; fallback == odobrene cene |
+| API i frontend prava dosledni | `_PT_BULLETS` ↔ `minimum_plan` u registru |
+| bez neovlašćenog Professional pristupa | basic nalog → 403 na professional funkcijama |
 | bez brisanja podataka pri spuštanju | istekao `subscription_expires_at` → basic, CRUD radi |
-| bez automatskog plaćanja | nema checkout/stripe/auto-renew niza u `site/`, `static/`, `frontend-v2-ng/` |
-| istinite poruke | zabranjeni nizovi „automatska potvrda“, „odmah aktivno“ na sajtu |
-| bez starog beta teksta | postojeći `test_website_premium_pozicioniranje.py` + nova lista |
-| bez slanja produkcione forme | testovi presreću `/api/waitlist` |
-| determinističan generator | `gradi_sajt.py` dvaput → isti bajtovi |
-| desktop/mobilni | Playwright 1440/390 |
-
-## Odluke osnivača
-
-1. **Dostaviti odobreni Early Access tekst** (doslovno) i potvrditi oznake dugmadi „Isprobajte Vindex“ / „Zatražite pristup za kancelariju“.
-2. Godišnja cena Professional uz 69 €/mes (8 % ili posebno odobrenih 20 %).
-3. Uključeni AI fond po tarifi (broj kredita mesečno) i način dodele (ručno uz revizioni trag ili automatski).
-4. Da li Enterprise u aplikaciji i dalje prikazuje 249 € ili „individualna ponuda“.
-5. Pravni subjekat i poreski status pre prve B2B fakture (knjigovođa).
-6. Promena Professional 79 → 69 u Admin konzoli, posle tačaka 2 i 3.
+| bez automatskog plaćanja | ✓ B1 (`test_sajt_nema_placanja_ni_automatske_naplate`) |
+| istinite poruke ranog pristupa | ✓ B1 |
+| bez slanja produkcione forme | ✓ B1 (Playwright presreće `/waitlist/prijava` i `/api/register`) |
+| determinističan generator | ✓ B1 |
+| desktop i mobilni | ✓ B1 (326/326) |
