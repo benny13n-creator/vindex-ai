@@ -40,29 +40,38 @@ TEST_DB_BOOTSTRAP = ROOT / "scripts" / "test_db.py"
 
 @pytest.fixture(scope="module")
 def pg_admin_dsn():
-    """Accept only an explicitly configured DB proven test-only by the repo gate."""
-    dsn = os.environ.get("VINDEX_TEST_PG_DSN")
-    if not dsn:
-        pytest.skip("set VINDEX_TEST_PG_DSN to a verified disposable local PostgreSQL cluster")
-    if not os.environ.get("VINDEX_TEST_PG_PORTS"):
-        pytest.skip("set VINDEX_TEST_PG_PORTS so the disposable cluster port can be verified")
-    try:
-        checked = subprocess.run(
-            [sys.executable, str(TEST_DB_BOOTSTRAP), "verify", "--dsn", dsn],
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
-            env=os.environ.copy(),
-        )
-    except Exception:
-        pytest.skip("the local PostgreSQL safety verifier could not run")
-    if checked.returncode != 0:
-        pytest.skip("VINDEX_TEST_PG_DSN did not pass the local PostgreSQL safety verifier")
-    info = psycopg.conninfo.conninfo_to_dict(dsn)
-    if info.get("dbname") != "postgres":
-        pytest.skip("VINDEX_TEST_PG_DSN must target the isolated cluster admin database postgres")
-    return dsn
+    """Use the explicit test DSN or canonical loopback ports, then prove test-only."""
+    configured = os.environ.get("VINDEX_TEST_PG_DSN")
+    if configured:
+        candidates = [configured]
+    else:
+        configured_ports = [
+            port.strip()
+            for port in os.environ.get("VINDEX_TEST_PG_PORTS", "").split(",")
+            if port.strip().isdigit()
+        ]
+        ports = list(dict.fromkeys(configured_ports + ["55433", "55432"]))
+        candidates = [
+            f"host=127.0.0.1 port={port} user=postgres dbname=postgres"
+            for port in ports
+        ]
+    for dsn in candidates:
+        try:
+            checked = subprocess.run(
+                [sys.executable, str(TEST_DB_BOOTSTRAP), "verify", "--dsn", dsn],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+                env=os.environ.copy(),
+            )
+        except Exception:
+            continue
+        if checked.returncode == 0:
+            info = psycopg.conninfo.conninfo_to_dict(dsn)
+            if info.get("dbname") == "postgres":
+                return dsn
+    pytest.skip("no local PostgreSQL cluster passed scripts/test_db.py verify")
 
 
 @pytest.fixture(scope="module")
