@@ -99,6 +99,30 @@ async def _cleanup_ai_forensics() -> dict:
     return await _delete_older_than("ai_forensics", "started_at", cutoff)
 
 
+async def _cleanup_word_sessions() -> dict:
+    """Delete Word-session rows only after their original expiry.
+
+    Revoked sessions remain until expiry so the registry retains its approved
+    lifecycle semantics. The daily cron reports failures like every other
+    retention step; a missing table or database outage is never reported as a
+    successful cleanup.
+    """
+    import asyncio
+    from shared.deps import _get_supa
+
+    cutoff = datetime.now(timezone.utc).isoformat()
+    try:
+        result = await asyncio.to_thread(
+            lambda: _get_supa().table("word_sessions").delete().lt("expires_at", cutoff).execute()
+        )
+        deleted = len(result.data or [])
+        logger.info("[RETENTION] word_sessions: deleted %d expired rows", deleted)
+        return {"status": "ok", "obrisano": deleted, "cutoff": cutoff}
+    except Exception as exc:
+        logger.error("[RETENTION] word_sessions cleanup failed error=%s", type(exc).__name__)
+        return {"status": "greska", "greska": type(exc).__name__, "cutoff": cutoff}
+
+
 async def _cleanup_pinecone_tmp_buffers() -> dict:
     """Poziva postojeći uploaded_doc/cleanup.py::cleanup_expired() -- do sada
     pokretan samo oportunistički (na leđima novog upload-a), ovde postaje
@@ -140,6 +164,9 @@ async def execute_retention_cleanup() -> dict:
 
     rezultati["ai_forensics"] = await _cleanup_ai_forensics()
     ukupno_obrisano += rezultati["ai_forensics"].get("obrisano", 0)
+
+    rezultati["word_sessions"] = await _cleanup_word_sessions()
+    ukupno_obrisano += rezultati["word_sessions"].get("obrisano", 0)
 
     rezultati["pinecone_tmp_buffers"] = await _cleanup_pinecone_tmp_buffers()
     ukupno_obrisano += rezultati["pinecone_tmp_buffers"].get("namespaces_deleted", 0)

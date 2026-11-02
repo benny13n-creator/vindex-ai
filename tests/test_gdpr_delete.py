@@ -123,7 +123,7 @@ def fake_supa(monkeypatch, fake_user):
 
 
 # Tabele koje SME da dodirne. Sve ostalo je regresija.
-_ALLOWED_TABLES = {"profiles", "korisnik_email_notif"}
+_ALLOWED_TABLES = {"profiles", "korisnik_email_notif", "word_sessions"}
 
 # Tabele koje predstavljaju stvarne poslovne/pravne podatke klijenta —
 # ako se ijedna od ovih pojavi u .calls, dokumentacija laže.
@@ -183,6 +183,14 @@ class TestGdprAccountDeleteAnonymizesOnly:
         # Nijedan DELETE poziv na profiles — ovo je anonimizacija, ne hard delete reda.
         profile_deletes = [c for c in fake_supa.calls if c["table"] == "profiles" and c["op"] == "delete"]
         assert not profile_deletes, "profiles red se anonimizuje (UPDATE), ne briše (DELETE)."
+
+    def test_revokes_word_sessions_before_profile_anonymization(self, client, fake_supa):
+        _delete_account(client, "10.0.0.12")
+        tables_in_order = [call["table"] for call in fake_supa.calls]
+        assert tables_in_order.index("word_sessions") < tables_in_order.index("profiles")
+        revoke = next(call for call in fake_supa.calls if call["table"] == "word_sessions")
+        assert revoke["op"] == "update"
+        assert revoke["data"].get("revoked_at")
 
     def test_founder_account_cannot_be_deleted_via_api(self, client, monkeypatch):
         """Postojeća zaštita: FOUNDER_EMAILS ne mogu obrisati nalog preko API-ja."""
@@ -267,3 +275,21 @@ class TestGdprDeleteMoraDokazatiBrisanje:
         r = _delete_account(client, "10.0.0.11")
         assert r.status_code == 200
         assert "anonimizovan" in r.text
+
+    def test_word_session_revocation_failure_stops_account_erasure(self, client, fake_supa, monkeypatch):
+        import routers.gdpr as gdpr
+
+        class _BrokenWordSessionSupa(_FakeSupa):
+            def table(self, name):
+                query = _FakeQuery(self, name)
+                if name == "word_sessions":
+                    def fail():
+                        raise RuntimeError("session store unavailable")
+                    query.execute = fail
+                return query
+
+        supa = _BrokenWordSessionSupa()
+        monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
+        r = _delete_account(client, "10.0.0.13")
+        assert r.status_code == 503, r.text
+        assert supa.tables_touched == {"word_sessions"}

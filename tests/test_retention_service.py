@@ -5,7 +5,7 @@ SEC-002 — Data Retention & GDPR/ZZPL Cleanup tests.
 Verifies services/retention_service.py::execute_retention_cleanup() deletes
 rows older than the documented retention window and keeps newer rows, for
 each of the 3 tables (security_events, user_daily_activity, ai_forensics)
-plus the Pinecone tmp_* buffer cleanup call. Also locks in that the 2
+plus the expired Word-session registry rows and Pinecone tmp_* buffer cleanup call. Also locks in that the 2
 confirmed-dead tables (usage_events, response_audit) are never touched.
 """
 import os
@@ -153,6 +153,35 @@ class TestIndividualCleanupFunctions:
             result = await _cleanup_ai_forensics()
         assert result["obrisano"] == 0
         assert len(fake_store["ai_forensics"]) == 1
+
+    @pytest.mark.anyio
+    async def test_word_session_cleanup_deletes_only_expired_rows(self):
+        from services.retention_service import _cleanup_word_sessions
+
+        store = {"word_sessions": [
+            {"id": "ws-expired", "expires_at": _iso_days_ago(2)},
+            {"id": "ws-revoked-but-live", "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()},
+        ]}
+        with patch("shared.deps._get_supa", return_value=_FakeSupa(store)):
+            result = await _cleanup_word_sessions()
+
+        assert result["status"] == "ok"
+        assert result["obrisano"] == 1
+        assert {row["id"] for row in store["word_sessions"]} == {"ws-revoked-but-live"}
+
+    @pytest.mark.anyio
+    async def test_word_session_cleanup_failure_is_reported(self):
+        from services.retention_service import _cleanup_word_sessions
+
+        class _BrokenSupa:
+            def table(self, _name):
+                raise RuntimeError("database unavailable")
+
+        with patch("shared.deps._get_supa", return_value=_BrokenSupa()):
+            result = await _cleanup_word_sessions()
+
+        assert result["status"] == "greska"
+        assert result["greska"] == "RuntimeError"
 
     @pytest.mark.anyio
     async def test_pinecone_cleanup_calls_existing_function(self):

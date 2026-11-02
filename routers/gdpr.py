@@ -229,6 +229,13 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
         # `profiles` je OBAVEZAN: bez njega email i ime ostaju u bazi.
         # `korisnik_email_notif` je dopuna (gasi obavestenja) -- njegov pad ne
         # obara brisanje, ali se glasno belezi.
+        # Word pane sessions are separate from the user's web login. Revoke
+        # every live Word session before anonymizing the account so a failed
+        # session-store write cannot be reported as a completed erasure.
+        supa.table("word_sessions").update({
+            "revoked_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("user_id", uid).is_("revoked_at", "null").execute()
+
         res = supa.table("profiles").update({
             "email":     anon_email,
             "full_name": "Obrisani korisnik",
