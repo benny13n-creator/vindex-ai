@@ -82,9 +82,9 @@ Izloženost jednog naloga je zbir (dnevni limit × granica operacije) po svim fu
 
 | Slučaj | Ishod | Status |
 |---|---|---|
-| Multiplikator > 1 | Rezerviše se osnovna cena. Razlika se namiruje posle poziva. Nalog koji nema razliku dobija 402 **posle** izvršenog rada, pa razlika ostaje neplaćena. **Kada je puna cena poznata pre poziva, ovo je kvar** (v. Dodatak). | PROVEN (reproduktor) |
+| Multiplikator > 1 | **Ispravljeno:** puna poznata cena (ili izjavljena gornja granica) rezerviše se pre prvog poziva; nalog bez nje dobija 402 sa 0 poziva (v. Dodatak). | PROVEN (testovi + PostgreSQL) |
 | Ruta pukne posle uspešnog AI poziva | Nenamirena rezervacija se vraća, a provajder je rad naplatio. Isto ponašanje kao na `main`. | PROVEN (kod `zatvori`) |
-| Timeout ili prekid veze (nepoznat ishod) | Rezervacija se zadržava, uz log `[AI_BUDZET_RECONCILE]`. | PROVEN (test) |
+| Timeout ili prekid veze (nepoznat ishod) | Zadržava se osnovna cena (krediti × 1), uz log `[AI_BUDZET_RECONCILE]`; ostatak pune rezervacije se vraća. | PROVEN (test) |
 | Definitivna greška provajdera (`APIStatusError`) | Rezervacija se vraća. OpenAI obično ne naplaćuje odbijen zahtev. | PROVEN (kod) / naplata INFERRED |
 | Funkcije sa 0 kredita | Neplaćene po dizajnu (odluka o ceni). | PROVEN |
 
@@ -175,37 +175,70 @@ Do tada nema javne registracije za mase. Early Access ide kroz postojeći zahtev
 
 ## Dodatak (2026-11-02): multiplikator poznat pre poziva i dnevni limit
 
-### Multiplikator — kvar je PROVEN
+### Multiplikator — kvar ISPRAVLJEN (P0, 2026-11-02)
 
-**Ugovor osnivača:** ako je puna cena (krediti × `credit_multiplier`) poznata pre poziva provajdera, nalog bez pune cene ne sme da pokrene plaćen poziv.
+**Invarijanta:** kada je puna ovlašćena cena poznata pre prvog poziva provajdera, cela cena se atomično rezerviše pre tog poziva.
 
-**Reproduktor:** `tests/test_ai_cost_protection.py::test_multiplikator_*`. Test ruta `/x3` ima registar krediti 1 × multiplikator 3, a ruta naplaćuje podrazumevani multiplikator iz registra. To je isti obrazac kao `routers/strategija.py` kompletna analiza (1 × 6, 8 GPT-4o poziva).
+**Pre ispravke (PROVEN, `ab60623c`):**
 
-| Slučaj | Očekivano | Izmereno |
-|---|---|---|
-| stanje 1, cena 3 | 402, 0 poziva, stanje 1 | 402 **posle 1 poziva**, stanje 0 (1 kredit naplaćen bez rezultata) |
-| stanje 2, cena 3 | 402, 0 poziva, stanje 2 | 402 **posle 1 poziva**, stanje 1 |
-| stanje 3, dva paralelna zahteva | jedan 200 i jedan 402, 1 poziv, stanje 0 | **oba 402**, 2 poziva, stanje 1 (nijedan rezultat, 2 kredita naplaćena) |
+| Slučaj | Izmereno |
+|---|---|
+| stanje 1, cena 3 | 402 posle 1 poziva, stanje 0 |
+| stanje 2, cena 3 | 402 posle 1 poziva, stanje 1 |
+| stanje 3, dva paralelna zahteva | oba 402, 2 poziva, stanje 1 |
 
-Testovi su označeni `xfail(strict=True)`: CI ostaje zelen, a oznaka se mora ukloniti čim ispravka stigne.
+**Ispravka.** Koristi samo postojeću rezervaciju i namirenje; nema novog obračunskog sistema ni migracije.
 
-**Uzrok:** `UsageService.rezervisi_za_operaciju` rezerviše `krediti × 1`, a razliku do pune cene naplaćuje tek `consume()` posle poziva (`shared/usage.py`, namirenje). Kompletna analiza ima i sopstvenu pre-flight proveru bilansa (`routers/strategija.py`, `_CENA_KOMPLETNE = 6`). Ta provera nije atomična i propušta pri grešci čitanja, pa ne zatvara slučaj iz trećeg reda.
+1. `UsageService.rezervisi_za_operaciju` rezerviše **krediti × multiplikator**, istom formulom kao `consume()`. Multiplikator je onaj koji je ruta izjavila, a inače `credit_multiplier` iz registra. Kredite oduzima i dalje atomični `deduct_n_credits` (migracija 107), a upotrebu broji atomični `increment_feature_usage` (migracija 108).
+2. Novo: `ai_budget.ocekivani_multiplikator(n)`. Ruta njime izjavljuje svoju cenu PRE prvog poziva. Izjava posle rezervacije se ignoriše i beleži kao greška rute.
 
-**Najmanja ispravka (preporuka, nije primenjena):** samo postojeća rezervacija i namirenje, bez drugog obračunskog sistema.
-1. `rezervisi_za_operaciju` rezerviše **punu poznatu cenu**: `krediti × multiplikator`. Multiplikator je podrazumevano iz registra (`credit_multiplier`), isto kao u `consume()`.
-2. Ruta koja naplaćuje drugačiji multiplikator to izjavljuje PRE prvog AI poziva, novom funkcijom `ai_budget.ocekivani_multiplikator(n)`, koja samo postavlja polje operacije dok rezervacija nije napravljena:
-   - `routers/strategija.py`: 7 ruta sa `multiplier=1`;
-   - `routers/digital_twin.py`: `multiplier=1`;
-   - simulator strategije: `multiplier=1`;
-   - `routers/multi_agent.py`: gornja granica = broj traženih agenata. Višak vraća postojeće namirenje (razlika može biti negativna).
-3. Namirenje ostaje kakvo jeste: kada je rezervacija jednaka punoj ceni, razlika je 0 i nema naplate posle poziva.
-4. Pre-flight provera u kompletnoj analizi postaje suvišna i može ostati kao poruka korisniku.
+   | Ruta | Izjava | Zašto |
+   |---|---|---|
+   | `routers/strategija.py`: red-team, litigation, sudija, due-diligence, revizor, witness, sudija-v2, v2/analiza (8) | `1` | jedan modul = bazna cena (`consume(multiplier=1)`), ne registarskih ×6 |
+   | `routers/strategija.py`: kompletna-analiza | — | registar ×6 je stvarna cena: rezerviše se 6 |
+   | `routers/digital_twin.py`: šta-ako | `1` | `consume(multiplier=1)`; simulacija ostaje registar ×3 |
+   | `routers/strategy_simulator.py`: sledeći potez | `1` | `consume(multiplier=1)`; nova partija ostaje registar ×2 |
+   | `routers/multi_agent.py`: run-parallel | broj izabranih savetnika | gornja granica; naplata = isporučeni odgovori |
+   | `routers/multi_agent.py`: pipeline | broj koraka | gornja granica; svaki korak (`run_agent` → `consume`) naplaćuje iz iste rezervacije |
+
+3. **Namirenje** (`_namiri_rezervaciju`) uzima naplatu IZ rezervacije, bez novog odbitka:
+   - prvi `consume()` iste funkcije ne broji upotrebu ponovo;
+   - svaki sledeći `consume()` u istoj operaciji broji upotrebu kao i ranije;
+   - samo deo cene iznad rezervacije se oduzima posle poziva, i to se beleži kao greška rute.
+4. **Kraj operacije** (`zatvori`) vraća neiskorišćen ostatak rezervacije kroz `refund_n_credits`. Nepoznat ishod bez ikakvog namirenja zadržava **samo osnovnu cenu** (krediti × 1), kao pre ispravke; ostatak se vraća.
 
 **Prihvatanje:**
-- tri reproduktora prolaze bez `xfail`;
-- `test_namirenje_multiplikatora…` prolazi (stanje 10 → 7);
-- 1-kreditne strategija rute i dalje prolaze sa stanjem 1 (nova regresija);
-- nova mutacija „rezervacija bez multiplikatora“ mora biti ubijena.
+
+| Slučaj | Pozivi provajdera | Stanje pre → posle | Upotreba | Test |
+|---|---:|---|---|---|
+| cena 3, stanje 1 | **0** | 1 → 1, 402 | 0 | `test_multiplikator_nedovoljno…[1]` + PG |
+| cena 3, stanje 2 | **0** | 2 → 2, 402 | 0 | `…[2]` + PG |
+| cena 3, stanje 3 | 1 | 3 → 0, 200 | 1 događaj, 3 kredita | `test_multiplikator_tacno…` + PG |
+| cena 3, dva paralelna, stanje 3 | 1 | 3 → 0, jedan 200 i jedan 402 | 1 | `test_multiplikator_dva_paralelna…` + PG |
+| 20 paralelnih rezervacija, cena 3, stanje 10 (stvarni SQL) | — | 10 → 1, 3 uspeha i 17 × NO_CREDITS | — | `test_pg_20_paralelnih_rezervacija_pune_cene` |
+| u trenutku prvog HTTP pokušaja | — | rezervacija već drži punu cenu (5 → 2) | — | `test_multiplikator_puna_cena_se_rezervise_pre_poziva` |
+| jedan modul ×1 nad funkcijom ×3, stanje 1 | 1 | 1 → 0, 200 | 1 kredit | `test_jedan_modul_multiplier_1…` |
+| ruta bez izjave koja naplati ×1, stanje 3 | 1 | 3 → 2; višak 2 vraćen jednom na kraju | 1 | `test_neizjavljen…` |
+| dinamički, granica 3, isporučeno 3/2/1/0, stanje 5 | 3 | 5 → 2/3/4/5 | naplata = isporučeno | `test_dinamicki…` + PG |
+| dinamički, stanje 2 < granica 3 | **0** | 2 → 2, 402 | 0 | `test_dinamicki_bez_gornje_granice…` |
+| niz, granica 3, 1/2/3 koraka, stanje 3 | 1/2/3 | 3 → 2/1/0 | jedna upotreba po koraku (kao ranije) | `test_niz_koraka…` + PG |
+| timeout (nepoznat ishod), cena 3, stanje 5 | 3 (SDK retry-ji) | 5 → 4: zadržana osnovna 1, vraćeno 2 | — | `test_nepoznat_ishod_zadrzava_samo_osnovnu_cenu` |
+| definitivna greška provajdera (500) | 3 | 5 → 5 | — | `test_definitivna_greska…` |
+| pre-deduct ruta, 0 kredita, 20 paralelnih, dupli zahtev | nepromenjeno | nepromenjeno | nepromenjeno | postojeći testovi A6 |
+
+**Testovi i mutacije:**
+- `tests/test_ai_cost_protection.py`: **59/59**.
+- `tests/test_ai_cost_protection_postgres.py`: **11/11** nad PostgreSQL 17, sa doslovnim SQL-om migracija 107/108 i kroz ceo HTTP tok.
+- Mutacije: **16/16 ubijeno**: 11 ranijih (M5 prilagođen novom namirenju) i 5 novih (M12 rezervacija bez multiplikatora, M13 izjava bez dejstva, M14 ostatak se ne vraća, M15 nepoznat ishod zadržava sve, M16 prvo namirenje ponovo broji upotrebu).
+
+**Regresija:**
+- Ciljane naplatne i bezbednosne svite (38 fajlova, uključujući `test_strategija_routes`, `test_multi_agent`, `test_usage_multiplier`, `test_beta_gate_credit_race_postgres`, `test_wave9_*`, `test_phantom_ai_charges`): **795 passed**.
+- Svite koje dotiču `digital_twin`: **142 passed**.
+- Cela svita, zaključan redosled (`-p no:randomly`), bez `tests/e2e`, Python 3.13: **13.430 passed, 14 failed, 337 skipped**.
+  - Svih 14 padova postoji i na `main` `aaea99a4` (osnovni skup ima 25), a **novih padova nema**. Od toga su 2 `test_rc_cold_start` (provera commit izvora), a ostali su postojeći padovi okruženja.
+  - 11 padova koji postoje samo na `main` (`test_tier_config`, `test_business_groups`, `test_feature_type`, `test_product_intelligence`) ovde prolaze. Grana ne menja te module, pa je to razlika okruženja između dva merenja (INFERRED), ne zasluga ispravke.
+
+**Preostalo:** produkcijske vrednosti `credit_multiplier` mogle su biti menjane kroz Admin konzolu (UNKNOWN). Nova funkcija sa multiplikatorom većim od 1 i rutom koja naplaćuje ×1 bez izjave rezervisaće registarsku cenu. To je konzervativno: nalog bez te cene dobija 402 pre poziva, a višak se vraća. Ruta tada treba da dobije `ocekivani_multiplikator`.
 
 ### Dnevni limit `ai_osnovna_obrada` — opcije za izričitu odluku
 
@@ -221,5 +254,5 @@ Sa granicom operacije od $1 (§3), teorijski maksimum se deli sa 3. Hard limit p
 
 ## Klasifikacija
 
-- **Spremno za pregled:** PR #66 (kod, testovi, CI 11/11), migracija 146, ovaj izveštaj.
+- **Spremno za pregled:** PR #66 sa P0 ispravkom multiplikatora, migracija 146 i ovaj izveštaj.
 - **Nije spremno za produkciju** dok se ne završe akcije osnivača 1–3. Javna registracija ne treba da se otvara dok se ne završi akcija 4.

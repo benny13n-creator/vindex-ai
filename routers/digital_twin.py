@@ -39,6 +39,7 @@ from pydantic import BaseModel
 from shared.deps import _get_supa, get_current_user
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.ai_budget import ocekivani_multiplikator
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
@@ -425,6 +426,7 @@ async def sta_ako_analiza(
     'Sta ako' analiza — GPT-4o analizira uticaj hipoteze na predmet
     i racuna novu verovatnocu uspeha.
     """
+    ocekivani_multiplikator(1)  # naplata consume(multiplier=1), ne registarskih ×3 — rezerviše se PRE AI poziva
     uid   = user["user_id"]
     email = user.get("email", "")
     supa  = _get_supa()

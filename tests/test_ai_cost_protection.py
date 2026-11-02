@@ -368,6 +368,47 @@ def _napravi_app():
         await UsageService.consume(user["user_id"], user["email"], "t_ai_x3")
         return {"ok": True}
 
+    @app.post("/x3_modul")                   # ista funkcija (×3), ali jedan modul: consume(multiplier=1)
+    async def x3_modul(user=Depends(PermissionService.require("t_ai_x3"))):
+        ai_budget.ocekivani_multiplikator(1)
+        _zapamti()
+        await _chat()
+        await UsageService.consume(user["user_id"], user["email"], "t_ai_x3", multiplier=1)
+        return {"ok": True}
+
+    @app.post("/x3_neizjavljen")             # multiplier=1 bez izjave: rezerviše se registarska cena, višak se vraća
+    async def x3_neizjavljen(user=Depends(PermissionService.require("t_ai_x3"))):
+        _zapamti()
+        await _chat()
+        await UsageService.consume(user["user_id"], user["email"], "t_ai_x3", multiplier=1)
+        return {"ok": True}
+
+    @app.post("/savetnici")                  # dinamički: gornja granica 3, naplata po isporučenom (kao run_parallel)
+    async def savetnici(uspelo: int, user=Depends(PermissionService.require("t_ai_1"))):
+        ai_budget.ocekivani_multiplikator(3)
+        _zapamti()
+        await asyncio.gather(_chat(), _chat(), _chat())
+        if uspelo:
+            await UsageService.consume(user["user_id"], user["email"], "t_ai_1", multiplier=uspelo)
+        return {"ok": True}
+
+    @app.post("/niz")                        # pipeline: gornja granica 3, svaki korak consume(×1) posle svog poziva
+    async def niz(koraka: int, user=Depends(PermissionService.require("t_ai_1"))):
+        ai_budget.ocekivani_multiplikator(3)
+        _zapamti()
+        for _ in range(koraka):
+            await _chat()
+            await UsageService.consume(user["user_id"], user["email"], "t_ai_1")
+        return {"ok": True}
+
+    @app.post("/kasna_izjava")               # izjava POSLE prvog poziva: ignoriše se, beleži se
+    async def kasna_izjava(user=Depends(PermissionService.require("t_ai_x3"))):
+        _zapamti()
+        await _chat()
+        ai_budget.ocekivani_multiplikator(1)
+        await UsageService.consume(user["user_id"], user["email"], "t_ai_x3")
+        return {"ok": True}
+
     @app.post("/ugnezdeno")                  # tri podpoziva iste operacije, paralelno
     async def ugnezdeno(user=Depends(PermissionService.require("t_ai"))):
         _zapamti()
@@ -917,13 +958,9 @@ def test_brojac_se_obnavlja_ako_ga_je_neko_skinuo(svet):
 # `/x3` = registar krediti 1 × credit_multiplier 3, ruta naplaćuje podrazumevani
 # multiplikator iz registra (isti obrazac kao `routers/strategija.py` kompletna analiza: 1 × 6).
 
-_XFAIL_MULT = pytest.mark.xfail(strict=True, reason=(
-    "PROVEN kvar (release gate 2026-11-02): rezervacija uzima samo krediti × 1, pa nalog bez pune cene "
-    "pokrene plaćen poziv i dobije 402 tek pri namirenju. Ispravka čeka odobrenje; strict=True obara ovaj "
-    "test čim ispravka stigne, pa se oznaka tada uklanja."))
+# P0 ispravka (2026-11-02): rezervacija uzima PUNU cenu pre prvog poziva; ovi testovi su bili
+# xfail(strict) reproduktori kvara i sada moraju da prođu bez ikakve oznake.
 
-
-@_XFAIL_MULT
 @pytest.mark.parametrize("stanje", [1, 2])
 def test_multiplikator_nedovoljno_za_punu_cenu_nula_poziva(svet, stanje):
     uid = f"um{stanje}"
@@ -936,7 +973,6 @@ def test_multiplikator_nedovoljno_za_punu_cenu_nula_poziva(svet, stanje):
     assert svet.baza.krediti[uid] == stanje
 
 
-@_XFAIL_MULT
 def test_multiplikator_dva_paralelna_stanje_za_jednu_punu_cenu(svet):
     """Stanje 3 = jedna puna cena. Dva istovremena zahteva: tačno jedan sme da stigne do provajdera."""
     svet.baza.krediti["umx"] = 3
@@ -953,3 +989,100 @@ def test_multiplikator_dva_paralelna_stanje_za_jednu_punu_cenu(svet):
     assert kodovi == [200, 402]
     assert svet.prov.broj == 1, "neplaćen poziv provajdera"
     assert svet.baza.krediti["umx"] == 0
+
+
+def test_multiplikator_tacno_puna_cena_jedna_operacija(svet):
+    svet.baza.krediti["umt"] = 3
+    r = _zahtev(_napravi_app(), "/x3", "umt")
+    assert r.status_code == 200 and svet.prov.broj == 1
+    assert svet.baza.krediti["umt"] == 0
+    assert [e["krediti_potroseni"] for e in svet.baza.log] == [3], "jedan događaj upotrebe, puna cena"
+    assert sum(v["broj_koriscenja"] for v in svet.baza.upotreba.values()) == 1
+
+
+def test_multiplikator_puna_cena_se_rezervise_pre_poziva(svet):
+    """U trenutku prvog HTTP pokušaja ka provajderu rezervacija već drži punu cenu."""
+    svet.baza.krediti["ump"] = 5
+    stanja = []
+    orig = svet.prov.odgovor
+
+    def _belezi(request):
+        stanja.append(svet.baza.krediti["ump"])
+        return orig(request)
+    svet.prov.odgovor = _belezi
+    r = _zahtev(_napravi_app(), "/x3", "ump")
+    assert r.status_code == 200 and stanja == [2], stanja
+    assert svet.baza.krediti["ump"] == 2
+
+
+def test_jedan_modul_multiplier_1_ostaje_bazna_cena(svet):
+    """Funkcija ×3 u registru, ruta naplaćuje jedan modul: rezerviše se i naplaćuje 1, ne 3."""
+    svet.baza.krediti["um1"] = 1
+    r = _zahtev(_napravi_app(), "/x3_modul", "um1")
+    assert r.status_code == 200 and svet.prov.broj == 1
+    assert svet.baza.krediti["um1"] == 0
+    assert [e["krediti_potroseni"] for e in svet.baza.log] == [1]
+
+
+def test_neizjavljen_multiplier_1_vraca_visak_bez_stvaranja_kredita(svet):
+    """Ruta koja ne izjavi multiplikator rezerviše registarsku cenu (konzervativno): sa stanjem 3
+    naplata je 1, višak 2 se vraća na kraju operacije — nikad više nego što je oduzeto."""
+    svet.baza.krediti["umn"] = 3
+    r = _zahtev(_napravi_app(), "/x3_neizjavljen", "umn")
+    assert r.status_code == 200 and svet.prov.broj == 1
+    assert svet.baza.krediti["umn"] == 2
+    assert svet.baza.rpc_pozivi.count("refund_n_credits") == 1, "višak se vraća jednom, na kraju operacije"
+
+
+def test_kasna_izjava_ne_menja_rezervaciju(svet, zapis):
+    svet.baza.krediti["umk"] = 3
+    r = _zahtev(_napravi_app(), "/kasna_izjava", "umk")
+    assert r.status_code == 200 and svet.baza.krediti["umk"] == 0
+    assert "izjavljen POSLE rezervacije" in zapis.text
+
+
+@pytest.mark.parametrize("uspelo,ocekivano_stanje", [(3, 2), (2, 3), (1, 4), (0, 5)])
+def test_dinamicki_delimican_uspeh_naplacuje_samo_isporuceno(svet, uspelo, ocekivano_stanje):
+    """Gornja granica 3 rezervisana pre poziva; naplata = isporučeno; ostatak vraćen."""
+    uid = f"umd{uspelo}"
+    svet.baza.krediti[uid] = 5
+    r = _zahtev(_napravi_app(), f"/savetnici?uspelo={uspelo}", uid)
+    assert r.status_code == 200 and svet.prov.broj == 3
+    assert svet.baza.krediti[uid] == ocekivano_stanje
+    assert [e["krediti_potroseni"] for e in svet.baza.log] == ([uspelo] if uspelo else [])
+
+
+def test_dinamicki_bez_gornje_granice_nula_poziva(svet):
+    svet.baza.krediti["umg"] = 2
+    r = _zahtev(_napravi_app(), "/savetnici?uspelo=2", "umg")
+    assert r.status_code == 402 and svet.prov.broj == 0 and svet.baza.krediti["umg"] == 2
+
+
+@pytest.mark.parametrize("koraka", [1, 2, 3])
+def test_niz_koraka_trosi_istu_rezervaciju_bez_duple_naplate(svet, koraka):
+    uid = f"umz{koraka}"
+    svet.baza.krediti[uid] = 3
+    r = _zahtev(_napravi_app(), f"/niz?koraka={koraka}", uid)
+    assert r.status_code == 200 and svet.prov.broj == koraka
+    assert svet.baza.krediti[uid] == 3 - koraka
+    assert [e["krediti_potroseni"] for e in svet.baza.log] == [1] * koraka
+    assert sum(v["broj_koriscenja"] for v in svet.baza.upotreba.values()) == koraka, "jedna upotreba po koraku, kao ranije"
+
+
+def test_nepoznat_ishod_zadrzava_samo_osnovnu_cenu(svet, zapis):
+    """Ugovor pre ispravke: nepoznat ishod bez namirenja zadržava osnovnu cenu (krediti × 1).
+    Rezervacija pune cene ne sme da ga pooštri: od 3 rezervisana zadržava se 1, vraća se 2."""
+    svet.baza.krediti["umu"] = 5
+    svet.prov.rezim = "timeout"
+    r = _zahtev(_napravi_app(), "/x3", "umu")
+    assert r.status_code >= 500
+    assert svet.prov.broj == 3, "SDK retry-ji se broje"
+    assert svet.baza.krediti["umu"] == 4
+    assert "1 kredita ZADRŽANO" in zapis.text
+
+
+def test_definitivna_greska_vraca_punu_rezervaciju(svet):
+    svet.baza.krediti["ume"] = 5
+    svet.prov.rezim = "500"
+    r = _zahtev(_napravi_app(), "/x3", "ume")
+    assert r.status_code >= 500 and svet.baza.krediti["ume"] == 5

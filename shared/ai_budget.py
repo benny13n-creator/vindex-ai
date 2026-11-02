@@ -161,6 +161,11 @@ class Operacija:
     rezervisana: bool = False
     hold: int = 0                 # krediti oduzeti rezervacijom brane, još nenamireni
     namirena: bool = False        # consume() je namirio rezervaciju ove operacije
+    # Multiplikator cene koji ruta izjavljuje PRE prvog poziva provajdera
+    # (`ocekivani_multiplikator`). None = podrazumevani iz registra (`credit_multiplier`),
+    # isti koji `consume()` naplaćuje kada ruta ne prosledi `multiplier=`.
+    multiplikator: Optional[float] = None
+    osnovna_cena: int = 0         # krediti × 1 — jedini deo koji se zadržava pri nepoznatom ishodu
     zatvorena: bool = False
     # brojači (svi pod _lock)
     pokusaja: int = 0
@@ -390,6 +395,30 @@ def _osiguraj_rezervaciju(op: Operacija) -> None:
             ev, op._rez_u_toku = op._rez_u_toku, None
         if ev is not None:
             ev.set()
+
+
+def ocekivani_multiplikator(n: float) -> None:
+    """Ruta izjavljuje multiplikator cene PRE prvog poziva provajdera.
+
+    Brana rezerviše PUNU cenu operacije (krediti × multiplikator) pre prvog poziva, da
+    nalog koji nema punu cenu nikad ne pokrene plaćen poziv. Podrazumevani multiplikator
+    je onaj iz registra (`credit_multiplier`); ruta koja naplaćuje drugačije — jedan
+    modul (`multiplier=1`) ili gornju granicu dinamičke operacije (broj savetnika) — mora
+    to da kaže ovde, pre poziva. Neiskorišćeni deo rezervacije vraća se na kraju operacije.
+    """
+    if rezim() == "off":
+        return
+    op = tekuca_operacija()
+    if op is None or op.sistemska or op.founder:
+        return
+    with op._lock:
+        if op.rezervisana:
+            # Programska greška rute: cena je već rezervisana. Ne menja se naknadno —
+            # namirenje i dalje naplaćuje stvarnu cenu iz `consume()`.
+            logger.error("[AI_BUDZET] multiplikator %s izjavljen POSLE rezervacije uid=%.8s feature=%s — ignorisano",
+                         n, op.user_id or "?", op.feature)
+            return
+        op.multiplikator = float(n)
 
 
 def oznaci_rezervisano_kroz_consume(op: Operacija) -> None:
@@ -648,23 +677,29 @@ def zatvori(op: Operacija) -> None:
             return
         op.zatvorena = True
         hold, namirena = op.hold, op.namirena
-    if op.rezervisana and not namirena and hold > 0 and op.user_id:
-        if op.nepoznatih > 0:
+    if op.rezervisana and hold > 0 and op.user_id:
+        # Ostatak rezervacije: ili ruta nije naplatila ništa, ili je naplatila manje od
+        # rezervisane gornje granice (delimičan uspeh). Nepoznat ishod BEZ ikakvog namirenja
+        # zadržava osnovnu cenu (krediti × 1), kao pre rezervacije pune cene; ostatak se vraća.
+        zadrzano = min(hold, op.osnovna_cena) if (not namirena and op.nepoznatih > 0) else 0
+        if zadrzano:
             logger.error(
                 "[AI_BUDZET_RECONCILE] uid=%.8s feature=%s: %d kredita ZADRŽANO — %d poziva sa nepoznatim "
                 "ishodom (timeout/prekid); provajder je možda naplatio. Ručno usklađivanje.",
-                op.user_id, op.feature, hold, op.nepoznatih)
-        else:
+                op.user_id, op.feature, zadrzano, op.nepoznatih)
+        vratiti = hold - zadrzano
+        if vratiti > 0:
             from shared.deps import _refund_n_credits
-            novo = _refund_n_credits(op.user_id, hold)
+            novo = _refund_n_credits(op.user_id, vratiti)
             if novo < 0:
                 logger.error("[AI_BUDZET_RECONCILE] uid=%.8s feature=%s: povraćaj %d kredita NIJE uspeo — "
-                             "korisnik je zadužen bez namirenja; ručno usklađivanje.", op.user_id, op.feature, hold)
+                             "korisnik je zadužen bez namirenja; ručno usklađivanje.", op.user_id, op.feature, vratiti)
             else:
-                logger.info("[AI_BUDZET] nenamirena rezervacija vraćena uid=%.8s feature=%s krediti=%d",
-                            op.user_id, op.feature, hold)
-            with op._lock:
-                op.hold = 0
+                logger.info("[AI_BUDZET] %s rezervacije vraćen uid=%.8s feature=%s krediti=%d",
+                            "nenamiren deo" if namirena else "nenamirena rezervacija", op.user_id, op.feature, vratiti)
+        with op._lock:
+            op.hold = 0
+            if not namirena and not zadrzano:
                 op.rezervisana = False
     if op.pokusaja:
         logger.info(

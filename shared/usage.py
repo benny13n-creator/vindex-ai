@@ -609,44 +609,36 @@ def _operacija_korisnika(user_id: str):
 
 
 async def _namiri_rezervaciju(op, user_id: str, email: str, feature: str, policy: dict, credits: float) -> int:
-    """`consume()` posle AI poziva čija je operacija već rezervisana pre poziva.
+    """`consume()` unutar operacije čija je cena rezervisana PRE prvog poziva provajdera.
 
-    Rezervacija je zauzela cooldown/limite/brojač funkcije operacije i oduzela OSNOVNU
-    cenu (krediti × 1). Ovde se naplaćuje samo RAZLIKA do stvarne cene (multiplikator)
-    ili se višak vraća — jedna upotreba, jedna naplata.
+    Rezervacija je zauzela cooldown/limite/brojač funkcije operacije i oduzela PUNU poznatu
+    cenu (krediti × multiplikator; za dinamičke operacije gornju granicu koju je ruta
+    izjavila). Naplata se ovde uzima IZ rezervacije — bez novog odbitka i bez druge
+    upotrebe. Neiskorišćeni ostatak vraća kraj operacije (`ai_budget.zatvori`), pa i niz od
+    više `consume()` poziva u jednoj operaciji (pipeline savetnika) troši istu rezervaciju.
 
-    Ako namirenje padne (npr. nema kredita za razliku), rezervisani deo OSTAJE naplaćen:
-    AI je već izvršen, a `namirena=True` sprečava da ga kraj operacije vrati.
+    Prvi `consume()` iste funkcije ne broji upotrebu ponovo (rezervacija ju je već
+    zauzela). Svaki sledeći `consume()` u istoj operaciji, ili drugačija funkcija, zauzima
+    limite kao i ranije. Samo deo cene IZNAD rezervacije (ruta je izjavila manju gornju
+    granicu nego što naplaćuje) oduzima se posle poziva — i to se beleži kao greška rute.
     """
     with op._lock:
-        held, op.hold, op.namirena = op.hold, 0, True
-    if feature != op.feature:
-        # Ruta naplaćuje drugu funkciju od one za koju je vezana: limiti te funkcije
-        # nisu zauzeti rezervacijom, pa se zauzimaju sada (isti algoritam).
+        prvi = not op.namirena
+        op.namirena = True
+    if not prvi or feature != op.feature:
         await _zauzmi_limite(user_id, feature, policy, credits)
-    razlika = int(credits) - held
-    if razlika > 0:
-        preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, razlika)
-        if preostalo < 0:
-            logger.warning(
-                "[AI_BUDZET] namirenje: razlika %d kredita nije naplaćena uid=%.8s feature=%s "
-                "(rezervisano %d ostaje naplaćeno)", razlika, user_id, feature, held)
-            raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail={
-                    "code": "NO_CREDITS",
-                    "feature": feature,
-                    "message": "Nemate dovoljno kredita u mesečnom AI fondu za ovu funkciju.",
-                    "credits_remaining": 0,
-                },
-            )
-        return preostalo
-    if razlika < 0:
-        vraceno = await asyncio.to_thread(_refund_n_credits, user_id, -razlika)
-        if vraceno >= 0:
-            return vraceno
-        logger.error("[AI_BUDZET_RECONCILE] višak rezervacije %d kredita nije vraćen uid=%.8s feature=%s",
-                     -razlika, user_id, feature)
+    n = int(credits)
+    with op._lock:
+        uzeto = min(op.hold, max(n, 0))
+        op.hold -= uzeto
+    ostatak = n - uzeto
+    if ostatak > 0:
+        if uzeto or prvi:
+            logger.error(
+                "[AI_BUDZET] namirenje: cena %d prelazi rezervaciju za %d kredita uid=%.8s feature=%s — "
+                "ruta nije izjavila multiplikator pre poziva (ai_budget.ocekivani_multiplikator)",
+                n, ostatak, user_id, feature)
+        return await _naplati_kredite(user_id, email, feature, ostatak)
     return await asyncio.to_thread(_get_credits, user_id)
 
 
@@ -713,7 +705,7 @@ class UsageService:
         # ove operacije pre AI poziva, ovaj poziv je NAMIRENJE iste operacije — razlika do
         # stvarne cene (multiplikator), bez drugog brojanja upotrebe i bez druge naplate.
         op = _operacija_korisnika(user_id)
-        if op is not None and op.rezervisana and not op.namirena:
+        if op is not None and op.rezervisana:
             preostalo = await _namiri_rezervaciju(op, user_id, email, feature, policy, credits)
         else:
             await _zauzmi_limite(user_id, feature, policy, credits)
@@ -754,8 +746,12 @@ class UsageService:
 
         Isti algoritam kao `consume()` — cooldown, limiti, atomični brojač (migr. 108),
         atomični odbitak (migr. 107) — ali STROGO: svaka greška baze odbija poziv.
-        Oduzima se osnovna cena (krediti × 1); razliku do stvarne cene namiruje
-        `consume()` rute. Vraća broj oduzetih kredita (rezervacija za namirenje).
+
+        Oduzima se PUNA poznata cena: krediti × multiplikator, istom formulom kao
+        `consume()`. Multiplikator je onaj koji je ruta izjavila pre poziva
+        (`ai_budget.ocekivani_multiplikator`), inače `credit_multiplier` iz registra.
+        Nalog koji nema punu cenu dobija 402 PRE ijednog poziva provajdera. Vraća broj
+        oduzetih kredita (rezervacija iz koje `consume()` rute naplaćuje).
         """
         policy = await get_policy(op.feature)
         if not policy.get("aktivno", True):
@@ -765,7 +761,9 @@ class UsageService:
                 detail={"code": "FEATURE_DISABLED", "feature": op.feature,
                         "message": "Ova funkcija je privremeno onemogućena."},
             )
-        credits = float(policy.get("krediti") or 0)
+        multiplikator = op.multiplikator if op.multiplikator is not None else policy.get("credit_multiplier", 1)
+        credits = float(policy.get("krediti") or 0) * max(float(multiplikator or 1), 1)
+        op.osnovna_cena = int(float(policy.get("krediti") or 0))
         await _zauzmi_limite(op.user_id, op.feature, policy, credits, strogo=True)
         n = int(credits)
         if n > 0:
