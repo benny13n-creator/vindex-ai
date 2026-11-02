@@ -394,6 +394,12 @@ def test_sajt_ne_obecava_email_potvrdu(klijent, ruta):
             assert izraz not in telo, f"{ruta} obećava mejl koji možda nije poslat: {izraz!r}"
 
 
+ODOBRENO_O_PRETPLATI = (
+    "U periodu ranog pristupa Vindex možete isprobati bez plaćanja pretplate.",
+    "Tokom ranog pristupa pretplata se ne naplaćuje.",
+)
+
+
 @pytest.mark.parametrize("ruta", STRANICE)
 @pytest.mark.parametrize("izraz", [r"\bcen[aeu]\b", r"€", r"\bRSD\b",
                                   r"dinara\s+mesečno", r"pretplat"])
@@ -401,8 +407,16 @@ def test_sajt_ne_pominje_cenu(klijent, ruta, izraz):
     """Nijedan plan se ne može kupiti; sajt ne govori o ceni.
 
     Granica reči je obavezna: `cena` kao podniz pogađa `proCENAt` i `proCENA`.
+
+    Rani pristup (B1, 2026-11-02): osnivač je odobrio dve rečenice na /beta koje kažu da se
+    pretplata u ranom pristupu NE naplaćuje. Samo one smeju da pomenu pretplatu; cena,
+    valuta i iznos i dalje nigde.
     """
-    telo = re.sub(r"<[^>]+>", " ", _vidljivi_tekst(klijent, ruta))
+    telo = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", _vidljivi_tekst(klijent, ruta)))
+    if ruta == "/beta":
+        for recenica in ODOBRENO_O_PRETPLATI:
+            assert recenica in telo, f"/beta nema odobrenu rečenicu: {recenica!r}"
+            telo = telo.replace(recenica, " ")
     assert not re.search(izraz, telo, re.I), f"{ruta} pominje {izraz!r}"
 
 
@@ -480,10 +494,14 @@ def test_registracija_je_stvarno_otvorena(klijent):
 def test_pozivi_na_akciju_vode_samo_na_beta_ili_prijavu(klijent, ruta):
     """Website V2: primarni poziv je prijava za beta (/beta), sporedni je ulaz u
     aplikaciju (/app). Nijedno dugme ne vodi nigde drugde. Bez obećanja
-    besplatnog ili automatskog naloga."""
+    besplatnog ili automatskog naloga.
+
+    Rani pristup (B1): /beta nudi i dva puta iz odobrenog teksta — postojeću
+    samostalnu registraciju (/app#register) i postojeću formu na istoj stranici (#zahtev)."""
     telo = _tekst(klijent, ruta)
     ulazi = set(re.findall(r'<a[^>]+class="dugme[^"]*"[^>]+href="([^"]+)"', telo))
-    assert ulazi <= {APP_ULAZ, "/beta"} and ulazi, f"{ruta}: pozivi na akciju vode na {ulazi}"
+    dozvoljeni = {APP_ULAZ, "/beta"} | ({f"{APP_ULAZ}#register", "#zahtev"} if ruta == "/beta" else set())
+    assert ulazi <= dozvoljeni and ulazi, f"{ruta}: pozivi na akciju vode na {ulazi}"
     vidljivo = _vidljivi_tekst(klijent, ruta).lower()
     for izraz in ("besplatno", "odmah dobijate nalog", "automatski nalog"):
         assert izraz not in vidljivo, f"početna obećava nalog: {izraz!r}"
@@ -667,6 +685,8 @@ def test_svi_unutrasnji_linkovi_rade(klijent, ruta):
 @pytest.mark.parametrize("ruta", STRANICE)
 def test_sidra_unutar_sajta_postoje(klijent, ruta):
     for strana, sidro in set(re.findall(r'href="(/[^"#]*)#([^"]+)"', _tekst(klijent, ruta))):
+        if strana == APP_ULAZ and sidro in ("register", "login"):
+            continue  # hash rute aplikacije (JS otvara modal), ne sidra; meri ih test_website_rani_pristup_b1
         assert f'id="{sidro}"' in _tekst(klijent, strana or ruta), f"{ruta}: sidro {strana}#{sidro} ne postoji"
 
 

@@ -38,7 +38,7 @@ STRANICE = [
     ("bezbednost", "bezbednost.html", "/bezbednost", "Bezbednost i zaštita podataka — Vindex",
      "Ko pristupa podacima, gde se čuvaju, šta se šalje AI modelu, kako se izvoze i brišu — opisano onako kako Vindex stvarno radi.", "Bezbednost"),
     ("beta", "beta.html", "/beta", "Rani pristup — Vindex",
-     "Prijava za rani pristup Vindexu: kontrolisano uključivanje advokata i kancelarija u rad sa aplikacijom, uz podršku.", None),
+     "Upoznajte Vindex u svojoj pravnoj praksi. U periodu ranog pristupa Vindex možete isprobati bez plaćanja pretplate.", None),
 ]
 # Javno se prikazuje samo ono što radi u glavnom toku aplikacije. LEGACY_ONLY (klasični prikaz) se od 2026-11-01
 # ne prikazuje: sajt ne upoređuje verzije aplikacije (odluka osnivača), a funkcija bez ulaza u glavnom toku se izostavlja.
