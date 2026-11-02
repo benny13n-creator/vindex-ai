@@ -451,3 +451,48 @@ def test_word_wrapper_preserves_existing_ai_budget_marker(monkeypatch):
         wrapper = client_class._build_request
         assert getattr(wrapper, "_vindex_word_session_guard", False)
         assert getattr(wrapper, "_vindex_guarded", False)
+
+
+def test_word_dispatch_hook_is_detected_inside_outer_provider_wrapper(monkeypatch):
+    """A budget wrapper installed later must not cause Word to claim twice."""
+    from openai._base_client import AsyncAPIClient, SyncAPIClient
+
+    claims = []
+
+    def raw_build_request(_self, _options, *, retries_taken=0):
+        return retries_taken
+
+    for client_class in (SyncAPIClient, AsyncAPIClient):
+        monkeypatch.setattr(client_class, "_build_request", raw_build_request)
+    monkeypatch.setattr(
+        word_session_dispatch,
+        "claim_word_session_provider_attempt",
+        lambda session: claims.append(session.session_id),
+    )
+    assert word_session_dispatch.install_word_session_dispatch_hook()
+
+    outer_methods = {}
+    for client_class in (SyncAPIClient, AsyncAPIClient):
+        original = client_class._build_request
+
+        def _budget_wrapper(self, options, *, retries_taken=0, _original=original):
+            return _original(self, options, retries_taken=retries_taken)
+
+        _budget_wrapper._vindex_guarded = True
+        monkeypatch.setattr(client_class, "_build_request", _budget_wrapper)
+        outer_methods[client_class] = _budget_wrapper
+
+    assert word_session_dispatch.word_session_dispatch_hook_installed()
+    session = WordSession(
+        session_id="nested-wrapper-session",
+        user_id="trusted-user",
+        token_hash="synthetic-hash",
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    )
+    with word_session_dispatch.word_provider_session(session):
+        assert word_session_dispatch.install_word_session_dispatch_hook()
+        assert all(client_class._build_request is method for client_class, method in outer_methods.items())
+        assert SyncAPIClient._build_request(None, object()) == 0
+        assert AsyncAPIClient._build_request(None, object()) == 0
+
+    assert claims == ["nested-wrapper-session", "nested-wrapper-session"]

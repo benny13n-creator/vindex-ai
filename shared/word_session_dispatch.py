@@ -26,6 +26,34 @@ _HOOK_INSTALLED = False
 _HOOK_LOCK = threading.RLock()
 
 
+def _contains_word_session_guard(method: Any, seen: set[int] | None = None) -> bool:
+    """Find our guard through provider wrappers that retain the wrapped method.
+
+    The budget hook can be installed after the Word hook and wrap it. In that
+    order, checking only the SDK method's top-level marker would install a
+    second Word guard on the next request, causing two atomic claims per send.
+    """
+    if not callable(method):
+        return False
+    if getattr(method, "_vindex_word_session_guard", False):
+        return True
+
+    if seen is None:
+        seen = set()
+    if id(method) in seen:
+        return False
+    seen.add(id(method))
+
+    nested = list((getattr(method, "__defaults__", None) or ()))
+    nested.extend((getattr(method, "__kwdefaults__", None) or {}).values())
+    for cell in getattr(method, "__closure__", None) or ():
+        try:
+            nested.append(cell.cell_contents)
+        except ValueError:
+            continue
+    return any(_contains_word_session_guard(value, seen) for value in nested)
+
+
 def claim_word_session_provider_attempt(session: Any) -> None:
     """Atomically claim exactly one provider attempt through the reviewed DB RPC.
 
@@ -68,7 +96,7 @@ def word_session_dispatch_hook_installed() -> bool:
     global _HOOK_INSTALLED
     try:
         installed = all(
-            getattr(client_class._build_request, "_vindex_word_session_guard", False)
+            _contains_word_session_guard(client_class._build_request)
             for client_class in _sdk_build_request_classes()
         )
     except Exception:
@@ -90,7 +118,7 @@ def install_word_session_dispatch_hook() -> bool:
         with _HOOK_LOCK:
             for client_class in _sdk_build_request_classes():
                 original = client_class._build_request
-                if getattr(original, "_vindex_word_session_guard", False):
+                if _contains_word_session_guard(original):
                     continue
 
                 def _guarded_build_request(self, options, *, retries_taken=0, _original=original):
