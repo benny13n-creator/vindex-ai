@@ -413,3 +413,39 @@ def test_word_dispatch_hook_reinstalls_after_openai_method_reset(monkeypatch):
 
     assert db.claims == 1
     assert provider_calls == ["/v1/chat/completions"]
+def test_word_wrapper_preserves_existing_ai_budget_marker(monkeypatch):
+    from openai._base_client import AsyncAPIClient, SyncAPIClient
+
+    def unwrapped(client_class):
+        method = client_class._build_request
+        seen = set()
+        while id(method) not in seen:
+            seen.add(id(method))
+            if getattr(method, "_vindex_word_session_guard", False):
+                method = method.__kwdefaults__["_original"]
+                continue
+            if getattr(method, "_vindex_guarded", False):
+                originals = [
+                    cell.cell_contents
+                    for cell in (getattr(method, "__closure__", None) or ())
+                    if callable(cell.cell_contents)
+                ]
+                if len(originals) == 1:
+                    method = originals[0]
+                    continue
+            break
+        return method
+
+    sync_original = unwrapped(SyncAPIClient)
+    async_original = unwrapped(AsyncAPIClient)
+    monkeypatch.setattr(SyncAPIClient, "_build_request", sync_original)
+    monkeypatch.setattr(AsyncAPIClient, "_build_request", async_original)
+    monkeypatch.setattr(sync_original, "_vindex_guarded", True, raising=False)
+    monkeypatch.setattr(async_original, "_vindex_guarded", True, raising=False)
+
+    assert not word_session_dispatch.word_session_dispatch_hook_installed()
+    assert word_session_dispatch.install_word_session_dispatch_hook()
+    for client_class in (SyncAPIClient, AsyncAPIClient):
+        wrapper = client_class._build_request
+        assert getattr(wrapper, "_vindex_word_session_guard", False)
+        assert getattr(wrapper, "_vindex_guarded", False)

@@ -98,6 +98,11 @@ def install_word_session_dispatch_hook() -> bool:
                     return _original(self, options, retries_taken=retries_taken)
 
                 _guarded_build_request._vindex_word_session_guard = True
+                # The central budget installer checks this structural marker.
+                # Preserve it when Word wraps an already-budgeted SDK method.
+                _guarded_build_request._vindex_guarded = getattr(
+                    original, "_vindex_guarded", False
+                )
                 client_class._build_request = _guarded_build_request
 
             _HOOK_INSTALLED = word_session_dispatch_hook_installed()
