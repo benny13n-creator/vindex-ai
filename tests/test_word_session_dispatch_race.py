@@ -321,9 +321,7 @@ def test_word_dispatch_hook_reinstalls_after_openai_method_reset(monkeypatch):
 
     def unwrapped(client_class):
         saved = getattr(ai_client, "_orig_build_request", {}).get(client_class)
-        if saved is not None:
-            return saved
-        method = client_class._build_request
+        method = saved if saved is not None else client_class._build_request
         seen = set()
         while id(method) not in seen:
             seen.add(id(method))

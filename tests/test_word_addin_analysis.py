@@ -93,6 +93,8 @@ def test_budget_gate_requires_enforced_matching_operation(monkeypatch):
     operation = SimpleNamespace(user_id="trusted-user", feature="copilot_ambient", zatvorena=False)
     module = _word_budget_module(operation)
     monkeypatch.setitem(sys.modules, "shared.ai_budget", module)
+    import shared
+    monkeypatch.setattr(shared, "ai_budget", module, raising=False)
     monkeypatch.setattr(word_copilot, "_require_word_ai_budget_operation", word_copilot._require_word_ai_budget_operation)
     app = _app_with_budget_middleware()
     from starlette.requests import Request
