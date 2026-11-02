@@ -255,14 +255,18 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
     try:
         await asyncio.to_thread(_delete)
     except Exception as _exc:
-        logger.error("[GDPR] anonimizacija NIJE izvrsena uid=%.8s: %s", uid, _exc)
-        # Namerni korisnicki ugovor: korisnik MORA saznati da podaci NISU
-        # obrisani -- tisina bi bila neodvojiva od uspesnog brisanja.
+        logger.error("[GDPR] brisanje naloga nije potvrđeno uid=%.8s: %s", uid, _exc)
+        # PostgREST writes are separate transactions: session revocation may
+        # already have committed when the profile update fails. Report the
+        # operation as incomplete without claiming every record is unchanged.
         from shared.http_errors import NamerniHTTPException as _Namerni
         raise _Namerni(
             status_code=503,
-            detail="Brisanje naloga NIJE izvršeno. Vaši podaci su nepromenjeni. "
-                   "Pokušajte ponovo ili nam pišite na benny13.n@gmail.com.",
+            detail=(
+                "Brisanje naloga NIJE završeno. Opoziv Word sesija je možda već "
+                "izvršen, dok anonimizacija profila možda nije. Proverite stanje "
+                "sa podrškom pre ponovnog pokušaja: benny13.n@gmail.com."
+            ),
         )
     logger.info("[GDPR] account deleted uid=%.8s", uid)
 
