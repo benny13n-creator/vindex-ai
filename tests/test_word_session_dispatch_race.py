@@ -294,8 +294,14 @@ def test_word_dispatch_hook_reinstalls_after_openai_method_reset(monkeypatch):
 
     import httpx
     from openai import OpenAI
+    from contextlib import nullcontext
     from openai._base_client import AsyncAPIClient, SyncAPIClient
     from shared import ai_client
+
+    try:
+        from shared import ai_budget
+    except ImportError:
+        ai_budget = None
 
     def unwrapped(client_class):
         saved = getattr(ai_client, "_orig_build_request", {}).get(client_class)
@@ -367,20 +373,31 @@ def test_word_dispatch_hook_reinstalls_after_openai_method_reset(monkeypatch):
             },
         )
 
+    budget_context = (
+        ai_budget.operacija(
+            "trusted-user", "lawyer@example.test", "copilot_ambient",
+            founder=True, izvor="test:word-hook-reinstall",
+        )
+        if ai_budget is not None
+        else nullcontext()
+    )
     with OpenAI(
         api_key="test-only-not-a-credential",
         max_retries=0,
         http_client=httpx.Client(transport=httpx.MockTransport(provider_handler)),
     ) as provider:
-        assert word_session_dispatch.install_word_session_dispatch_hook()
-        installed_sync = SyncAPIClient._build_request
-        assert word_session_dispatch.install_word_session_dispatch_hook()
-        assert SyncAPIClient._build_request is installed_sync
-        with word_session_dispatch.word_provider_session(session):
-            provider.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": "synthetic text"}],
-            )
+        with budget_context as budget_operation:
+            assert word_session_dispatch.install_word_session_dispatch_hook()
+            installed_sync = SyncAPIClient._build_request
+            assert word_session_dispatch.install_word_session_dispatch_hook()
+            assert SyncAPIClient._build_request is installed_sync
+            with word_session_dispatch.word_provider_session(session):
+                provider.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": "synthetic text"}],
+                )
 
+    if budget_operation is not None:
+        assert budget_operation.pokusaja == 1
     assert db.claims == 1
     assert provider_calls == ["/v1/chat/completions"]
