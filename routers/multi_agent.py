@@ -622,6 +622,74 @@ def _procesno_stanje_za_nacrt(izvori: Optional[dict]) -> str:
               "da li je o njoj već odlučeno, umesto preporuke napiši „[PROVERITI PROCESNO STANJE: …]“.\n")
 
 
+_MAKS_IZVOD_SAVETNIKU = 400           # MIR002: jedan izvod u bloku savetnika (OCR bez interpunkcije = ceo dokument)
+_BUDZET_IZVODA_SAVETNIKU = 6_000      # MIR002: zbir izvoda u bloku savetnika; procesno stanje se čita iz CELOG teksta
+PRAVILA_PROCESNOG_STANJA_SAVETNIKA = """\
+PROCESNO STANJE IZ SPISA (obavezno kad je blok dostavljen):
+- Šta je sud odlučio, naložio ili zakazao navodi iz bloka PROCESNO STANJE, sa oznakom dokumenta i doslovnim izvodom. Vrsta i akter u bloku su KANDIDATI sistema po obrascu teksta, ne utvrđene činjenice; izvod nikad ne proširuj značenjem koje ne sadrži (ne „sud je utvrdio“, ne „dopuna je nužna/izvršena“).
+- Radnju o kojoj sud prema izvodu već odlučio ne predlaži kao otvoreno pitanje; predloži ono što procesno sledi.
+- Ono što je u bloku pod „NIJE UTVRĐENO“ (tok i istek roka, postupanje po nalogu, uplata, dejstvo kasnijeg dokumenta) ne tvrdi ni u jednom smeru — navedi kao neutvrđeno.
+- Rok računaj samo od događaja koji dokument IZRIČITO navodi kao početak roka (npr. „od dana dopune nalaza“). Kad početak nije izričito naveden (npr. samo „u roku od 15 dana“), datum dokumenta ili ročišta NIJE početak roka — napiši da tok i istek roka nisu utvrđeni iz spisa. Ovo pravilo ima prednost nad opštim pravilom o računanju rokova.
+- Dokument koji nije pročitan ili je pročitan delimično može sadržati odluku suda: odsustvo u bloku nije dokaz da odluke nema.
+- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda."""
+
+
+def _procesno_stanje_za_savetnika(stanje: Optional[dict]) -> str:
+    """MIR002: isto procesno stanje servera kao za nacrt iz spisa (`shared/procesno_stanje.utvrdi`, prikaz
+    `nacrt_za_sud.blok_za_model`), za savetnika „litigation“. Bez oznaka [[PS-nn]] — njih ovde server ne zamenjuje
+    izvodom. Izvod je ograničen (`_MAKS_IZVOD_SAVETNIKU`, `_BUDZET_IZVODA_SAVETNIKU`); skraćenje je OBELODANJENO u bloku,
+    nikad tiho. Izvodi su tekst dokumenta (T3) → u granici poverenja; natpis piše server."""
+    if not stanje:
+        return ""
+    from security.prompt_guard import IZVOR_DOKUMENT, zapakuj_nepoverljivo
+    from shared import nacrt_za_sud as _NZ
+    sve = stanje.get("dogadjaji") or []
+    # Budžet: najpre događaji koje sistem pripisuje sudu (obiman podnesak stranke ne istiskuje odluku), pa ostali;
+    # prikaz ostaje po redosledu spisa.
+    izabrani, zbir, skracenih = {}, 0, 0
+    for i in sorted(range(len(sve)), key=lambda i: (sve[i].get("akter") != "SUD", i)):
+        if len(izabrani) >= 40:
+            break
+        izvod = " ".join((sve[i].get("izvod") or "").split())
+        skracen = len(izvod) > _MAKS_IZVOD_SAVETNIKU
+        if skracen:
+            izvod = izvod[:_MAKS_IZVOD_SAVETNIKU] + " … [izvod skraćen]"
+        if zbir + len(izvod) > _BUDZET_IZVODA_SAVETNIKU:
+            continue
+        zbir, skracenih = zbir + len(izvod), skracenih + skracen
+        izabrani[i] = izvod
+    dogadjaji = [{**sve[i], "izvod": izabrani[i]} for i in sorted(izabrani)]
+    izostali = [sve[i] for i in range(len(sve)) if i not in izabrani]
+    # Granica od 30 stavki ne sme da odseče baš upozorenja koja nose MIR002: nepročitan/nepouzdan spis i rok, uplata i
+    # postupanje po nalogu suda (`utvrdi` ih dodaje na kraj, iza nerazvrstanih rečenica).
+    vazno = {n for i, d in enumerate(sve) if d.get("akter") == "SUD" or i in izabrani for n in d.get("nepoznato") or []}
+    _POUZDANOST = ("nije (potpuno) pročitan", "nisu potpuno ili pouzdano", "greška sistema", "vrsta dokumenta sporna",
+                   "nema dokumenta prepoznatog kao sudski")
+    nepoznato = sorted(stanje.get("nepoznato") or [],
+                       key=lambda n: 0 if any(k in n for k in _POUZDANOST) else 1 if n in vazno else 2)
+    serverske = []
+    if skracenih:
+        serverske.append(f"{skracenih} izvod(a) je skraćeno — ceo tekst je u dokumentu")
+    if izostali:
+        po_dok: dict = {}
+        for d in izostali:
+            po_dok[d.get("oznaka") or "DOK-??"] = po_dok.get(d.get("oznaka") or "DOK-??", 0) + 1
+        serverske.append(
+            f"prikaz je skraćen zbog veličine: {len(izostali)} od {len(sve)} procesnih događaja nije prikazano ("
+            + ", ".join(f"{oz}: {n}" for oz, n in po_dok.items()) + ")"
+            + ("; među njima su i događaji koje sistem pripisuje sudu" if any(d.get("akter") == "SUD" for d in izostali)
+               else "") + " — procesno stanje u ovom bloku je NEPOTPUNO")
+    nepoznato = serverske + nepoznato
+    if len(nepoznato) > 30:
+        nepoznato = nepoznato[:29] + [f"još {len(nepoznato) - 29} neutvrđenih stavki nije prikazano"]
+    natpis, podaci = _NZ.blok_za_model({**stanje, "dogadjaji": dogadjaji, "nepoznato": nepoznato})
+    if not podaci:
+        return ""
+    podaci = re.sub(r"(?m)^\[\[PS-\d+\]\] ", "", podaci)
+    return (f"\n\n{natpis}\n" + zapakuj_nepoverljivo(_bez_lazne_evidencije(_NZ.neutralisi(podaci)), IZVOR_DOKUMENT)
+            + "\n")
+
+
 _LAT = str.maketrans({"č": "c", "ć": "c", "ž": "z", "š": "s", "đ": "dj", "Č": "C", "Ć": "C", "Ž": "Z", "Š": "S", "Đ": "Dj"})
 _STOP_ODLUKE = {"prihvata", "prihvatio", "prihvatila", "usvaja", "usvojio", "nalaze", "nalozio", "odbija", "odbio",
                 "odredjuje", "odredio", "zakazano", "zakazan", "tuzenom", "tuziocu", "tuzeni", "tuzilac", "dostavi",
@@ -1159,7 +1227,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     # ── Dohvati kontekst predmeta (VCR002 T05: zajednički sa /run-parallel) ──
     predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(
         supa, uid, req.predmet_id, zahtev=(req.task or "") + " " + (req.kontekst or ""),
-        procesno=(agent_id == "drafting" and bool(req.predmet_id)))
+        procesno=(agent_id in ("drafting", "litigation") and bool(req.predmet_id)))
     # MIR001 C3b: nacrt iz spisa = zaštićen tok (procesno stanje servera → JSON predlog + napomene → AI RADNI PREDLOG na
     # pregledu → izričito usvajanje u dokument za sud). Ostali savetnici i nacrt bez predmeta — nepromenjeno.
     nacrt_iz_spisa = agent_id == "drafting" and bool(req.predmet_id) and predmet_verifikovan
@@ -1266,6 +1334,10 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
         if natpis:
             procesno_ctx = (f"\n\n{natpis}\n" + zapakuj_nepoverljivo(_bez_lazne_evidencije(_NZ.neutralisi(podaci)), IZVOR_DOKUMENT)
                             + "\n")
+    elif agent_id == "litigation" and predmet_verifikovan and (izvori_predmeta or {}).get("dokumenata_u_predmetu") != 0:
+        # MIR002: parnična strategija dobija ISTO procesno stanje servera (odluke suda sa izvodom, šta NIJE utvrđeno),
+        # ne samo isečke spisa — model je iz „u roku od 15 dana“ sam izvodio početak roka (MIR001_T05, 7/10 uzoraka).
+        procesno_ctx = _procesno_stanje_za_savetnika((izvori_predmeta or {}).get("_procesno_stanje"))
     user_msg = f"{predmet_ctx}{billing_ctx}{rokovi_ctx}{rag_ctx}\n{req.kontekst or ''}{procesno_ctx}\n\nZahtev: {req.task}".strip()
 
     napomene_modela: list = []
@@ -1277,7 +1349,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             resp = await asyncio.to_thread(_pozovi_nacrt_api, client, agent_cfg["system"] + "\n\n" + _NZ.PRAVILA_ZA_MODEL,
                                            user_msg)
         else:
-            resp = await asyncio.to_thread(_pozovi_agent_api, client, agent_cfg["system"], user_msg)
+            sistem = agent_cfg["system"] + (f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}" if procesno_ctx else "")
+            resp = await asyncio.to_thread(_pozovi_agent_api, client, sistem, user_msg)
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
         _sentry_capture(exc)
