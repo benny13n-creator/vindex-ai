@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextvars
 import logging
+import threading
 from contextlib import contextmanager
 from typing import Any, Iterator
 
@@ -22,6 +23,7 @@ _CURRENT_SESSION: contextvars.ContextVar[Any | None] = contextvars.ContextVar(
     "vindex_word_provider_session", default=None
 )
 _HOOK_INSTALLED = False
+_HOOK_LOCK = threading.RLock()
 
 
 def claim_word_session_provider_attempt(session: Any) -> None:
@@ -55,46 +57,59 @@ def _claim_current_provider_attempt() -> None:
         claim_word_session_provider_attempt(session)
 
 
-def install_word_session_dispatch_hook() -> bool:
-    """Install an idempotent OpenAI SDK attempt hook, inert outside Word context.
+def _sdk_build_request_classes() -> tuple[type, type]:
+    from openai._base_client import AsyncAPIClient, SyncAPIClient
 
-    `SyncAPIClient._build_request` and its async sibling are called once per SDK
-    HTTP attempt, including retries. In api.py, PR #66's budget counter is
-    installed before routers import; this Word wrapper then claims the session
-    before delegating to that counter and immediately before the SDK sends.
-    """
-    global _HOOK_INSTALLED
-    if _HOOK_INSTALLED:
-        return True
-    try:
-        from openai._base_client import AsyncAPIClient, SyncAPIClient
-
-        for client_class in (SyncAPIClient, AsyncAPIClient):
-            original = client_class._build_request
-            if getattr(original, "_vindex_word_session_guard", False):
-                continue
-
-            def _guarded_build_request(self, options, *, retries_taken=0, _original=original):
-                _claim_current_provider_attempt()
-                return _original(self, options, retries_taken=retries_taken)
-
-            _guarded_build_request._vindex_word_session_guard = True
-            client_class._build_request = _guarded_build_request
-
-        _HOOK_INSTALLED = True
-    except Exception as exc:
-        logger.error("[WORD_DISPATCH] hook_install_failed error=%s", type(exc).__name__)
-        return False
-    return True
+    return SyncAPIClient, AsyncAPIClient
 
 
 def word_session_dispatch_hook_installed() -> bool:
-    return _HOOK_INSTALLED
+    """Report live SDK method state; cached module state can outlive a hook reset."""
+    global _HOOK_INSTALLED
+    try:
+        installed = all(
+            getattr(client_class._build_request, "_vindex_word_session_guard", False)
+            for client_class in _sdk_build_request_classes()
+        )
+    except Exception:
+        installed = False
+    _HOOK_INSTALLED = installed
+    return installed
 
+
+def install_word_session_dispatch_hook() -> bool:
+    """Install an idempotent OpenAI SDK attempt hook, inert outside Word context.
+
+    _build_request runs once per SDK HTTP attempt, including retries. The
+    central budget hook can restore or reinstall this method during its own
+    lifecycle; installation is checked against the live SDK methods, not only
+    a cached boolean. Either wrapper order still runs both guards before send.
+    """
+    global _HOOK_INSTALLED
+    try:
+        with _HOOK_LOCK:
+            for client_class in _sdk_build_request_classes():
+                original = client_class._build_request
+                if getattr(original, "_vindex_word_session_guard", False):
+                    continue
+
+                def _guarded_build_request(self, options, *, retries_taken=0, _original=original):
+                    _claim_current_provider_attempt()
+                    return _original(self, options, retries_taken=retries_taken)
+
+                _guarded_build_request._vindex_word_session_guard = True
+                client_class._build_request = _guarded_build_request
+
+            _HOOK_INSTALLED = word_session_dispatch_hook_installed()
+            return _HOOK_INSTALLED
+    except Exception as exc:
+        _HOOK_INSTALLED = False
+        logger.error("[WORD_DISPATCH] hook_install_failed error=%s", type(exc).__name__)
+        return False
 
 @contextmanager
 def word_provider_session(session: Any) -> Iterator[None]:
-    if not word_session_dispatch_hook_installed():
+    if not install_word_session_dispatch_hook() or not word_session_dispatch_hook_installed():
         raise WordSessionDispatchDenied("word_session_dispatch_hook_unavailable")
     for name in ("session_id", "user_id", "token_hash"):
         value = getattr(session, name, None)

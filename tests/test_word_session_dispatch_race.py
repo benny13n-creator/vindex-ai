@@ -286,3 +286,101 @@ def test_openai_sdk_retry_claims_again_after_logout(monkeypatch):
     assert rpc.calls == 2
     assert provider_calls == [1]
     client.close()
+
+
+def test_word_dispatch_hook_reinstalls_after_openai_method_reset(monkeypatch):
+    """A budget-guard teardown may restore the SDK methods; Word must reattach before dispatch."""
+    _silence_provider_provenance(monkeypatch)
+
+    import httpx
+    from openai import OpenAI
+    from openai._base_client import AsyncAPIClient, SyncAPIClient
+    from shared import ai_client
+
+    def unwrapped(client_class):
+        saved = getattr(ai_client, "_orig_build_request", {}).get(client_class)
+        if saved is not None:
+            return saved
+        method = client_class._build_request
+        seen = set()
+        while id(method) not in seen:
+            seen.add(id(method))
+            if getattr(method, "_vindex_word_session_guard", False):
+                method = method.__kwdefaults__["_original"]
+                continue
+            if getattr(method, "_vindex_guarded", False):
+                originals = [
+                    cell.cell_contents
+                    for cell in (getattr(method, "__closure__", None) or ())
+                    if callable(cell.cell_contents)
+                ]
+                if len(originals) == 1:
+                    method = originals[0]
+                    continue
+            break
+        return method
+
+    sync_original = unwrapped(SyncAPIClient)
+    async_original = unwrapped(AsyncAPIClient)
+    monkeypatch.setattr(SyncAPIClient, "_build_request", sync_original)
+    monkeypatch.setattr(AsyncAPIClient, "_build_request", async_original)
+    assert not word_session_dispatch.word_session_dispatch_hook_installed()
+
+    class _DB:
+        claims = 0
+
+        def rpc(self, name, params):
+            assert name == "claim_word_session_provider_attempt"
+            assert params["p_session_id"] == "session-reinstall"
+            return SimpleNamespace(execute=lambda: self._claim())
+
+        def _claim(self):
+            self.claims += 1
+            return SimpleNamespace(data=True)
+
+    db = _DB()
+    monkeypatch.setattr("shared.deps._get_supa", lambda: db)
+    session = WordSession(
+        session_id="session-reinstall",
+        user_id="trusted-user",
+        token_hash="synthetic-hash",
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    )
+    provider_calls = []
+
+    def provider_handler(request):
+        provider_calls.append(request.url.path)
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "id": "chatcmpl-reinstall",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "gpt-4o-mini",
+                "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "synthetic"},
+                    "finish_reason": "stop",
+                }],
+                "usage": {"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3},
+            },
+        )
+
+    with OpenAI(
+        api_key="test-only-not-a-credential",
+        max_retries=0,
+        http_client=httpx.Client(transport=httpx.MockTransport(provider_handler)),
+    ) as provider:
+        assert word_session_dispatch.install_word_session_dispatch_hook()
+        installed_sync = SyncAPIClient._build_request
+        assert word_session_dispatch.install_word_session_dispatch_hook()
+        assert SyncAPIClient._build_request is installed_sync
+        with word_session_dispatch.word_provider_session(session):
+            provider.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": "synthetic text"}],
+            )
+
+    assert db.claims == 1
+    assert provider_calls == ["/v1/chat/completions"]
