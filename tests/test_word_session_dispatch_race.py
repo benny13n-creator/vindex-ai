@@ -415,9 +415,12 @@ def test_word_dispatch_hook_reinstalls_after_openai_method_reset(monkeypatch):
     assert provider_calls == ["/v1/chat/completions"]
 def test_word_wrapper_preserves_existing_ai_budget_marker(monkeypatch):
     from openai._base_client import AsyncAPIClient, SyncAPIClient
+    from shared import ai_client
 
     def unwrapped(client_class):
-        method = client_class._build_request
+        method = getattr(ai_client, "_orig_build_request", {}).get(
+            client_class, client_class._build_request
+        )
         seen = set()
         while id(method) not in seen:
             seen.add(id(method))
