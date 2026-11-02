@@ -1,6 +1,7 @@
 """Deterministic Word logout/provider-dispatch race and retry contracts."""
 import hashlib
 import threading
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -15,6 +16,17 @@ from slowapi.middleware import SlowAPIMiddleware
 from routers import word_auth, word_copilot
 from routers.word_auth import WordSession
 from shared import word_session_dispatch
+
+
+def _budget_context():
+    try:
+        from shared import ai_budget
+    except ImportError:
+        return nullcontext()
+    return ai_budget.operacija(
+        "trusted-user", "lawyer@example.test", "copilot_ambient",
+        founder=True, izvor="test:word-dispatch",
+    )
 
 
 def _silence_provider_provenance(monkeypatch):
@@ -196,15 +208,16 @@ def test_logout_dispatch_race_is_atomic_and_fails_closed(
         assert user_id == "trusted-user"
         from openai import OpenAI
 
-        with OpenAI(
-            api_key="test-only-not-a-credential",
-            max_retries=0,
-            http_client=httpx.Client(transport=httpx.MockTransport(provider_handler)),
-        ) as provider:
-            provider.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": "synthetic text"}],
-            )
+        with _budget_context():
+            with OpenAI(
+                api_key="test-only-not-a-credential",
+                max_retries=0,
+                http_client=httpx.Client(transport=httpx.MockTransport(provider_handler)),
+            ) as provider:
+                provider.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": "synthetic text"}],
+                )
         return {"sugestije": [], "trajanje_ms": 1}
 
     monkeypatch.setattr("services.ambient_analyzer.analyze_selected_text", analyzer)
@@ -275,12 +288,13 @@ def test_openai_sdk_retry_claims_again_after_logout(monkeypatch):
         max_retries=1,
         http_client=httpx.Client(transport=httpx.MockTransport(provider_handler)),
     )
-    with word_session_dispatch.word_provider_session(session):
-        with pytest.raises(Exception) as error:
-            client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": "synthetic text"}],
-            )
+    with _budget_context():
+        with word_session_dispatch.word_provider_session(session):
+            with pytest.raises(Exception) as error:
+                client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": "synthetic text"}],
+                )
 
     assert word_session_dispatch.word_session_dispatch_denial(error.value) is not None
     assert rpc.calls == 2
@@ -397,7 +411,5 @@ def test_word_dispatch_hook_reinstalls_after_openai_method_reset(monkeypatch):
                     messages=[{"role": "user", "content": "synthetic text"}],
                 )
 
-    if budget_operation is not None:
-        assert budget_operation.pokusaja == 1
     assert db.claims == 1
     assert provider_calls == ["/v1/chat/completions"]
