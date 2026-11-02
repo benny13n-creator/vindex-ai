@@ -907,3 +907,49 @@ def test_brojac_se_obnavlja_ako_ga_je_neko_skinuo(svet):
     assert getattr(SyncAPIClient._build_request, "_vindex_guarded", False)
     assert getattr(AsyncAPIClient._build_request, "_vindex_guarded", False)
     assert _POSLEDNJA_OP["op"].pokusaja == 3 == svet.prov.broj
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Release gate dodatak (2026-11-02): multiplikator poznat PRE poziva provajdera
+# ═══════════════════════════════════════════════════════════════════════════
+# Ugovor osnivača: ako je puna cena operacije (krediti × credit_multiplier) poznata pre
+# poziva provajdera, nalog koji nema punu cenu NE SME da pokrene plaćen poziv.
+# `/x3` = registar krediti 1 × credit_multiplier 3, ruta naplaćuje podrazumevani
+# multiplikator iz registra (isti obrazac kao `routers/strategija.py` kompletna analiza: 1 × 6).
+
+_XFAIL_MULT = pytest.mark.xfail(strict=True, reason=(
+    "PROVEN kvar (release gate 2026-11-02): rezervacija uzima samo krediti × 1, pa nalog bez pune cene "
+    "pokrene plaćen poziv i dobije 402 tek pri namirenju. Ispravka čeka odobrenje; strict=True obara ovaj "
+    "test čim ispravka stigne, pa se oznaka tada uklanja."))
+
+
+@_XFAIL_MULT
+@pytest.mark.parametrize("stanje", [1, 2])
+def test_multiplikator_nedovoljno_za_punu_cenu_nula_poziva(svet, stanje):
+    uid = f"um{stanje}"
+    svet.baza.krediti[uid] = stanje
+    r = _zahtev(_napravi_app(), "/x3", uid)
+    print(f"\n[MULTIPLIKATOR] stanje={stanje} cena=3 -> HTTP {r.status_code} kod={_kod(r)} "
+          f"pozivi_provajdera={svet.prov.broj} stanje_posle={svet.baza.krediti[uid]}")
+    assert r.status_code == 402 and _kod(r) == "NO_CREDITS"
+    assert svet.prov.broj == 0, "plaćen poziv provajdera bez pune cene"
+    assert svet.baza.krediti[uid] == stanje
+
+
+@_XFAIL_MULT
+def test_multiplikator_dva_paralelna_stanje_za_jednu_punu_cenu(svet):
+    """Stanje 3 = jedna puna cena. Dva istovremena zahteva: tačno jedan sme da stigne do provajdera."""
+    svet.baza.krediti["umx"] = 3
+    app = _napravi_app()
+
+    async def _oba():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+                                     base_url="http://test") as c:
+            return await asyncio.gather(*[c.post("/x3", headers={"Authorization": "Bearer tok-umx"}) for _ in range(2)])
+    odg = asyncio.run(_oba())
+    kodovi = sorted(o.status_code for o in odg)
+    print(f"\n[MULTIPLIKATOR] paralelno stanje=3 cena=3 -> {kodovi} pozivi_provajdera={svet.prov.broj} "
+          f"stanje_posle={svet.baza.krediti['umx']}")
+    assert kodovi == [200, 402]
+    assert svet.prov.broj == 1, "neplaćen poziv provajdera"
+    assert svet.baza.krediti["umx"] == 0

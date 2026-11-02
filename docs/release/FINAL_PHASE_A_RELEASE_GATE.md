@@ -19,7 +19,7 @@
 | **Teorijski najgori slučaj po nalogu i danu:** 300 × $3 (granica operacije) = **$900**. **Realan napad:** 300 × ≈ $0,30 (jedan veliki gpt-4o poziv po operaciji) ≈ **$90 po nalogu dnevno, bez ijednog kredita.** | INFERRED |
 | Legitiman dnevni obim jednog advokata na ovom redu nije izmeren. | UNKNOWN |
 
-**Minimalna ispravka:** migracija ostaje kakva jeste. Posle pokretanja, osnivač u Admin Feature Console postavlja `dnevni_limit` za Early Access na **100**. To pokriva ≈ 50–70 dokumenata u Smart Intake-u plus pozadinsku obradu (ASSUMED). Realan najgori slučaj time pada na ≈ $30 po nalogu dnevno. Vrednost se menja bez deploy-a.
+**Minimalna ispravka:** migracija ostaje kakva jeste. Vrednost je **izričita odluka osnivača o riziku pilota**; 100 nije prihvaćeno samo zato što je manje od 300 (v. Dodatak, tabela opcija). Vrednost se menja u Admin Feature Console, bez deploy-a.
 
 **Dokaz prihvatanja:** upit za proveru iz migracije 146 vraća `dnevni_limit = 100`. Prva nedelja log linija `[AI_BUDZET] operacija zatvorena izvor=… feature=ai_osnovna_obrada` daje stvarni broj operacija i stvarni trošak po nalogu.
 
@@ -82,7 +82,7 @@ Izloženost jednog naloga je zbir (dnevni limit × granica operacije) po svim fu
 
 | Slučaj | Ishod | Status |
 |---|---|---|
-| Multiplikator > 1 | Rezerviše se osnovna cena. Razlika se namiruje posle poziva. Nalog koji nema razliku dobija 402 **posle** izvršenog rada, pa razlika ostaje neplaćena. | PROVEN (kod, test `test_namirenje_multiplikatora…`) |
+| Multiplikator > 1 | Rezerviše se osnovna cena. Razlika se namiruje posle poziva. Nalog koji nema razliku dobija 402 **posle** izvršenog rada, pa razlika ostaje neplaćena. **Kada je puna cena poznata pre poziva, ovo je kvar** (v. Dodatak). | PROVEN (reproduktor) |
 | Ruta pukne posle uspešnog AI poziva | Nenamirena rezervacija se vraća, a provajder je rad naplatio. Isto ponašanje kao na `main`. | PROVEN (kod `zatvori`) |
 | Timeout ili prekid veze (nepoznat ishod) | Rezervacija se zadržava, uz log `[AI_BUDZET_RECONCILE]`. | PROVEN (test) |
 | Definitivna greška provajdera (`APIStatusError`) | Rezervacija se vraća. OpenAI obično ne naplaćuje odbijen zahtev. | PROVEN (kod) / naplata INFERRED |
@@ -169,9 +169,55 @@ Do tada nema javne registracije za mase. Early Access ide kroz postojeći zahtev
    - dozvoljeni samo modeli iz §8 izveštaja Faze A;
    - nov ključ projekta upisan kao `OPENAI_API_KEY` u Render-u.
 2. **Render:** potvrditi da `AZURE_OPENAI_KEY`/`AZURE_OPENAI_ENDPOINT` nisu postavljeni. Postaviti `VINDEX_AI_MAX_USD_OPERACIJE=1.0`.
-3. **Supabase:** pokrenuti `migrations/146_ai_osnovna_obrada.sql` i upit za proveru. U Admin konzoli postaviti `ai_osnovna_obrada.dnevni_limit = 100`.
+3. **Supabase:** pokrenuti `migrations/146_ai_osnovna_obrada.sql` i upit za proveru. U Admin konzoli postaviti `ai_osnovna_obrada.dnevni_limit` na vrednost izabranu u Dodatku (izričita odluka o riziku).
 4. **Odluka:** potvrda email-a i Supabase SMTP pre javne registracije (§9).
 5. Tek posle 1–3: spojiti PR #66 i izvršiti smoke test iz §8.
+
+## Dodatak (2026-11-02): multiplikator poznat pre poziva i dnevni limit
+
+### Multiplikator — kvar je PROVEN
+
+**Ugovor osnivača:** ako je puna cena (krediti × `credit_multiplier`) poznata pre poziva provajdera, nalog bez pune cene ne sme da pokrene plaćen poziv.
+
+**Reproduktor:** `tests/test_ai_cost_protection.py::test_multiplikator_*`. Test ruta `/x3` ima registar krediti 1 × multiplikator 3, a ruta naplaćuje podrazumevani multiplikator iz registra. To je isti obrazac kao `routers/strategija.py` kompletna analiza (1 × 6, 8 GPT-4o poziva).
+
+| Slučaj | Očekivano | Izmereno |
+|---|---|---|
+| stanje 1, cena 3 | 402, 0 poziva, stanje 1 | 402 **posle 1 poziva**, stanje 0 (1 kredit naplaćen bez rezultata) |
+| stanje 2, cena 3 | 402, 0 poziva, stanje 2 | 402 **posle 1 poziva**, stanje 1 |
+| stanje 3, dva paralelna zahteva | jedan 200 i jedan 402, 1 poziv, stanje 0 | **oba 402**, 2 poziva, stanje 1 (nijedan rezultat, 2 kredita naplaćena) |
+
+Testovi su označeni `xfail(strict=True)`: CI ostaje zelen, a oznaka se mora ukloniti čim ispravka stigne.
+
+**Uzrok:** `UsageService.rezervisi_za_operaciju` rezerviše `krediti × 1`, a razliku do pune cene naplaćuje tek `consume()` posle poziva (`shared/usage.py`, namirenje). Kompletna analiza ima i sopstvenu pre-flight proveru bilansa (`routers/strategija.py`, `_CENA_KOMPLETNE = 6`). Ta provera nije atomična i propušta pri grešci čitanja, pa ne zatvara slučaj iz trećeg reda.
+
+**Najmanja ispravka (preporuka, nije primenjena):** samo postojeća rezervacija i namirenje, bez drugog obračunskog sistema.
+1. `rezervisi_za_operaciju` rezerviše **punu poznatu cenu**: `krediti × multiplikator`. Multiplikator je podrazumevano iz registra (`credit_multiplier`), isto kao u `consume()`.
+2. Ruta koja naplaćuje drugačiji multiplikator to izjavljuje PRE prvog AI poziva, novom funkcijom `ai_budget.ocekivani_multiplikator(n)`, koja samo postavlja polje operacije dok rezervacija nije napravljena:
+   - `routers/strategija.py`: 7 ruta sa `multiplier=1`;
+   - `routers/digital_twin.py`: `multiplier=1`;
+   - simulator strategije: `multiplier=1`;
+   - `routers/multi_agent.py`: gornja granica = broj traženih agenata. Višak vraća postojeće namirenje (razlika može biti negativna).
+3. Namirenje ostaje kakvo jeste: kada je rezervacija jednaka punoj ceni, razlika je 0 i nema naplate posle poziva.
+4. Pre-flight provera u kompletnoj analizi postaje suvišna i može ostati kao poruka korisniku.
+
+**Prihvatanje:**
+- tri reproduktora prolaze bez `xfail`;
+- `test_namirenje_multiplikatora…` prolazi (stanje 10 → 7);
+- 1-kreditne strategija rute i dalje prolaze sa stanjem 1 (nova regresija);
+- nova mutacija „rezervacija bez multiplikatora“ mora biti ubijena.
+
+### Dnevni limit `ai_osnovna_obrada` — opcije za izričitu odluku
+
+Teorijski najgori slučaj je limit × $3 (granica operacije), a realni napad limit × ≈ $0,30 (jedan veliki gpt-4o poziv po operaciji). Oba su INFERRED. Legitiman obim nije izmeren (UNKNOWN).
+
+| Limit dnevno | Realan napad po nalogu dnevno | Teorijski maksimum | Rizik za legitiman rad |
+|---:|---:|---:|---|
+| 300 (u migraciji) | ≈ $90 | $900 | najmanji |
+| 100 | ≈ $30 | $300 | intake veći od ≈ 50–70 dokumenata dnevno, plus pozadina, može biti odbijen (ASSUMED) |
+| 50 | ≈ $15 | $150 | veći uvoz predmeta u jednom danu verovatno udara u limit |
+
+Sa granicom operacije od $1 (§3), teorijski maksimum se deli sa 3. Hard limit projekta ($50) ograničava zbir svih naloga bez obzira na izbor. Preporuka je **100 za zatvoren pilot**, uz pregled linija `operacija zatvorena … feature=ai_osnovna_obrada` posle 7 dana. Ipak, **ovo je odluka osnivača**.
 
 ## Klasifikacija
 
