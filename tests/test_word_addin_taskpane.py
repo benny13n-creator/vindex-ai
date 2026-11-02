@@ -1,112 +1,196 @@
 # -*- coding: utf-8 -*-
-"""
-Structural tests — integrations/word_addin/ (taskpane.html, adapter.js,
-manifest.xml).
-
-NIGHTLY REPAIR (2026-07-24), Faza 3 item 10: adapter.js existed with no
-UI to render into (KORAK C). taskpane.html now provides that UI. These
-are not traditional pytest unit tests (there's no Python here) -- they're
-structural guards: valid markup, valid JS syntax, and the two files'
-public API contract staying in sync (a method taskpane.html calls but
-adapter.js stops exporting would otherwise only surface as a silent
-runtime error inside Word, undetectable by any Python test).
-
-Also catches a REAL bug found while writing these tests: manifest.xml
-(written in an earlier Korak) used "--" inside XML comments, which is
-illegal per the XML spec (only Python/JS-style comments tolerate it) --
-this made the manifest invalid XML since it was first created, unnoticed
-until validated here with a real parser. Fixed as part of this item.
-"""
+"""Structural and deterministic contract tests for the Word taskpane auth flow."""
 import os
 import re
 import shutil
 import subprocess
-import sys
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
 import pytest
 
-# CI production-runtime (python:3.11-slim) nema Node: subprocess.run(["node", ...]) bi tada
-# bacio FileNotFoundError VEC PRI SAKUPLJANJU testova. shutil.which ne baca -> pravi SKIP.
 _NODE = shutil.which("node")
-
 _HERE = os.path.dirname(__file__)
-_ADDIN_DIR = os.path.join(_HERE, "..", "integrations", "word_addin")
+_ADDIN_DIR = os.path.abspath(os.path.join(_HERE, "..", "integrations", "word_addin"))
 _TASKPANE = os.path.join(_ADDIN_DIR, "taskpane.html")
 _ADAPTER = os.path.join(_ADDIN_DIR, "adapter.js")
 _MANIFEST = os.path.join(_ADDIN_DIR, "manifest.xml")
+_AUTH_FLOW = os.path.join(_ADDIN_DIR, "auth_flow.js")
 
 
 def _read(path):
-    with open(path, encoding="utf-8") as f:
-        return f.read()
+    with open(path, encoding="utf-8") as handle:
+        return handle.read()
 
 
-def test_taskpane_html_is_well_formed():
+@pytest.mark.parametrize("filename", ["taskpane.html", "auth.html", "commands.html"])
+def test_word_html_is_well_formed(filename):
     errors = []
 
-    class _Checker(HTMLParser):
+    class Checker(HTMLParser):
         def error(self, message):
             errors.append(message)
 
-    _Checker().feed(_read(_TASKPANE))
+    Checker().feed(_read(os.path.join(_ADDIN_DIR, filename)))
     assert errors == []
 
 
 def test_manifest_xml_is_well_formed():
-    """Regression for the actual bug found: '--' inside <!-- --> comments
-    is illegal XML and silently produced an invalid manifest since it was
-    first written."""
     tree = ET.parse(_MANIFEST)
     assert tree.getroot().tag.endswith("OfficeApp")
 
 
+def test_manifest_references_taskpane():
+    assert "taskpane.html" in _read(_MANIFEST)
+
+
+def test_word_pages_use_external_scripts_only():
+    for filename in ("taskpane.html", "auth.html", "commands.html"):
+        html = _read(os.path.join(_ADDIN_DIR, filename))
+        inline_scripts = re.findall(r"<script(?![^>]*src)[^>]*>(.*?)</script>", html, re.DOTALL)
+        assert not inline_scripts, filename
+
+
+@pytest.mark.skipif(_NODE is None, reason="node not available in this environment")
+def test_word_javascript_syntax():
+    for filename in ("auth_flow.js", "auth_dialog.js", "taskpane.js", "adapter.js", "commands.js"):
+        path = os.path.join(_ADDIN_DIR, filename)
+        result = subprocess.run([_NODE, "--check", path], capture_output=True, text=True, timeout=15)
+        assert result.returncode == 0, filename + ": " + result.stderr
+
+
+def test_no_persistent_word_bearer_storage_or_automatic_analysis():
+    adapter = _read(_ADAPTER)
+    taskpane = _read(_TASKPANE)
+    taskpane_js = _read(os.path.join(_ADDIN_DIR, "taskpane.js"))
+    assert "localStorage.removeItem" in adapter
+    assert "Office.context.roamingSettings" in adapter
+    assert "settings.remove(LEGACY_TOKEN_KEY)" in adapter
+    assert "localStorage.setItem" not in adapter
+    assert "roamingSettings.get" not in adapter
+    assert "roamingSettings.set" not in adapter
+    assert "clearLegacyAuthToken" in taskpane_js
+    assert "input-token" not in taskpane
+    assert "analyzeParagraph" not in taskpane_js
+    assert "watchParagraphChanges" not in taskpane_js
+
+
+@pytest.mark.skipif(_NODE is None, reason="node not available in this environment")
+def test_auth_callback_nonce_origin_and_session_token_contract():
+    script = r"""
+const assert = require('node:assert/strict');
+const flow = require(process.argv[1]);
+const nonce = flow.createNonce({getRandomValues(bytes) { bytes.fill(15); return bytes; }});
+assert.equal(nonce, '0f'.repeat(32));
+const message = JSON.stringify({type:'vindex-auth-result', nonce, access_token:'a.b.c'});
+assert.equal(flow.parseAuthResult(message, 'https://vindex.test', 'https://vindex.test', nonce), 'a.b.c');
+assert.throws(() => flow.parseAuthResult(message, 'https://evil.test', 'https://vindex.test', nonce), /invalid_callback_origin/);
+assert.throws(() => flow.parseAuthResult(message, 'https://vindex.test', 'https://vindex.test', 'wrong'), /invalid_auth_callback/);
+assert.throws(() => flow.parseAuthResult(JSON.stringify({type:'vindex-auth-result', nonce, access_token:'bad'}), 'https://vindex.test', 'https://vindex.test', nonce), /invalid_auth_callback/);
+assert.equal(flow.isOpaqueSessionToken('x'.repeat(43)), true);
+assert.equal(flow.isOpaqueSessionToken('x'.repeat(42)), false);
+const supported = {context:{requirements:{isSetSupported(name, version) { return name === 'DialogApi' && version === '1.2' || name === 'DialogOrigin' && version === '1.1'; }}}};
+assert.equal(flow.isDialogSupported(supported), true);
+assert.equal(flow.isDialogSupported({context:{requirements:{isSetSupported() { return false; }}}}), false);
+"""
+    result = subprocess.run([_NODE, "-e", script, _AUTH_FLOW], capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(_NODE is None, reason="node not available in this environment")
+def test_legacy_token_cleanup_is_memory_safe_and_fails_closed():
+    script = r"""
+const assert = require('node:assert/strict');
+let removedLocal = null;
+let removedRoaming = null;
+global.localStorage = {
+  removeItem(key) { removedLocal = key; },
+  getItem() { throw new Error('must not read a token'); },
+  setItem() { throw new Error('must not persist a token'); }
+};
+global.Office = {
+  context:{roamingSettings:{
+    remove(key) { removedRoaming = key; },
+    saveAsync(callback) { callback({status:'succeeded'}); }
+  }},
+  AsyncResultStatus:{Succeeded:'succeeded'}
+};
+const adapter = require(process.argv[1]);
+(async () => {
+  await adapter.clearLegacyAuthToken();
+  assert.equal(removedLocal, 'vindex_auth_token');
+  assert.equal(removedRoaming, 'vindex_auth_token');
+  global.Office.context.roamingSettings.saveAsync = callback => callback({status:'failed'});
+  await assert.rejects(adapter.clearLegacyAuthToken(), /legacy_roaming_token_cleanup_failed/);
+  assert.deepEqual(Object.keys(adapter).sort(), [
+    'applyApprovedRewrite', 'clearLegacyAuthToken', 'readSelectedText',
+    'readSelectionSnapshot', 'supportsSafeRewrite'
+  ].sort());
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+    result = subprocess.run([_NODE, "-e", script, _ADAPTER], capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+@pytest.mark.skipif(_NODE is None, reason="node not available in this environment")
+def test_word_adapter_returns_exact_selected_range_text():
+    script = r"""
+const assert = require('node:assert/strict');
+const adapter = require(process.argv[1]);
+const exact = 'first line\nsecond\tcell';
+let loaded = null;
+let synced = false;
+const office = {
+  context: {
+    document: {
+      getSelection() {
+        return {
+          text: exact,
+          load(field) { loaded = field; }
+        };
+      }
+    },
+    async sync() { synced = true; }
+  }
+};
+(async () => {
+  assert.equal(await adapter.readSelectedText(office), exact);
+  assert.equal(loaded, 'text');
+  assert.equal(synced, true);
+  await assert.rejects(adapter.readSelectedText({}), /word_selection_unavailable/);
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+    result = subprocess.run([_NODE, "-e", script, _ADAPTER], capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+
+@pytest.mark.skipif(_NODE is None, reason="node not available in this environment")
+def test_taskpane_session_races_and_window_isolation():
+    path = os.path.join(_HERE, "word_addin_taskpane_behavior.js")
+    result = subprocess.run([_NODE, path], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(_NODE is None, reason="node not available in this environment")
+def test_word_rewrite_stale_range_and_mutation_safety_contract():
+    path = os.path.join(_HERE, "word_addin_rewrite_behavior.js")
+    result = subprocess.run([_NODE, path], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+@pytest.mark.skipif(_NODE is None, reason="node not available in this environment")
+def test_auth_dialog_failed_and_successful_provider_responses():
+    path = os.path.join(_HERE, "word_addin_auth_dialog_behavior.js")
+    result = subprocess.run([_NODE, path], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
 def test_manifest_has_no_double_hyphens_in_comments():
-    content = _read(_MANIFEST)
-    comments = re.findall(r"<!--(.*?)-->", content, re.DOTALL)
-    assert comments, "expected at least one comment block in manifest.xml"
-    for comment in comments:
-        assert "--" not in comment
+    comments = re.findall(r"<!--(.*?)-->", _read(_MANIFEST), re.DOTALL)
+    assert all("--" not in comment for comment in comments)
 
 
-def test_manifest_references_taskpane_and_adapter_consistently():
-    content = _read(_MANIFEST)
-    assert "taskpane.html" in content
+def test_manifest_taskpane_adapter_and_exports_stay_consistent():
+    manifest = _read(_MANIFEST)
+    taskpane = _read(_TASKPANE)
+    taskpane_js = _read(os.path.join(_ADDIN_DIR, "taskpane.js"))
+    adapter = _read(_ADAPTER)
 
-
-@pytest.mark.skipif(_NODE is None,
-                     reason="node not available in this environment")
-def test_adapter_js_syntax_is_valid():
-    result = subprocess.run(["node", "--check", _ADAPTER], capture_output=True, text=True)
-    assert result.returncode == 0, result.stderr
-
-
-@pytest.mark.skipif(_NODE is None,
-                     reason="node not available in this environment")
-def test_taskpane_inline_script_syntax_is_valid(tmp_path):
-    html = _read(_TASKPANE)
-    scripts = re.findall(r"<script(?![^>]*src)[^>]*>(.*?)</script>", html, re.DOTALL)
-    assert scripts, "expected at least one inline <script> block without src="
-    script_path = tmp_path / "inline.js"
-    script_path.write_text(scripts[-1], encoding="utf-8")
-    result = subprocess.run(["node", "--check", str(script_path)], capture_output=True, text=True)
-    assert result.returncode == 0, result.stderr
-
-
-def test_taskpane_only_calls_methods_adapter_actually_exports():
-    """Cross-file contract guard: every VindexAmbientAdapter.<method>(...)
-    call in taskpane.html must correspond to a method actually present in
-    adapter.js's exported object -- catches drift between the two files
-    that no Python test would otherwise notice."""
-    adapter_src = _read(_ADAPTER)
-    match = re.search(r"const VindexAmbientAdapter\s*=\s*\{(.*?)\};", adapter_src, re.DOTALL)
-    assert match, "could not find VindexAmbientAdapter export object in adapter.js"
-    exported = {name.strip() for name in re.findall(r"(\w+)\s*,", match.group(1))}
-    assert "analyzeParagraph" in exported  # sanity check the parse itself worked
-
-    taskpane_src = _read(_TASKPANE)
-    called = set(re.findall(r"VindexAmbientAdapter\.(\w+)\s*\(", taskpane_src))
-    assert called, "expected taskpane.html to call at least one adapter method"
-    missing = called - exported
-    assert not missing, f"taskpane.html calls methods not exported by adapter.js: {missing}"
+    assert "taskpane.html" in manifest
+    assert '<script src="adapter.js"></script>' in taskpane
+    for method in ("clearLegacyAuthToken", "readSelectedText"):
+        assert method + ":" + method in adapter
+        assert "VindexAmbientAdapter." + method in taskpane_js

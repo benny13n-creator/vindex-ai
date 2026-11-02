@@ -1,4 +1,4 @@
-﻿
+
 /* ── Srpska ćirilica — Vukova azbuka (inline, bez eksternog fajla) ────────── */
 (function(global){
   'use strict';
@@ -232,13 +232,14 @@ function _applyPismo(rawText) {
 
 // ─── Supabase konfiguracija ───────────────────────────────────────────────────
 // Popunite sa vrednostima iz Supabase Dashboard → Settings → API
-var SUPABASE_URL      = 'https://czsxymueizfqrbbgqqob.supabase.co';
-var SUPABASE_ANON_KEY = 'sb_publishable_fvC51B_GKz_Uf8t3wZ3JDg_TIp3-zBp';
+var VINDEX_AUTH_CONFIG = window.VindexAuthConfig || {};
+var SUPABASE_URL      = VINDEX_AUTH_CONFIG.supabaseUrl || '';
+var SUPABASE_ANON_KEY = VINDEX_AUTH_CONFIG.supabaseAnonKey || '';
 // ─────────────────────────────────────────────────────────────────────────────
 
 var _supa = null;
 function getSupabase() {
-  if (!_supa && SUPABASE_URL !== 'VAŠA_SUPABASE_URL' && window.supabase) {
+  if (!_supa && SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
     _supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   return _supa;

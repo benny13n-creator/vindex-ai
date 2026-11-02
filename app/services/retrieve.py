@@ -16,9 +16,10 @@ import json
 import logging
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 import contextvars
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from contextlib import contextmanager
 
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
@@ -27,6 +28,36 @@ from pinecone import Pinecone
 
 from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
+
+_RAG_SENSITIVE_QUERY = contextvars.ContextVar("rag_sensitive_query", default=False)
+
+
+@contextmanager
+def sensitive_query_context():
+    """Redact query and exception contents while confidential text is searched."""
+    token = _RAG_SENSITIVE_QUERY.set(True)
+    try:
+        yield
+    finally:
+        _RAG_SENSITIVE_QUERY.reset(token)
+
+
+def _rag_query_for_log(query: str, maximum: int = 60) -> str:
+    return "[redacted]" if _RAG_SENSITIVE_QUERY.get() else str(query)[:maximum]
+
+
+def _rag_value_for_log(value: Any) -> str:
+    return "[redacted]" if _RAG_SENSITIVE_QUERY.get() else str(value)
+
+def _rag_error_text(error: Any) -> str:
+    if _RAG_SENSITIVE_QUERY.get():
+        return type(error).__name__
+    return str(error)
+
+
+def _capture_rag_exception(error: BaseException) -> None:
+    if not _RAG_SENSITIVE_QUERY.get():
+        _sentry_capture(error)
 
 load_dotenv()
 
@@ -475,8 +506,8 @@ def _get_index():
             stats = _PINECONE_INDEX.describe_index_stats()
             logger.info("[PINECONE] Index OK — %d vektora", stats.total_vector_count)
         except Exception as _e:
-            _sentry_capture(_e)
-            logger.warning("[PINECONE] describe_index_stats neuspešan (nije fatalno): %s", _e)
+            _capture_rag_exception(_e)
+            logger.warning("[PINECONE] describe_index_stats neuspešan (nije fatalno): %s", _rag_error_text(_e))
 
     return _PINECONE_INDEX
 
@@ -615,7 +646,7 @@ def _uknjizi_cohere_provenance(
             document_id=ctx.get("document_id"),
             knowledge_sources=["pinecone"],
             status=status,
-            error_message=str(error)[:500] if error else None,
+            error_message=_rag_error_text(error) if error else None,
         )
         # Isti obrazac kao `shared/ai_client.py:238-250` — ne nov mehanizam.
         try:
@@ -625,7 +656,7 @@ def _uknjizi_cohere_provenance(
         except RuntimeError:
             asyncio.run(coro)
     except Exception as exc:  # pragma: no cover — fail-soft po ugovoru modula
-        logger.debug("[COHERE/PROVENANCE] knjiženje nije uspelo (nije kritično): %s", exc)
+        logger.debug("[COHERE/PROVENANCE] knjiženje nije uspelo (nije kritično): %s", _rag_error_text(exc))
 
 
 # ─── Pomoćne funkcije ─────────────────────────────────────────────────────────
@@ -942,10 +973,10 @@ def _log_rag_error(reason: str, namespace: str, detail: str) -> None:
         from api import _get_supa
         _get_supa().table("security_events").insert({
             "event_type": "rag_error",
-            "details": {"reason": reason, "namespace": namespace, "detail": detail[:300]},
+            "details": {"reason": reason, "namespace": namespace, "detail": ("[redacted]" if _RAG_SENSITIVE_QUERY.get() else detail[:300])},
         }).execute()
     except Exception as e:
-        logger.debug("[RAG] security_events upis neuspešan (nije kritično): %s", e)
+        logger.debug("[RAG] security_events upis neuspešan (nije kritično): %s", _rag_error_text(e))
 
 
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
@@ -987,12 +1018,12 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
         vektor = _ugradi_query(query)
         matches = index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
         if not matches:
-            logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
+            logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", _rag_query_for_log(query), filter_zakon)
         return _vazeci_tekst_clanova(matches)
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
-        _log_rag_error(type(exc).__name__, _ZAKONI_NS, str(exc))
+        _capture_rag_exception(exc)
+        logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", _rag_query_for_log(query), type(exc).__name__, _rag_error_text(exc)[:200])
+        _log_rag_error(type(exc).__name__, _ZAKONI_NS, _rag_error_text(exc))
         if neuspeh is not None:
             neuspeh.append(IZVOR_ZAKON)
         return []
@@ -1007,8 +1038,11 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
         return _vazeci_tekst_clanova(
             index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches)
     except Exception as _exc:
-        _sentry_capture(_exc)
-        logger.exception("Greška u pretraga_vec")
+        _capture_rag_exception(_exc)
+        if _RAG_SENSITIVE_QUERY.get():
+            logger.error("Greška u pretraga_vec: %s", _rag_error_text(_exc))
+        else:
+            logger.exception("Greška u pretraga_vec")
         if neuspeh is not None:
             neuspeh.append(IZVOR_ZAKON)
         return []
@@ -1025,8 +1059,8 @@ def _pretraga_misljenja(vektor: list[float], k: int = 5) -> list:
             include_metadata=True,
         ).matches
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("[MISLJENJA] Pretraga nije uspela: %s", exc)
+        _capture_rag_exception(exc)
+        logger.warning("[MISLJENJA] Pretraga nije uspela: %s", _rag_error_text(exc))
         return []
 
 
@@ -1041,9 +1075,9 @@ def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
             include_metadata=True,
         ).matches
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("[PRAKSA] Pretraga nije uspela: %s", exc)
-        _log_rag_error(type(exc).__name__, _PRAKSA_NS, str(exc))
+        _capture_rag_exception(exc)
+        logger.warning("[PRAKSA] Pretraga nije uspela: %s", _rag_error_text(exc))
+        _log_rag_error(type(exc).__name__, _PRAKSA_NS, _rag_error_text(exc))
         return []
 
 
@@ -1105,8 +1139,8 @@ def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5, filter: Option
     try:
         return index.query(**kwargs).matches
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("[NS:%s] Pretraga nije uspela: %s", namespace, exc)
+        _capture_rag_exception(exc)
+        logger.warning("[NS:%s] Pretraga nije uspela: %s", namespace, _rag_error_text(exc))
         raise
 
 
@@ -1162,8 +1196,11 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None, raise_o
             filter=filter_dict,
         ).matches)
     except Exception as _exc:
-        _sentry_capture(_exc)
-        logger.exception("Greška u direktnom fetchu člana %s", label_clana)
+        _capture_rag_exception(_exc)
+        if _RAG_SENSITIVE_QUERY.get():
+            logger.error("Greška u direktnom fetchu člana %s: %s", label_clana, _rag_error_text(_exc))
+        else:
+            logger.exception("Greška u direktnom fetchu člana %s", label_clana)
         if raise_on_error:
             # S4-3: the caller makes a legal claim from this result, so it must
             # be able to tell "not in the corpus" from "we could not look".
@@ -1201,11 +1238,11 @@ def _dekomponuj_query(query: str) -> list[str]:
         raw = re.sub(r"\s*```$", "", raw)
         parsed = json.loads(raw)
         if isinstance(parsed, list) and all(isinstance(s, str) for s in parsed):
-            logger.debug("[MULTI_Q] %s", parsed)
+            logger.debug("[MULTI_Q] %s", _rag_value_for_log(parsed))
             return parsed[:3]
     except Exception as e:
-        _sentry_capture(e)
-        logger.warning("[MULTI_Q] Dekompozicija nije uspela: %s", e)
+        _capture_rag_exception(e)
+        logger.warning("[MULTI_Q] Dekompozicija nije uspela: %s", _rag_error_text(e))
     return []
 
 
@@ -1313,8 +1350,8 @@ def classify_query_intent(query: str) -> str:
             logger.info("[INTENT] LLM → %s", label)
             return label
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("[INTENT] LLM fallback greška: %s", exc)
+        _capture_rag_exception(exc)
+        logger.warning("[INTENT] LLM fallback greška: %s", _rag_error_text(exc))
 
     result = top_label if top_score > 0 else "mixed"
     logger.info("[INTENT] Fallback → %s", result)
@@ -1364,10 +1401,10 @@ def decompose_query(user_query: str) -> list[str]:
             )
             return sub_queries
     except json.JSONDecodeError as exc:
-        logger.warning("[FIX1_DECOMPOSE] JSON parse greška: %s", exc)
+        logger.warning("[FIX1_DECOMPOSE] JSON parse greška: %s", _rag_error_text(exc))
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("[FIX1_DECOMPOSE] Nije uspelo: %s", exc)
+        _capture_rag_exception(exc)
+        logger.warning("[FIX1_DECOMPOSE] Nije uspelo: %s", _rag_error_text(exc))
 
     return [user_query]
 
@@ -1420,11 +1457,11 @@ def _generiši_hyde(query: str) -> str:
             ],
         )
         hyde = resp.choices[0].message.content.strip()
-        logger.debug("[HyDE] '%s'", hyde[:100])
+        logger.debug("[HyDE] '%s'", _rag_value_for_log(hyde[:100]))
         return hyde
     except Exception as e:
-        _sentry_capture(e)
-        logger.warning("[HyDE] Generisanje nije uspelo: %s", e)
+        _capture_rag_exception(e)
+        logger.warning("[HyDE] Generisanje nije uspelo: %s", _rag_error_text(e))
         return ""
 
 
@@ -1489,8 +1526,8 @@ def _gpt_rerank(query: str, matches: list, k: int = 3) -> list:
                 logger.debug("[GPT_RERANK] top-%d od %d kandidata", len(reranked), len(kandidati))
                 return reranked
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("[GPT_RERANK] Greška: %s — fallback na interni skor", exc)
+        _capture_rag_exception(exc)
+        logger.warning("[GPT_RERANK] Greška: %s — fallback na interni skor", _rag_error_text(exc))
     return kandidati[:k]
 
 
@@ -1533,14 +1570,14 @@ def _cohere_rerank(query: str, matches: list, k: int = 3) -> list:
         _uknjizi_cohere_provenance(query, len(docs), int((time.time() - _t0) * 1000))
         return reranked
     except Exception as e:
-        _sentry_capture(e)
+        _capture_rag_exception(e)
         # Podaci su VEĆ otišli ka Cohere-u i pre nego što je poziv pukao, pa se
         # provenance red piše i u grani greške -- inače bi neuspeli pozivi bili
         # jedina rupa u tragu.
         _uknjizi_cohere_provenance(
             query, len(docs), int((time.time() - _t0) * 1000), status="error", error=e,
         )
-        logger.warning("[COHERE] Reranking nije uspeo: %s — fallback na GPT reranker", e)
+        logger.warning("[COHERE] Reranking nije uspeo: %s — fallback na GPT reranker", _rag_error_text(e))
         return _gpt_rerank(query, matches, k)
 
 
@@ -1598,8 +1635,8 @@ def _oceni_relevantnost(query: str, docs: list[str]) -> str:
             return "DELIMIČNO"
         return "RELEVANTNO"
     except Exception as e:
-        _sentry_capture(e)
-        logger.warning("[CRAG] Ocena relevantnosti nije uspela: %s — pretpostavljam RELEVANTNO", e)
+        _capture_rag_exception(e)
+        logger.warning("[CRAG] Ocena relevantnosti nije uspela: %s — pretpostavljam RELEVANTNO", _rag_error_text(e))
         return "RELEVANTNO"
 
 
@@ -1641,8 +1678,8 @@ def _prosiri_pretragu_crag(query: str) -> list[str]:
             if candidates:
                 return candidates[:3]
     except Exception as e:
-        _sentry_capture(e)
-        logger.warning("[CRAG] Proširivanje pretrage nije uspelo: %s", e)
+        _capture_rag_exception(e)
+        logger.warning("[CRAG] Proširivanje pretrage nije uspelo: %s", _rag_error_text(e))
     return []
 
 
@@ -1692,7 +1729,7 @@ def _izracunaj_skor(
                 m = re.search(r"\d+", clan_doc or "")
                 if m and 360 <= int(m.group()) <= 395: skor += 70
             except Exception as _exc:
-                _sentry_capture(_exc)
+                _capture_rag_exception(_exc)
                 pass
 
     if any(x in query_norm for x in ["digital", "kripto", "bitcoin", "usdt", "ethereum", "token", "nft", "blockchain"]):
@@ -1849,64 +1886,68 @@ def _jedan_retrieval_krug(
     q_norm = _normalizuj(query)
 
     executor = ThreadPoolExecutor(max_workers=12)
+    def _submit_contextual(fn, *args, **kwargs):
+        context = contextvars.copy_context()
+        return executor.submit(context.run, fn, *args, **kwargs)
+
     fjobs: list[Future] = []
 
     # a) Direktan fetch člana
     if label_clana:
-        fjobs.append(executor.submit(_direktan_fetch_clana, label_clana, zakon))
+        fjobs.append(_submit_contextual(_direktan_fetch_clana, label_clana, zakon))
 
     # b) Semantička sa filterom — widened to 30 to build orig-query cosine lookup
     #    PRIMARNI upit #1 (B-U-003)
-    f_orig_law = executor.submit(_pretraga_vec, vektor, max(top_k_pinecone, 30), zakon,
+    f_orig_law = _submit_contextual(_pretraga_vec, vektor, max(top_k_pinecone, 30), zakon,
                                  neuspeh=neuspeh_primarni)
     fjobs.append(f_orig_law)
 
     # c) Semantička bez filtera — PRIMARNI upit #2 (B-U-003)
-    fjobs.append(executor.submit(_pretraga_vec, vektor, 6, None, neuspeh=neuspeh_primarni))
+    fjobs.append(_submit_contextual(_pretraga_vec, vektor, 6, None, neuspeh=neuspeh_primarni))
 
     # d) ZDI ekspanzija
     if any(x in q_norm for x in _ZDI_TRIGERI):
         for term in _ZDI_TERMINI:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o digitalnoj imovini"))
+            fjobs.append(_submit_contextual(_semanticka_pretraga, term, 3, "zakon o digitalnoj imovini"))
 
     # e) Smart contract ekspanzija
     if any(x in q_norm for x in _SC_TRIGERI):
         for term in _SC_TERMINI_ZDI:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o digitalnoj imovini"))
+            fjobs.append(_submit_contextual(_semanticka_pretraga, term, 3, "zakon o digitalnoj imovini"))
         for term in _SC_TERMINI_ZOO:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o obligacionim odnosima"))
+            fjobs.append(_submit_contextual(_semanticka_pretraga, term, 3, "zakon o obligacionim odnosima"))
 
     # f) KZ ekspanzija
     if any(x in q_norm for x in _KZ_TRIGERI):
         for term in _KZ_TERMINI:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "KZ"))
+            fjobs.append(_submit_contextual(_semanticka_pretraga, term, 3, "KZ"))
 
     # g) ZPDG ekspanzija
     if any(x in q_norm for x in _ZPDG_TRIGERI):
         for term in _ZPDG_TERMINI:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "zakon o porezu na dohodak gradjana"))
+            fjobs.append(_submit_contextual(_semanticka_pretraga, term, 3, "zakon o porezu na dohodak gradjana"))
 
     # h) Prevara/fraud ekspanzija — Q5: embedding collision forces KZ 208 out of top-10
     if re.search(r'\bprevar', q_norm) and re.search(r'\b(milion|hiljada|dinara)\b', q_norm):
         for term in _PREVARA_KZ_TERMINI:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 3, "KZ"))
+            fjobs.append(_submit_contextual(_semanticka_pretraga, term, 3, "KZ"))
 
     # j) N8: građanska nadležnost → pravila nadležnosti iz ZPP-a
     if je_pitanje_gradjanske_nadleznosti(query):
         for term in _NADLEZNOST_ZPP_TERMINI:
-            fjobs.append(executor.submit(_semanticka_pretraga, term, 2, _ZPP_LAW))
+            fjobs.append(_submit_contextual(_semanticka_pretraga, term, 2, _ZPP_LAW))
 
     # i) Sprint 2A: multi-query pod-pitanja
     for sub_q in extra_queries:
-        fjobs.append(executor.submit(_semanticka_pretraga, sub_q, 5, zakon))
-        fjobs.append(executor.submit(_semanticka_pretraga, sub_q, 3, None))
+        fjobs.append(_submit_contextual(_semanticka_pretraga, sub_q, 5, zakon))
+        fjobs.append(_submit_contextual(_semanticka_pretraga, sub_q, 3, None))
 
     svi_matchevi: list = []
     for f in as_completed(fjobs):
         try:
             svi_matchevi.extend(f.result())
         except Exception as _exc:
-            _sentry_capture(_exc)
+            _capture_rag_exception(_exc)
             pass
 
     executor.shutdown(wait=False)
@@ -1917,7 +1958,7 @@ def _jedan_retrieval_krug(
         for m in f_orig_law.result():
             orig_score_map[m.id] = m.score
     except Exception as _exc:
-        _sentry_capture(_exc)
+        _capture_rag_exception(_exc)
         pass
 
     # Deduplikacija po ID
@@ -1959,12 +2000,12 @@ def _karantin_chunka(match) -> tuple:
     try:
         from security.prompt_guard import analyze as _analyze
     except Exception as exc:
-        logger.error("[KARANTIN] analizator nedostupan (%s) — chunk se odbija", exc)
+        logger.error("[KARANTIN] analizator nedostupan (%s) — chunk se odbija", _rag_error_text(exc))
         return True, -1.0
     try:
         r = _analyze(tekst)
     except Exception as exc:
-        logger.error("[KARANTIN] analiza pala (%s) — chunk se odbija", exc)
+        logger.error("[KARANTIN] analiza pala (%s) — chunk se odbija", _rag_error_text(exc))
         return True, -1.0
     if getattr(r, "blocked", False):
         return True, float(getattr(r, "risk_score", 0.0))
@@ -2024,7 +2065,7 @@ def _vlasnicki_opseg_iz_konteksta():
         return ns, _acl(supa, uid)
     except Exception as e:
         # Neuspeh razresavanja NE sme da otvori pretragu bez ogranicenja.
-        logger.error("[BR003] vlasnicki opseg nije razresen za uid=%.8s: %s", uid, e)
+        logger.error("[BR003] vlasnicki opseg nije razresen za uid=%.8s: %s", uid, _rag_error_text(e))
         return None, None
 
 
@@ -2051,6 +2092,8 @@ def retrieve_documents(
     kancelarija_namespace: Optional[str] = None,
     current_predmet_id: Optional[str] = None,
     dozvoljeni_predmeti: Optional[list] = None,
+    include_owner_scope: bool = True,
+    require_selected_predmet: bool = False,
 ) -> tuple[list[str], dict]:
     """
     Agentic RAG pipeline — svi 5 sprintova.
@@ -2064,6 +2107,9 @@ def retrieve_documents(
       6. CRAG ocena relevantnosti + corrective petlja (max 2 iteracije)
 
     Args:
+        include_owner_scope: disable retrieval of the caller-owned cross-case document namespace.
+            The default preserves established behavior; Word without a matter disables it.
+        require_selected_predmet: require the authenticated user to have access to exactly the selected matter.
         extra_namespaces: optional list of additional Pinecone namespaces to query
             in parallel (e.g. ["tmp_<session_id>"] for uploaded-document context).
             Existing callers pass nothing — behavior is identical.
@@ -2091,7 +2137,20 @@ def retrieve_documents(
     broj_clana  = _izvuci_broj_clana(query)
     label_clana = f"Član {broj_clana}" if broj_clana else None
 
-    # ── Faza 0: Embed jedanput ────────────────────────────────────────────────
+    _selected_owner_scope = None
+    if require_selected_predmet:
+        if not include_owner_scope or not current_predmet_id:
+            raise RetrievalUnavailable("selected matter context is required")
+        _selected_owner_scope = _vlasnicki_opseg_iz_konteksta()
+        _selected_namespace, _selected_acl = _selected_owner_scope
+        if (
+            not _selected_namespace
+            or _selected_acl is None
+            or str(current_predmet_id) not in {str(item) for item in _selected_acl}
+        ):
+            raise RetrievalUnavailable("selected matter is not authorized")
+        dozvoljeni_predmeti = [str(current_predmet_id)]
+# ── Faza 0: Embed jedanput ────────────────────────────────────────────────
     # CELINA 1 (2026-07-24): _ugradi_query je ranije stajao neuhvaćen -- prolazna
     # greška OpenAI embeddings API-ja (rate limit, mrežni blip) je bila neuhvaćen
     # izuzetak koji ruši ceo poziv, umesto da degradira na LOW-confidence prazan
@@ -2101,8 +2160,8 @@ def retrieve_documents(
     try:
         vektor = _ugradi_query(query)
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.error("[RETRIEVE] Embedding neuspešan za query='%s': %s", query[:60], exc)
+        _capture_rag_exception(exc)
+        logger.error("[RETRIEVE] Embedding neuspešan za query='%s': %s", _rag_query_for_log(query), _rag_error_text(exc))
         # B4: pad embeddinga znaci da NIJEDAN izvor nije pretrazen. Ranije je
         # ovaj povratak bio oblikovan kao potpuno validan „LOW, nista nije
         # nadjeno" rezultat, pa je `ask_agent` iz njega proizvodio tvrdnju o
@@ -2171,7 +2230,14 @@ def retrieve_documents(
     # Prosleđena vrednost se NE uzima na veru: ako kontekst ima korisnika, a
     # pozivalac je poslao drugačiji namespace, pobeđuje izvedeni. Time nijedna
     # buduća putanja ne može da pretražuje tuđi prostor ni greškom ni namerno.
-    _izvedeni_ns, _izvedeni_acl = _vlasnicki_opseg_iz_konteksta()
+    if _selected_owner_scope is not None:
+        _izvedeni_ns, _izvedeni_acl = _selected_owner_scope
+    elif include_owner_scope:
+        _izvedeni_ns, _izvedeni_acl = _vlasnicki_opseg_iz_konteksta()
+    else:
+        _izvedeni_ns, _izvedeni_acl = None, None
+        kancelarija_namespace = None
+        dozvoljeni_predmeti = None
     if _izvedeni_ns:
         if kancelarija_namespace and kancelarija_namespace != _izvedeni_ns:
             logger.error(
@@ -2214,7 +2280,7 @@ def retrieve_documents(
     # fall back to generic _dekomponuj_query for simple ones.
     _decomp_fn = decompose_query if _treba_fx1_dekompozicija(query) else _dekomponuj_query
     if _decomp_fn is decompose_query:
-        logger.info("[FIX1] Aktivirana intent-aware dekompozicija za query='%.60s'", query)
+        logger.info("[FIX1] Aktivirana intent-aware dekompozicija za query='%.60s'", _rag_query_for_log(query))
 
     # S2-4 (2026-08-09): a raw ThreadPoolExecutor does NOT propagate contextvars.
     # _decomp_fn and _generiši_hyde both make LLM calls, so without this the
@@ -2233,13 +2299,13 @@ def retrieve_documents(
     try:
         sub_queries = f_multi.result(timeout=16.0)
     except Exception as _exc:
-        _sentry_capture(_exc)
+        _capture_rag_exception(_exc)
         logger.info("[MULTI_Q] Timeout ili greška — preskočena")
 
     try:
         hyde_text = f_hyde.result(timeout=13.0)
     except Exception as _exc:
-        _sentry_capture(_exc)
+        _capture_rag_exception(_exc)
         logger.info("[HyDE] Timeout ili greška — preskočena")
 
     # ── Faza 2: Retrieval ─────────────────────────────────────────────────────
@@ -2284,10 +2350,10 @@ def retrieve_documents(
                             vidjeni.add(m.id)
                             matchevi.append(m)
                 except Exception as _exc:
-                    _sentry_capture(_exc)
+                    _capture_rag_exception(_exc)
                     pass
     except Exception as _exc:
-        _sentry_capture(_exc)
+        _capture_rag_exception(_exc)
         pass
 
     # ── Faza 3: Re-ranking ────────────────────────────────────────────────────
@@ -2390,6 +2456,7 @@ def retrieve_documents(
                     logger.info("[HINT-Q5] prevara-milion → KZ 208 overrides Cohere pick")
                     break
     else:
+        _top_meta_raw = {}
         _top_score   = 0.0
         _top_article = "—"
         _top_law     = "—"
@@ -2414,7 +2481,7 @@ def retrieve_documents(
                                 vidjeni.add(m.id)
                                 reranked.append(m)
                     except Exception as _exc:
-                        _sentry_capture(_exc)
+                        _capture_rag_exception(_exc)
                         pass
             reranked = reranked[:k]
         elif zakon is not None:
@@ -2457,8 +2524,8 @@ def retrieve_documents(
                 })
         logger.info("[PRAKSA] %d odluka dodato u kontekst (od %d rezultata)", _added, len(_pm_list))
     except Exception as _pe:
-        _sentry_capture(_pe)
-        logger.warning("[PRAKSA] Retrieval greška: %s — nastavlja se bez prakse", _pe)
+        _capture_rag_exception(_pe)
+        logger.warning("[PRAKSA] Retrieval greška: %s — nastavlja se bez prakse", _rag_error_text(_pe))
     finally:
         _praksa_exec.shutdown(wait=False)
 
@@ -2490,8 +2557,8 @@ def retrieve_documents(
                         })
                 logger.info("[DOC_NS:%s] %d pasusa dodato u kontekst", _ns, len(_ns_matches[:3]))
             except Exception as _de:
-                _sentry_capture(_de)
-                logger.warning("[DOC_NS:%s] Retrieval greška: %s", _ns, _de)
+                _capture_rag_exception(_de)
+                logger.warning("[DOC_NS:%s] Retrieval greška: %s", _ns, _rag_error_text(_de))
                 # B4: ukljucuje i TimeoutError iz `.result(timeout=5.0)` --
                 # spor izvor tiho ispada isto kao pao izvor.
                 if IZVOR_DOKUMENTI not in _izvori_neuspeh:
@@ -2581,8 +2648,8 @@ def retrieve_documents(
                 kancelarija_namespace, _kanc_dodato, len(_kanc_matches),
             )
         except Exception as _ke:
-            _sentry_capture(_ke)
-            logger.warning("[KANC_NS:%s] Retrieval greška: %s", kancelarija_namespace, _ke)
+            _capture_rag_exception(_ke)
+            logger.warning("[KANC_NS:%s] Retrieval greška: %s", kancelarija_namespace, _rag_error_text(_ke))
             # B4: isto vazi i ovde -- `.result(timeout=5.0)` na sporom Pinecone-u
             # je do sada tiho izbacivao advokatove dokumente iz odgovora.
             if IZVOR_DOKUMENTI not in _izvori_neuspeh:
@@ -2594,16 +2661,16 @@ def retrieve_documents(
     elapsed = _time.perf_counter() - t0
     logger.info(
         "[RETRIEVE] %.2fs | raw_matches=%d | docs_posle_crag=%d | zakon=%s | clan=%s | query='%s'",
-        elapsed, len(matchevi), len(docs), zakon or "—", label_clana or "—", query[:80],
+        elapsed, len(matchevi), len(docs), zakon or "—", label_clana or "—", _rag_query_for_log(query, 80),
     )
     if docs:
         for _i, _d in enumerate(docs[:3]):
-            logger.info("[RETRIEVE doc%d] %s", _i, _d[:200].replace("\n", " "))
+            logger.info("[RETRIEVE doc%d] %s", _i, _rag_value_for_log(_d[:200].replace("\n", " ")))
     else:
         logger.error(
             "[RETRIEVE] PRAZAN KONTEKST — Pinecone vratio 0 korisnih rezultata za query='%s'. "
             "Proverite: PINECONE_API_KEY, PINECONE_HOST, ime indeksa '%s'.",
-            query[:80], os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
+            _rag_query_for_log(query, 80), os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
         )
 
     # ── B-U-003: FAILURE != EMPTY za zakonski korpus ─────────────────────────
@@ -2626,17 +2693,29 @@ def retrieve_documents(
         logger.error(
             "[RETRIEVE] zakonski korpus NIJE pretrazen: %d/%d primarnih upita palo, "
             "rezultata=%d — oznacavam IZVOR_ZAKON kao neproveren [query=%s]",
-            len(_neuspeh_primarni), _ZAKON_PRIMARNIH_UPITA, len(reranked), query[:60],
+            len(_neuspeh_primarni), _ZAKON_PRIMARNIH_UPITA, len(reranked), _rag_query_for_log(query),
         )
         if IZVOR_ZAKON not in _izvori_neuspeh:
             _izvori_neuspeh.append(IZVOR_ZAKON)
 
     _izvori = _build_izvori(reranked)
+    _top_source = {
+        "id": str(getattr(_top, "id", "") or "")[:160],
+        **{
+            key: str(_top_meta_raw[key])[:2048]
+            for key in ("source_url", "version", "valid_from", "valid_until", "effective_date", "status")
+            if _top_meta_raw.get(key) is not None
+        },
+    } if reranked else {}
     retrieval_meta = {
         "top_score":          _top_score,
         "top_article":        _top_article,
         "top_law":            _top_law,
         "top_text":           _top_text,
+        # Additive source-record fields for clients that need to present legal
+        # source identity. Existing retrieval consumers continue to use the
+        # established top_law/top_article/top_text contract.
+        "top_source":         _top_source,
         "confidence":         get_confidence_level(_top_score),
         "confidence_detail":  _calculate_confidence(_top_score, len(reranked), query),
         "izvori":             _izvori,
@@ -2684,7 +2763,7 @@ def _prosiri_query_gpt_wrapper(query: str) -> list[str]:
         tekst = resp.choices[0].message.content.strip()
         return [q.strip() for q in tekst.split("\n") if q.strip()][:4]
     except Exception as _exc:
-        _sentry_capture(_exc)
+        _capture_rag_exception(_exc)
         return []
 
 
@@ -2847,8 +2926,8 @@ def retrieve_sudska_praksa(query: str, top_k: int = 10) -> list:
     try:
         vektor = _ugradi_query(query)
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("[PRAKSA] Embed neuspešan za query='%s': %s", query[:60], exc)
+        _capture_rag_exception(exc)
+        logger.warning("[PRAKSA] Embed neuspešan za query='%s': %s", _rag_query_for_log(query), _rag_error_text(exc))
         return []
 
     raw = _pretraga_praksa(vektor, k=max(top_k, 20))
@@ -3074,8 +3153,8 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
     try:
         vektor = _ugradi_query(query)
     except Exception as exc:
-        _sentry_capture(exc)
-        logger.error("[GRUPISANO] Embed neuspešan za query='%s': %s", query[:60], exc)
+        _capture_rag_exception(exc)
+        logger.error("[GRUPISANO] Embed neuspešan za query='%s': %s", _rag_query_for_log(query), _rag_error_text(exc))
         return _prazna_grupisano
     index = _get_index()
     res = index.query(
@@ -3151,7 +3230,7 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
                     d["obraz_text"] = full_text[:3000]
                     logger.info("[GRUPISANO] full-text fetch %r → %d chars", d["decision_number"], len(d["obraz_text"]))
             except Exception as _fe:
-                _sentry_capture(_fe)
+                _capture_rag_exception(_fe)
                 logger.debug("[GRUPISANO] full-text fetch failed for %r: %s", d["decision_number"], _fe)
 
     grupe: dict = {"tuzilac": [], "tuzeni": [], "mesovito": [], "nepoznato": []}
@@ -3166,7 +3245,7 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
     nn = len(grupe["nepoznato"])
 
     logger.info("[GRUPISANO] query=%r total=%d tuzilac=%d tuzeni=%d mesovito=%d nepoznato=%d",
-                query[:60], total, nt, nd, nm, nn)
+                _rag_query_for_log(query), total, nt, nd, nm, nn)
     return {
         "query": query,
         "total": total,

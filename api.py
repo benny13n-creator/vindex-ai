@@ -651,6 +651,8 @@ from routers.agent_notifications  import router as agent_notifications_router
 from routers.autonomy             import router as autonomy_router  # NS007: uska ulazna tačka autonomnog rada
 from routers.law_brain            import router as law_brain_router  # NS008: Law Brain (čitanje + izričita sinteza)
 from routers.copilot_ambient      import router as copilot_ambient_router
+from routers.word_auth            import router as word_auth_router
+from routers.word_copilot       import router as word_copilot_router
 from routers.precedenti           import router as precedenti_router
 from routers.knowledge_graph      import router as knowledge_graph_router
 from routers.ccc                  import router as ccc_router
@@ -752,6 +754,8 @@ app.include_router(agent_notifications_router)
 app.include_router(autonomy_router)
 app.include_router(law_brain_router)
 app.include_router(copilot_ambient_router)
+app.include_router(word_auth_router)
+app.include_router(word_copilot_router)
 app.include_router(precedenti_router)
 app.include_router(knowledge_graph_router)
 app.include_router(ccc_router)
@@ -1089,6 +1093,7 @@ _AI_ENDPOINTS = {
     "/api/precedenti",                                                           # routers/precedenti.py
     "/api/intelligence",                                                        # routers/case_intelligence.py
     "/api/evidence",                                                             # routers/evidence.py
+    "/api/word/analyze", "/api/word/rewrite",                                  # routers/word_copilot.py
 }
 
 
@@ -1166,6 +1171,12 @@ async def user_rate_limit_middleware(request: Request, call_next):
     `request.state.user_id` i za dalju upotrebu nizvodno (npr. logovanje).
     """
     path = request.url.path
+    # Word uses an opaque session, not a Supabase bearer. Skip only the
+    # generic JWT parser here; continue through SlowAPI and route handlers.
+    if path == "/api/word" or path.startswith("/api/word/"):
+        request.state.user_id = None
+        return await call_next(request)
+
     if not path.startswith("/api/"):
         return await call_next(request)
 
@@ -1221,6 +1232,55 @@ async def user_rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+def _word_supabase_connect_source() -> str:
+    from urllib.parse import urlsplit
+
+    try:
+        parsed = urlsplit(os.getenv("SUPABASE_URL", ""))
+        if (
+            parsed.scheme == "https"
+            and parsed.hostname
+            and not parsed.username
+            and not parsed.password
+            and not parsed.path
+            and not parsed.query
+            and not parsed.fragment
+        ):
+            return f" {parsed.scheme}://{parsed.netloc}"
+    except ValueError:
+        pass
+    return ""
+
+def _word_addin_frame_ancestors() -> list[str]:
+    """Accept only explicit HTTPS origins; reject wildcards and URL paths."""
+    from urllib.parse import urlsplit
+
+    configured = os.getenv("WORD_ADDIN_FRAME_ANCESTORS", "")
+    if not configured.strip():
+        return []
+    origins: list[str] = []
+    for value in configured.split(","):
+        candidate = value.strip()
+        if not candidate or "*" in candidate:
+            return []
+        try:
+            parsed = urlsplit(candidate)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or not parsed.netloc
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or parsed.username
+                or parsed.password
+            ):
+                return []
+        except ValueError:
+            return []
+        origins.append(f"https://{parsed.netloc}")
+    return list(dict.fromkeys(origins))
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     """Dodaje security, cache i permissions headere na svaki odgovor."""
@@ -1252,6 +1312,36 @@ async def security_headers(request: Request, call_next):
         "frame-ancestors 'none'; "
         "report-uri /api/security/csp-report"
     )
+    if path in {
+        "/word_addin/taskpane.html",
+        "/word_addin/commands.html",
+        "/word_addin/auth.html",
+    }:
+        ancestors = _word_addin_frame_ancestors()
+        if ancestors:
+            if "X-Frame-Options" in response.headers:
+                del response.headers["X-Frame-Options"]
+            frame_policy = " ".join(ancestors)
+        else:
+            response.headers["X-Frame-Options"] = "DENY"
+            frame_policy = "'none'"
+        # Replace the global policy on Word entry pages. Scripts are same-origin
+        # plus Office.js; no inline/eval script allowance is inherited.
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://appsforoffice.microsoft.com; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self' data:; "
+            f"connect-src 'self'{_word_supabase_connect_source()}; "
+            "frame-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            f"frame-ancestors {frame_policy}; "
+            "report-uri /api/security/csp-report"
+        )
+
     return response
 
 

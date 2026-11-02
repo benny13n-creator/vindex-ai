@@ -1,212 +1,210 @@
-// adapter.js — Vindex AI Word Add-in komunikacioni sloj
-// KORAK C: Ambient Context & Word/Browser Copilot (2026-07-24)
-//
-// Ovaj fajl NAMERNO ne sadrži nikakav UI (taskpane.html još ne postoji --
-// v. napomenu u manifest.xml). Ovo je čisti "adapter" između Office.js
-// (Word dokument) i Vindex REST API-ja (POST /api/copilot/ambient/analyze):
-//   1. Čita poslednji pasus koji korisnik kuca (Office.js Word API).
-//   2. Debounce-uje (klijentska strana -- backend NE debounce-uje, v.
-//      services/ambient_analyzer.py docstring).
-//   3. Šalje zahtev sa Bearer tokenom, vraća sugestije preko callback-a.
-//
-// Token: Word add-in ne može da deli localStorage sa glavnom Vindex web
-// aplikacijom (različit origin/kontekst) -- korisnik se loguje JEDNOM u
-// taskpane-u (van scope-a ovog fajla), token se čuva preko
-// Office.context.roamingSettings (sinhronizuje se sa Office nalogom
-// korisnika kroz uređaje) sa localStorage fallback-om za razvoj/testiranje
-// van stvarnog Office okruženja.
-
-(function (global) {
+(function (root) {
   "use strict";
+  var LEGACY_TOKEN_KEY = "vindex_auth_token";
+  var ROAMING_CLEAR_TIMEOUT_MS = 5000;
+  var applyingOperations = Object.create(null);
+  var consumedOperations = Object.create(null);
 
-  const DEFAULT_API_BASE = "https://vindex.rs";
-  const ANALYZE_PATH = "/api/copilot/ambient/analyze";
-  const DEBOUNCE_MS = 900;
-  const MIN_CHARS_TO_ANALYZE = 40;
-  const TOKEN_STORAGE_KEY = "vindex_auth_token";
-
-  let apiBase = DEFAULT_API_BASE;
-  let debounceTimer = null;
-  let lastRequestedText = "";
-  let inFlightController = null;
-
-  // ── Token storage ────────────────────────────────────────────────────────
-
-  function _hasOfficeRoaming() {
-    return (
-      typeof Office !== "undefined" &&
-      Office.context &&
-      Office.context.roamingSettings
-    );
-  }
-
-  function getAuthToken() {
-    if (_hasOfficeRoaming()) {
-      return Office.context.roamingSettings.get(TOKEN_STORAGE_KEY) || null;
-    }
+  function clearLocalToken() {
     try {
-      return global.localStorage ? global.localStorage.getItem(TOKEN_STORAGE_KEY) : null;
-    } catch (e) {
-      return null;
+      if (root.localStorage) root.localStorage.removeItem(LEGACY_TOKEN_KEY);
+    } catch (error) {
+      return Promise.reject(new Error("legacy_local_token_cleanup_failed"));
     }
+    return Promise.resolve();
   }
 
-  function setAuthToken(token) {
-    if (_hasOfficeRoaming()) {
-      Office.context.roamingSettings.set(TOKEN_STORAGE_KEY, token);
-      Office.context.roamingSettings.saveAsync();
-      return;
+  function clearRoamingToken() {
+    if (typeof Office === "undefined") return Promise.resolve();
+    var settings = Office.context && Office.context.roamingSettings;
+    if (!settings || typeof settings.remove !== "function" || typeof settings.saveAsync !== "function") {
+      return Promise.reject(new Error("legacy_roaming_token_cleanup_unavailable"));
     }
+    try { settings.remove(LEGACY_TOKEN_KEY); }
+    catch (error) { return Promise.reject(new Error("legacy_roaming_token_cleanup_failed")); }
+
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        reject(new Error("legacy_roaming_token_cleanup_timeout"));
+      }, ROAMING_CLEAR_TIMEOUT_MS);
+      try {
+        settings.saveAsync(function (result) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (result && Office.AsyncResultStatus &&
+              result.status === Office.AsyncResultStatus.Succeeded) resolve();
+          else reject(new Error("legacy_roaming_token_cleanup_failed"));
+        });
+      } catch (error) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(new Error("legacy_roaming_token_cleanup_failed"));
+      }
+    });
+  }
+
+  async function readSelectedText(officeApi) {
+    var office = officeApi || root.Office;
+    if (!office || !office.context || !office.context.document ||
+        typeof office.context.document.getSelection !== "function" ||
+        typeof office.context.sync !== "function") {
+      throw new Error("word_selection_unavailable");
+    }
+    var range = office.context.document.getSelection();
+    if (!range || typeof range.load !== "function") {
+      throw new Error("word_selection_unavailable");
+    }
+    range.load("text");
+    await office.context.sync();
+    if (typeof range.text !== "string") {
+      throw new Error("word_selection_unavailable");
+    }
+    return range.text;
+  }
+
+  function supportsSafeRewrite(wordApi) {
+    var office = root.Office;
+    var requirements = office && office.context && office.context.requirements;
+    if (!wordApi || typeof wordApi.run !== "function" || !requirements ||
+        typeof requirements.isSetSupported !== "function") return false;
     try {
-      if (global.localStorage) global.localStorage.setItem(TOKEN_STORAGE_KEY, token);
-    } catch (e) {
-      /* no-op — bez trajnog skladišta, korisnik se loguje svaki put */
-    }
+      return requirements.isSetSupported("WordApi", "1.5") &&
+        requirements.isSetSupported("WordApiDesktop", "1.4");
+    } catch (error) { return false; }
   }
 
-  function clearAuthToken() {
-    setAuthToken("");
+  function requireSafeRewrite(wordApi) {
+    if (!supportsSafeRewrite(wordApi)) throw new Error("word_rewrite_capability_unavailable");
   }
 
-  // ── Konfiguracija ─────────────────────────────────────────────────────────
-
-  function configure(options) {
-    if (options && options.apiBase) {
-      apiBase = options.apiBase.replace(/\/+$/, "");
-    }
-  }
-
-  // ── Čitanje tekućeg pasusa iz Word dokumenta (Office.js) ────────────────────
-
-  async function getCurrentParagraphText() {
-    if (typeof Word === "undefined") {
-      throw new Error("Word JS API nije dostupan (van Office okruženja?).");
-    }
-    return Word.run(async (context) => {
-      const selection = context.document.getSelection();
-      const paragraphs = selection.paragraphs;
-      paragraphs.load("text");
+  async function readSelectionSnapshot(wordApi) {
+    var api = wordApi || root.Word;
+    requireSafeRewrite(api);
+    return api.run(async function (context) {
+      var range = context.document.getSelection();
+      range.load("text,start,end,storyType");
       await context.sync();
-      if (paragraphs.items.length > 0) {
-        return paragraphs.items[paragraphs.items.length - 1].text || "";
+      if (typeof range.text !== "string" || !Number.isInteger(range.start) ||
+          !Number.isInteger(range.end) || typeof range.storyType !== "string") {
+        throw new Error("word_selection_snapshot_unavailable");
       }
-      return "";
+      return {
+        text:range.text,
+        start:range.start,
+        end:range.end,
+        storyType:range.storyType
+      };
     });
   }
 
-  // ── Poziv ka Vindex API-ju ────────────────────────────────────────────────
-
-  async function analyzeParagraph(tekst, { predmetId, tipDokumenta } = {}) {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error("Niste prijavljeni u Vindex AI — otvorite taskpane i prijavite se.");
-    }
-
-    if (inFlightController) {
-      inFlightController.abort();
-    }
-    inFlightController = typeof AbortController !== "undefined" ? new AbortController() : null;
-
-    const resp = await fetch(apiBase + ANALYZE_PATH, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + token,
-      },
-      body: JSON.stringify({
-        tekst: tekst,
-        predmet_id: predmetId || null,
-        tip_dokumenta: tipDokumenta || null,
-      }),
-      signal: inFlightController ? inFlightController.signal : undefined,
-    });
-
-    if (resp.status === 401) {
-      throw new Error("Sesija je istekla — prijavite se ponovo.");
-    }
-    if (resp.status === 404) {
-      throw new Error("Povezan predmet nije pronađen.");
-    }
-    if (resp.status === 429 || resp.status === 402) {
-      throw new Error("Dostignut je dnevni limit za Ambient Copilot.");
-    }
-    if (!resp.ok) {
-      throw new Error("Vindex API greška (" + resp.status + ").");
-    }
-    return resp.json(); // { sugestije: [...], trajanje_ms: N }
+  function _readListType(range) {
+    var format = range.listFormat;
+    if (!format || typeof format.load !== "function") throw new Error("word_format_check_unavailable");
+    format.load("listType");
+    return format;
   }
 
-  // ── Debounced "korisnik je pauzirao kucanje" tok ────────────────────────────
-  //
-  // onSuggestions(fn) — poziva se sa rezultatom svakog uspešnog poziva.
-  // onError(fn) — poziva se sa Error objektom; NIKAD ne prekida tok (fail-
-  // soft — jedna neuspela analiza ne sme da onemogući sledeću).
+  function _requireUniformTextFormatting(font, style) {
+    var values = [font.bold, font.italic, font.underline, font.name, font.size, font.color, font.highlightColor];
+    if (typeof style !== "string" || !style || values.some(function (value) {
+      return value === null || typeof value === "undefined";
+    })) throw new Error("word_format_unsupported");
+  }
 
-  function watchParagraphChanges({ onSuggestions, onError, predmetId, tipDokumenta } = {}) {
-    async function _tick() {
-      let tekst;
-      try {
-        tekst = await getCurrentParagraphText();
-      } catch (e) {
-        if (onError) onError(e);
-        return;
-      }
-
-      const trimmed = (tekst || "").trim();
-      if (trimmed.length < MIN_CHARS_TO_ANALYZE || trimmed === lastRequestedText) {
-        return;
-      }
-      lastRequestedText = trimmed;
-
-      try {
-        const rezultat = await analyzeParagraph(trimmed, { predmetId, tipDokumenta });
-        if (onSuggestions) onSuggestions(rezultat);
-      } catch (e) {
-        if (e && e.name === "AbortError") return; // zamenjeno novijim zahtevom -- ne prijavljuj kao grešku
-        if (onError) onError(e);
-      }
+  async function applyApprovedRewrite(snapshot, replacement, wordApi) {
+    var api = wordApi || root.Word;
+    requireSafeRewrite(api);
+    if (!snapshot || typeof snapshot.operationId !== "string" || !snapshot.operationId ||
+        typeof snapshot.text !== "string" || !snapshot.text ||
+        !Number.isInteger(snapshot.start) || !Number.isInteger(snapshot.end) ||
+        typeof replacement !== "string" || !replacement || replacement.length > 4000) {
+      throw new Error("word_rewrite_request_invalid");
     }
-
-    function scheduleTick() {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(_tick, DEBOUNCE_MS);
+    var operationId = snapshot.operationId;
+    if (applyingOperations[operationId] || consumedOperations[operationId]) {
+      throw new Error("word_rewrite_already_applied");
     }
+    applyingOperations[operationId] = true;
+    var mutationSubmitted = false;
+    try {
+      await api.run(async function (context) {
+        var document = context.document;
+        var range = document.getSelection();
+        range.load("text,start,end,storyType,style");
+        document.load("changeTrackingMode");
+        var table = range.parentTableOrNullObject;
+        table.load("isNullObject");
+        var tables = range.tables;
+        tables.load("items/rowCount");
+        var parentContentControl = range.parentContentControlOrNullObject;
+        parentContentControl.load("isNullObject");
+        var fields = range.fields;
+        fields.load("items/code");
+        var footnotes = range.footnotes;
+        footnotes.load("items/id");
+        var endnotes = range.endnotes;
+        endnotes.load("items/id");
+        var revisions = range.revisions;
+        revisions.load("items/type");
+        var paragraphs = range.paragraphs;
+        paragraphs.load("items/text");
+        var listFormat = _readListType(range);
+        var font = range.font;
+        font.load("bold,italic,underline,name,size,color,highlightColor");
 
-    if (typeof Office !== "undefined" && Office.context && Office.context.document) {
-      Office.context.document.addHandlerAsync(
-        Office.EventType.DocumentSelectionChanged,
-        scheduleTick
-      );
-    }
+        await context.sync();
 
-    return {
-      triggerNow: scheduleTick,
-      stop: function () {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        if (
-          typeof Office !== "undefined" &&
-          Office.context &&
-          Office.context.document
-        ) {
-          Office.context.document.removeHandlerAsync(Office.EventType.DocumentSelectionChanged);
+        if (range.text !== snapshot.text || range.start !== snapshot.start || range.end !== snapshot.end ||
+            range.storyType !== snapshot.storyType) {
+          throw new Error("word_selection_stale");
         }
-      },
-    };
+        if (range.storyType !== "MainText") throw new Error("word_story_unsupported");
+        if (table.isNullObject !== true || tables.items.length) throw new Error("word_table_selection_unsupported");
+        if (parentContentControl.isNullObject !== true) throw new Error("word_content_control_unsupported");
+        if (fields.items.length) throw new Error("word_field_selection_unsupported");
+        if (footnotes.items.length || endnotes.items.length) throw new Error("word_notes_selection_unsupported");
+        if (document.changeTrackingMode !== "Off") throw new Error("word_tracked_changes_unsupported");
+        if (revisions.items.length) throw new Error("word_revisions_selection_unsupported");
+        if (paragraphs.items.length !== 1 || /[\r\n\t\u000b]/.test(range.text)) {
+          throw new Error("word_multiline_selection_unsupported");
+        }
+        if (["ListNoNumbering", "None", "NoNumbering"].indexOf(listFormat.listType) < 0) {
+          throw new Error("word_numbered_selection_unsupported");
+        }
+        _requireUniformTextFormatting(font, range.style);
+
+        var inserted = range.insertText(replacement, api.InsertLocation.replace);
+        inserted.load("text");
+        mutationSubmitted = true;
+        consumedOperations[operationId] = true;
+        await context.sync();
+        if (inserted.text !== replacement) throw new Error("word_rewrite_result_unconfirmed");
+      });
+      return { applied:true };
+    } catch (error) {
+      if (mutationSubmitted) consumedOperations[operationId] = true;
+      throw error;
+    } finally {
+      delete applyingOperations[operationId];
+    }
   }
 
-  const VindexAmbientAdapter = {
-    configure,
-    getAuthToken,
-    setAuthToken,
-    clearAuthToken,
-    getCurrentParagraphText,
-    analyzeParagraph,
-    watchParagraphChanges,
+  function clearLegacyAuthToken() {
+    return clearLocalToken().then(clearRoamingToken);
+  }
+
+  var api = {
+    clearLegacyAuthToken:clearLegacyAuthToken,
+    readSelectedText:readSelectedText,
+    supportsSafeRewrite:supportsSafeRewrite,
+    readSelectionSnapshot:readSelectionSnapshot,
+    applyApprovedRewrite:applyApprovedRewrite
   };
-
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = VindexAmbientAdapter;
-  } else {
-    global.VindexAmbientAdapter = VindexAmbientAdapter;
-  }
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.VindexAmbientAdapter = api;
 })(typeof window !== "undefined" ? window : globalThis);
