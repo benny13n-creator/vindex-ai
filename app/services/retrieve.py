@@ -2472,6 +2472,7 @@ def retrieve_documents(
                     logger.info("[HINT-Q5] prevara-milion → KZ 208 overrides Cohere pick")
                     break
     else:
+        _top = None
         _top_meta_raw = {}
         _top_score   = 0.0
         _top_article = "—"
@@ -2722,7 +2723,7 @@ def retrieve_documents(
             for key in ("source_url", "version", "valid_from", "valid_until", "effective_date", "status")
             if _top_meta_raw.get(key) is not None
         },
-    } if reranked else {}
+    } if _top is not None else {}
     retrieval_meta = {
         "top_score":          _top_score,
         "top_article":        _top_article,
