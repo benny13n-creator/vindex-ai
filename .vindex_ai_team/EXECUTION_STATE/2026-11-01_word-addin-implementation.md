@@ -1,8 +1,8 @@
 # Word Add-in Independent Implementation
 
 **Started:** 2026-11-01
-**Current phase:** TASK-08 local QA closed; real-host flow NOT_RUN_EXTERNAL_DEPENDENCY; TASK-09 draft PR next
-**Overall status:** ACTIVE
+**Current phase:** Draft PR #68 opened; implementation branch pushed; external host and integration validation pending
+**Overall status:** WORD_ADDIN_IMPLEMENTED_EXTERNAL_VALIDATION_PENDING
 
 ## Phase log
 
@@ -18,11 +18,12 @@
 - Database Architect follow-up (2026-11-02): lifecycle design approved with cleanup/erasure conditions. Migration 146 remains reserved by open/Draft PR #66; do not author a Word migration until that PR is resolved and the next slot is verified.
 - Phase 5: TASK-01 authentication source implemented. No production configuration or migration changed.
 - Phase 6: Focused local QA completed: 37 passed, exit code 0, bounded at 90 seconds. No production database, live Supabase auth, paid model, or real Word host was accessed.
-- Phase 7: release governance not started.
+- Phase 7: release governance and diff review completed; dedicated branch pushed and Draft PR #68 opened on 2026-11-02.
+- Phase 8: implementation handoff complete. Local tests pass; external Word host, Word session migration, approved frame origins, and PR #66 budget integration remain pending.
 
 ## TASK-00
 
-**Status:** CLOSED_PROVEN for local isolation. Branch codex/word-addin-implementation is based on origin/main SHA aaea99a42906017fcbf3bbecdac02c01cc05fdde. GitHub verified PR #66 remains open on 2026-11-02; the connector response did not expose draft status or the current head SHA. No central budget files are changed. Windows Word 16.0.20326.20232 is installed/running; Mac and Word web are unverified. Claude's separate workspace cannot be inspected; no local overlap was observed, and the founder's handoff instruction is relied upon.
+**Status:** CLOSED_PROVEN for local isolation. Branch codex/word-addin-implementation is based on origin/main SHA aaea99a42906017fcbf3bbecdac02c01cc05fdde. GitHub verified PR #66 remains open on 2026-11-02; the connector response did not expose draft status or the current head SHA. No central budget files are changed. Windows Word 16.0.20326.20232 is installed but was not running when checked; Mac and Word web are unverified. Claude's separate workspace cannot be inspected; no local overlap was observed, and the founder's handoff instruction is relied upon.
 
 ## TASK-01 — Secure Word authentication
 
@@ -100,7 +101,7 @@ The pane retains the Vindex dark/cyan visual system and stays focused on selecte
 
 ## Current next action
 
-Begin TASK-09 release-candidate review and Draft PR preparation. Verify the exact diff, origin/main, PR #66 dependency state, and branch isolation before committing and publishing only this dedicated branch.
+TASK-09 is complete for the independent draft handoff. Founder review and external validation are pending; do not merge or deploy.
 
 ## TASK-00 ownership and scope matrix
 
@@ -110,7 +111,7 @@ Begin TASK-09 release-candidate review and Draft PR preparation. Verify the exac
 | Claude workspace | Separate environment; not inspected. Founder states Claude has stopped Word implementation. No local overlap is visible. |
 | Central AI budget files and PR #66 migration 146 | PR #66 owner; excluded from Word changes |
 | Vindex web login and global logout | Existing application flow preserved; shared public config extraction only |
-| Word test hosts | Windows Word 16.0.20326.20232 installed/running; Mac and Word web NOT_RUN |
+| Word test hosts | Windows Word 16.0.20326.20232 installed but not running when checked; Mac and Word web NOT_RUN |
 | Current source changes | Word-specific authentication boundary and deterministic tests; no migration, production setting, or provider call |
 
 ## TASK-07 — Manifest and controlled installation
@@ -151,3 +152,18 @@ Adversarial coverage observed in tests:
 **Changed files for TASK-08:** `tests/test_word_addin_analysis.py` and this execution-state record.
 
 **Remaining risks:** Mock Office.js contracts cannot prove runtime selection offsets, host framing, actual Word permission behavior, formatting/Undo, or concurrency semantics. The malicious-content test verifies prompt construction only, not model adherence. PR #66, session schema, exact host origins, and actual Word test tenant must be resolved before the real primary workflow can be closed.
+
+
+## TASK-09 — Release candidate and Draft PR
+
+**Status:** CLOSED_PROVEN for the dedicated branch, exact diff, published Draft PR, and local test evidence. External validation remains pending.
+
+The candidate is on `codex/word-addin-implementation`, based on `main` at `aaea99a42906017fcbf3bbecdac02c01cc05fdde`. Implementation commit: `0f703e223a277c6c66e88d4e5283cf4910a43b45`. Draft PR #68: https://github.com/benny13n-creator/vindex-ai/pull/68. GitHub confirmed it is open, unmerged, and draft, with the expected branch head. The PR changes 39 files (5,946 additions, 773 deletions). No central AI budget module, billing migration, production configuration, or production data was changed.
+
+**Final verification:** the targeted implementation suite passed 195 tests, 0 failed, exit code 0, in 11.33 seconds under a strict 90-second timeout. The base-commit comparison passed 114 tests, 0 failed, exit code 0. Node syntax checks for all Word JavaScript modules and taskpane/auth/rewrite behavior scripts exited 0. Local manifest structure/invariant tests passed; Microsoft’s official manifest schema validator was not run. The local implementation worktree was clean at the published implementation commit.
+
+**PR #66 dependency:** still open as Draft at head `21e31f67d733f57de6fa0d508804466e63868250`. Do not execute paid AI until the PR is resolved and the provider budget contract is verified. Migration 146 remains reserved by that dependency.
+
+**Remaining external validation:** the Word session schema migration is absent and not applied; exact Office frame origins are unverified and the application fails closed without them; a founder-approved staging origin and separate staging manifest are required because the candidate manifest points at canonical `vindex.rs`. Real Word Windows/Mac/web flows are NOT_RUN (Windows Word was installed but not running; Mac and web were unavailable). Word web rewrite remains disabled because the required Word API set is desktop-only. Legal source authenticity, currency, and claim correctness remain unverified. The malicious-content test verifies prompt framing, not model adherence. No paid AI, production service, migration, deployment, or AppSource submission was used.
+
+No merge or deployment was performed. Final status: `WORD_ADDIN_IMPLEMENTED_EXTERNAL_VALIDATION_PENDING`.
