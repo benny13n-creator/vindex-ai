@@ -51,7 +51,21 @@ B1 provere u Playwright-u:
 
 ---
 
-## B2. Komercijalne odluke — ČEKAJU OSNIVAČA
+## B2. Komercijalne odluke
+
+### Zabeležene odluke osnivača (2026-11-02, „PHASE A P0 MULTIPLIER FIX“, Zadatak 3)
+
+| Stavka | Odluka | Stanje u kodu i podacima |
+|---|---|---|
+| Basic mesečno | **29 €** | seed 068 = 29 €, dosledno |
+| Professional mesečno | **69 €** | seed 068 i `_FALLBACK` = 79 €. **Nije menjano.** Izmenu u Admin konzoli i `_FALLBACK` radi osnivač u posebnom koraku; nijedna cena nije aktivirana. |
+| Professional godišnje | **ostaje 758,40 €** (opcija A ispod) | seed 068 = 758,40 €, dosledno |
+| Stvarni godišnji popust uz 69 €/mes | **≈ 8,41 %** (69,60 € od 828,00 €) | aplikacija ga računa iz `tier_config` i prikazuje „uštedite 8 %“. Tvrdnja o 20 % ne postoji nigde u kodu ni na sajtu (`git grep`), pa nema šta da se uklanja. |
+| Automatska naplata prekoračenja | **ne** | nema checkout-a ni automatske naplate (test B1) |
+| Iznosi periodične dodele kredita | **nisu odobreni** | mehanizam ne postoji; ništa se ne implementira bez odobrenog ugovora o dodeli (v. AI fond) |
+| Enterprise | **postojeća cena se ne zamenjuje nulom bez odluke** | seed 068 = 249 €/mes, 2.390,40 €/god, 3 mesta, 49 €/dodatno mesto; nije menjano |
+
+Naplata nije aktivirana; ni `tier_config` ni stanje kredita nisu dirani.
 
 **Kanonski izvor cena:** `tier_config` (migracija 068), javno preko `GET /api/plan/info`. Kartice u aplikaciji se crtaju iz tog odgovora (`static/vindex.js:8340-8395`). Izmena ide preko Admin konzole i beleži se u `tier_config_audit` (upis je fail-soft). Javni sajt ne prikazuje cene. PROVEN.
 
@@ -69,17 +83,18 @@ Opcije posle odobrenih 69 €/mes (12 × 69 = 828,00 €):
 
 Basic je dosledan: 278,40 € = 29 × 12 × 0,8 (20 %).
 
-**Redosled:**
-1. Osnivač bira A, B ili C.
-2. Tek tada se u Admin konzoli menja Professional 79 → 69.
-3. U istom PR-u `_FALLBACK` (`shared/tier_config.py:34`) postaje 69, uz test koji poredi fallback i odobrene cene.
+**Odluka (2026-11-02): A.** Godišnja ostaje 758,40 €; B i C nisu odobrene.
+
+**Preostali redosled:**
+1. Osnivač u Admin konzoli menja Professional 79 → 69. To je izmena produkcionih podataka i ne radi se u ovom sprintu.
+2. U istom koraku `_FALLBACK` (`shared/tier_config.py:34`) postaje 69, uz test koji poredi fallback i odobrene cene. Fallback se koristi samo kad je `tier_config` prazan, pa promena koda pre izmene podataka ne sme da napravi dve različite cene.
 
 Produkcijske vrednosti `tier_config` su UNKNOWN; mogle su biti menjane kroz konzolu.
 
 ### Mesečni AI fond — predlog mehanizma (nije implementiran)
 
 **Stanje (PROVEN):**
-- Krediti se dodeljuju **jednom**: 15, trigger `on_auth_user_created_credits`.
+- Krediti se dodeljuju **jednom**: 15, trigger `on_auth_user_created_credits` (`supabase_setup.sql`).
 - Ne postoji mesečno punjenje ni dodela po tarifi.
 - Konstante `BASIC_MESECNI_KREDITI = 200` / `PRO_MESECNI_KREDITI = 600` (`shared/deps.py:62-63`, `api.py:357-358`) koristi samo `require_credits`, koja ima **0 pozivalaca**. Ne smatraju se pravima i ovde se ne predlažu kao vrednosti.
 
@@ -102,7 +117,7 @@ Produkcijske vrednosti `tier_config` su UNKNOWN; mogle su biti menjane kroz konz
 
 **Kanonski prikaz danas (PROVEN, seed 068 i kod kartica):** u aplikaciji se prikazuje **249 €/mes**, „Godišnja pretplata — uštedite 20 %“ (2.390,40 €), „Uključeno: 3 korisnika · dodatno mesto 49 €/mes“ i dugme „Kontaktirajte nas →“ (mailto). Javni sajt ga ne prikazuje.
 
-**Odluka:** da li Enterprise ostaje sa javno prikazanom cenom od 249 € ili prelazi na „individualna ponuda“. Ugovor iz Faze B je naveo „Team/Enterprise: individualna ponuda“, ali to nije izričito odobreno kao izmena.
+**Odluka (2026-11-02):** postojeća Enterprise cena se **ne zamenjuje nulom** bez izričite odluke. I dalje je otvoreno da li Enterprise prelazi na „individualna ponuda“; to traži zaseban dizajn prikaza, a ne `monthly_price_eur = 0`.
 - Ako je odgovor „individualna ponuda“: `monthly_price_eur = 0` prikazuje „Kontakt cena“ (`ptRenderCard`), ali tada MRR procena u `routers/product_intelligence.py:128` računa 0. To je posledica koju treba prihvatiti ili rešiti zasebno.
 - **Ništa nije menjano.**
 
