@@ -20,9 +20,11 @@ from shared import word_session_dispatch
 
 def _budget_context():
     try:
-        from shared import ai_budget
+        from shared import ai_budget, ai_client
     except ImportError:
         return nullcontext()
+    ai_client._patch_prompt_guard()
+    word_session_dispatch.install_word_session_dispatch_hook()
     return ai_budget.operacija(
         "trusted-user", "lawyer@example.test", "copilot_ambient",
         founder=True, izvor="test:word-dispatch",
