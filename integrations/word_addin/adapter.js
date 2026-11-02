@@ -48,23 +48,23 @@
     });
   }
 
-  async function readSelectedText(officeApi) {
-    var office = officeApi || root.Office;
-    if (!office || !office.context || !office.context.document ||
-        typeof office.context.document.getSelection !== "function" ||
-        typeof office.context.sync !== "function") {
+  async function readSelectedText(wordApi) {
+    var api = wordApi || root.Word;
+    if (!api || typeof api.run !== "function") {
       throw new Error("word_selection_unavailable");
     }
-    var range = office.context.document.getSelection();
-    if (!range || typeof range.load !== "function") {
-      throw new Error("word_selection_unavailable");
-    }
-    range.load("text");
-    await office.context.sync();
-    if (typeof range.text !== "string") {
-      throw new Error("word_selection_unavailable");
-    }
-    return range.text;
+    return api.run(async function (context) {
+      var range = context.document.getSelection();
+      if (!range || typeof range.load !== "function") {
+        throw new Error("word_selection_unavailable");
+      }
+      range.load("text");
+      await context.sync();
+      if (typeof range.text !== "string") {
+        throw new Error("word_selection_unavailable");
+      }
+      return range.text;
+    });
   }
 
   function supportsSafeRewrite(wordApi) {

@@ -261,6 +261,40 @@ async def require_word_session(request: Request) -> WordSession:
     return session
 
 
+async def ensure_word_session_active(session: WordSession) -> None:
+    """Recheck the same Word row before returning results from dispatched work."""
+    def _load() -> Any:
+        return (
+            _get_supa()
+            .table("word_sessions")
+            .select("id,user_id,token_hash,expires_at,revoked_at")
+            .eq("id", session.session_id)
+            .eq("user_id", session.user_id)
+            .eq("token_hash", session.token_hash)
+            .maybe_single()
+            .execute()
+        )
+
+    try:
+        result = await asyncio.to_thread(_load)
+    except Exception:
+        logger.warning("[WORD_AUTH] result_session_recheck_failed")
+        raise HTTPException(status_code=503, detail="Word sesija trenutno nije dostupna.")
+
+    row = getattr(result, "data", None) if result is not None else None
+    expiry = _row_expiry(row.get("expires_at")) if isinstance(row, dict) else None
+    if (
+        not isinstance(row, dict)
+        or row.get("id") != session.session_id
+        or row.get("user_id") != session.user_id
+        or not hmac.compare_digest(str(row.get("token_hash", "")), session.token_hash)
+        or row.get("revoked_at") is not None
+        or expiry is None
+        or expiry.timestamp() <= time.time()
+    ):
+        raise HTTPException(status_code=401, detail="Word sesija je istekla ili opozvana.")
+
+
 async def _confirm_source_identity(token: str) -> tuple[str, dict[str, Any]]:
     """Require provider confirmation, then independently verify exact signed claims."""
     try:

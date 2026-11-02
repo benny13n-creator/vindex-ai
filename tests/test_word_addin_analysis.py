@@ -4,10 +4,11 @@ import asyncio
 import json
 import sys
 import types
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from slowapi import _rate_limit_exceeded_handler
@@ -24,10 +25,22 @@ def _client(monkeypatch):
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
     app.include_router(word_copilot.router)
-    app.dependency_overrides[word_copilot.require_word_analysis_user] = lambda: {
-        "user_id": "trusted-user",
-        "email": "lawyer@example.test",
-    }
+    session = WordSession(
+        session_id="word-session-test",
+        user_id="trusted-user",
+        token_hash="test-word-session-hash",
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    )
+
+    async def trusted_user(request: Request):
+        request.state.word_session = session
+        return {"user_id": "trusted-user", "email": "lawyer@example.test"}
+
+    async def session_active(_session):
+        return None
+
+    app.dependency_overrides[word_copilot.require_word_analysis_user] = trusted_user
+    monkeypatch.setattr(word_copilot, "ensure_word_session_active", session_active)
     return TestClient(app, base_url="https://vindex.test")
 
 

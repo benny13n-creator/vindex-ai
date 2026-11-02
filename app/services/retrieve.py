@@ -1526,6 +1526,14 @@ def _gpt_rerank(query: str, matches: list, k: int = 3) -> list:
                 logger.debug("[GPT_RERANK] top-%d od %d kandidata", len(reranked), len(kandidati))
                 return reranked
     except Exception as exc:
+        try:
+            from shared.word_session_dispatch import word_session_dispatch_denial
+
+            dispatch_denial = word_session_dispatch_denial(exc)
+        except Exception:
+            dispatch_denial = None
+        if dispatch_denial is not None:
+            raise dispatch_denial
         _capture_rag_exception(exc)
         logger.warning("[GPT_RERANK] Greška: %s — fallback na interni skor", _rag_error_text(exc))
     return kandidati[:k]
@@ -1544,6 +1552,14 @@ def _cohere_rerank(query: str, matches: list, k: int = 3) -> list:
     je NAMERNO pre `_get_cohere()`: kad izolacija važi, Cohere klijent se ni ne
     instancira, pa nema ni teorijske šanse da se otvori konekcija.
     """
+    # PR #66's reviewed budget contract currently governs OpenAI requests.
+    # Word mode therefore stays on the existing OpenAI fallback even when a
+    # deployment has globally opted into Cohere; non-Word retrieval is unchanged.
+    from shared.word_session_dispatch import word_provider_dispatch_active
+
+    if word_provider_dispatch_active():
+        return _gpt_rerank(query, matches, k)
+
     if not _cohere_dozvoljen():
         return _gpt_rerank(query, matches, k)
 

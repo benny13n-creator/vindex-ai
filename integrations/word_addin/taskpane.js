@@ -566,7 +566,7 @@
     setStatus("Proverava se izabrani tekst…", false);
 
     try {
-      var selectedText = await window.VindexAmbientAdapter.readSelectedText(Office);
+      var selectedText = await window.VindexAmbientAdapter.readSelectedText(window.Word);
       if (attempt !== analysisGeneration || requestToken !== sessionToken || requestMatterId !== selectedMatterId) return;
       if (!selectedText.trim()) {
         setStatus("Izaberite tekst u dokumentu pre analize.", true);
@@ -603,7 +603,7 @@
 
       var body = await response.json();
       if (attempt !== analysisGeneration || requestToken !== sessionToken || requestMatterId !== selectedMatterId) return;
-      var currentSelection = await window.VindexAmbientAdapter.readSelectedText(Office);
+      var currentSelection = await window.VindexAmbientAdapter.readSelectedText(window.Word);
       if (attempt !== analysisGeneration || requestToken !== sessionToken || requestMatterId !== selectedMatterId) return;
       if (currentSelection !== selectedText) {
         clearResults();
@@ -678,7 +678,7 @@
       setStatus("Otvorite Vindex AI iz Microsoft Word-a.", true);
       return;
     }
-    if (!Office.context.document || typeof Office.context.document.getSelection !== "function") {
+    if (!window.Word || typeof window.Word.run !== "function") {
       loginButton.disabled = true;
       setStatus("Ovaj Word host ne podržava čitanje izbora.", true);
       return;

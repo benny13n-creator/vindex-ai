@@ -137,7 +137,7 @@ function makePane(initialSelection = "Selected test sentence.", safeRewrite = tr
         return { applied:true };
       }
     },
-    Word:{},
+    Word:{ run() { return Promise.resolve(); } },
     addEventListener() {}
   };
 

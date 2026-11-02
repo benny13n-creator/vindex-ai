@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from routers.word_auth import (
     WordSession,
+    ensure_word_session_active,
     _word_server_client_key,
     require_word_session,
 )
@@ -22,11 +23,20 @@ from shared.deps import _get_supa
 from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
+from shared.word_session_dispatch import (
+    install_word_session_dispatch_hook,
+    word_provider_session,
+    word_session_dispatch_denial,
+)
 
 logger = logging.getLogger("vindex.word_copilot")
 router = APIRouter(prefix="/api/word", tags=["word-copilot"])
 
 _MAX_SELECTED_TEXT_CHARS = 4000
+
+# Install at the Word boundary and fail closed if the per-attempt transport
+# guard cannot be attached. Other routes remain outside this session context.
+_WORD_DISPATCH_HOOK_AVAILABLE = install_word_session_dispatch_hook()
 
 
 class WordAnalyzeRequest(BaseModel):
@@ -155,7 +165,6 @@ def _require_word_ai_budget_operation(request: Request, user_id: str) -> None:
         from shared import ai_budget
     except Exception:
         raise HTTPException(status_code=503, detail="AI analiza je privremeno nedostupna.")
-
     required = ("rezim", "tekuca_operacija", "pre_poziva", "apre_poziva", "posle_poziva")
     if any(not callable(getattr(ai_budget, name, None)) for name in required):
         raise HTTPException(status_code=503, detail="AI analiza je privremeno nedostupna.")
@@ -189,6 +198,16 @@ def _require_word_ai_budget_operation(request: Request, user_id: str) -> None:
     except Exception:
         raise HTTPException(status_code=503, detail="AI analiza je privremeno nedostupna.")
 
+
+def _request_word_session(request: Request) -> WordSession:
+    session = getattr(request.state, "word_session", None)
+    if not isinstance(session, WordSession):
+        raise HTTPException(status_code=401, detail="Word sesija nije važeća.")
+    if not _WORD_DISPATCH_HOOK_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Word analiza trenutno nije dostupna.")
+    return session
+
+
 @router.post("/analyze")
 @limiter.limit("30/minute", key_func=_word_server_client_key)
 async def analyze_word_selection(
@@ -201,6 +220,7 @@ async def analyze_word_selection(
         raise HTTPException(status_code=422, detail="Izaberite tekst za analizu.")
 
     user_id = user["user_id"]
+    session = _request_word_session(request)
     predmet_id = None
     if req.predmet_id is not None:
         predmet_id = await _require_word_matter_access(user_id, req.predmet_id)
@@ -213,20 +233,21 @@ async def analyze_word_selection(
             analyze_selected_text,
         )
 
-        if predmet_id:
-            from shared.ai_provenance import case_context
+        with word_provider_session(session):
+            if predmet_id:
+                from shared.ai_provenance import case_context
 
-            with case_context(
-                predmet_id=predmet_id,
-                module_name="word_addin",
-                operation_name="selected_text_analysis",
-                knowledge_sources=["statutes", "case_law", "matter_documents"],
-            ):
-                result = await analyze_selected_text(
-                    selected_text, user_id=user_id, predmet_id=predmet_id
-                )
-        else:
-            result = await analyze_selected_text(selected_text, user_id=user_id)
+                with case_context(
+                    predmet_id=predmet_id,
+                    module_name="word_addin",
+                    operation_name="selected_text_analysis",
+                    knowledge_sources=["statutes", "case_law", "matter_documents"],
+                ):
+                    result = await analyze_selected_text(
+                        selected_text, user_id=user_id, predmet_id=predmet_id
+                    )
+            else:
+                result = await analyze_selected_text(selected_text, user_id=user_id)
     except HTTPException:
         raise
     except Exception as exc:
@@ -236,6 +257,9 @@ async def analyze_word_selection(
             AIBudzetOdbijen = ()  # type: ignore[assignment]
         if isinstance(exc, AIBudzetOdbijen):
             raise HTTPException(status_code=exc.status, detail=exc.detalj)
+        dispatch_denial = word_session_dispatch_denial(exc)
+        if dispatch_denial is not None:
+            raise HTTPException(status_code=401, detail="Word sesija je istekla ili opozvana.")
         if isinstance(exc, SelectedMatterRetrievalUnavailable):
             raise HTTPException(status_code=503, detail="Izabrani predmet trenutno nije dostupan za analizu.")
         if isinstance(exc, SelectedTextProviderUnavailable):
@@ -254,6 +278,8 @@ async def analyze_word_selection(
         logger.warning("[WORD_ANALYSIS] usage_settlement_unavailable error=%s", type(exc).__name__)
         raise HTTPException(status_code=503, detail="Analiza nije mogla biti potvrđena.")
 
+    await ensure_word_session_active(session)
+
     return result
 
 
@@ -270,6 +296,7 @@ async def propose_word_rewrite(
         raise HTTPException(status_code=422, detail="Izaberite tekst za preformulisanje.")
 
     user_id = user["user_id"]
+    session = _request_word_session(request)
     _require_word_ai_budget_operation(request, user_id)
     try:
         from services.ambient_analyzer import (
@@ -277,7 +304,8 @@ async def propose_word_rewrite(
             generate_word_rewrite_proposal,
         )
 
-        proposal = await generate_word_rewrite_proposal(selected_text, user_id=user_id)
+        with word_provider_session(session):
+            proposal = await generate_word_rewrite_proposal(selected_text, user_id=user_id)
     except HTTPException:
         raise
     except Exception as exc:
@@ -287,6 +315,9 @@ async def propose_word_rewrite(
             AIBudzetOdbijen = ()  # type: ignore[assignment]
         if isinstance(exc, AIBudzetOdbijen):
             raise HTTPException(status_code=exc.status, detail=exc.detalj)
+        dispatch_denial = word_session_dispatch_denial(exc)
+        if dispatch_denial is not None:
+            raise HTTPException(status_code=401, detail="Word sesija je istekla ili opozvana.")
         if isinstance(exc, SelectedTextProviderUnavailable):
             raise HTTPException(
                 status_code=503,
@@ -302,6 +333,8 @@ async def propose_word_rewrite(
     except Exception as exc:
         logger.warning("[WORD_REWRITE] usage_settlement_unavailable error=%s", type(exc).__name__)
         raise HTTPException(status_code=503, detail="Predlog nije mogao biti potvrđen.")
+
+    await ensure_word_session_active(session)
 
     return {
         "original_text": selected_text,

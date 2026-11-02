@@ -135,26 +135,37 @@ def test_word_adapter_returns_exact_selected_range_text():
     script = r"""
 const assert = require('node:assert/strict');
 const adapter = require(process.argv[1]);
-const exact = 'first line\nsecond\tcell';
+const documentText = 'unselected before | exact selected sentence | unselected after';
+const start = documentText.indexOf('exact selected sentence');
+const exact = documentText.slice(start, start + 'exact selected sentence'.length);
 let loaded = null;
 let synced = false;
-const office = {
-  context: {
+let selectedRangeCalls = 0;
+const word = {
+  run(callback) {
+    const context = {
     document: {
       getSelection() {
+        selectedRangeCalls += 1;
         return {
-          text: exact,
-          load(field) { loaded = field; }
+          text: undefined,
+          load(field) {
+            loaded = field;
+            this.text = documentText.slice(start, start + exact.length);
+          }
         };
       }
     },
     async sync() { synced = true; }
+    };
+    return callback(context);
   }
 };
 (async () => {
-  assert.equal(await adapter.readSelectedText(office), exact);
+  assert.equal(await adapter.readSelectedText(word), exact);
   assert.equal(loaded, 'text');
   assert.equal(synced, true);
+  assert.equal(selectedRangeCalls, 1);
   await assert.rejects(adapter.readSelectedText({}), /word_selection_unavailable/);
 })().catch(error => { console.error(error); process.exitCode = 1; });
 """

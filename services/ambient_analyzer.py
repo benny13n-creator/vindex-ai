@@ -34,6 +34,15 @@ from shared.sentry import capture_exception as _sentry_capture
 
 logger = logging.getLogger("vindex.ambient_analyzer")
 
+
+def _word_dispatch_denial(exc: BaseException):
+    """Preserve the Word session boundary through provider SDK wrappers."""
+    try:
+        from shared.word_session_dispatch import word_session_dispatch_denial
+    except Exception:
+        return None
+    return word_session_dispatch_denial(exc)
+
 _RAG_TOP_K = 3
 _RAG_TIMEOUT_SECONDS = 4.0
 _LLM_TIMEOUT_SECONDS = 6.0
@@ -477,6 +486,9 @@ async def _brzi_rag_kontekst(
         result_by_type = {}
         for kind, result in zip(("clan_zakona", "sudska_praksa"), results):
             if isinstance(result, Exception):
+                dispatch_denial = _word_dispatch_denial(result)
+                if dispatch_denial is not None:
+                    raise dispatch_denial
                 if propagate_budget_errors and _is_ai_budget_rejection(result):
                     raise result
                 if predmet_id and kind == "clan_zakona":
@@ -499,6 +511,9 @@ async def _brzi_rag_kontekst(
             raise SelectedMatterRetrievalUnavailable("matter_rag_timeout") from exc
         return _WordRagContext("", (), {"clan_zakona": "unavailable", "sudska_praksa": "unavailable"}) if include_sources else ""
     except Exception as exc:
+        dispatch_denial = _word_dispatch_denial(exc)
+        if dispatch_denial is not None:
+            raise dispatch_denial
         if propagate_budget_errors and _is_ai_budget_rejection(exc):
             raise
         if predmet_id:
@@ -589,6 +604,9 @@ async def generate_word_rewrite_proposal(tekst: str, user_id: str = "") -> str:
         logger.warning("[WORD_REWRITE] provider_timeout uid=%.8s", (user_id or "")[:8])
         raise SelectedTextProviderUnavailable("provider_timeout") from exc
     except Exception as exc:
+        dispatch_denial = _word_dispatch_denial(exc)
+        if dispatch_denial is not None:
+            raise dispatch_denial
         if _is_ai_budget_rejection(exc):
             raise
         logger.warning(
@@ -650,6 +668,9 @@ async def analyze_selected_text(tekst: str, user_id: str = "", predmet_id: Optio
         logger.warning("[WORD_ANALYSIS] provider_timeout uid=%.8s", (user_id or "")[:8])
         raise SelectedTextProviderUnavailable("provider_timeout") from exc
     except Exception as exc:
+        dispatch_denial = _word_dispatch_denial(exc)
+        if dispatch_denial is not None:
+            raise dispatch_denial
         if _is_ai_budget_rejection(exc):
             raise
         logger.warning(
