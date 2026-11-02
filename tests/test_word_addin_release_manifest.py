@@ -20,7 +20,7 @@ def test_release_candidate_manifest_is_distinct_and_non_development():
     )
     assert str(addin_id) != dev_id
     assert str(addin_id) != "00000000-0000-0000-0000-000000000000"
-    assert root.findtext(f"{{{_MAIN_NS}}}Version") == "0.2.0.0"
+    assert root.findtext(f"{{{_MAIN_NS}}}Version") == "1.0.0.0"
     assert root.find(f"{{{_MAIN_NS}}}AppDomains") is None
 
     serialized = ET.tostring(root, encoding="unicode").lower()
