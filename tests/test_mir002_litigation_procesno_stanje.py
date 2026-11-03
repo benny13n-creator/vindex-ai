@@ -435,3 +435,36 @@ def test_j_paralelna_analiza_bez_predmeta_bez_bloka(lit, monkeypatch):
     assert r.status_code == 200, r.text
     [(sistem, poruka)] = para.items()
     assert NATPIS not in poruka and sistem == MA._AGENTS["litigation"]["system"]
+
+
+# ── K: sekvencijalni niz (/pipeline) — korak litigation dobija isti blok i pravila, ostali koraci ne ───────────────────
+def test_k_pipeline_korak_litigation_dobija_blok_ostali_koraci_ne(lit):
+    import routers.multi_agent as MA
+    from routers.multi_agent import PRAVILA_PROCESNOG_STANJA_SAVETNIKA
+    k, b, pid, doks, sn = lit
+    _pitaj(k, pid)
+    blok_run = _blok(sn[-1]["user"])
+    n = len(sn)
+    r = k.post("/api/agents/pipeline", json={"opis": ZADATAK, "predmet_id": pid,
+                                             "pipeline": ["research", "litigation", "intake"]}, headers=A)
+    assert r.status_code == 200, r.text
+    o = r.json()
+    assert o["kompletan"] is True and [x["agent"] for x in o["rezultati"]] == ["research", "litigation", "intake"]
+    research, litigation, intake = sn[n:]
+    blok = _blok(litigation["user"])
+    assert _dogadjaji(blok) == _dogadjaji(blok_run) and _dogadjaji(blok)
+    assert PRAVILA_PROCESNOG_STANJA_SAVETNIKA in litigation["system"]
+    assert not re.search(r"\[\[PS-\d+\]\]", litigation["user"])
+    for a, poruka in (("research", research), ("intake", intake)):
+        assert NATPIS not in poruka["user"]
+        assert poruka["system"] == MA._sa_granicom(MA._AGENTS[a]["system"])
+    assert "_procesno_stanje" not in (o["izvori_predmeta"] or {})
+
+
+def test_k_pipeline_bez_predmeta_bez_bloka(lit):
+    k, b, pid, doks, sn = lit
+    n = len(sn)
+    r = k.post("/api/agents/pipeline", json={"opis": ZADATAK, "pipeline": ["litigation"]}, headers=A)
+    assert r.status_code == 200, r.text
+    [poruka] = sn[n:]
+    assert NATPIS not in poruka["user"] and "PROCESNO STANJE IZ SPISA (obavezno" not in poruka["system"]
