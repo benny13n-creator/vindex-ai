@@ -147,9 +147,12 @@ class LokalniSmtp:
 def _ostari(b, minuta=600):
     """Pomeri `azurirano_at` neuspelih rezervacija unazad — ponovni pokušaj čeka razmak (10·2^(k−1) min)."""
     from datetime import datetime, timedelta, timezone
+    logical_now = datetime.combine(
+        _Dan.today(), datetime.min.time(), tzinfo=timezone.utc
+    ) + timedelta(hours=8)
     for r in b.log:
         if r.get("stanje") == "neuspeh":
-            r["azurirano_at"] = (datetime.now(timezone.utc) - timedelta(minutes=minuta)).isoformat()
+            r["azurirano_at"] = (logical_now - timedelta(minutes=minuta)).isoformat()
 
 
 def _pokreni_stvarno(b, server):
@@ -178,6 +181,28 @@ def _dva_korisnika():
     b.tabele["predmet_hronologija"].append(dict(_rok("r9", _dan(1)), user_id="u-2", predmet_id="p-9"))
     return b
 
+
+def test_ponovni_pokusaj_ceka_do_isteka_backoffa(cert):
+    from datetime import datetime, timedelta, timezone
+
+    s = LokalniSmtp(*cert, auth_pada=True)
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        prvo = _pokreni_stvarno(b, s)
+        assert prvo["greske"] == 1
+        log = b.log[0]
+        assert log["stanje"] == "neuspeh" and log["pokusaja"] == 1
+        logical_now = datetime.combine(
+            _Dan.today(), datetime.min.time(), tzinfo=timezone.utc
+        ) + timedelta(hours=8)
+        log["azurirano_at"] = (logical_now - timedelta(minutes=5)).isoformat()
+        s.auth_pada = False
+        cekanje = _pokreni_stvarno(b, s)
+        assert cekanje["poslato"] == 0
+        assert log["stanje"] == "neuspeh" and log["pokusaja"] == 1
+        assert s.primljeno == []
+    finally:
+        s.zatvori()
 
 def test_smtp_prihvata_poslato_i_poruka_ide_samo_vlasniku(cert):
     s = LokalniSmtp(*cert)
