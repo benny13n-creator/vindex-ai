@@ -54,7 +54,7 @@ Navedi 2-4 konkretna pravna pitanja koja predmet otvara, sa relevantnim zakonski
 
 ## 4. HITNOST I ROKOVI
 Identifikuj da li postoje prekluzivni rokovi koji ističu (zastarelost, žalbeni rok, rok za tužbu).
-- Opšti zastarni rok: 10 godina, osim kada zakon propisuje drugi rok (čl. 371 ZOO, Sl. gl. RS 29/1978)
+- Opšti zastarni rok: 10 godina, osim kada zakon propisuje drugi rok (čl. 371 ZOO, Sl. list SFRJ, br. 29/78)
 - Žalba u parnici: 15 dana (čl. 368 ZPP)
 - Radni spor: tužba u roku od 60 dana od dana dostave rešenja o otkazu (čl. 195 ZR)
 
