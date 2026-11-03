@@ -1,6 +1,6 @@
 # MIR002 — specifikacija prihvatanja: procesno stanje za parničnu strategiju
 
-Savetnik „Parnična strategija“ (`POST /api/agents/run`, `agent=litigation`, `predmet_id`). Spis je sintetički Golden
+Savetnik „Parnična strategija“ (`POST /api/agents/run`, `agent=litigation`, `predmet_id`; isto i u paralelnoj analizi `POST /api/agents/run-parallel`). Spis je sintetički Golden
 Case (`tests/mir001_golden_case.py`). Testovi su u `tests/test_mir002_litigation_procesno_stanje.py`.
 
 **Šta se dokazuje:** ugovor konteksta, odnosno šta server šalje modelu. **Šta se ne dokazuje:** kvalitet odgovora
@@ -40,3 +40,4 @@ testova nad izmenom. Slučajevi su izvedeni iz Golden Case-a i iz MIR001 nalaza,
 | G | tarifa bez prava | 403, nula poziva modela, nula naplata; uspešan poziv = tačno jedna naplata |
 | H | `drafting` | blok i pravila nacrta nepromenjeni; pravila savetnika ne idu u nacrt |
 | I | `research` | sistemska poruka i poruka bez bloka i bez pravila savetnika |
+| J | `/run-parallel` sa `research`, `litigation`, `intake`; bez predmeta | litigation: isti događaji u bloku kao na `/run`, pravila savetnika u sistemskoj poruci, bez `[[PS-nn]]`; research i intake bez bloka i sa nepromenjenom sistemskom porukom; `_procesno_stanje` ne ide u API; bez predmeta nema bloka |

@@ -1506,7 +1506,13 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     except Exception as _pe:
         logger.warning("[PARA] provera budžeta nije izvršena (naplata ostaje autoritativna): %s", _pe)
 
-    predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(supa, uid, req.predmet_id, zahtev=req.task)
+    predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(
+        supa, uid, req.predmet_id, zahtev=req.task, procesno=("litigation" in agenti_ids and bool(req.predmet_id)))
+    # MIR002: litigation i u paralelnoj analizi dobija ISTO procesno stanje servera kao na /run (isti uslov: proveren
+    # predmet sa dokumentima) i pravila uz blok; ostali savetnici ostaju bez bloka.
+    procesno_lit = ""
+    if "litigation" in agenti_ids and predmet_verifikovan and (izvori_predmeta or {}).get("dokumenata_u_predmetu") != 0:
+        procesno_lit = _procesno_stanje_za_savetnika((izvori_predmeta or {}).get("_procesno_stanje"))
 
     # RAG za research i litigation — upit je zadatak (kao /run), ne tekst dokumenata predmeta.
     rag_ctx = ""
@@ -1538,7 +1544,11 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     async def _pozovi_agenta(agent_id: str) -> dict:
         cfg = _AGENTS[agent_id]
         try:
-            resp = await _pozovi_para_api(oai, cfg["system"], base_msg)
+            if agent_id == "litigation" and procesno_lit:
+                resp = await _pozovi_para_api(oai, cfg["system"] + f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}",
+                                              f"{predmet_ctx}{rag_ctx}{procesno_lit}\n\nZahtev: {req.task}".strip())
+            else:
+                resp = await _pozovi_para_api(oai, cfg["system"], base_msg)
             odgovor = (resp.choices[0].message.content or "").strip()
             if not odgovor:
                 raise ValueError("prazan odgovor modela")

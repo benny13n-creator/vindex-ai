@@ -389,3 +389,49 @@ def test_i_ostali_savetnici_bez_bloka_i_bez_pravila(lit, agent):
     _pitaj(k, pid, agent=agent)
     assert NATPIS not in sn[-1]["user"]
     assert sn[-1]["system"] == MA._sa_granicom(MA._AGENTS[agent]["system"])
+
+
+# ── J: paralelna analiza — litigation dobija isti blok i pravila, ostali savetnici ne ───────────────────────────────
+def test_j_paralelna_analiza_litigation_dobija_blok_ostali_ne(lit, monkeypatch):
+    import routers.multi_agent as MA
+    from routers.multi_agent import PRAVILA_PROCESNOG_STANJA_SAVETNIKA
+    k, b, pid, doks, sn = lit
+    para = {}
+
+    async def _snimi_para(oai, system, user_msg):
+        para[next(a for a, c in MA._AGENTS.items() if system.startswith(c["system"]))] = {
+            "system": MA._sa_granicom(system), "user": user_msg}
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content="Simuliran odgovor."), finish_reason="stop")])
+    monkeypatch.setattr(MA, "_pozovi_para_api", _snimi_para)
+    _pitaj(k, pid)
+    blok_run = _blok(sn[-1]["user"])
+    r = k.post("/api/agents/run-parallel", json={"task": ZADATAK, "predmet_id": pid,
+                                                 "agenti": ["research", "litigation", "intake"]}, headers=A)
+    assert r.status_code == 200, r.text
+    assert set(para) == {"research", "litigation", "intake"}
+    lit_poruka = para["litigation"]
+    blok = _blok(lit_poruka["user"])
+    assert _dogadjaji(blok) == _dogadjaji(blok_run) and _dogadjaji(blok)
+    assert PRAVILA_PROCESNOG_STANJA_SAVETNIKA in lit_poruka["system"]
+    assert not re.search(r"\[\[PS-\d+\]\]", lit_poruka["user"])
+    for a in ("research", "intake"):
+        assert NATPIS not in para[a]["user"]
+        assert para[a]["system"] == MA._sa_granicom(MA._AGENTS[a]["system"])
+    assert "_procesno_stanje" not in r.json()["izvori_predmeta"]
+
+
+def test_j_paralelna_analiza_bez_predmeta_bez_bloka(lit, monkeypatch):
+    import routers.multi_agent as MA
+    k, b, pid, doks, sn = lit
+    para = {}
+
+    async def _snimi_para(oai, system, user_msg):
+        para[system] = user_msg
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content="Simuliran odgovor."), finish_reason="stop")])
+    monkeypatch.setattr(MA, "_pozovi_para_api", _snimi_para)
+    r = k.post("/api/agents/run-parallel", json={"task": ZADATAK, "agenti": ["litigation"]}, headers=A)
+    assert r.status_code == 200, r.text
+    [(sistem, poruka)] = para.items()
+    assert NATPIS not in poruka and sistem == MA._AGENTS["litigation"]["system"]
