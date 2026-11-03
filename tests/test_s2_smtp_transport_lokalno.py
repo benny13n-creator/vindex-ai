@@ -145,11 +145,19 @@ class LokalniSmtp:
 
 
 def _ostari(b, minuta=600):
-    """Pomeri `azurirano_at` neuspelih rezervacija unazad — ponovni pokušaj čeka razmak (10·2^(k−1) min)."""
-    from datetime import datetime, timedelta, timezone
+    """Pomeri `azurirano_at` neuspelih rezervacija unazad — ponovni pokušaj čeka razmak (10·2^(k−1) min).
+
+    Unazad od ISTOG logičkog sata koji vidi provera ponavljanja (`u_vreme(_Dan.today())` → `_sada`), ne od stvarnog
+    vremena: sa `datetime.now()` je „ostareli“ zapis posle 2026-11-02 18:00 UTC bio noviji od simuliranog trenutka,
+    pa je ponovni pokušaj pogrešno čekao (5 padova u CI-ju)."""
+    from datetime import timedelta
+
+    import routers.email_notif as en
+    with u_vreme(_Dan.today()):
+        sada = en._sada()
     for r in b.log:
         if r.get("stanje") == "neuspeh":
-            r["azurirano_at"] = (datetime.now(timezone.utc) - timedelta(minutes=minuta)).isoformat()
+            r["azurirano_at"] = (sada - timedelta(minutes=minuta)).isoformat()
 
 
 def _pokreni_stvarno(b, server):
@@ -230,6 +238,29 @@ def test_pad_prijave_na_smtp_nije_predato_pa_ponovno_slanje_isporucuje_jednom(ce
     finally:
         s.zatvori()
     assert rez2["poslato"] == 1 and rez3["poslato"] == 0 and len(s.primljeno) == 1
+    assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("poslato", 2)]
+
+
+def test_prerano_ponavljanje_ceka_razmak_pa_tek_tada_isporucuje(cert):
+    """Negativna strana `_ostari`: pre isteka razmaka (10 min posle 1. pokušaja) ponovni pokušaj NE ide; na granici ide.
+    Bez ovoga bi i helper koji „ostari“ proizvoljno daleko prošao (CI fix 2026-11-03 ne sme da sakrije pravilo razmaka)."""
+    import routers.email_notif as en
+    s = LokalniSmtp(*cert, auth_pada=True)
+    b = _baza([_rok("r1", _dan(1))])
+    try:
+        _pokreni_stvarno(b, s)
+        assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)]
+        s.auth_pada = False
+        rez_odmah = _pokreni_stvarno(b, s)                                   # isti logički trenutak
+        _ostari(b, minuta=en._RAZMAK_POKUSAJA_MIN - 1)
+        rez_pre_razmaka = _pokreni_stvarno(b, s)
+        assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("neuspeh", 1)] and s.primljeno == []
+        _ostari(b, minuta=en._RAZMAK_POKUSAJA_MIN)
+        rez_na_granici = _pokreni_stvarno(b, s)
+    finally:
+        s.zatvori()
+    assert rez_odmah["poslato"] == 0 and rez_pre_razmaka["poslato"] == 0
+    assert rez_na_granici["poslato"] == 1 and len(s.primljeno) == 1
     assert [(r["stanje"], r["pokusaja"]) for r in b.log] == [("poslato", 2)]
 
 
