@@ -631,7 +631,10 @@ PROCESNO STANJE IZ SPISA (obavezno kad je blok dostavljen):
 - Ono što je u bloku pod „NIJE UTVRĐENO“ (tok i istek roka, postupanje po nalogu, uplata, dejstvo kasnijeg dokumenta) ne tvrdi ni u jednom smeru — navedi kao neutvrđeno.
 - Rok računaj samo od događaja koji dokument IZRIČITO navodi kao početak roka (npr. „od dana dopune nalaza“). Kad početak nije izričito naveden (npr. samo „u roku od 15 dana“), datum dokumenta ili ročišta NIJE početak roka — napiši da tok i istek roka nisu utvrđeni iz spisa. Ovo pravilo ima prednost nad opštim pravilom o računanju rokova.
 - Dokument koji nije pročitan ili je pročitan delimično može sadržati odluku suda: odsustvo u bloku nije dokaz da odluke nema.
-- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda."""
+- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda.
+- Tri stanja nisu zamenljiva: (a) dokument nije u dostavljenom ili pročitanom spisu; (b) stranka nije postupila po nalogu suda; (c) nije utvrđeno da li je stranka postupila po nalogu. Odsustvo dokumenta iz spisa (a) nije dokaz da stranka nije postupila (b), a ni uvid u dokument ni navod stranke nisu utvrđenje o postupanju.
+- Kad je postupanje po nalogu pod „NIJE UTVRĐENO“ (c): ne zaključuj ni da je stranka postupila ni da nije; ne predlaži sankcije ni procesne posledice kao da je neizvršenje utvrđeno (posledicu navedi samo uslovno: „ako stranka nije postupila …“); navedi nalog sa oznakom dokumenta i preporuči proveru da li je po nalogu postupljeno. Izvod koji izričito govori o postupanju citiraj doslovno, sa oznakom dokumenta i akterom, kao izvod — ne kao utvrđenje suda.
+- Razlikovanje stanja (a)–(c) ima prednost nad opštim pravilom „Dokaz koji je pomenut ili naložen, a nije dostavljen, navedi kao nedostajući“: tamo „nije dostavljen“ znači samo da dokaza nema u dostavljenom spisu (a), nikad da stranka nije postupila po nalogu (b)."""
 
 
 def _procesno_stanje_za_savetnika(stanje: Optional[dict]) -> str:
