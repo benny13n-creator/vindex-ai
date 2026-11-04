@@ -1054,8 +1054,12 @@ def _instaliraj_brojac_pokusaja() -> None:
 
         def _napravi(orig):
             def _build_request(self, options, *, retries_taken: int = 0):
+                # Pokušaj se broji tek kad su SVI unutrašnji slojevi izgradili zahtev (i dalje
+                # PRE slanja): sloj ispod brane koji odbije zahtev (npr. sesijska autorizacija
+                # instalirana pre brane) nije poslao ništa, pa to nije nepoznat ishod.
+                request = orig(self, options, retries_taken=retries_taken)
                 _zabelezi_pokusaj(retries_taken)
-                return orig(self, options, retries_taken=retries_taken)
+                return request
             _build_request._vindex_guarded = True
             return _build_request
 

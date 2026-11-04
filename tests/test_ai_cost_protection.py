@@ -1207,3 +1207,39 @@ def test_gate_sinhroni_i_asinhroni_klijent_u_istoj_operaciji_jedna_rezervacija(s
     assert r.status_code == 200, r.text
     assert svet.prov.broj == 2 == _POSLEDNJA_OP["op"].pokusaja
     assert svet.baza.krediti["gm"] == 8
+
+
+def test_gate_unutrasnji_sloj_odbija_pre_slanja_nije_nepoznat_ishod(svet):
+    """Hook ispod brane (npr. sesijska autorizacija koja se instalira PRE brane) odbija zahtev
+    pre slanja: nijedan bajt nije otišao provajderu → to nije pokušaj ni nepoznat ishod;
+    rezervacija se vraća u celosti (izmereno na main + PR #66 + PR #68, redosled Word → brana)."""
+    from openai._base_client import AsyncAPIClient, SyncAPIClient
+
+    from shared import ai_client
+    sacuvano = {k: k.__dict__.get("_build_request") for k in (SyncAPIClient, AsyncAPIClient)}
+    try:
+        for k in (SyncAPIClient, AsyncAPIClient):
+            if "_build_request" in k.__dict__:
+                delattr(k, "_build_request")
+            prvobitni = k._build_request
+
+            def _unutrasnji(self, options, *, retries_taken=0, _p=prvobitni):
+                raise RuntimeError("unutrašnji sloj odbio zahtev pre slanja")
+            k._build_request = _unutrasnji
+        ai_client._orig_build_request.clear()
+        ai_client._instaliraj_brojac_pokusaja()          # brana SPOLJA, unutrašnji sloj ispod nje
+        svet.baza.krediti["gi"] = 10
+        r = _zahtev(_napravi_app(), "/posle", "gi")
+        op = _POSLEDNJA_OP["op"]
+        assert r.status_code == 500 and svet.prov.broj == 0
+        assert op.pokusaja == 0 and op.nepoznatih == 0, (op.pokusaja, op.nepoznatih)
+        assert svet.baza.krediti["gi"] == 10
+    finally:
+        for k, m in sacuvano.items():
+            if m is None:
+                if "_build_request" in k.__dict__:
+                    delattr(k, "_build_request")
+            else:
+                k._build_request = m
+        ai_client._orig_build_request.clear()
+        _vrati_brojac()
