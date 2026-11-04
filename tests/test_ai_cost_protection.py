@@ -1217,6 +1217,7 @@ def test_gate_unutrasnji_sloj_odbija_pre_slanja_nije_nepoznat_ishod(svet):
 
     from shared import ai_client
     sacuvano = {k: k.__dict__.get("_build_request") for k in (SyncAPIClient, AsyncAPIClient)}
+    sacuvan_orig = dict(ai_client._orig_build_request)   # drugi testovi skidaju hook preko ove mape
     try:
         for k in (SyncAPIClient, AsyncAPIClient):
             if "_build_request" in k.__dict__:
@@ -1242,4 +1243,5 @@ def test_gate_unutrasnji_sloj_odbija_pre_slanja_nije_nepoznat_ishod(svet):
             else:
                 k._build_request = m
         ai_client._orig_build_request.clear()
+        ai_client._orig_build_request.update(sacuvan_orig)
         _vrati_brojac()
