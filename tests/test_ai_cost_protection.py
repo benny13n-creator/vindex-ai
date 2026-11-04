@@ -1086,3 +1086,124 @@ def test_definitivna_greska_vraca_punu_rezervaciju(svet):
     svet.prov.rezim = "500"
     r = _zahtev(_napravi_app(), "/x3", "ume")
     assert r.status_code >= 500 and svet.baza.krediti["ume"] == 5
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PR #66 final gate (2026-11-04): adversarijalne praznine koje gornji testovi ne pokrivaju
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _vrati_brojac():
+    from shared import ai_client
+    ai_client._instaliraj_brojac_pokusaja()
+    ai_budget._osiguraj_brojac()
+
+
+def test_gate_hook_ne_moze_da_se_postavi_odbija_pre_slanja(svet, monkeypatch):
+    """SDK hook je skinut i ne može da se vrati → 503 BROJAC_NEDOSTUPAN, 0 slanja, 0 naplate."""
+    from shared import ai_client
+    try:
+        for klasa, orig in list(ai_client._orig_build_request.items()):
+            klasa._build_request = orig
+        monkeypatch.setattr(ai_client, "_instaliraj_brojac_pokusaja", lambda: None)
+        svet.baza.krediti["gh"] = 10
+        r = _zahtev(_napravi_app(), "/posle", "gh")
+        assert r.status_code == 503 and _kod(r) == "BROJAC_NEDOSTUPAN", r.text
+        assert svet.prov.broj == 0 and svet.baza.krediti["gh"] == 10
+    finally:
+        monkeypatch.undo()
+        _vrati_brojac()
+
+
+def test_gate_dvostruka_instalacija_broji_jednom_po_slanju(svet):
+    """Hook/wrapper postavljen više puta ne sme da broji jedno HTTP slanje dvaput."""
+    from shared import ai_client
+    for _ in range(3):
+        ai_client._instaliraj_brojac_pokusaja()
+    svet.baza.krediti["gd"] = 10
+    r = _zahtev(_napravi_app(), "/posle", "gd")
+    assert r.status_code == 200 and svet.prov.broj == 1 == _POSLEDNJA_OP["op"].pokusaja
+    assert svet.baza.krediti["gd"] == 8
+    svet.prov.rezim = "timeout"
+    _zahtev(_napravi_app(), "/posle", "gd")
+    assert svet.prov.broj - 1 == 3 == _POSLEDNJA_OP["op"].pokusaja
+
+
+def test_gate_greska_transporta_posle_mogucog_slanja_je_nepoznat_ishod(svet, monkeypatch):
+    """Prekid veze posle slanja (RemoteProtocolError): svaki pokušaj se broji, osnovna cena
+    se zadržava (nepoznat ishod), ništa preko nje se ne naplaćuje."""
+    orig = svet.prov.odgovor
+
+    def _prekid(request):
+        orig(request)
+        raise httpx.RemoteProtocolError("veza prekinuta posle slanja", request=request)
+    monkeypatch.setattr(svet.prov, "odgovor", _prekid)
+    svet.baza.krediti["gp"] = 10
+    r = _zahtev(_napravi_app(), "/posle", "gp")
+    assert r.status_code == 500
+    op = _POSLEDNJA_OP["op"]
+    assert svet.prov.broj == 3 == op.pokusaja and op.nepoznatih == 1
+    assert svet.baza.krediti["gp"] == 8
+
+
+def test_gate_pad_aplikacije_posle_uspesnog_odgovora(svet):
+    """Provajder je odgovorio, ruta pada pre `consume()`: jedno slanje, korisnik nije zadužen
+    (ugovor: nenamirena rezervacija se vraća), trošak ostaje u projektnom limitu."""
+    app = _napravi_app()
+
+    @app.post("/pad_posle")
+    async def pad_posle(user=Depends(PermissionService.require("t_ai"))):
+        _POSLEDNJA_OP["op"] = ai_budget.tekuca_operacija()
+        await _chat()
+        raise RuntimeError("greška aplikacije posle odgovora provajdera")
+
+    svet.baza.krediti["ga"] = 10
+    r = _zahtev(app, "/pad_posle", "ga")
+    assert r.status_code == 500
+    assert svet.prov.broj == 1 and _POSLEDNJA_OP["op"].uspesnih == 1
+    assert svet.baza.krediti["ga"] == 10
+    assert ai_budget.projektna_potrosnja() > 0
+
+
+def test_gate_dva_naloga_istovremeno_budzeti_izolovani(svet):
+    """20 + 20 istovremenih zahteva dva naloga: A (10 kredita, cena 2) najviše 5, B (0) nijedan."""
+    app = _napravi_app()
+    svet.baza.krediti["na"] = 10
+    svet.baza.krediti["nb"] = 0
+
+    async def _sve():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+            zahtevi = []
+            for _ in range(20):
+                zahtevi.append(c.post("/posle", headers={"Authorization": "Bearer tok-na"}))
+                zahtevi.append(c.post("/posle", headers={"Authorization": "Bearer tok-nb"}))
+            return await asyncio.gather(*zahtevi)
+    odgovori = asyncio.run(_sve())
+    a, b = odgovori[0::2], odgovori[1::2]
+    assert sum(r.status_code == 200 for r in a) == 5 and sum(r.status_code == 200 for r in b) == 0
+    assert all(r.status_code == 402 for r in b)
+    assert svet.prov.broj == 5
+    assert svet.baza.krediti["na"] == 0 and svet.baza.krediti["nb"] == 0
+
+
+def test_gate_sinhroni_i_asinhroni_klijent_u_istoj_operaciji_jedna_rezervacija(svet):
+    """Async poziv + sinhroni klijent u `asyncio.to_thread` u istom zahtevu: kontekst se
+    prenosi, jedna rezervacija, jedna naplata, oba slanja brojana u istu operaciju."""
+    app = _napravi_app()
+
+    @app.post("/mesano")
+    async def mesano(user=Depends(PermissionService.require("t_ai"))):
+        _POSLEDNJA_OP["op"] = ai_budget.tekuca_operacija()
+        await _chat()
+
+        def _poziv():
+            return openai.OpenAI(api_key="sk-test-not-real").chat.completions.create(
+                model="gpt-4o-mini", messages=[{"role": "user", "content": "x"}])
+        await asyncio.to_thread(_poziv)
+        await UsageService.consume(user["user_id"], user["email"], "t_ai")
+        return {"ok": True}
+
+    svet.baza.krediti["gm"] = 10
+    r = _zahtev(app, "/mesano", "gm")
+    assert r.status_code == 200, r.text
+    assert svet.prov.broj == 2 == _POSLEDNJA_OP["op"].pokusaja
+    assert svet.baza.krediti["gm"] == 8
