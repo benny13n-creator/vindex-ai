@@ -53,7 +53,7 @@
   <div class="card-title">Benjamin Nađ, osnivač Vindex AI</div>
   <div>Email: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></div>
 </div>
-<p id="podaci-klijenata"><strong>Podaci klijenata advokata.</strong> Za podatke o klijentima, strankama i drugim licima koje advokat ili kancelarija unose u predmete i dokumente rukovalac je advokat ili kancelarija, jer oni određuju svrhu te obrade. Vindex te podatke obrađuje u njihovo ime, kao obrađivač, samo radi funkcija koje korisnik pokrene. Odnos rukovaoca i obrađivača uređuje <a href="/dpa">Ugovor o obradi podataka (DPA)</a> (čl. 45 ZZPL; čl. 28 GDPR), koji stupa na snagu potpisivanjem.</p>
+<p id="podaci-klijenata"><strong>Podaci klijenata advokata.</strong> Za podatke o klijentima, strankama i drugim licima koje advokat ili kancelarija unose u predmete i dokumente rukovalac je advokat ili kancelarija, jer oni određuju svrhu te obrade. Vindex te podatke obrađuje u njihovo ime, kao obrađivač, za funkcije platforme koje koriste, uključujući automatsku obradu nakon otpremanja dokumenata. Odnos rukovaoca i obrađivača uređuje <a href="/dpa">Ugovor o obradi podataka (DPA)</a> (čl. 45 ZZPL; čl. 28 GDPR), koji stupa na snagu potpisivanjem.</p>
 
 <h2>Koje podatke prikupljamo</h2>
 <table>
@@ -61,7 +61,7 @@
   <tr><td>Nalog</td><td>Email adresa, lozinka (hash), datum registracije</td><td>Korisnik</td></tr>
   <tr><td>Predmeti</td><td>Nazivi, opisi, tip postupka, status, stranke</td><td>Korisnik</td></tr>
   <tr><td>Dokumenti</td><td>Uploadovani fajlovi i njihov tekstualni sadržaj</td><td>Korisnik</td></tr>
-  <tr><td>AI upiti</td><td>Tekst koji korisnik šalje AI funkcijama</td><td>Korisnik</td></tr>
+  <tr><td>AI obrada</td><td>Tekst pitanja i delovi dokumenata obrađeni tokom korišćenja AI funkcija, uključujući automatsku obradu posle otpremanja dokumenta</td><td>Korisnik i obrada otpremljenog dokumenta</td></tr>
   <tr><td>Fakturisanje</td><td>Podaci o pretplati, podaci za fakturu (PIB, adresa)</td><td>Korisnik</td></tr>
   <tr><td>Tehničke evidencije</td><td>IP adresa, tip uređaja, aktivnosti, API logovi</td><td>Automatski</td></tr>
 </table>
@@ -99,7 +99,7 @@
 <div class="card">
   <div class="card-title">OpenAI, Inc. — AI obrada</div>
   <div><strong>Lokacija:</strong> SAD i EU (Microsoft Azure)</div>
-  <div><strong>Podaci:</strong> Tekst upita i dokumenti koje korisnik eksplicitno šalje AI funkcijama</div>
+  <div><strong>Podaci:</strong> Tekst upita i potrebni delovi dokumenata koji se obrađuju AI funkcijama, uključujući automatsku klasifikaciju i izdvajanje podataka nakon otpremanja</div>
   <div><strong>Trening modela: NE</strong> — u skladu sa OpenAI API politikom (važeća od marta 2023), podaci poslati putem API-ja ne koriste se za treniranje OpenAI modela. Preporučujemo periodičnu proveru važeće verzije politike na <a href="https://openai.com/enterprise-privacy" target="_blank">openai.com/enterprise-privacy</a>.</div>
   <div><strong>Zadržavanje:</strong> Max 30 dana, zatim automatsko brisanje</div>
   <div><strong>Mehanizam prenosa:</strong> zaključenje standardnih ugovornih klauzula (SCC) sa ovim dobavljačem nije potvrđeno.</div>
@@ -155,7 +155,7 @@
 
 <h2>Pristup podacima i profesionalna tajna</h2>
 <div class="highlight">
-  Pristup sadržaju predmeta ograničen je isključivo na tehničku obradu potrebnu za izvršenje funkcija koje korisnik eksplicitno pokrene. Vindex AI ne pregledava, ne analizira niti koristi sadržaj predmeta u bilo koje druge svrhe. Tehnički pristup bazi ima ovlašćeni administrator sistema i koristi ga samo u slučajevima navedenim u odeljku „Bezbednost podataka“.
+  Pristup sadržaju predmeta ograničen je na obradu potrebnu za funkcije platforme koje korisnik koristi, uključujući pozadinsko čitanje, klasifikaciju i izdvajanje podataka nakon otpremanja dokumenata. Vindex AI ne pregledava, ne analizira niti koristi sadržaj predmeta u bilo koje druge svrhe. Tehnički pristup bazi ima ovlašćeni administrator sistema i koristi ga samo u slučajevima navedenim u odeljku „Bezbednost podataka“.
 </div>
 
 <h2>Vaša prava</h2>

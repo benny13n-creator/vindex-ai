@@ -47,14 +47,14 @@
 </div>
 
 <h2>Koji AI sistem se koristi</h2>
-<p>Platforma Vindex AI koristi <strong>OpenAI GPT-4o</strong> putem zvaničnog OpenAI API servisa za sve funkcije veštačke inteligencije. Nijedan sopstveni model nije treniran na podacima korisnika. Sistem ne koristi alternativne AI provajdere bez prethodnog obaveštenja korisnika.</p>
+<p>Vindex koristi različite AI modele u zavisnosti od funkcije. U implementiranim putanjama postoje, između ostalog, modeli <strong>GPT-4o</strong> i <strong>GPT-4o-mini</strong> putem API-ja. Tačna aktivna konfiguracija modela i infrastrukture zavisi od okruženja i funkcije. Vindex ne trenira sopstveni model na korisničkim podacima.</p>
 
 <div class="card">
   <div class="card-title">Specifikacija AI sistema</div>
   <table>
     <tr><th>Parametar</th><th>Vrednost</th></tr>
-    <tr><td>Provajder</td><td>OpenAI, Inc.</td></tr>
-    <tr><td>Model</td><td>GPT-4o (gpt-4o)</td></tr>
+    <tr><td>API provajder</td><td>OpenAI; aktivna infrastruktura zavisi od konfiguracije</td></tr>
+    <tr><td>Modeli</td><td>GPT-4o i GPT-4o-mini u implementiranim putanjama; konkretan izbor zavisi od funkcije</td></tr>
     <tr><td>Pristup</td><td>API (ne ChatGPT aplikacija)</td></tr>
     <tr><td>Trening na korisničkim podacima</td><td>NE — API politika od marta 2023</td></tr>
     <tr><td>Čuvanje upita</td><td>Max 30 dana, isključivo radi detekcije zloupotrebe</td></tr>
@@ -63,6 +63,7 @@
 </div>
 
 <h2>Koje AI funkcije postoje i šta šalju</h2>
+<p>Automatska obrada dokumenata nakon otpremanja obuhvata, prema sadržaju, OCR, klasifikaciju i izdvajanje podataka; za pojedine korake mogu se poslati delovi teksta spoljnim AI modelima i bez posebnog klika na dugme za analizu.</p>
 <table>
   <tr><th>Funkcija</th><th>Šta se šalje AI modelu</th><th>Šta se NE šalje</th></tr>
   <tr>
@@ -133,8 +134,8 @@
   <li><strong>Koristite opšti opis</strong> predmeta umesto doslovnog kopiranja osetljivih delova dokumenata kada god je to moguće</li>
 </ul>
 
-<h2>Opt-out iz AI obrade</h2>
-<p>Korisnik koji ne želi da koristi AI funkcije može koristiti Platformu isključivo za upravljanje predmetima i dokumentima bez pokretanja AI analize. AI obrada se aktivira isključivo eksplicitnom akcijom korisnika (klik na dugme za analizu). Nijedna automatska AI obrada se ne vrši bez akcije korisnika.</p>
+<h2>Kada se pokreće AI obrada</h2>
+<p>AI analizu koju pokrećete posebnim dugmetom aktivirate svojom odlukom. <strong>Dodavanje dokumenta kroz Smart Intake može pokrenuti automatsko čitanje, klasifikaciju i izdvajanje podataka u pozadini.</strong> Deo te obrade je lokalni OCR ili provera po pravilima, a za klasifikaciju kada pravila nisu dovoljna i za izdvajanje podataka iz slobodnog teksta mogu se koristiti spoljni AI modeli. U tim slučajevima modelu se šalju potrebni delovi teksta otpremljenog dokumenta. Korisnik koji ne želi takvu AI obradu ne treba da otprema poverljive dokumente kroz Smart Intake dok odgovarajuća kontrola nije dostupna i proverena.</p>
 
 <h2>Kontakt za pitanja o AI obradi</h2>
 <p>Za sva pitanja o AI obradi, načinu funkcionisanja modela, ili zahteve za dodatne informacije, kontaktirajte nas na: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></p>
