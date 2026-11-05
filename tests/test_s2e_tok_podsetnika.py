@@ -7,6 +7,7 @@ import email as _email
 import html as _html
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -16,8 +17,23 @@ from tests.test_osb002_solo_tok import A, B, solo  # noqa: F401
 from tests.test_s2_smtp_transport_lokalno import LokalniSmtp, _sertifikat
 
 
+class _BeogradskiDatum(date):
+    """Isti kalendarski dan kao produkcioni raspored, i kada je u UTC još prethodni dan."""
+    @classmethod
+    def today(cls):
+        return datetime.now(ZoneInfo("Europe/Belgrade")).date()
+
+
+@pytest.fixture(autouse=True)
+def _predlog_koristi_beogradski_datum(monkeypatch):
+    # _predlog je u drugom test modulu; bez ove zamene dva testa koriste različit kalendarski dan
+    # između 23:00 i 00:00 UTC (00:00-01:00 CET), i stvarni kasni podsetnik lažno izgleda izgubljen.
+    from tests import test_n4_ispravka_roka as n4
+    monkeypatch.setattr(n4, "date", _BeogradskiDatum)
+
+
 def _d(n):
-    return (date.today() + timedelta(days=n)).isoformat()
+    return (_BeogradskiDatum.today() + timedelta(days=n)).isoformat()
 
 
 def _profil(b):
