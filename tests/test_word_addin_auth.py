@@ -411,9 +411,6 @@ class _UpdateTable:
         self.null_filters[key] = value
         return self
 
-    def select(self, columns):
-        return self
-
     def execute(self):
         return SimpleNamespace(data=[{"id": self.filters.get("id")}])
 
@@ -502,3 +499,162 @@ def test_session_exchange_fails_closed_on_provider_authentication_failure(monkey
     assert rows == []
     assert "source.jwt.signature" not in caplog.text
     assert "private provider error detail" not in response.text
+
+class _PostgrestWordSessions:
+    """Minimal stateful PostgREST stand-in behind the REAL postgrest client.
+
+    Only the wire contract the Word routes use: GET with eq filters, PATCH with
+    eq/is.null filters and `return=representation`. The fakes above accepted a
+    `.select()` after `.update()` that the pinned client does not have.
+    """
+
+    def __init__(self, rows, *, patch_status=200):
+        self.rows = {row["id"]: dict(row) for row in rows}
+        self.patch_status = patch_status
+        self.requests = []
+
+    def _matches(self, row, params):
+        for key, raw in params.items():
+            if key in ("select", "limit", "offset"):
+                continue
+            op, _, value = raw.partition(".")
+            if op == "eq" and str(row.get(key)) != value:
+                return False
+            if op == "is" and value == "null" and row.get(key) is not None:
+                return False
+        return True
+
+    def handler(self, request):
+        import json as _json
+
+        import httpx
+
+        self.requests.append(request)
+        params = dict(request.url.params)
+        hits = [row for row in self.rows.values() if self._matches(row, params)]
+        if request.method == "GET":
+            return httpx.Response(200, json=[dict(row) for row in hits])
+        if request.method == "PATCH":
+            if self.patch_status != 200:
+                return httpx.Response(self.patch_status, json={"message": "synthetic db failure"})
+            values = _json.loads(request.content)
+            for row in hits:
+                row.update(values)
+            return httpx.Response(200, json=[dict(row) for row in hits])
+        return httpx.Response(405, json={})
+
+    def client(self):
+        import httpx
+        from postgrest import SyncPostgrestClient
+
+        http_client = httpx.Client(
+            base_url="https://db.vindex.test/rest/v1",
+            transport=httpx.MockTransport(self.handler),
+        )
+        db = SyncPostgrestClient("https://db.vindex.test/rest/v1", http_client=http_client)
+        db.table = db.from_  # supabase.Client.table delegates to the same builder
+        return db
+
+
+def _live_row(session_id, user_id, token):
+    return {
+        "id": session_id,
+        "user_id": user_id,
+        "token_hash": hashlib.sha256(token.encode()).hexdigest(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+        "revoked_at": None,
+    }
+
+
+@pytest.fixture
+def real_postgrest_logout(monkeypatch):
+    audit_events = []
+
+    async def allow_rate(*args, **kwargs):
+        return None
+
+    async def audit(action, **kwargs):
+        audit_events.append((action, kwargs.get("session_id")))
+        return "audit-id"
+
+    def install(store):
+        monkeypatch.setattr(word_auth, "_get_supa", store.client)
+        return audit_events
+
+    monkeypatch.setattr(word_auth, "_record_and_rate_limit", allow_rate)
+    monkeypatch.setattr(word_auth, "_audit", audit)
+    return install
+
+
+def test_logout_real_postgrest_revokes_exactly_the_presented_session(real_postgrest_logout):
+    store = _PostgrestWordSessions([
+        _live_row("session-a", "user-a", "token-a"),
+        _live_row("session-a2", "user-a", "token-a2"),
+        _live_row("session-b", "user-b", "token-b"),
+    ])
+    audit_events = real_postgrest_logout(store)
+
+    with _test_app_client() as client:
+        response = client.delete("/api/word/sessions/current", headers=_origin_headers("token-a"))
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"revoked": True}
+    assert store.rows["session-a"]["revoked_at"] is not None
+    # Same user's other pane and another user's session stay live.
+    assert store.rows["session-a2"]["revoked_at"] is None
+    assert store.rows["session-b"]["revoked_at"] is None
+
+    patches = [r for r in store.requests if r.method == "PATCH"]
+    assert len(patches) == 1
+    params = dict(patches[0].url.params)
+    assert params == {
+        "id": "eq.session-a",
+        "user_id": "eq.user-a",
+        "token_hash": "eq." + hashlib.sha256(b"token-a").hexdigest(),
+        "revoked_at": "is.null",
+    }
+    assert "return=representation" in patches[0].headers.get("prefer", "")
+    assert audit_events == [("logout", "session-a")]
+
+
+def test_revoked_session_cannot_be_reused_or_logged_out_twice(real_postgrest_logout):
+    store = _PostgrestWordSessions([_live_row("session-a", "user-a", "token-a")])
+    audit_events = real_postgrest_logout(store)
+
+    with _test_app_client() as client:
+        first = client.delete("/api/word/sessions/current", headers=_origin_headers("token-a"))
+        again = client.delete("/api/word/sessions/current", headers=_origin_headers("token-a"))
+
+    assert first.status_code == 200
+    assert again.status_code == 401
+    assert [r.method for r in store.requests].count("PATCH") == 1
+    assert audit_events == [("logout", "session-a")]
+
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(word_auth.require_word_session(_session_request("token-a")))
+    assert caught.value.status_code == 401
+
+
+@pytest.mark.parametrize("failure", ["db_error", "no_row_updated"])
+def test_logout_fails_closed_when_revocation_is_not_confirmed(real_postgrest_logout, failure):
+    if failure == "db_error":
+        store = _PostgrestWordSessions([_live_row("session-a", "user-a", "token-a")], patch_status=500)
+    else:
+        store = _PostgrestWordSessions([_live_row("session-a", "user-a", "token-a")])
+        original = store.handler
+
+        def race_handler(request):
+            # Revoked concurrently between lookup and update: PATCH matches nothing.
+            if request.method == "PATCH":
+                store.rows["session-a"]["revoked_at"] = "2026-11-05T10:00:00+00:00"
+            return original(request)
+
+        store.handler = race_handler
+    audit_events = real_postgrest_logout(store)
+
+    with _test_app_client() as client:
+        response = client.delete("/api/word/sessions/current", headers=_origin_headers("token-a"))
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Odjavljivanje sa servera nije potvrđeno."}
+    assert audit_events == []

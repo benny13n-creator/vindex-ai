@@ -386,7 +386,6 @@ async def revoke_current_word_session(
             .eq("user_id", session.user_id)
             .eq("token_hash", session.token_hash)
             .is_("revoked_at", "null")
-            .select("id")
             .execute()
         )
 
