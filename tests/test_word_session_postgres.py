@@ -358,6 +358,8 @@ async def _allow(*_args, **_kwargs):
 
 
 def _auth_client(monkeypatch, db, user_id):
+    # Explicit isolated test origin; never a default (see word_auth._trusted_word_origin).
+    monkeypatch.setenv("WORD_ADDIN_ORIGIN", "https://vindex.test")
     from routers import word_auth
     import shared.deps
 

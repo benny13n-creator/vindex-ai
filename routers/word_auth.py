@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import secrets
 import threading
 import time
@@ -125,27 +126,48 @@ def _word_server_client_key(request: Request) -> str:
     client = request.client
     return client.host if client and isinstance(client.host, str) and client.host else "unknown"
 
-def _require_word_origin(request: Request) -> None:
-    origin = request.headers.get("Origin")
-    expected = str(request.base_url).rstrip("/")
-    if not origin or origin != expected:
-        raise HTTPException(status_code=403, detail="Word zahtev nije dozvoljen.")
+# Same-origin HTTPS host of integrations/word_addin/manifest.release.xml.
+_CANONICAL_WORD_ORIGIN = "https://vindex.rs"
+
+
+def _trusted_word_origin() -> str | None:
+    """The one HTTPS origin allowed to call Word auth routes, or None (deny all).
+
+    Never derived from the request: Host and forwarded headers are caller input
+    behind the TLS proxy. WORD_ADDIN_ORIGIN may name one explicit isolated
+    origin (staging/local sideload); anything malformed fails closed.
+    """
     from urllib.parse import urlsplit
 
+    candidate = os.getenv("WORD_ADDIN_ORIGIN", "").strip() or _CANONICAL_WORD_ORIGIN
+    if "*" in candidate or "," in candidate or any(ch.isspace() for ch in candidate):
+        return None
     try:
-        parsed = urlsplit(origin)
-        if (
-            parsed.scheme != "https"
-            or not parsed.hostname
-            or parsed.path
-            or parsed.query
-            or parsed.fragment
-            or parsed.username
-            or parsed.password
-        ):
-            raise HTTPException(status_code=403, detail="Word zahtev nije dozvoljen.")
+        parsed = urlsplit(candidate)
+        port = parsed.port
     except ValueError:
+        return None
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+        or parsed.username
+        or parsed.password
+        or parsed.netloc != parsed.netloc.lower()
+        or port == 443
+    ):
+        return None
+    return f"https://{parsed.netloc}"
+
+
+def _require_word_origin(request: Request) -> None:
+    origin = request.headers.get("Origin")
+    expected = _trusted_word_origin()
+    if expected is None or not origin or not hmac.compare_digest(origin.encode("utf-8"), expected.encode("utf-8")):
         raise HTTPException(status_code=403, detail="Word zahtev nije dozvoljen.")
+
 
 def _bearer_from_request(request: Request, *, maximum: int) -> str | None:
     header = request.headers.get("Authorization", "")

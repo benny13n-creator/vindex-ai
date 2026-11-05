@@ -24,6 +24,12 @@ from routers import word_auth
 _CLIENT_IDS = count(1)
 
 
+@pytest.fixture(autouse=True)
+def _explicit_test_word_origin(monkeypatch):
+    """The test host is an explicitly allowed isolated origin, never a default."""
+    monkeypatch.setenv("WORD_ADDIN_ORIGIN", "https://vindex.test")
+
+
 def _test_app_client():
     app = FastAPI()
     app.state.limiter = word_auth.limiter
@@ -658,3 +664,120 @@ def test_logout_fails_closed_when_revocation_is_not_confirmed(real_postgrest_log
     assert response.status_code == 503
     assert response.json() == {"detail": "Odjavljivanje sa servera nije potvrđeno."}
     assert audit_events == []
+
+
+def _proxied_request(origin, host=b"vindex.test", forwarded=()):
+    """The request as the app sees it behind the TLS-terminating platform proxy.
+
+    Evidence 2026-11-05: https://vindex.rs/robots.txt renders
+    `Sitemap: http://vindex.rs/...` from request.base_url, so the ASGI scheme is
+    `http` in production and uvicorn does not apply the proxy's forwarded headers.
+    """
+    headers = [(b"host", host)] + list(forwarded)
+    if origin is not None:
+        headers.append((b"origin", origin.encode("utf-8")))
+    return Request({
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/word/sessions",
+        "raw_path": b"/api/word/sessions",
+        "query_string": b"",
+        "headers": headers,
+        "client": ("10.0.0.7", 50000),
+        "server": ("10.0.0.2", 10000),
+    })
+
+
+def _origin_denied(request):
+    with pytest.raises(HTTPException) as caught:
+        word_auth._require_word_origin(request)
+    return caught.value.status_code == 403
+
+
+def test_canonical_origin_matches_release_manifest_and_needs_no_configuration(monkeypatch):
+    import re
+    from pathlib import Path
+
+    manifest = (Path(word_auth.__file__).resolve().parents[1]
+                / "integrations" / "word_addin" / "manifest.release.xml").read_text(encoding="utf-8")
+    origins = {m.group(0) for m in re.finditer(r"https://[A-Za-z0-9.-]+(?::\d+)?(?=/)", manifest)
+               if "microsoft.com" not in m.group(0)}
+    assert origins == {word_auth._CANONICAL_WORD_ORIGIN}
+
+    monkeypatch.delenv("WORD_ADDIN_ORIGIN", raising=False)
+    word_auth._require_word_origin(_proxied_request("https://vindex.rs", host=b"vindex.rs"))
+    # The isolated test origin works only while explicitly configured.
+    assert _origin_denied(_proxied_request("https://vindex.test"))
+
+
+def test_correct_https_origin_is_accepted_behind_tls_proxy():
+    word_auth._require_word_origin(_proxied_request("https://vindex.test"))
+
+
+def test_forged_host_with_matching_forged_origin_is_rejected():
+    assert _origin_denied(_proxied_request("https://evil.test", host=b"evil.test"))
+    assert _origin_denied(_proxied_request("https://vindex.test.evil.test", host=b"vindex.test.evil.test"))
+
+
+@pytest.mark.parametrize("origin", [
+    None, "", "null", "http://vindex.test", "https://evil.test", "https://vindex.test/",
+    "https://vindex.test/path", "https://vindex.test:443", "https://vindex.test:8443",
+    "https://VINDEX.test", "https://user@vindex.test", "https://vindex.test?x=1",
+    "https://vindex.test#f", " https://vindex.test", "https://vindex.test.evil.test",
+    "https://vindex.tešt",
+])
+def test_foreign_http_or_malformed_origin_is_rejected(origin):
+    assert _origin_denied(_proxied_request(origin))
+
+
+def test_spoofed_forwarded_headers_do_not_change_the_decision():
+    forged = [
+        (b"x-forwarded-host", b"evil.test"),
+        (b"x-forwarded-proto", b"https"),
+        (b"x-forwarded-for", b"203.0.113.9"),
+        (b"forwarded", b"for=203.0.113.9;host=evil.test;proto=https"),
+    ]
+    assert _origin_denied(_proxied_request("https://evil.test", host=b"evil.test", forwarded=forged))
+    word_auth._require_word_origin(_proxied_request("https://vindex.test", host=b"evil.test", forwarded=forged))
+
+
+@pytest.mark.parametrize("configured", [
+    "http://vindex.test", "https://*.vindex.test", "https://vindex.test,https://evil.test",
+    "https://vindex.test/", "https://user@vindex.test", "https://VINDEX.test",
+    "https://vindex.test:443", "https://vindex.test:99999", "vindex.test",
+])
+def test_malformed_configured_origin_fails_closed(monkeypatch, configured):
+    monkeypatch.setenv("WORD_ADDIN_ORIGIN", configured)
+    for origin in ("https://vindex.test", configured, "https://vindex.rs"):
+        assert _origin_denied(_proxied_request(origin))
+
+
+def test_session_exchange_behind_proxy_reaches_identity_check_only_for_trusted_origin(monkeypatch):
+    calls = []
+
+    async def confirm(token):
+        calls.append(token)
+        raise ValueError("provider_rejected")
+
+    async def audit(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(word_auth, "_confirm_source_identity", confirm)
+    monkeypatch.setattr(word_auth, "_audit", audit)
+    app = FastAPI()
+    app.state.limiter = word_auth.limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+    app.include_router(word_auth.router)
+    with TestClient(app, base_url="http://vindex.test", client=("10.0.0.%d" % next(_CLIENT_IDS), 1)) as client:
+        good = client.post("/api/word/sessions", headers={
+            "Origin": "https://vindex.test", "Authorization": "Bearer source.jwt.signature"})
+        forged = client.post("/api/word/sessions", headers={
+            "Origin": "https://evil.test", "Host": "evil.test",
+            "X-Forwarded-Host": "evil.test", "X-Forwarded-Proto": "https",
+            "Authorization": "Bearer source.jwt.signature"})
+    assert good.status_code == 401          # passed Origin, rejected by identity check
+    assert forged.status_code == 403
+    assert calls == ["source.jwt.signature"]

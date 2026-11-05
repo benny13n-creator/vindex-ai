@@ -134,6 +134,8 @@ class _Claim:
 
 
 def _app(monkeypatch, db, token, settled):
+    # Explicit isolated test origin; never a default (see word_auth._trusted_word_origin).
+    monkeypatch.setenv("WORD_ADDIN_ORIGIN", "https://vindex.test")
     app = FastAPI()
     app.state.limiter = word_copilot.limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
