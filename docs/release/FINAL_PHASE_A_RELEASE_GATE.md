@@ -8,18 +8,18 @@
 
 ---
 
-## 1. Zašto 300 operacija dnevno za `ai_osnovna_obrada` (0 kredita)
+## 1. Dnevni limit `ai_osnovna_obrada` (0 kredita): 100, odluka osnivača 2026-11-05
 
 | Tvrdnja | Status |
 |---|---|
-| 300 je bio **predlog** po uzoru na `copilot_ambient` (200/dan, 0 kredita, migr. 083). Nije izveden iz izmerenog opterećenja. | PROVEN (tekst migracije) |
+| Osnivač je 2026-11-05 izričito odobrio **100**; migracija 146 to upisuje u početni INSERT. Ranija vrednost 300 bila je samo predlog po uzoru na `copilot_ambient` (200/dan, 0 kredita, migr. 083), bez izmerenog opterećenja. | PROVEN (tekst migracije, odluka osnivača) |
 | Na ovaj red idu: Smart Intake posao (1 posao = 1 operacija), obrada događaja event bus-a i 12 ruta sa ručnom autentifikacijom. Među njima su `reasoning-graph/generate`, `genome-v2`, `dokaz`, `intake/kreiraj`, `smart_intake finalize` i `zakon_monitoring/proveri`. | PROVEN (inventar `rute.json`, `intake_worker.py:162`, `event_bus.py:1093`) |
 | Smart Intake koristi samo `gpt-4o-mini`: klasifikacija sa `max_tokens=100` i ekstrakcija sa `max_tokens=400`. Najviše ≈ $0,03 po poslu, pri ulazu ograničenom na 100k tokena. | PROVEN (kod) / procena INFERRED |
 | Neke rute na ovom redu koriste `gpt-4o` sa velikim izlazom: `case_dna` 4000, `legal_reasoning_engine` 2500, `matter_intel` 2000. Jedan takav poziv sa punim ulazom procenjuje se na ≈ $0,29. | PROVEN (kod) / procena INFERRED |
-| **Teorijski najgori slučaj po nalogu i danu:** 300 × $3 (granica operacije) = **$900**. **Realan napad:** 300 × ≈ $0,30 (jedan veliki gpt-4o poziv po operaciji) ≈ **$90 po nalogu dnevno, bez ijednog kredita.** | INFERRED |
+| **Teorijski najgori slučaj po nalogu i danu:** 100 × $1 (odobrena granica operacije `VINDEX_AI_MAX_USD_OPERACIJE=1.0`) = **$100**; bez te env vrednosti (podrazumevano $3) $300. **Realan napad:** 100 × ≈ $0,30 ≈ **$30 po nalogu dnevno, bez ijednog kredita.** | INFERRED |
 | Legitiman dnevni obim jednog advokata na ovom redu nije izmeren. | UNKNOWN |
 
-**Minimalna ispravka:** migracija ostaje kakva jeste. Vrednost je **izričita odluka osnivača o riziku pilota**; 100 nije prihvaćeno samo zato što je manje od 300 (v. Dodatak, tabela opcija). Vrednost se menja u Admin Feature Console, bez deploy-a.
+**Ispravka (2026-11-05):** migracija 146 upisuje `dnevni_limit = 100` (izričita odluka osnivača o riziku pilota, v. Dodatak). Kasnije promene idu kroz Admin Feature Console, bez deploy-a. Postojeći red se migracijom nikad ne prepisuje (`ON CONFLICT DO NOTHING`), pa upit za proveru mora pokazati 100.
 
 **Dokaz prihvatanja:** upit za proveru iz migracije 146 vraća `dnevni_limit = 100`. Prva nedelja log linija `[AI_BUDZET] operacija zatvorena izvor=… feature=ai_osnovna_obrada` daje stvarni broj operacija i stvarni trošak po nalogu.
 
@@ -117,7 +117,7 @@ Sve ove slučajeve ograniče dnevni limit, granica operacije i hard limit projek
 
 **Redosled:**
 1. Pokrenuti 146 u Supabase SQL Editor-u i proveriti upitom.
-2. Postaviti `dnevni_limit` u Admin konzoli (§1).
+2. Proveriti da upit vraća `dnevni_limit = 100` (§1); Admin konzola samo ako red već postoji sa drugom vrednošću.
 3. Potvrditi OpenAI projekat, ključ i Azure (§4, §7).
 4. Podesiti env vrednosti (§3).
 5. Spojiti PR #66, što je i deploy.
@@ -169,7 +169,7 @@ Do tada nema javne registracije za mase. Early Access ide kroz postojeći zahtev
    - dozvoljeni samo modeli iz §8 izveštaja Faze A;
    - nov ključ projekta upisan kao `OPENAI_API_KEY` u Render-u.
 2. **Render:** potvrditi da `AZURE_OPENAI_KEY`/`AZURE_OPENAI_ENDPOINT` nisu postavljeni. Postaviti `VINDEX_AI_MAX_USD_OPERACIJE=1.0`.
-3. **Supabase:** pokrenuti `migrations/146_ai_osnovna_obrada.sql` i upit za proveru. U Admin konzoli postaviti `ai_osnovna_obrada.dnevni_limit` na vrednost izabranu u Dodatku (izričita odluka o riziku).
+3. **Supabase:** pokrenuti `migrations/146_ai_osnovna_obrada.sql` i upit za proveru; očekivano `dnevni_limit = 100` (odobreno 2026-11-05).
 4. **Odluka:** potvrda email-a i Supabase SMTP pre javne registracije (§9).
 5. Tek posle 1–3: spojiti PR #66 i izvršiti smoke test iz §8.
 
@@ -246,11 +246,11 @@ Teorijski najgori slučaj je limit × $3 (granica operacije), a realni napad lim
 
 | Limit dnevno | Realan napad po nalogu dnevno | Teorijski maksimum | Rizik za legitiman rad |
 |---:|---:|---:|---|
-| 300 (u migraciji) | ≈ $90 | $900 | najmanji |
-| 100 | ≈ $30 | $300 | intake veći od ≈ 50–70 dokumenata dnevno, plus pozadina, može biti odbijen (ASSUMED) |
+| 300 (raniji predlog) | ≈ $90 | $900 | najmanji |
+| **100 (odobreno 2026-11-05, u migraciji)** | ≈ $30 | $300 | intake veći od ≈ 50–70 dokumenata dnevno, plus pozadina, može biti odbijen (ASSUMED) |
 | 50 | ≈ $15 | $150 | veći uvoz predmeta u jednom danu verovatno udara u limit |
 
-Sa granicom operacije od $1 (§3), teorijski maksimum se deli sa 3. Hard limit projekta ($50) ograničava zbir svih naloga bez obzira na izbor. Preporuka je **100 za zatvoren pilot**, uz pregled linija `operacija zatvorena … feature=ai_osnovna_obrada` posle 7 dana. Ipak, **ovo je odluka osnivača**.
+Sa granicom operacije od $1 (§3), teorijski maksimum se deli sa 3. Hard limit projekta ($50) ograničava zbir svih naloga bez obzira na izbor. Osnivač je 2026-11-05 odobrio **100** i `VINDEX_AI_MAX_USD_OPERACIJE=1.0`. Posle 7 dana pregledati linije `operacija zatvorena … feature=ai_osnovna_obrada`.
 
 ## Klasifikacija
 

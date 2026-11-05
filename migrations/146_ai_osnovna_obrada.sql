@@ -20,7 +20,7 @@
 -- CENA I LIMIT SU ODLUKA OSNIVAČA (Admin Feature Console):
 --   krediti = 0          — isto kao danas: ove putanje nisu naplaćivane, i ova
 --                          migracija ne uvodi novu cenu.
---   dnevni_limit = 300   — PREDLOG zaštitnog limita po nalogu i danu (broj AI
+--   dnevni_limit = 100   — ODOBRIO OSNIVAČ (2026-11-05): zaštitni limit po nalogu i danu (broj AI
 --                          operacija, ne kredita), po uzoru na copilot_ambient
 --                          (migr. 083: 0 kredita + dnevni limit kao budžetska
 --                          zaštita). Menja se bez deploy-a.
@@ -36,7 +36,7 @@ INSERT INTO public.feature_registry
     (feature_key, naziv, kategorija, minimum_plan, addon, krediti, dnevni_limit, mesecni_limit,
      ai_model, estimated_cost_usd, opis, updated_by)
 VALUES
-    ('ai_osnovna_obrada', 'Osnovna AI obrada (bez posebne funkcije)', 'ai_osnovno', 'basic', NULL, 0, 300, NULL,
+    ('ai_osnovna_obrada', 'Osnovna AI obrada (bez posebne funkcije)', 'ai_osnovno', 'basic', NULL, 0, 100, NULL,
      'gpt-4o-mini', NULL,
      'AI rad koji nije vezan za posebnu funkciju: Smart Intake obrada, obrada događaja, rute sa ručnom '
      'autentifikacijom. Rezervacija pre poziva provajdera (shared/ai_budget.py). Bez naplate kredita; '
@@ -49,4 +49,4 @@ COMMIT;
 -- ── PROVERA (read-only, posebno) ────────────────────────────────────────────
 -- SELECT feature_key, krediti, dnevni_limit, aktivno, status, chargeable
 --   FROM public.feature_registry WHERE feature_key = 'ai_osnovna_obrada';
--- Očekivano: 1 red, krediti 0, dnevni_limit 300, aktivno true, status ACTIVE.
+-- Očekivano: 1 red, krediti 0, dnevni_limit 100, aktivno true, status ACTIVE.

@@ -241,7 +241,7 @@ def svet(monkeypatch):
         "t_ai_x3": {"krediti": 1, "credit_multiplier": 3},
         "t_besplatno": {"krediti": 0, "dnevni_limit": 2},
         "style_checker": {"krediti": 1},
-        "ai_osnovna_obrada": {"krediti": 0, "dnevni_limit": 300},
+        "ai_osnovna_obrada": {"krediti": 0, "dnevni_limit": 100},
     }
     cache = {k: {"feature_key": k, "aktivno": True, "status": "ACTIVE", "minimum_plan": None, "addon": None,
                  "dnevni_limit": None, "mesecni_limit": None, "cooldown_seconds": None, "credit_multiplier": 1,
