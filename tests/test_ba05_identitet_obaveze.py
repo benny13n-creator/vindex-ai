@@ -8,7 +8,7 @@ Identitet je sada ključ (sadržaj dokumenta + datum + dokazna fraza iz teksta),
 Stvarne rute, stvaran Smart Intake, stvaran Genome sync, stvaran Tesseract za sken; baza u memoriji sa jedinstvenošću
 iz 144 (`tests/ns005_harness`). Semantiku indeksa nad pravim PostgreSQL-om dokazuje tests/test_ba05_migracija_144_postgres.py.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -142,50 +142,74 @@ def test_C_nedokazan_datum_jedan_nepotvrden_predlog_ai(lanac, monkeypatch):
 # Fraza je počinjala od „rok za“ (subjekat ispred nestajao) i završavala se datumom (subjekat posle nije ulazio):
 # dva subjekta = ista fraza = isti ključ → druga obaveza tiho nestajala (SOURCE-IDENTITY COLLISION GATE).
 
-D_SUBJ = "2026-11-05"
-SUBJEKTI = {
-    "pre_datuma": (["RESENJE", "Posl. br. P 4410/2026 (SINTETICKI)", "Za tužioca rok za uplatu sudske takse ističe 05.11.2026.",
-                    "Za tuženog rok za uplatu sudske takse ističe 05.11.2026."], ("tuzioca", "tuzenog")),
-    "posle_datuma": (["RESENJE", "Posl. br. P 4411/2026 (SINTETICKI)", "Rok za uplatu sudske takse ističe 05.11.2026. za tužioca.",
-                      "Rok za uplatu sudske takse ističe 05.11.2026. za tuženog."], ("tuzioca", "tuzenog")),
-}
+def _datum_subjekta_roka(danas=None):
+    """Datum je u istom podrazumevanom prozoru kao /api/rokovi/kandidati (danas do danas+30)."""
+    danas = danas if danas is not None else date.today()
+    return danas + timedelta(days=10)
+
+
+def _subjekti_za_datum(datum):
+    datum_tekst = datum.strftime("%d.%m.%Y.")
+    return {
+        "pre_datuma": (["RESENJE", "Posl. br. P 4410/2026 (SINTETICKI)",
+                        f"Za tužioca rok za uplatu sudske takse ističe {datum_tekst}",
+                        f"Za tuženog rok za uplatu sudske takse ističe {datum_tekst}"], ("tuzioca", "tuzenog")),
+        "posle_datuma": (["RESENJE", "Posl. br. P 4411/2026 (SINTETICKI)",
+                          f"Rok za uplatu sudske takse ističe {datum_tekst} za tužioca.",
+                          f"Rok za uplatu sudske takse ističe {datum_tekst} za tuženog."], ("tuzioca", "tuzenog")),
+    }
+
+
+def _fraza_subjekta_roka(datum):
+    return f"Rok za uplatu sudske takse ističe {datum.strftime('%d.%m.%Y.')}"
+
+
+@pytest.mark.parametrize("danas", [date(2026, 11, 5), date(2026, 11, 6), date(2026, 12, 31), date(2028, 2, 20)])
+def test_sinteticki_datum_subjekta_ostaje_u_podrazumevanom_prozoru_i_posle_promene_dana(danas):
+    datum = _datum_subjekta_roka(danas)
+    assert danas < datum <= danas + timedelta(days=30)
+    assert date.fromisoformat(datum.isoformat()) == datum
 
 
 def test_fraza_nosi_subjekat_pre_i_posle_datuma_a_ponavljanje_i_pouka_ostaju_jedna():
     from shared.intake_extract import dokazani_rokovi
-    for redovi, subj in SUBJEKTI.values():
+    datum = _datum_subjekta_roka()
+    datum_tekst = datum.strftime("%d.%m.%Y.")
+    for redovi, subj in _subjekti_za_datum(datum).values():
         f = [r["fraza"] for r in dokazani_rokovi("\n".join(redovi))]
         assert len(f) == 2 and all(sum(s in x for x in f) == 1 for s in subj), f
-    isti = "Rok za uplatu sudske takse ističe 05.11.2026."
+    isti = _fraza_subjekta_roka(datum)
     assert len(dokazani_rokovi(f"RESENJE\n{isti}\n{isti}")) == 1
     assert len(dokazani_rokovi(f"RESENJE\n{isti}\nObrazlozenje.\nPOUKA O PRAVNOM LEKU: {isti}")) == 1
     assert len(dokazani_rokovi(f"RESENJE\n{isti}\nObrazlozenje.\nПОУКА О ПРАВНОМ ЛЕКУ: {isti}")) == 1
     assert len(dokazani_rokovi(f"RESENJE\n{isti}\nObrazlozenje.\nPOUKA O PRAVNOM LEKU:\n{isti}")) == 1
     # subjekat u drugom redu: uvod sa dvotačkom, prelom reda pre i posle datuma (nastavak malim slovom)
     for t in (f"RESENJE\nZa tužioca:\n{isti}\nZa tuženog:\n{isti}",
-              "RESENJE\nZa tužioca rok za uplatu sudske\ntakse ističe 05.11.2026.\nZa tuženog rok za uplatu sudske\ntakse ističe 05.11.2026.",
-              "RESENJE\nRok za uplatu sudske takse ističe 05.11.2026. za\ntužioca.\nRok za uplatu sudske takse ističe 05.11.2026. za\ntuženog."):
+              f"RESENJE\nZa tužioca rok za uplatu sudske\ntakse ističe {datum_tekst}\nZa tuženog rok za uplatu sudske\ntakse ističe {datum_tekst}",
+              f"RESENJE\nRok za uplatu sudske takse ističe {datum_tekst} za\ntužioca.\nRok za uplatu sudske takse ističe {datum_tekst} za\ntuženog."):
         f = [r["fraza"] for r in dokazani_rokovi(t)]
         assert len(f) == 2 and sum("tuzioca" in x for x in f) == 1 and sum("tuzenog" in x for x in f) == 1, (t, f)
     assert len(dokazani_rokovi(f"Za tužioca:\n{isti}\nZa tužioca:\n{isti}")) == 1
 
 
-@pytest.mark.parametrize("slucaj", list(SUBJEKTI))
+@pytest.mark.parametrize("slucaj", ["pre_datuma", "posle_datuma"])
 def test_kolizija_izvora_dva_subjekta_dva_kandidata_i_odluke_ostaju(slucaj, lanac, monkeypatch):
     k, b = lanac
     model = Model([])
     monkeypatch.setattr(cd, "_pozovi_genome_api", model)
     pid = _predmet(k)
-    redovi = SUBJEKTI[slucaj][0]
+    datum = _datum_subjekta_roka()
+    datum_iso = datum.isoformat()
+    redovi = _subjekti_za_datum(datum)[slucaj][0]
     _prikaci(k, b, pid, redovi, "resenje.pdf")
     r = _rokovi(b, pid)
-    assert [h["datum_iso"] for h in r] == [D_SUBJ, D_SUBJ] and len(set(_kljucevi(b, pid))) == 2 and None not in _kljucevi(b, pid), r
+    assert [h["datum_iso"] for h in r] == [datum_iso, datum_iso] and len(set(_kljucevi(b, pid))) == 2 and None not in _kljucevi(b, pid), r
     assert sorted(_stanja(k, pid).values()) == ["UNCONFIRMED", "UNCONFIRMED"]
     assert k.post(f"/api/rokovi/{r[0]['id']}/potvrdi", json={}, headers=A).status_code == 200
     assert k.post(f"/api/rokovi/{r[1]['id']}/odbij", json={"napomena": "test"}, headers=A).status_code == 200
     # Genome parafrazira (jednom, pa oba subjekta), isti sadržaj ponovo otpremljen → nijedan nov red, odluke na istim id
-    for izlaz in ([_rok("Uplata sudske takse", D_SUBJ, "a")],
-                  [_rok("Taksa — tužilac", D_SUBJ, "b"), _rok("Taksa — tuženi", D_SUBJ, "c")], []):
+    for izlaz in ([_rok("Uplata sudske takse", datum_iso, "a")],
+                  [_rok("Taksa — tužilac", datum_iso, "b"), _rok("Taksa — tuženi", datum_iso, "c")], []):
         model.izlaz = izlaz
         _osvezi(pid)
     _prikaci(k, b, pid, redovi, "resenje (1).pdf")
@@ -195,9 +219,11 @@ def test_kolizija_izvora_dva_subjekta_dva_kandidata_i_odluke_ostaju(slucaj, lana
 
 def test_ista_obaveza_dvaput_isti_subjekat_jedan_kandidat(lanac, monkeypatch):
     k, b = lanac
-    monkeypatch.setattr(cd, "_pozovi_genome_api", Model([_rok("Taksa", D_SUBJ, "x"), _rok("Uplata takse", D_SUBJ, "y")]))
+    datum = _datum_subjekta_roka()
+    datum_iso = datum.isoformat()
+    monkeypatch.setattr(cd, "_pozovi_genome_api", Model([_rok("Taksa", datum_iso, "x"), _rok("Uplata takse", datum_iso, "y")]))
     pid = _predmet(k)
-    isti = "Za tužioca rok za uplatu sudske takse ističe 05.11.2026."
+    isti = f"Za tužioca rok za uplatu sudske takse ističe {datum.strftime('%d.%m.%Y.')}"
     _prikaci(k, b, pid, ["RESENJE", "Posl. br. P 4412/2026 (SINTETICKI)", isti, isti], "resenje.pdf")
     _osvezi(pid)
     assert len(_rokovi(b, pid)) == 1
@@ -418,3 +444,4 @@ def test_kršenje_drugog_ogranicenja_nije_vec_postoji(lanac, monkeypatch):
         _do_kraja()
     f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A).json()
     assert f["rok_dodat"] is False and f["rok_preskocen_razlog"] == "upis_nije_uspeo", f   # ne „vec_postoji“
+
