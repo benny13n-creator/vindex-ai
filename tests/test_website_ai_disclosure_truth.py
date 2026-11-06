@@ -239,3 +239,22 @@ async def test_smart_intake_free_text_extraction_sends_model_excerpt():
     assert excerpt.startswith(text[:4000])
     assert excerpt.endswith(text[-3000:])
     assert "SREDNJI DEO DOKUMENTA" not in excerpt
+
+
+def test_legal_website_docs_ne_sadrze_neproverene_univerzalne_racune_i_provajdera():
+    """Za javnu beta prezentaciju ne obećavati jedan model, region ili rok za sve."""
+    root = Path(__file__).resolve().parents[1]
+    terms = (root / "terms.html").read_text(encoding="utf-8")
+    dpa = (root / "static/dpa.html").read_text(encoding="utf-8")
+    privacy = (root / "privacy.html").read_text(encoding="utf-8")
+    legacy = (root / "index.html").read_text(encoding="utf-8")
+    assert "AI analiza pravnih dokumenata i predmeta (GPT-4o)" not in terms
+    assert "trećih strana (OpenAI)" not in terms
+    assert "Frankfurt, DE (AWS)" not in dpa
+    assert "Povezani projekat: Irska" in dpa
+    assert "Zakon o računovodstvu — 7 godina" not in dpa
+    assert "<td>10 godina</td><td>Zakon o računovodstvu</td>" not in privacy
+    assert "Zakon o računovodstvu, čl. 28" in privacy
+    assert "Nakon potrošenih 15 upita" not in legacy
+    assert "neograničen pristup svim zakonima i funkcijama" not in legacy
+    assert "obično isti dan" not in legacy
