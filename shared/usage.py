@@ -84,7 +84,7 @@ async def _get_usage_row(user_id: str, feature: str) -> Optional[dict]:
         return None
 
 
-async def _get_monthly_count(user_id: str, feature: str) -> int:
+async def _get_monthly_count(user_id: str, feature: str, strogo: bool = False) -> int:
     def _q():
         return (
             _get_supa()
@@ -99,6 +99,10 @@ async def _get_monthly_count(user_id: str, feature: str) -> int:
         res = await asyncio.to_thread(_q)
         return sum((r.get("broj_koriscenja") or 0) for r in (res.data or []))
     except Exception as exc:
+        if strogo:
+            # Rezervacija PRE AI poziva (shared/ai_budget.py): nepoznat mesečni zbir ne
+            # sme da znači „limit nije dostignut".
+            raise
         logger.warning("[USAGE] _get_monthly_count greška (non-fatal): %s", exc)
         return 0
 
@@ -187,7 +191,8 @@ async def _claim_cooldown_atomic(user_id: str, feature: str, cooldown: float) ->
 
 
 async def _increment_usage(
-    user_id: str, feature: str, credits_spent: float, dnevni_limit: Optional[int] = None
+    user_id: str, feature: str, credits_spent: float, dnevni_limit: Optional[int] = None,
+    strogo: bool = False,
 ) -> int:
     """Atomically count one use of `feature` for `user_id` today.
 
@@ -230,6 +235,11 @@ async def _increment_usage(
     try:
         return await asyncio.to_thread(_rpc)
     except Exception as exc:
+        if strogo:
+            # Early Access, Faza A: kada se brojač zauzima PRE AI poziva (rezervacija
+            # brane, shared/ai_budget.py), on JESTE budžet — za funkcije sa 0 kredita
+            # jedini. Fail-open ovde bi pustio neograničen plaćen AI pri padu baze.
+            raise
         # Fail SOFT and fail OPEN, deliberately: the credit itself was already
         # settled by deduct_n_credits, which is the source of truth for money.
         # Blocking a paying lawyer because a usage COUNTER could not be written
@@ -427,6 +437,211 @@ async def _log_usage_event(
         logger.debug("[USAGE] _log_usage_event greška (non-fatal): %s", exc)
 
 
+async def _zauzmi_limite(user_id: str, feature: str, policy: dict, credits: float, *, strogo: bool = False) -> None:
+    """Cooldown → dnevni/mesečni limit → autoritativni brojač (sve iz feature_registry).
+
+    Izdvojeno iz `consume()` bez izmene redosleda ni semantike, da bi ga koristila i
+    rezervacija PRE AI poziva (`UsageService.rezervisi_za_operaciju`). `strogo=True`
+    (samo rezervacija) pretvara fail-open grane baze u odbijanje.
+    """
+    dnevni_limit = policy.get("dnevni_limit")
+    mesecni_limit = policy.get("mesecni_limit")
+    cooldown = policy.get("cooldown_seconds")
+
+    if cooldown:
+        claimed = await _claim_cooldown_atomic(user_id, feature, cooldown)
+        if not claimed:
+            elapsed = await _seconds_since_last_call(user_id, feature)
+            preostalo_cd = round(cooldown - elapsed) if elapsed is not None else round(cooldown)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "code": "COOLDOWN",
+                    "feature": feature,
+                    "message": f"Sačekajte {preostalo_cd}s pre sledećeg poziva ove funkcije.",
+                },
+            )
+
+    # Fast, friendly pre-check. NOT the enforcement mechanism -- it is a
+    # check-then-act read and races by definition. The authoritative daily
+    # gate is the atomic increment further down (migration 108), which
+    # refuses to count a use that would exceed the limit and returns -1.
+    if dnevni_limit is not None:
+        row = await _get_usage_row(user_id, feature)
+        used_today = (row or {}).get("broj_koriscenja") or 0
+        if used_today >= dnevni_limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "code": "DAILY_LIMIT",
+                    "feature": feature,
+                    "message": "Dostigli ste dnevni limit korišćenja za ovu funkciju. Pokušajte sutra.",
+                },
+            )
+
+    if mesecni_limit is not None:
+        used_month = (await _get_monthly_count(user_id, feature, strogo=True) if strogo
+                      else await _get_monthly_count(user_id, feature))
+        if used_month >= mesecni_limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "code": "MONTHLY_LIMIT",
+                    "feature": feature,
+                    "message": "Dostigli ste mesečni limit korišćenja za ovu funkciju.",
+                },
+            )
+
+    # Beta Gate Blocker Closure (2026-08-08): the charge amount is resolved
+    # to a whole number ONCE, here, and every branch below keys off it.
+    # Previously the branch condition was `credits > 0` with an inner
+    # `credits == 1` check, which meant a fractional registry price
+    # (0 < krediti*multiplier < 1) fell into the n-credit path as
+    # `int(0.5) == 0`. Migration 107 now correctly rejects p_n <= 0 with
+    # -1 ("not charged"), which the caller turns into a 402 -- so a
+    # fractional-priced feature would start failing outright. Resolving n
+    # up front keeps that case behaving exactly as it always has (no
+    # charge, no error) while making p_n <= 0 unreachable from the app.
+    # The database rejects it independently anyway; this is defence in depth.
+    # ── AUTHORITATIVE DAILY GATE ──────────────────────────────────────
+    # B2: this runs BEFORE the charge, on purpose. The two features whose
+    # daily limit is the only budget protection (copilot_ambient,
+    # morning_briefing) are priced at ZERO credits, so for exactly the
+    # cases where the limit matters there is no charge that can fail after
+    # this point. For priced features the credit pre-check above already
+    # rejects the common insufficient-balance case, so counting a use whose
+    # charge then loses a race is a narrow, documented over-count against
+    # the user rather than a silent free use against the business — the
+    # same conservative trade-off already accepted for _claim_cooldown_atomic.
+    _usage_count = (await _increment_usage(user_id, feature, credits, dnevni_limit, strogo=True) if strogo
+                        else await _increment_usage(user_id, feature, credits, dnevni_limit))
+    if _usage_count < 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "DAILY_LIMIT",
+                "feature": feature,
+                "message": "Dostigli ste dnevni limit korišćenja za ovu funkciju. Pokušajte sutra.",
+            },
+        )
+
+
+async def _naplati_kredite(user_id: str, email: str, feature: str, credits: float) -> int:
+    """Atomični odbitak kredita (migracija 107). Vraća preostalo stanje; 402 ako nije naplaćeno."""
+    n_credits = int(credits)
+    if n_credits > 0:
+        trenutno = await asyncio.to_thread(_get_credits, user_id)
+        if trenutno < n_credits:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail={
+                    "code": "NO_CREDITS",
+                    "feature": feature,
+                    "message": (
+                        "Nemate dovoljno kredita u mesečnom AI fondu za ovu funkciju. "
+                        "Dokupite dodatni paket kredita ili sačekajte mesečni reset."
+                    ),
+                    "credits_remaining": trenutno,
+                },
+            )
+        # NOTE: the pre-check above is an optimisation for the common case
+        # (fast, friendly 402 with the real balance). It is NOT the safety
+        # mechanism -- it is a check-then-act read and races by definition.
+        # The authoritative guard is the atomic conditional UPDATE inside
+        # deduct_n_credits (migration 107): a caller that loses the race
+        # gets -1 back and is rejected below, regardless of what the
+        # pre-check saw.
+        #
+        # CREDIT-CONSUME-001 (CRITICAL, adversarial review 2026-08-08):
+        # this used to route n_credits == 1 to _deduct_credit instead.
+        # That function IS atomic (its UPDATE carries
+        # `AND credits_remaining > 0`), but its RETURN CONTRACT is wrong:
+        # production's body (supabase_setup.sql:139) ends its NOT-FOUND
+        # branch with `RETURN COALESCE(new_credits, 0)` -- it returns the
+        # CURRENT BALANCE, never a negative. So `preostalo < 0` below was
+        # unreachable on that branch, the 402 never fired, and the paid
+        # operation was delivered anyway. Reproduced against real
+        # PostgreSQL: balance 1, 40 concurrent consume() calls -> 37
+        # granted, 36 of them free.
+        #
+        # n == 1 is the DOMINANT price in feature_registry
+        # (ai_pravna_pitanja, copilot, strategija at multiplier=1, ~25
+        # more), so this was the widest credit hole in the product -- and
+        # it survived the migration-107 work because 107 only ever
+        # touched deduct_n_credits.
+        #
+        # Fixed by removing the special case entirely: every charge, of
+        # every size including 1, now goes through the single function
+        # whose contract is defined and tested (>=0 charged, -1 not
+        # charged). Chosen over patching deduct_credit's return value
+        # because it needs no further production migration, and because
+        # one charging primitive cannot drift from another. Note the repo
+        # contains two CONTRADICTORY deduct_credit definitions
+        # (supabase_migration.sql:74 returns -1, supabase_setup.sql:139
+        # returns 0) -- exactly the drift this removes reliance on.
+        preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
+        if preostalo < 0:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail={
+                    "code": "NO_CREDITS",
+                    "feature": feature,
+                    "message": "Nemate dovoljno kredita u mesečnom AI fondu za ovu funkciju.",
+                    "credits_remaining": 0,
+                },
+            )
+    else:
+        preostalo = await asyncio.to_thread(_get_credits, user_id)
+    return preostalo
+
+
+def _operacija_korisnika(user_id: str):
+    """Operacija AI budžetske brane (shared/ai_budget.py) koja pripada OVOM korisniku,
+    ili None. Sistemske/founder operacije se ne namiruju kreditima."""
+    try:
+        from shared.ai_budget import tekuca_operacija
+        op = tekuca_operacija()
+    except Exception:
+        return None
+    if op is None or op.sistemska or op.founder or op.user_id != user_id:
+        return None
+    return op
+
+
+async def _namiri_rezervaciju(op, user_id: str, email: str, feature: str, policy: dict, credits: float) -> int:
+    """`consume()` unutar operacije čija je cena rezervisana PRE prvog poziva provajdera.
+
+    Rezervacija je zauzela cooldown/limite/brojač funkcije operacije i oduzela PUNU poznatu
+    cenu (krediti × multiplikator; za dinamičke operacije gornju granicu koju je ruta
+    izjavila). Naplata se ovde uzima IZ rezervacije — bez novog odbitka i bez druge
+    upotrebe. Neiskorišćeni ostatak vraća kraj operacije (`ai_budget.zatvori`), pa i niz od
+    više `consume()` poziva u jednoj operaciji (pipeline savetnika) troši istu rezervaciju.
+
+    Prvi `consume()` iste funkcije ne broji upotrebu ponovo (rezervacija ju je već
+    zauzela). Svaki sledeći `consume()` u istoj operaciji, ili drugačija funkcija, zauzima
+    limite kao i ranije. Samo deo cene IZNAD rezervacije (ruta je izjavila manju gornju
+    granicu nego što naplaćuje) oduzima se posle poziva — i to se beleži kao greška rute.
+    """
+    with op._lock:
+        prvi = not op.namirena
+        op.namirena = True
+    if not prvi or feature != op.feature:
+        await _zauzmi_limite(user_id, feature, policy, credits)
+    n = int(credits)
+    with op._lock:
+        uzeto = min(op.hold, max(n, 0))
+        op.hold -= uzeto
+    ostatak = n - uzeto
+    if ostatak > 0:
+        if uzeto or prvi:
+            logger.error(
+                "[AI_BUDZET] namirenje: cena %d prelazi rezervaciju za %d kredita uid=%.8s feature=%s — "
+                "ruta nije izjavila multiplikator pre poziva (ai_budget.ocekivani_multiplikator)",
+                n, ostatak, user_id, feature)
+        return await _naplati_kredite(user_id, email, feature, ostatak)
+    return await asyncio.to_thread(_get_credits, user_id)
+
+
 class UsageService:
     @staticmethod
     async def consume(
@@ -480,154 +695,28 @@ class UsageService:
         policy = await get_policy(feature)
         effective_multiplier = multiplier if multiplier is not None else policy.get("credit_multiplier", 1)
         credits = float(policy.get("krediti") or 0) * max(float(effective_multiplier or 1), 1)
-        dnevni_limit = policy.get("dnevni_limit")
-        mesecni_limit = policy.get("mesecni_limit")
-        cooldown = policy.get("cooldown_seconds")
         ai_model = policy.get("ai_model")
         est_cost = policy.get("estimated_cost_usd")
 
         if _is_founder(email):
             return FOUNDER_BALANCE
 
-        if cooldown:
-            claimed = await _claim_cooldown_atomic(user_id, feature, cooldown)
-            if not claimed:
-                elapsed = await _seconds_since_last_call(user_id, feature)
-                preostalo_cd = round(cooldown - elapsed) if elapsed is not None else round(cooldown)
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail={
-                        "code": "COOLDOWN",
-                        "feature": feature,
-                        "message": f"Sačekajte {preostalo_cd}s pre sledećeg poziva ove funkcije.",
-                    },
-                )
-
-        # Fast, friendly pre-check. NOT the enforcement mechanism -- it is a
-        # check-then-act read and races by definition. The authoritative daily
-        # gate is the atomic increment further down (migration 108), which
-        # refuses to count a use that would exceed the limit and returns -1.
-        if dnevni_limit is not None:
-            row = await _get_usage_row(user_id, feature)
-            used_today = (row or {}).get("broj_koriscenja") or 0
-            if used_today >= dnevni_limit:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail={
-                        "code": "DAILY_LIMIT",
-                        "feature": feature,
-                        "message": "Dostigli ste dnevni limit korišćenja za ovu funkciju. Pokušajte sutra.",
-                    },
-                )
-
-        if mesecni_limit is not None:
-            used_month = await _get_monthly_count(user_id, feature)
-            if used_month >= mesecni_limit:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail={
-                        "code": "MONTHLY_LIMIT",
-                        "feature": feature,
-                        "message": "Dostigli ste mesečni limit korišćenja za ovu funkciju.",
-                    },
-                )
-
-        # Beta Gate Blocker Closure (2026-08-08): the charge amount is resolved
-        # to a whole number ONCE, here, and every branch below keys off it.
-        # Previously the branch condition was `credits > 0` with an inner
-        # `credits == 1` check, which meant a fractional registry price
-        # (0 < krediti*multiplier < 1) fell into the n-credit path as
-        # `int(0.5) == 0`. Migration 107 now correctly rejects p_n <= 0 with
-        # -1 ("not charged"), which the caller turns into a 402 -- so a
-        # fractional-priced feature would start failing outright. Resolving n
-        # up front keeps that case behaving exactly as it always has (no
-        # charge, no error) while making p_n <= 0 unreachable from the app.
-        # The database rejects it independently anyway; this is defence in depth.
-        # ── AUTHORITATIVE DAILY GATE ──────────────────────────────────────
-        # B2: this runs BEFORE the charge, on purpose. The two features whose
-        # daily limit is the only budget protection (copilot_ambient,
-        # morning_briefing) are priced at ZERO credits, so for exactly the
-        # cases where the limit matters there is no charge that can fail after
-        # this point. For priced features the credit pre-check above already
-        # rejects the common insufficient-balance case, so counting a use whose
-        # charge then loses a race is a narrow, documented over-count against
-        # the user rather than a silent free use against the business — the
-        # same conservative trade-off already accepted for _claim_cooldown_atomic.
-        _usage_count = await _increment_usage(user_id, feature, credits, dnevni_limit)
-        if _usage_count < 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail={
-                    "code": "DAILY_LIMIT",
-                    "feature": feature,
-                    "message": "Dostigli ste dnevni limit korišćenja za ovu funkciju. Pokušajte sutra.",
-                },
-            )
-
-        n_credits = int(credits)
-        if n_credits > 0:
-            trenutno = await asyncio.to_thread(_get_credits, user_id)
-            if trenutno < n_credits:
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail={
-                        "code": "NO_CREDITS",
-                        "feature": feature,
-                        "message": (
-                            "Nemate dovoljno kredita u mesečnom AI fondu za ovu funkciju. "
-                            "Dokupite dodatni paket kredita ili sačekajte mesečni reset."
-                        ),
-                        "credits_remaining": trenutno,
-                    },
-                )
-            # NOTE: the pre-check above is an optimisation for the common case
-            # (fast, friendly 402 with the real balance). It is NOT the safety
-            # mechanism -- it is a check-then-act read and races by definition.
-            # The authoritative guard is the atomic conditional UPDATE inside
-            # deduct_n_credits (migration 107): a caller that loses the race
-            # gets -1 back and is rejected below, regardless of what the
-            # pre-check saw.
-            #
-            # CREDIT-CONSUME-001 (CRITICAL, adversarial review 2026-08-08):
-            # this used to route n_credits == 1 to _deduct_credit instead.
-            # That function IS atomic (its UPDATE carries
-            # `AND credits_remaining > 0`), but its RETURN CONTRACT is wrong:
-            # production's body (supabase_setup.sql:139) ends its NOT-FOUND
-            # branch with `RETURN COALESCE(new_credits, 0)` -- it returns the
-            # CURRENT BALANCE, never a negative. So `preostalo < 0` below was
-            # unreachable on that branch, the 402 never fired, and the paid
-            # operation was delivered anyway. Reproduced against real
-            # PostgreSQL: balance 1, 40 concurrent consume() calls -> 37
-            # granted, 36 of them free.
-            #
-            # n == 1 is the DOMINANT price in feature_registry
-            # (ai_pravna_pitanja, copilot, strategija at multiplier=1, ~25
-            # more), so this was the widest credit hole in the product -- and
-            # it survived the migration-107 work because 107 only ever
-            # touched deduct_n_credits.
-            #
-            # Fixed by removing the special case entirely: every charge, of
-            # every size including 1, now goes through the single function
-            # whose contract is defined and tested (>=0 charged, -1 not
-            # charged). Chosen over patching deduct_credit's return value
-            # because it needs no further production migration, and because
-            # one charging primitive cannot drift from another. Note the repo
-            # contains two CONTRADICTORY deduct_credit definitions
-            # (supabase_migration.sql:74 returns -1, supabase_setup.sql:139
-            # returns 0) -- exactly the drift this removes reliance on.
-            preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
-            if preostalo < 0:
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail={
-                        "code": "NO_CREDITS",
-                        "feature": feature,
-                        "message": "Nemate dovoljno kredita u mesečnom AI fondu za ovu funkciju.",
-                        "credits_remaining": 0,
-                    },
-                )
+        # Early Access, Faza A (shared/ai_budget.py): ako je brana već rezervisala budžet
+        # ove operacije pre AI poziva, ovaj poziv je NAMIRENJE iste operacije — razlika do
+        # stvarne cene (multiplikator), bez drugog brojanja upotrebe i bez druge naplate.
+        op = _operacija_korisnika(user_id)
+        if op is not None and op.rezervisana:
+            preostalo = await _namiri_rezervaciju(op, user_id, email, feature, policy, credits)
         else:
-            preostalo = await asyncio.to_thread(_get_credits, user_id)
+            await _zauzmi_limite(user_id, feature, policy, credits)
+            preostalo = await _naplati_kredite(user_id, email, feature, credits)
+            if op is not None:
+                # Naplaćeno PRE AI poziva (pre-deduct obrazac): brana ne rezerviše ponovo.
+                from shared.ai_budget import oznaci_rezervisano_kroz_consume
+                oznaci_rezervisano_kroz_consume(op)
+        if op is not None and tokens_prompt is None and op.tokena_ulaz:
+            # Stvarni tokeni iz odgovora provajdera (brana ih sabira po operaciji).
+            tokens_prompt, tokens_completion = op.tokena_ulaz, op.tokena_izlaz
 
         # NIGHT-001 (2026-08-09): the pre-charge _increment_usage above at the
         # daily-gate is the ONLY increment. This second call was left behind by
@@ -650,6 +739,36 @@ class UsageService:
             predmet_id,
         )
         return preostalo
+
+    @staticmethod
+    async def rezervisi_za_operaciju(op) -> int:
+        """Rezervacija PRE prvog poziva provajdera (zove je samo shared/ai_budget.py).
+
+        Isti algoritam kao `consume()` — cooldown, limiti, atomični brojač (migr. 108),
+        atomični odbitak (migr. 107) — ali STROGO: svaka greška baze odbija poziv.
+
+        Oduzima se PUNA poznata cena: krediti × multiplikator, istom formulom kao
+        `consume()`. Multiplikator je onaj koji je ruta izjavila pre poziva
+        (`ai_budget.ocekivani_multiplikator`), inače `credit_multiplier` iz registra.
+        Nalog koji nema punu cenu dobija 402 PRE ijednog poziva provajdera. Vraća broj
+        oduzetih kredita (rezervacija iz koje `consume()` rute naplaćuje).
+        """
+        policy = await get_policy(op.feature)
+        if not policy.get("aktivno", True):
+            # Kill-switch registra važi i za AI rad koji ne ide kroz PermissionService.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={"code": "FEATURE_DISABLED", "feature": op.feature,
+                        "message": "Ova funkcija je privremeno onemogućena."},
+            )
+        multiplikator = op.multiplikator if op.multiplikator is not None else policy.get("credit_multiplier", 1)
+        credits = float(policy.get("krediti") or 0) * max(float(multiplikator or 1), 1)
+        op.osnovna_cena = int(float(policy.get("krediti") or 0))
+        await _zauzmi_limite(op.user_id, op.feature, policy, credits, strogo=True)
+        n = int(credits)
+        if n > 0:
+            await _naplati_kredite(op.user_id, op.email, op.feature, credits)
+        return n
 
     @staticmethod
     async def balance(user_id: str, email: str) -> int:

@@ -45,6 +45,7 @@ from shared.deps import (
     get_current_user,
 )
 from shared.permissions import PermissionService
+from shared.ai_budget import ocekivani_multiplikator
 from shared.usage import UsageService
 from shared.rate import limiter
 from shared.audit_immutable import log_action
@@ -376,6 +377,7 @@ async def sledeci_potez(
     GPT-4o nastavlja simulaciju u kontekstu prethodnih poteza.
     Kosta 1 kredit.
     """
+    ocekivani_multiplikator(1)  # naplata consume(multiplier=1), ne registarskih ×2 — rezerviše se PRE AI poziva
     uid = user["user_id"]
     email = user.get("email", "")
     supa = _get_supa()

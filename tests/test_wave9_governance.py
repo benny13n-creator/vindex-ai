@@ -40,6 +40,22 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # je tačno kvar koji je Wave 9 prvo i sam proizveo dok fixture nije počeo da
 # zove `_uninstall_prompt_guard()`.
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Early Access, Faza A (shared/ai_budget.py): AI budžetska brana sada traži rezervaciju
+# pre svakog poziva provajdera, a ovaj test nema bazu. Test meri provenance/firewall,
+# ne budžet — zato se zamenjuje SAMO rezervacija u bazi; brana (modeli, granice,
+# brojač pokušaja, provera identiteta) ostaje uključena. Budžet dokazuje
+# tests/test_ai_cost_protection.py.
+@pytest.fixture(autouse=True)
+def _ai_budzet_bez_baze(monkeypatch):
+    from unittest.mock import AsyncMock as _AM
+
+    import shared.ai_budget as _ab
+    from shared.usage import UsageService as _US
+    monkeypatch.setattr(_US, "rezervisi_za_operaciju", _AM(return_value=0))
+    monkeypatch.setattr(_ab, "rezervisi_realtime", _AM(return_value=None))
+    _ab._resetuj_projekat_za_test()
+
 @pytest.fixture(scope="module", autouse=True)
 def guard_instaliran():
     """Bootstrapuje patch isto kao produkcija (`api.py:26-28`).
