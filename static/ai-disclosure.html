@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vindex AI — AI Disclosure</title>
+<meta name="description" content="Pregled AI funkcija, automatske obrade posle otpremanja, podataka koji mogu biti poslati i zavisnosti od aktivne konfiguracije.">
+<link rel="canonical" href="https://vindex.rs/ai-disclosure">
+<meta property="og:title" content="Obaveštenje o AI obradi — Vindex AI">
+<meta property="og:description" content="Pregled AI funkcija, automatske obrade posle otpremanja, podataka koji mogu biti poslati i zavisnosti od aktivne konfiguracije.">
+<meta property="og:url" content="https://vindex.rs/ai-disclosure">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:15px;line-height:1.8;max-width:780px;margin:0 auto;padding:3rem 2rem 5rem;}
@@ -28,6 +33,13 @@
   nav{display:flex;align-items:center;gap:1.5rem;font-size:.82rem;margin-bottom:2rem;padding:.6rem 0;border-bottom:1px solid #e2e8f0;}
   nav a{color:#64748b;text-decoration:none;}
   nav a:hover{color:#2563eb;}
+
+  .table-scroll{max-width:100%;margin:.8rem 0;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .table-scroll:focus-visible{outline:2px solid #2563eb;outline-offset:3px}
+  .table-scroll table{width:100%;min-width:640px;margin:0}
+  @media(max-width:480px){body{padding:1.25rem 1rem 3rem}nav{flex-wrap:wrap;gap:.5rem .9rem}h1{font-size:1.55rem;overflow-wrap:anywhere}.print-btn{position:static;display:block;margin:0 0 1rem auto;max-width:100%;white-space:normal}.signature{grid-template-columns:minmax(0,1fr);gap:1.25rem}.parties,.annex,.card{padding:1rem}}
+  .table-hint{margin:0 0 .35rem;font: .75rem/1.4 system-ui,sans-serif;color:#64748b}
+  @media(min-width:481px){.table-hint{display:none}}
 </style>
 </head>
 <body>
@@ -46,40 +58,59 @@
   Kontakt: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a>
 </div>
 
-<h2>Koji AI sistem se koristi</h2>
-<p>Platforma Vindex AI koristi <strong>OpenAI GPT-4o</strong> putem zvaničnog OpenAI API servisa za sve funkcije veštačke inteligencije. Nijedan sopstveni model nije treniran na podacima korisnika. Sistem ne koristi alternativne AI provajdere bez prethodnog obaveštenja korisnika.</p>
+<h2>Modeli i putanja AI poziva</h2>
+<p>Izvorni kod sadrži više putanja: GPT-4o i GPT-4o-mini za pojedine tekstualne funkcije, GPT-4o-mini u Smart Intake-u i model <strong>text-embedding-3-large</strong> za izradu vektorskih zapisa iz teksta. Serverski kod može da usmeri deo tekstualnih poziva ka Azure OpenAI kada su odgovarajuća podešavanja prisutna; deo klijenata za vektorizaciju koristi zaseban OpenAI embeddings interfejs. Azure OpenAI i OpenAI API su odvojene usluge. Aktivna produkciona putanja, konkretni model i region nisu potvrđeni ovim pregledom.</p>
+<p>Kod sadrži i opcioni Cohere reranker za semantičku pretragu. On se uključuje samo ako su istovremeno instaliran paket, podešen serverski API ključ i uključena serverska postavka <code>VINDEX_COHERE_RERANK</code>. To je administrativna konfiguracija, ne potvrda pojedinačne saglasnosti advokata ili klijenta; aktivacija u produkciji nije potvrđena.</p>
 
 <div class="card">
   <div class="card-title">Specifikacija AI sistema</div>
-  <table>
+  <div class="table-scroll" role="region" tabindex="0" aria-label="Tabela: Parametar, Vrednost"><p class="table-hint">Na užem ekranu pomerite tabelu vodoravno da vidite ostale kolone.</p><table>
     <tr><th>Parametar</th><th>Vrednost</th></tr>
-    <tr><td>Provajder</td><td>OpenAI, Inc.</td></tr>
-    <tr><td>Model</td><td>GPT-4o (gpt-4o)</td></tr>
+    <tr><td>Putanje provajdera u kodu</td><td>OpenAI API/kompatibilni embeddings interfejs; deo tekstualnih poziva može biti usmeren ka Azure OpenAI; uslovni Cohere reranker. Aktivna produkciona konfiguracija nije potvrđena.</td></tr>
+    <tr><td>Modeli navedeni u kodu</td><td>GPT-4o, GPT-4o-mini i text-embedding-3-large; Smart Intake koristi GPT-4o-mini. To ne potvrđuje koji model trenutno odgovara u produkciji.</td></tr>
     <tr><td>Pristup</td><td>API (ne ChatGPT aplikacija)</td></tr>
-    <tr><td>Trening na korisničkim podacima</td><td>NE — API politika od marta 2023</td></tr>
-    <tr><td>Čuvanje upita</td><td>Max 30 dana, isključivo radi detekcije zloupotrebe</td></tr>
-    <tr><td>Prenos u treće države</td><td>SAD — zaključenje standardnih ugovornih klauzula (SCC) nije potvrđeno</td></tr>
-  </table>
+    <tr><td>Upotreba za treniranje</td><td>Zavisi od dobavljača, politike i podešavanja konkretnog naloga; aktivna produkciona putanja nije potvrđena.</td></tr>
+    <tr><td>Zadržavanje</td><td>Zavisi od dobavljača i konfiguracije. Ne može se potvrditi jedan rok za sve AI pozive.</td></tr>
+    <tr><td>Lokacija obrade i prenos</td><td>Zavise od aktivne putanje i deployment podešavanja; trenutna produkciona konfiguracija nije potvrđena.</td></tr>
+  </table></div>
 </div>
 
+<h2>Šta se dešava kada dodate dokument</h2>
+<p>Početak obrade zavisi od mesta na kome dodajete dokument. U više postojećih tokova otpremanje samo po sebi pokreće čitanje, indeksiranje ili AI obradu — nije uvek potreban dodatni klik na dugme „Analiza“. Kod opisuje sledeće putanje:</p>
+<ol style="margin:0 0 .9rem 1.5rem;">
+  <li><strong>Prijem dokumenata / Smart Intake:</strong> posle otpremanja worker izdvaja tekst; OCR i početna heuristika rade se u Vindexovom aplikacionom okruženju. Kada dokument može da se pročita, GPT-4o-mini se poziva za izdvajanje slobodnih polja. Klasifikator ga poziva samo ako heuristika ne prepozna vrstu i tada dobija prvih 3.000 znakova. Ekstrakcija prima ceo tekst do 7.000 znakova, a kod dužeg teksta početnih 4.000 i završnih 3.000 znakova. Ako čitanje ne uspe, ova klasifikacija i ekstrakcija se ne nastavljaju.</li>
+  <li><strong>Dodavanje dokumenta u postojeći predmet:</strong> nakon lokalnog izdvajanja teksta pokreću se vektorizacija i tri automatska AI poziva za procenu, hronologiju i metapodatke. U kodu su dva poziva na GPT-4o i jedan na GPT-4o-mini; ulazi su isečci teksta do 3.000, 6.000 i 4.000 znakova. Ovaj tok počinje otpremanjem, bez naknadnog klika na „Analiza“.</li>
+  <li><strong>Privremeni upload za analizu dokumenta:</strong> tekst se deli na segmente, vektorizuje i šalje servisu za pretragu; dodatno se pokreće pozadinska klasifikacija GPT-4o-mini nad početnim delom teksta. Kasnije pitanje ili analiza dokumenta traže se zasebnom korisničkom radnjom.</li>
+  <li><strong>Playbook i administrativni upload zakona:</strong> otpremanje izdvaja tekst, pravi vektorske zapise preko embeddings klijenta i šalje segmente u Pinecone radi semantičke pretrage. To nije isto što i generisanje tekstualnog odgovora, ali tekst ipak napušta Vindexovo okruženje.</li>
+  <li>U navedenim modelskim pozivima šalje se izdvojeni tekst, a ne originalni binarni fajl. Originalni fajl se u Smart Intake-u šifruje pre čuvanja u Supabase Storage; drugi upload tokovi imaju drugačiji režim čuvanja.</li>
+</ol>
+<p>Ovi opisi potvrđuju ponašanje koda u pregledu, ne aktivnu produkcionu konfiguraciju ili uspešnost pojedinačnog poziva. Obrada može uključivati i vektorske servise, pored tekstualnog AI modela.</p>
+
 <h2>Koje AI funkcije postoje i šta šalju</h2>
-<table>
-  <tr><th>Funkcija</th><th>Šta se šalje AI modelu</th><th>Šta se NE šalje</th></tr>
+<div class="table-scroll" role="region" tabindex="0" aria-label="Tabela: Funkcija, Obrada i podaci koji mogu biti poslati, Napomena"><p class="table-hint">Na užem ekranu pomerite tabelu vodoravno da vidite ostale kolone.</p><table>
+  <tr><th>Funkcija</th><th>Obrada i podaci koji mogu biti poslati</th><th>Napomena</th></tr>
   <tr>
     <td>Copilot — pravna pitanja</td>
-    <td>Tekst pitanja koji korisnik unese</td>
-    <td>Predmeti, klijenti, dokumenti koji nisu u pitanju</td>
+    <td>Pitanje i kontekst koji konkretna funkcija uključi iz dozvoljenog predmeta, dokumenata ili pretrage</td>
+    <td>Tačan sastav zavisi od funkcije i izabranog konteksta.</td>
   </tr>
   <tr>
     <td>Kompletna analiza predmeta</td>
-    <td>Opis predmeta koji korisnik unese ili generiše iz predmeta</td>
-    <td>Ceo tekst dokumenata osim onih eksplicitno uključenih</td>
+    <td>Opis predmeta i kontekst koji funkcija prikuplja za tu analizu</td>
+    <td>Ne važi opšte pravilo da se tekst dokumenata nikada ne uključuje.</td>
   </tr>
   <tr>
-    <td>Analiza dokumenta</td>
-    <td>Tekstualni sadržaj dokumenta koji korisnik pokrene za analizu</td>
-    <td>Ostali dokumenti iz predmeta</td>
+    <td>Ručno pokrenuta analiza dokumenta</td>
+    <td>Tekst dokumenta i relevantni delovi izabranog konteksta</td>
+    <td>Počinje zasebnim zahtevom za analizu.</td>
   </tr>
+  <tr>
+    <td>Prijem dokumenata (Smart Intake)</td>
+    <td>Izdvojeni tekst: do 7.000 znakova ili početnih 4.000 i završnih 3.000; klasifikator, kada je potreban, dobija prvih 3.000</td>
+    <td>Pokreće se automatski posle otpremanja; u ovom toku se modelu ne šalje originalni binarni fajl.</td>
+  </tr>
+  <tr><td>Dodavanje u postojeći predmet</td><td>Izdvojeni tekst za embedding, zatim isečci do 3.000, 6.000 i 4.000 znakova za automatsku analizu</td><td>Analiza se pokreće samim otpremanjem.</td></tr>
+  <tr><td>Playbook / indeksiranje zakona</td><td>Izdvojeni tekst u segmentima za vektorizaciju i semantičku pretragu</td><td>Vektorizacija nije generisanje odgovora, ali uključuje spoljne servise.</td></tr>
   <tr>
     <td>Case Genome / DNA</td>
     <td>Opis predmeta i tekst dokumenata iz predmeta</td>
@@ -92,22 +123,24 @@
   </tr>
   <tr>
     <td>Semantička pretraga prakse</td>
-    <td>Tekst upita za pretragu</td>
-    <td>Predmeti, dokumenti, podaci o klijentima</td>
+    <td>Upit i kandidatski odlomci za rerangiranje; opcioni Cohere tok prima upit i do 1.000 znakova po kandidatskom odlomku kada su ispunjeni uslovi serverske aktivacije.</td>
+    <td>Aktivacija Cohere-a je serverska postavka; produkciono stanje nije potvrđeno.</td>
   </tr>
-</table>
+</table></div>
 
-<h2>Šta OpenAI NE radi sa podacima korisnika</h2>
+<h2>Pravila dobavljača zavise od aktivne putanje</h2>
 <div class="ok-box">
-  <strong>Potvrđeno od strane OpenAI:</strong>
+  <strong>OpenAI API:</strong>
   <ul style="margin:.4rem 0 0 1.2rem;">
-    <li>Podaci poslati putem API-ja <strong>ne koriste se za treniranje</strong> OpenAI modela</li>
-    <li>Podaci se <strong>ne dele</strong> sa trećim stranama radi reklamnih svrha</li>
-    <li>Podaci se <strong>automatski brišu</strong> u roku od 30 dana</li>
-    <li>Obrada je ograničena na <strong>izvršenje korisničkog zahteva</strong></li>
+    <li>OpenAI navodi da se API podaci po podrazumevanim pravilima ne koriste za treniranje. To nije potvrda aktivnog Vindex naloga ili podešavanja.</li>
+    <li>OpenAI API dokumentuje da zapisi za nadzor zloupotrebe mogu sadržati promptove i odgovore i po pravilu se čuvaju do 30 dana, uz izuzetke. Zadržavanje stanja aplikacije zavisi od API krajnje tačke; Zero Data Retention ili Modified Abuse Monitoring zahtevaju odobrenje.</li>
   </ul>
-  <p style="margin-top:.6rem;font-size:.85rem;">Izvor: <a href="https://openai.com/enterprise-privacy" target="_blank">openai.com/enterprise-privacy</a> (OpenAI API Data Usage Policy, mart 2023)</p>
+  <p style="margin-top:.6rem;font-size:.85rem;">Azure OpenAI je zasebna usluga sa odvojenim pravilima; obrada i geografska granica zavise od Azure regiona i vrste deployment-a. Izvori: <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener">OpenAI API data controls</a> · <a href="https://learn.microsoft.com/en-us/azure/foundry/responsible-ai/openai/data-privacy" target="_blank" rel="noopener">Microsoft Foundry data privacy</a>. Aktivna Vindex putanja, nalog i region nisu potvrđeni.</p>
 </div>
+
+<h2>Vindex evidencije i čuvanje podataka</h2>
+<p>Podaci koji se čuvaju u Vindexu razlikuju se od zapisa koje mogu čuvati spoljni dobavljači. Zavisno od funkcije, originalni fajl može biti sačuvan u Supabase Storage, izdvojeni tekst u bazi, a segmenti teksta i vektori u Pinecone-u. Kod ne potvrđuje jedan rok automatskog brisanja za sve ove kategorije.</p>
+<p>AI forensics evidencija u kodu beleži heševe prompta/odgovora i metapodatke; šema sadrži i ograničeno polje za poruku greške, pa se ne može tvrditi da nijedan Vindex log nikada ne sadrži tekst. Kod predviđa brisanje AI forensics zapisa starijih od 180 dana i bezbednosnih događaja i dnevne aktivnosti starijih od 90 dana; stvarno izvršavanje ovih rasporeda u produkciji nije potvrđeno. To su Vindex evidencije i odvojene su od logova Render-a, Supabase-a i AI dobavljača. Render navodi da log retention zavisi od workspace plana; produkcioni plan i tačan rok nisu potvrđeni. Supabase logovi takođe zavise od plana i vrste loga.</p>
 
 <h2>Ograničenje tačnosti AI</h2>
 <div class="warn-box">
@@ -133,8 +166,8 @@
   <li><strong>Koristite opšti opis</strong> predmeta umesto doslovnog kopiranja osetljivih delova dokumenata kada god je to moguće</li>
 </ul>
 
-<h2>Opt-out iz AI obrade</h2>
-<p>Korisnik koji ne želi da koristi AI funkcije može koristiti Platformu isključivo za upravljanje predmetima i dokumentima bez pokretanja AI analize. AI obrada se aktivira isključivo eksplicitnom akcijom korisnika (klik na dugme za analizu). Nijedna automatska AI obrada se ne vrši bez akcije korisnika.</p>
+<h2>Kada se obrada pokreće</h2>
+<p>Neke funkcije se pokreću kada pošaljete pitanje ili zahtev za analizu. Kod drugih, uključujući Smart Intake, dodavanje dokumenta samo po sebi pokreće čitanje, indeksiranje i određenu klasifikaciju ili ekstrakciju. U postojećem predmetu upload može pokrenuti i automatsku procenu, hronologiju i izdvajanje metapodataka. Zato ne tvrdimo da svi AI pozivi počinju tek klikom na „Analiza“. Pre otpremanja pročitajte obaveštenje na ekranu za upload i povezane informacije u Politici privatnosti.</p>
 
 <h2>Kontakt za pitanja o AI obradi</h2>
 <p>Za sva pitanja o AI obradi, načinu funkcionisanja modela, ili zahteve za dodatne informacije, kontaktirajte nas na: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></p>

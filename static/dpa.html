@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vindex AI — Ugovor o obradi podataka (DPA)</title>
+<meta name="description" content="Ugovor o obradi podataka koji uređuje odnos rukovaoca i obrađivača prilikom korišćenja Vindex AI.">
+<link rel="canonical" href="https://vindex.rs/dpa">
+<meta property="og:title" content="Ugovor o obradi podataka — Vindex AI">
+<meta property="og:description" content="Ugovor o obradi podataka koji uređuje odnos rukovaoca i obrađivača prilikom korišćenja Vindex AI.">
+<meta property="og:url" content="https://vindex.rs/dpa">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:15px;line-height:1.8;max-width:780px;margin:0 auto;padding:3rem 2rem 5rem;}
@@ -30,6 +35,16 @@
   footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e2e8f0;font-size:.72rem;color:#94a3b8;text-align:center;}
   .print-btn{position:fixed;top:1rem;right:1rem;background:#1d4ed8;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-size:.8rem;font-family:sans-serif;}
   @media print{.no-print{display:none!important}.signature{page-break-inside:avoid;}}
+
+  .table-scroll{max-width:100%;margin:.8rem 0;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .table-scroll:focus-visible{outline:2px solid #2563eb;outline-offset:3px}
+  .table-scroll table{width:100%;min-width:640px;margin:0}
+  .party-fields{display:grid;grid-template-columns:max-content minmax(1rem,1fr);gap:.45rem .5rem;align-items:end}
+  .field-line{display:block;height:1.1em;min-width:1rem;border-bottom:1px solid #94a3b8}
+  .field-line--short{display:inline-block;width:8rem;max-width:100%;vertical-align:baseline}
+  @media(max-width:480px){body{padding:1.25rem 1rem 3rem}nav{flex-wrap:wrap;gap:.5rem .9rem}h1{font-size:1.55rem;overflow-wrap:anywhere}.print-btn{position:static;display:block;margin:0 0 1rem auto;max-width:100%;white-space:normal}.signature{grid-template-columns:minmax(0,1fr);gap:1.25rem}.parties,.annex,.card{padding:1rem}}
+  .table-hint{margin:0 0 .35rem;font: .75rem/1.4 system-ui,sans-serif;color:#64748b}
+  @media(min-width:481px){.table-hint{display:none}}
 </style>
 </head>
 <body>
@@ -46,11 +61,13 @@
 
 <div class="parties">
   <p><strong>RUKOVALAC PODACIMA (Klijent):</strong><br>
-  Naziv: _______________________________________________<br>
-  Adresa: ______________________________________________<br>
-  PIB/MB: ______________________________________________<br>
-  Zastupnik: ___________________________________________<br>
-  Email: _______________________________________________</p>
+  <span class="party-fields">
+    <span>Naziv:</span><span class="field-line" aria-hidden="true"></span>
+    <span>Adresa:</span><span class="field-line" aria-hidden="true"></span>
+    <span>PIB/MB:</span><span class="field-line" aria-hidden="true"></span>
+    <span>Zastupnik:</span><span class="field-line" aria-hidden="true"></span>
+    <span>Email:</span><span class="field-line" aria-hidden="true"></span>
+  </span></p>
   <p style="margin-top:.8rem;margin-bottom:0;"><strong>OBRAĐIVAČ PODATAKA (Vindex AI):</strong><br>
   Naziv: Benjamin Nađ, osnivač Vindex AI<br>
   Email: benny13.n@gmail.com</p>
@@ -62,14 +79,14 @@
 <h2>Kategorije podataka i lica na koje se odnose</h2>
 <div class="annex">
   <div class="annex-title">Aneks A — Kategorije obrađivanih podataka</div>
-  <table>
+  <div class="table-scroll" role="region" tabindex="0" aria-label="Tabela: Kategorija, Primeri, Lica na koja se odnose"><p class="table-hint">Na užem ekranu pomerite tabelu vodoravno da vidite ostale kolone.</p><table>
     <tr><th>Kategorija</th><th>Primeri</th><th>Lica na koja se odnose</th></tr>
     <tr><td>Identifikacioni podaci</td><td>Ime, prezime, adresa, email</td><td>Klijenti advokature, suprotna strana, svedoci</td></tr>
     <tr><td>Pravni podaci</td><td>Opisi predmeta, dokumenti, korespondencija</td><td>Klijenti advokature</td></tr>
     <tr><td>Finansijski podaci</td><td>Iznosi naplate, datumi plaćanja</td><td>Klijenti advokature</td></tr>
     <tr><td>Procesni podaci</td><td>Datumi ročišta, sudovi, ishodi</td><td>Klijenti advokature, sudovi</td></tr>
     <tr><td>Korisni podaci</td><td>Email, lozinka (hash), aktivnost na platformi</td><td>Zaposleni u advokatskoj kancelariji</td></tr>
-  </table>
+  </table></div>
 </div>
 
 <h2>Obaveze Obrađivača</h2>
@@ -88,13 +105,13 @@
 <p>Klijent daje opštu dozvolu za angažovanje sledećih pod-obrađivača:</p>
 <div class="annex">
   <div class="annex-title">Aneks B — Odobreni pod-obrađivači</div>
-  <table>
+  <div class="table-scroll" role="region" tabindex="0" aria-label="Tabela: Sub-processor, Uloga, Lokacija, Zaključen DPA/SCC"><p class="table-hint">Na užem ekranu pomerite tabelu vodoravno da vidite ostale kolone.</p><table>
     <tr><th>Sub-processor</th><th>Uloga</th><th>Lokacija</th><th>Zaključen DPA/SCC</th></tr>
     <tr><td>Supabase Inc.</td><td>Baza podataka, storage</td><td>Frankfurt, DE (AWS)</td><td>Nije potvrđeno</td></tr>
     <tr><td>OpenAI LLC</td><td>AI obrada teksta</td><td>SAD</td><td>Nije potvrđeno</td></tr>
     <tr><td>Pinecone Systems Inc.</td><td>Vektorizacija dokumenata</td><td>SAD</td><td>Nije potvrđeno</td></tr>
     <tr><td>Render.com</td><td>API hosting</td><td>SAD / EU</td><td>Nije potvrđeno</td></tr>
-  </table>
+  </table></div>
   <p style="font-size:.8rem;color:#64748b;margin-top:.6rem;margin-bottom:0;">Vindex AI će obavešavati Klijenta o svakoj promeni u listi pod-obrađivača najmanje 30 dana unapred.</p>
 </div>
 
@@ -128,14 +145,14 @@
   <div class="sig-box">
     <div class="sig-label">Za Klijenta (Rukovaoca):</div>
     <div class="sig-space"></div>
-    <div class="sig-name">___________________________</div>
-    <div style="font-size:.78rem;color:#64748b;">Ime, potpis, pečat · Datum: ___________</div>
+    <div class="sig-name"><span class="field-line field-line--short" aria-hidden="true"></span></div>
+    <div style="font-size:.78rem;color:#64748b;">Ime, potpis, pečat · Datum: <span class="field-line field-line--short" aria-hidden="true"></span></div>
   </div>
   <div class="sig-box">
     <div class="sig-label">Za Vindex AI (Obrađivača):</div>
     <div class="sig-space"></div>
-    <div class="sig-name">___________________________</div>
-    <div style="font-size:.78rem;color:#64748b;">Ime, potpis, pečat · Datum: ___________</div>
+    <div class="sig-name"><span class="field-line field-line--short" aria-hidden="true"></span></div>
+    <div style="font-size:.78rem;color:#64748b;">Ime, potpis, pečat · Datum: <span class="field-line field-line--short" aria-hidden="true"></span></div>
   </div>
 </div>
 

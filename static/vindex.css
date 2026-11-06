@@ -638,6 +638,11 @@ footer { padding: 2rem 1.5rem; }
 /* Document upload P2.6a */
 .upload-dropzone{width:100%;border:2px dashed rgba(255,255,255,0.12);border-radius:4px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s;background:rgba(13,17,23,0.4);margin-top:.7rem;box-sizing:border-box;}
 .upload-dropzone:hover,.upload-dropzone.drag-over,.upload-dropzone:active{border-color:rgba(0,212,255,0.5);background:rgba(0,212,255,0.03);}
+.ai-upload-disclosure{box-sizing:border-box;margin:.55rem 0 .7rem;padding:.55rem .7rem;border-left:2px solid rgba(0,212,255,.58);background:rgba(0,212,255,.035);color:var(--tx-2);font-size:.73rem;line-height:1.5;overflow-wrap:anywhere;}
+.ai-upload-disclosure a{color:#73dfff;text-decoration:underline;text-underline-offset:2px;}
+.ai-upload-disclosure a:focus-visible{outline:2px solid #73dfff;outline-offset:2px;border-radius:2px;}
+body.light-theme .ai-upload-disclosure{color:#263445;background:rgba(0,153,187,.055);border-left-color:#007b9e;}
+body.light-theme .ai-upload-disclosure a{color:#006b88;}
 .upload-zone-icon{font-size:2rem;margin-bottom:.5rem;}
 .upload-zone-text{color:rgba(255,255,255,0.72);font-size:.95rem;font-weight:500;}
 .upload-zone-sub{color: var(--tx-3);font-size:.78rem;margin-top:.3rem;}

@@ -241,6 +241,96 @@ def test_procena_dokumenta_stize_do_ekrana(browser, server):
     )
 
 
+def test_obavestenje_o_ai_obradi_je_vidljivo_pre_otpremanja(browser, server):
+    """Proverava stvarno iscrtane notice-e uz primarne upload tačke bez slanja fajla."""
+    page = browser.new_page(viewport={"width": 400, "height": 900})
+    page.route(
+        "**/*",
+        lambda r: r.continue_() if r.request.url.startswith(server) else r.abort(),
+    )
+    page.add_init_script(
+        """
+        window.fetch = async function() {
+          return {ok:false,status:503,json:async()=>({}),text:async()=>'',
+                  headers:{get:()=>null}};
+        };
+        """
+    )
+    page.goto(f"{server}/index.html", wait_until="domcontentloaded")
+    page.wait_for_function("typeof updateAuthUI === 'function'", timeout=20000)
+
+    rezultati = page.evaluate(
+        """async () => {
+          // Sintetičko UI stanje za pregled zaštićenih panela; nema prijave,
+          // stvarnog API-ja, fajla ili poziva ka AI provajderu.
+          window.currentSession = {access_token:'synthetic-only'};
+          window.currentUser = {id:'synthetic-user',email:'qa@example.invalid'};
+          window.currentUserIsPro = true;
+          window.currentUserIsFounder = true;
+          window.activePredmetId = 'synthetic-matter';
+          window.activePredmetNaziv = 'Test predmet';
+          window._supa = {auth:{getSession:async()=>({data:{session:null}}),
+                               onAuthStateChange:()=>{}}};
+          updateAuthUI();
+
+          const results=[];
+          const record=(name,selector)=>{
+            const el=document.querySelector(selector);
+            if(!el) {results.push({name,visible:false,missing:true});return;}
+            const r=el.getBoundingClientRect();
+            let node=el,visible=true;
+            const hidden=[];
+            while(node){const s=getComputedStyle(node);if(s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0){visible=false;hidden.push({id:node.id,cls:node.className,display:s.display,visibility:s.visibility,opacity:s.opacity});}node=node.parentElement;}
+            results.push({name,visible:visible&&r.width>0&&r.height>0,
+              text:(el.innerText||'').trim(),
+              links:[...el.querySelectorAll('a')].map(a=>a.getAttribute('href')),hidden});
+          };
+
+          siOtvori();
+          record('smart-intake','#si-s1 .ai-upload-disclosure');
+          siZatvori();
+
+          intakeOtvori();
+          _iStep=3;
+          _intakeRenderStep();
+          record('intake-wizard','#intake-s3 .ai-upload-disclosure');
+          intakeConfirmClose();
+
+          setTab(document.getElementById('tab-btn-aiws'),'aiws');
+          openAITool('a');
+          record('analysis','#aiws-mode-analiza .ai-upload-disclosure');
+
+          aiwsSetMode('nacrti',document.querySelector('#aiws-modes .vx-pill[data-mode="nacrti"]'));
+          document.getElementById('playbook-detalji').style.display='block';
+          document.getElementById('playbook-detalji').open=true;
+          record('playbook','#playbook-detalji .ai-upload-disclosure');
+
+          setTab(document.getElementById('tab-btn-settings'),'settings');
+          document.getElementById('tab-settings').style.display='block';
+          document.getElementById('law-upload-section').style.display='block';
+          await new Promise(resolve=>setTimeout(resolve,350));
+          record('admin-law','#law-upload-section .ai-upload-disclosure');
+
+          setTab(document.getElementById('tab-btn-p'),'p');
+          document.querySelectorAll('.pred-detail').forEach(e=>e.style.display='block');
+          pred_subtabSwitch('dokumenti');
+          await new Promise(resolve=>setTimeout(resolve,350));
+          record('matter-document','#pred-pane-dokumenti .ai-upload-disclosure');
+          return results;
+        }"""
+    )
+    page.close()
+
+    assert {item["name"] for item in rezultati} == {
+        "smart-intake", "intake-wizard", "analysis", "playbook", "admin-law", "matter-document"
+    }
+    for item in rezultati:
+        assert item["visible"], f"{item['name']} notice nije vidljiv pre otpremanja: {item!r}"
+        assert "spoljnom AI" in item["text"], f"{item['name']}: nedostaje objašnjenje prenosa"
+        assert "/ai-disclosure" in item["links"], f"{item['name']}: nedostaje AI Disclosure link"
+        assert "/privacy" in item["links"], f"{item['name']}: nedostaje Privacy link"
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. NEGATIVNA KONTROLA NAD TESTOM
 # ═══════════════════════════════════════════════════════════════════════════
