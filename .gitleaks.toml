@@ -39,3 +39,22 @@ by accident that is a .gitignore bug to fix at the source, not a secret.
 paths = [
     '''\.bak$''',
 ]
+
+[[allowlists]]
+description = """
+Only the browser-intended Supabase publishable key in static/vindex-auth-config.js.
+Supabase's sb_publishable_ keys are public client identifiers. This exception
+requires both the exact file path and the publishable-key format; it does not
+allowlist service_role/sb_secret_ credentials or findings in any other file.
+"""
+condition = "AND"
+targetRules = [
+    "generic-api-key",
+]
+paths = [
+    '''^static/vindex-auth-config\.js$''',
+]
+regexTarget = "secret"
+regexes = [
+    '''^sb_publishable_[A-Za-z0-9_-]+$''',
+]

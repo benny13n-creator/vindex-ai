@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prijava — Vindex AI</title>
+<style>
+  :root { color-scheme:dark; --bg:#010308; --panel:#0d1117; --text:rgba(255,255,255,.92); --muted:rgba(255,255,255,.62); --accent:#00d4ff; --danger:#f87171; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:28px; background:var(--bg); color:var(--text); font:14px/1.5 -apple-system,"Segoe UI",sans-serif; }
+  main { max-width:420px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  p { color:var(--muted); margin:0 0 20px; }
+  label { display:block; margin:14px 0 6px; color:var(--muted); }
+  input { width:100%; padding:11px 12px; border:1px solid rgba(255,255,255,.16); border-radius:3px; background:var(--panel); color:var(--text); font:inherit; }
+  input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  button { width:100%; margin-top:18px; padding:11px; border:1px solid var(--accent); border-radius:3px; background:rgba(0,212,255,.1); color:var(--accent); font:600 14px inherit; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  #auth-status { min-height:24px; margin-top:14px; color:var(--muted); }
+  #auth-status[data-error="true"] { color:var(--danger); }
+</style>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<script src="/static/supabase.min.js?v=2"></script>
+<script src="/static/vindex-auth-config.js"></script>
+<script src="auth_flow.js"></script>
+<script defer src="auth_dialog.js"></script>
+</head>
+<body>
+<main>
+  <h1>Prijava u Vindex AI</h1>
+  <p>Koristite postojeći Vindex nalog. Lozinka se unosi samo u ovaj Vindex prozor.</p>
+  <form id="login-form" autocomplete="on">
+    <label for="email">E-pošta</label>
+    <input id="email" name="username" type="email" autocomplete="username" required>
+    <label for="password">Lozinka</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button id="login-submit" type="submit" disabled>Prijavi se</button>
+  </form>
+  <p id="auth-status" role="status" aria-live="polite">Povezivanje sa Word dodatkom…</p>
+</main>
+</body>
+</html>
