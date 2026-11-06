@@ -80,9 +80,11 @@ def test_poziv_za_rani_pristup_je_dosledan(k, ruta):
 
 
 def test_rani_pristup_koristi_postojecu_waitlist_rutu_i_ne_obecava_nalog(k):
+    """Rani pristup (B1, 2026-11-02): naslov i tekst su odobreni tekst osnivača (pun tekst meri
+    test_website_rani_pristup_b1); forma i njena napomena o privatnosti su nepromenjene."""
     t = _cist(k, "/beta")
-    assert "Prijavi se za rani pristup Vindexu." in t
-    assert "sama prijava ne otvara nalog" in t
+    assert "Rani pristup Vindexu" in t
+    assert "Automatska potvrda se ne šalje e-poštom; prijavu pregledamo pojedinačno." in t
     assert "beta testiranje" in t                                 # svrha iz Politike privatnosti
     assert "/waitlist/prijava" in k.get("/v2/site/sajt.js").text
 

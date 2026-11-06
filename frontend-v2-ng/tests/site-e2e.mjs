@@ -103,7 +103,9 @@ for (const [ek, w, h] of EKRANI) {
     zapisi(g, "najmanji vidljiv tekst ≥ 12 px; tekst ≥ 4,5:1 na svojoj površini", r.najmanji >= 12 && losKontrast.length === 0,
       `min ${r.najmanji}px ${losKontrast.slice(0, 2).map(b => b.t + " " + kontrast(b.c, b.bg).toFixed(2)).join(" | ")}`);
     zapisi(g, "dugmad i polja visine ≥ 40 px", r.ciljevi.length === 0, r.ciljevi.join(","));
-    zapisi(g, "svi pozivi na akciju vode samo na /beta ili /app, a /beta je ponuđen", r.cta.includes("/beta") && r.cta.every(x => x === "/beta" || x === "/app"), r.cta.join(","));
+    // Rani pristup (B1): /beta nudi i dva puta — samostalnu registraciju (/app#register) i zahtev kancelarije (#zahtev, forma na istoj stranici).
+    const dozvoljeni = put === "/beta" ? ["/beta", "/app", "/app#register", "#zahtev"] : ["/beta", "/app"];
+    zapisi(g, "svi pozivi na akciju vode samo na /beta ili /app (na /beta i na registraciju i zahtev), a /beta je ponuđen", r.cta.includes("/beta") && r.cta.every(x => dozvoljeni.includes(x)), r.cta.join(","));
     zapisi(g, "kanonski logo u izvornoj razmeri", r.logo.put === "/v2/site/brand/vindex-logo-final-tamna.png" && r.logo.nw === 398 && Math.abs(r.logo.w - r.logo.h * 398 / 287) <= 0.5);
     zapisi(g, "sve slike učitane", r.slike.length === 0, r.slike.join(","));
     if (["390", "1440"].includes(ek)) await p.screenshot({ path: join(OUT, `${ime(put)}-${ek}.png`), fullPage: true });
@@ -243,6 +245,46 @@ async function beta(odgovor, popuni = true) {
   zapisi("beta", "prazna forma: ništa se ne šalje, obe greške uz polja, fokus na prvom", prazno.nevazeca.join() === "beta-ime,beta-email" && prazno.fokus === "beta-ime" && prazno.poruke.length === 2, JSON.stringify(prazno));
   const stvarno = await beta(null, true);
   zapisi("beta", "stvaran api.py bez dostupne baze: forma prikazuje grešku, nikad uspeh", /nije potvrdio|nije poznato/.test(stvarno.ishod) && !/evidentirana/.test(stvarno.ishod), stvarno.ishod);
+}
+
+// ── Rani pristup (B1): dva puta sa /beta vode u postojeću registraciju i postojeću formu ──
+for (const [ek, w, h] of [["390", 390, 844], ["1440", 1440, 900]]) {
+  const { ctx, spoljni } = await kontekst({ viewport: { width: w, height: h } });
+  let poslato = 0;
+  await ctx.route("**/waitlist/prijava", r => { poslato++; return r.abort(); });
+  await ctx.route("**/api/register", r => { poslato++; return r.abort(); });
+  const p = await ctx.newPage();
+  const greske = [];
+  p.on("pageerror", e => greske.push(String(e)));
+  await p.goto(BASE + "/beta");
+  await p.evaluate(() => document.fonts.ready);
+  const g = `rani-pristup@${ek}`;
+  const raspored = await p.evaluate(() => {
+    const k = [...document.querySelectorAll(".put")].map(e => e.getBoundingClientRect());
+    const d = [...document.querySelectorAll(".put a.dugme")].map(a => ({ href: a.getAttribute("href"), t: a.textContent.trim(), b: a.getBoundingClientRect() }));
+    return { kartica: k.length, istiRed: k.length === 2 && Math.abs(k[0].top - k[1].top) < 1, jedanIspodDrugog: k.length === 2 && k[1].top >= k[0].bottom,
+      dugmad: d.map(x => [x.href, x.t]), visine: d.map(x => x.b.height), preliv: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+  });
+  zapisi(g, "dve kartice: „Isprobajte Vindex“ → /app#register i „Zatražite pristup za kancelariju“ → #zahtev",
+    raspored.kartica === 2 && JSON.stringify(raspored.dugmad) === JSON.stringify([["/app#register", "Isprobajte Vindex"], ["#zahtev", "Zatražite pristup za kancelariju"]]), JSON.stringify(raspored.dugmad));
+  zapisi(g, ek === "1440" ? "kartice u istom redu" : "kartice jedna ispod druge, dugmad ≥ 40 px, bez preliva",
+    (ek === "1440" ? raspored.istiRed : raspored.jedanIspodDrugog) && raspored.visine.every(v => v >= 40) && !raspored.preliv, JSON.stringify(raspored));
+  await p.screenshot({ path: join(OUT, `rani-pristup-${ek}.png`), fullPage: true });
+  await p.click('a.dugme[href="#zahtev"]');
+  await p.waitForTimeout(400);
+  const zahtev = await p.evaluate(() => { const f = document.getElementById("beta-forma").getBoundingClientRect(); return { hash: location.hash, sekcija: !!document.querySelector("#zahtev #beta-forma"), uVidu: f.top < innerHeight && f.bottom > 0 }; });
+  zapisi(g, "„Zatražite pristup za kancelariju“ vodi na postojeću formu (/waitlist/prijava) na istoj stranici", zahtev.hash === "#zahtev" && zahtev.sekcija && zahtev.uVidu, JSON.stringify(zahtev));
+  const spoljniSajt = spoljni.length;  // posle ovoga je /app (klasična aplikacija ima svoje spoljne fontove/skripte, van obima sajta)
+  await p.click('a.dugme[href="/app#register"]');
+  await p.waitForFunction(() => { const m = document.getElementById("auth-modal"); return m && m.classList.contains("open"); }, null, { timeout: 10000 }).catch(() => {});
+  const reg = await p.evaluate(() => ({ put: location.pathname, modal: !!document.getElementById("auth-modal") && document.getElementById("auth-modal").classList.contains("open"),
+    tab: !!document.getElementById("auth-reg-tab") && document.getElementById("auth-reg-tab").classList.contains("active"),
+    dugme: !!document.getElementById("reg-btn") && document.getElementById("reg-btn").checkVisibility(),
+    kartica: [...document.querySelectorAll("#auth-modal input")].filter(i => i.checkVisibility()).map(i => i.type) }));
+  zapisi(g, "„Isprobajte Vindex“ otvara postojeću registraciju u aplikaciji (modal, kartica Registracija, samo e-pošta i lozinka)",
+    reg.put === "/app" && reg.modal && reg.tab && reg.dugme && reg.kartica.every(t => ["email", "password", "text"].includes(t)), JSON.stringify(reg));
+  zapisi(g, "ništa nije poslato (ni registracija ni prijava); /beta bez spoljnih zahteva", poslato === 0 && spoljniSajt === 0, `${poslato} ${spoljni.slice(0, spoljniSajt).join(",")}`);
+  await ctx.close();
 }
 
 // ── Pre-auth ulaz (/app-legacy, kuda V2 /app šalje neprijavljenog korisnika) ──

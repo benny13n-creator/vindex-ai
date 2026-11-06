@@ -95,6 +95,10 @@ body.sajt {
 .sajt .akcije { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; margin-top: 32px; }
 .sajt .uvod--strana { padding: clamp(40px, 6vw, 80px) 0 clamp(32px, 4vw, 56px); }
 .sajt .uvod--strana h1 { font-size: clamp(2rem, 4vw, 3rem); max-width: 24ch; }
+/* Rani pristup (B1): podnaslov stranice i dva puta (nalog / kancelarija) sa dugmetom na dnu kartice. */
+.sajt .uvod__podnaslov { margin-top: 16px; }
+.sajt .put { display: flex; flex-direction: column; }
+.sajt .put .akcije { margin-top: auto; padding-top: 24px; }
 
 /* ── Odeljci ───────────────────────────────────────────────── */
 .sajt .odeljak { padding: clamp(48px, 7vw, 96px) 0; border-bottom: 1px solid var(--line); }
