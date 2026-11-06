@@ -60,6 +60,8 @@
 
 <h2>Modeli i putanja AI poziva</h2>
 <p>Izvorni kod sadrži više putanja: GPT-4o i GPT-4o-mini za pojedine tekstualne funkcije, GPT-4o-mini u Smart Intake-u i model <strong>text-embedding-3-large</strong> za izradu vektorskih zapisa iz teksta. Serverski kod može da usmeri deo tekstualnih poziva ka Azure OpenAI kada su odgovarajuća podešavanja prisutna; deo klijenata za vektorizaciju koristi zaseban OpenAI embeddings interfejs. Azure OpenAI i OpenAI API su odvojene usluge. Aktivna produkciona putanja, konkretni model i region nisu potvrđeni ovim pregledom.</p>
+<p>Vindex API servis „vindex-ai“ povezan sa repozitorijumom Vindex AI hostuje se u Render-u, u regionu Ohio (SAD), prema dostupnim podešavanjima. Fajlovi i tekst poslati Vindex API-ju prolaze kroz hosting servis; to je odvojeno od slanja sadržaja AI modelima i vektorskim servisima. Sadržaj i rok čuvanja Render logova/keša nisu potvrđeni ovim pregledom.</p>
+
 <p>Kod sadrži i opcioni Cohere reranker za semantičku pretragu. On se uključuje samo ako su istovremeno instaliran paket, podešen serverski API ključ i uključena serverska postavka <code>VINDEX_COHERE_RERANK</code>. To je administrativna konfiguracija, ne potvrda pojedinačne saglasnosti advokata ili klijenta; aktivacija u produkciji nije potvrđena.</p>
 
 <div class="card">
@@ -114,7 +116,7 @@
   <tr>
     <td>Case Genome / DNA</td>
     <td>Opis predmeta i tekst dokumenata iz predmeta</td>
-    <td>Podaci klijenata koji nisu uneti u predmet</td>
+    <td>Ne uključuje podatke klijenata koji nisu uneti u izabrani predmet.</td>
   </tr>
   <tr>
     <td>Generisanje dokumenata</td>

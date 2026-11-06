@@ -90,7 +90,14 @@ def test_povezane_javne_stranice_ne_tvrde_da_su_svi_pozivi_openai_gpt4o(javne_st
     assert "eu-west-1" in javne_stranice["/privacy"].lower()
     assert "region aktivnog pinecone indeksa nije potvrđen" in javne_stranice["/privacy"].lower()
     assert javne_stranice["/privacy"].lower().count("vindex ai forensics") == 1
-    assert "produkciona render usluga i njen region nisu potvrđeni" in javne_stranice["/privacy"].lower()
+    privacy = javne_stranice["/privacy"].lower()
+    assert "render servis „vindex-ai“" in privacy
+    assert "regionu ohio (sad)" in privacy
+    assert "fajlovi i tekst koji se šalju vindex api-ju prolaze kroz render servis" in privacy
+    assert "produkciona render usluga i njen region nisu potvrđeni" not in privacy
+    ai_disclosure = javne_stranice["/ai-disclosure"].lower()
+    assert "ohio (sad)" in ai_disclosure
+    assert "ne uključuje podatke klijenata koji nisu uneti u izabrani predmet" in ai_disclosure
     assert "180 dana" in javne_stranice["/ai-disclosure"].lower()
     whitepaper = javne_stranice["/security"].lower()
     for obsolete in (
