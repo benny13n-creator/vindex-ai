@@ -1060,7 +1060,7 @@
               <!-- ── TAB 2: Dokumenti ─────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-dokumenti" style="display:none;">
                 <div class="pred-section-lbl">Otpremi dokument</div>
-                <p class="ai-upload-disclosure">Dodavanje dokumenta pokreće čitanje, indeksiranje i automatsku AI analizu. Deo izdvojenog teksta može biti poslat spoljnom AI servisu bez dodatnog klika na „Analiza“. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
+                <p class="ai-upload-disclosure">U ovom toku, dodavanje dokumenta pokreće čitanje, indeksiranje i automatsku AI analizu. Deo izdvojenog teksta može biti poslat spoljnom AI servisu bez dodatnog klika na „Analiza“. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
                 <input type="file" id="pred-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="pred_upload_doc(this.files[0])">
                 <div id="pred-upload-zone" class="upload-dropzone" role="button" tabindex="0" aria-label="Otpremi dokument — PDF ili DOCX, do 10MB" style="padding:0.85rem 1rem;margin-top:0;" onclick="pred_upload_trigger()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');pred_upload_doc(event.dataTransfer.files[0])">
                   <div style="font-size:1.15rem;margin-bottom:0.2rem;"><i data-lucide="paperclip" style="width:20px;height:20px;color:var(--tx-3);"></i></div>
