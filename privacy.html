@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vindex AI — Politika privatnosti</title>
+<meta name="description" content="Koje podatke Vindex obrađuje, u koje svrhe, koliko dugo, koje usluge mogu biti uključene i kako možete podneti zahtev.">
+<link rel="canonical" href="https://vindex.rs/privacy">
+<meta property="og:title" content="Politika privatnosti — Vindex AI">
+<meta property="og:description" content="Koje podatke Vindex obrađuje, u koje svrhe, koliko dugo, koje usluge mogu biti uključene i kako možete podneti zahtev.">
+<meta property="og:url" content="https://vindex.rs/privacy">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:15px;line-height:1.8;max-width:780px;margin:0 auto;padding:3rem 2rem 5rem;}
@@ -26,6 +31,13 @@
   nav{display:flex;align-items:center;gap:1.5rem;font-size:.82rem;margin-bottom:2rem;padding:.6rem 0;border-bottom:1px solid #e2e8f0;}
   nav a{color:#64748b;text-decoration:none;}
   nav a:hover{color:#2563eb;}
+
+  .table-scroll{max-width:100%;margin:.8rem 0;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .table-scroll:focus-visible{outline:2px solid #2563eb;outline-offset:3px}
+  .table-scroll table{width:100%;min-width:640px;margin:0}
+  @media(max-width:480px){body{padding:1.25rem 1rem 3rem}nav{flex-wrap:wrap;gap:.5rem .9rem}h1{font-size:1.55rem;overflow-wrap:anywhere}.print-btn{position:static;display:block;margin:0 0 1rem auto;max-width:100%;white-space:normal}.signature{grid-template-columns:minmax(0,1fr);gap:1.25rem}.parties,.annex,.card{padding:1rem}}
+  .table-hint{margin:0 0 .35rem;font: .75rem/1.4 system-ui,sans-serif;color:#64748b}
+  @media(min-width:481px){.table-hint{display:none}}
 </style>
 </head>
 <body>
@@ -53,22 +65,22 @@
   <div class="card-title">Benjamin Nađ, osnivač Vindex AI</div>
   <div>Email: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></div>
 </div>
-<p id="podaci-klijenata"><strong>Podaci klijenata advokata.</strong> Za podatke o klijentima, strankama i drugim licima koje advokat ili kancelarija unose u predmete i dokumente rukovalac je advokat ili kancelarija, jer oni određuju svrhu te obrade. Vindex te podatke obrađuje u njihovo ime, kao obrađivač, samo radi funkcija koje korisnik pokrene. Odnos rukovaoca i obrađivača uređuje <a href="/dpa">Ugovor o obradi podataka (DPA)</a> (čl. 45 ZZPL; čl. 28 GDPR), koji stupa na snagu potpisivanjem.</p>
+<p id="podaci-klijenata"><strong>Podaci klijenata advokata.</strong> Za podatke o klijentima, strankama i drugim licima koje advokat ili kancelarija unose u predmete i dokumente rukovalac je advokat ili kancelarija, jer oni određuju svrhu te obrade. Vindex te podatke obrađuje u njihovo ime, kao obrađivač, radi funkcija koje korisnik pokrene i automatskih koraka koji mogu uslediti nakon otpremanja dokumenta. Odnos rukovaoca i obrađivača uređuje <a href="/dpa">Ugovor o obradi podataka (DPA)</a> (čl. 45 ZZPL; čl. 28 GDPR), koji stupa na snagu potpisivanjem.</p>
 
 <h2>Koje podatke prikupljamo</h2>
-<table>
+<div class="table-scroll" role="region" tabindex="0" aria-label="Tabela: Kategorija, Konkretni podaci, Izvor"><p class="table-hint">Na užem ekranu pomerite tabelu vodoravno da vidite ostale kolone.</p><table>
   <tr><th>Kategorija</th><th>Konkretni podaci</th><th>Izvor</th></tr>
   <tr><td>Nalog</td><td>Email adresa, lozinka (hash), datum registracije</td><td>Korisnik</td></tr>
   <tr><td>Predmeti</td><td>Nazivi, opisi, tip postupka, status, stranke</td><td>Korisnik</td></tr>
   <tr><td>Dokumenti</td><td>Uploadovani fajlovi i njihov tekstualni sadržaj</td><td>Korisnik</td></tr>
-  <tr><td>AI upiti</td><td>Tekst koji korisnik šalje AI funkcijama</td><td>Korisnik</td></tr>
+  <tr><td>AI upiti i obrada dokumenata</td><td>Tekst upita, izdvojeni tekst dokumenta i kontekst koji koristi AI funkcija</td><td>Korisnik ili automatska obrada nakon otpremanja</td></tr>
   <tr><td>Fakturisanje</td><td>Podaci o pretplati, podaci za fakturu (PIB, adresa)</td><td>Korisnik</td></tr>
   <tr><td>Tehničke evidencije</td><td>IP adresa, tip uređaja, aktivnosti, API logovi</td><td>Automatski</td></tr>
-</table>
-<p><strong>Ne prikupljamo:</strong> JMBG, broj lične karte, biometrijske podatke, podatke o zdravlju — osim ukoliko ih korisnik sam unese u opis predmeta.</p>
+</table></div>
+<p><strong>Lični i osetljivi podaci u dokumentima.</strong> Korisnik može uneti identifikacione, biometrijske ili zdravstvene podatke u opis ili otpremiti dokument koji ih sadrži. Vindex ih može obraditi kada su deo dokumenta ili konteksta koji koristi izabrana funkcija; ne tvrdimo da se takvi podaci automatski prepoznaju ili uklanjaju.</p>
 
 <h2>Pravni osnov obrade (ZZPL / GDPR čl. 6)</h2>
-<table>
+<div class="table-scroll" role="region" tabindex="0" aria-label="Tabela: Osnov, Konkretna obrada"><p class="table-hint">Na užem ekranu pomerite tabelu vodoravno da vidite ostale kolone.</p><table>
   <tr><th>Osnov</th><th>Konkretna obrada</th></tr>
   <tr>
     <td><strong>Izvršenje ugovora</strong><br><small>čl. 6 st. 1 tač. b GDPR</small></td>
@@ -76,7 +88,7 @@
   </tr>
   <tr>
     <td><strong>Saglasnost</strong><br><small>čl. 6 st. 1 tač. a GDPR</small></td>
-    <td>AI obrada teksta dokumenata putem OpenAI API-ja; marketinška komunikacija</td>
+    <td>AI obrada teksta dokumenata putem spoljnog AI servisa, zavisno od funkcije i konfiguracije; marketinška komunikacija</td>
   </tr>
   <tr>
     <td><strong>Zakonska obaveza</strong><br><small>čl. 6 st. 1 tač. c GDPR</small></td>
@@ -86,36 +98,36 @@
     <td><strong>Legitimni interes</strong><br><small>čl. 6 st. 1 tač. f GDPR</small></td>
     <td>Bezbednost platforme, detekcija zloupotrebe, audit logovi; razmatranje prijava za beta testiranje</td>
   </tr>
-</table>
+</table></div>
 
 <h2>Gde se podaci čuvaju — podobrađivači</h2>
 <div class="card">
   <div class="card-title">Supabase, Inc. — Baza podataka i autentifikacija</div>
-  <div><strong>Lokacija:</strong> Frankfurt, Nemačka (AWS eu-central-1) — EU region</div>
+  <div><strong>Lokacija:</strong> povezani projekat „VindexAI“ prikazan u pregledu je u regionu eu-west-1 (Irska). Nije potvrđeno da produkcioni API koristi baš taj projekat.</div>
   <div><strong>Podaci:</strong> Predmeti, klijenti, dokumenti, korisničke postavke, autentifikacija</div>
   <div><strong>Bezbednost:</strong> AES-256 enkripcija u mirovanju, TLS 1.3 u tranzitu</div>
-  <div><strong>Certifikati:</strong> SOC 2 Type II, GDPR usklađenost</div>
+  <div><strong>Procena pružaoca:</strong> Supabase navodi SOC 2 Type II. To je procena pružaoca i ne predstavlja sertifikaciju Vindexa; GDPR nije sertifikat. Povezani produkcioni projekat i njegovi ugovorni uslovi nisu potvrđeni.</div>
 </div>
 <div class="card">
-  <div class="card-title">OpenAI, Inc. — AI obrada</div>
-  <div><strong>Lokacija:</strong> SAD i EU (Microsoft Azure)</div>
-  <div><strong>Podaci:</strong> Tekst upita i dokumenti koje korisnik eksplicitno šalje AI funkcijama</div>
-  <div><strong>Trening modela: NE</strong> — u skladu sa OpenAI API politikom (važeća od marta 2023), podaci poslati putem API-ja ne koriste se za treniranje OpenAI modela. Preporučujemo periodičnu proveru važeće verzije politike na <a href="https://openai.com/enterprise-privacy" target="_blank">openai.com/enterprise-privacy</a>.</div>
-  <div><strong>Zadržavanje:</strong> Max 30 dana, zatim automatsko brisanje</div>
-  <div><strong>Mehanizam prenosa:</strong> zaključenje standardnih ugovornih klauzula (SCC) sa ovim dobavljačem nije potvrđeno.</div>
+  <div class="card-title">AI obrada i semantičko indeksiranje — više mogućih usluga</div>
+  <div><strong>Putanje u kodu:</strong> GPT-4o i GPT-4o-mini za pojedine tekstualne funkcije; text-embedding-3-large za vektorske zapise; deo tekstualnih poziva može biti usmeren ka Azure OpenAI kada su odgovarajuća serverska podešavanja prisutna; opcioni Cohere reranker uz paket, ključ i serversku postavku. To su odvojene usluge i funkcije. Aktivna produkciona putanja, konkretni model i region nisu potvrđeni ovim pregledom.</div>
+  <div><strong>Podaci:</strong> zavisno od funkcije, pitanje i relevantan tekst predmeta/dokumenata; upload može automatski pokrenuti čitanje, vektorizaciju, klasifikaciju ili izdvajanje podataka pre zasebnog klika na „Analiza“. U Smart Intake-u za pročitane dokumente GPT-4o-mini izdvaja slobodna polja, a klasifikaciju poziva samo kada heuristika ne prepozna vrstu. Cohere grana, ako je uključena serverskom postavkom, šalje upit i do 1.000 znakova po kandidatskom odlomku. Više detalja je u <a href="/ai-disclosure">Obaveštenju o AI obradi</a>.</div>
+  <div><strong>Treniranje:</strong> OpenAI navodi da se API podaci po podrazumevanim pravilima ne koriste za treniranje; Azure OpenAI ima zasebna pravila. Ove izjave o dobavljačima ne potvrđuju aktivnu Vindex putanju ili konkretna podešavanja naloga. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener">OpenAI API data controls</a> · <a href="https://learn.microsoft.com/en-us/azure/foundry/responsible-ai/openai/data-privacy" target="_blank" rel="noopener">Microsoft Foundry data privacy</a>.</div>
+  <div><strong>Zadržavanje kod dobavljača:</strong> zavisi od usluge i podešavanja. OpenAI API navodi do 30 dana za zapise nadzora zloupotrebe, uz izuzetke i posebna odobrena podešavanja; ovaj rok ne opisuje stanje podataka u Vindexu i ne prenosi se na Azure OpenAI.</div>
+  <div><strong>Mehanizam prenosa:</strong> status ugovornih mehanizama za aktivnog AI dobavljača nije potvrđen ovim pregledom.</div>
 </div>
 <div class="card">
   <div class="card-title">Pinecone Systems, Inc. — Vektorska baza</div>
-  <div><strong>Lokacija:</strong> SAD (us-east-1)</div>
+  <div><strong>Lokacija:</strong> region aktivnog Pinecone indeksa nije potvrđen ovim pregledom.</div>
   <div><strong>Podaci:</strong> vektorske reprezentacije (embeddings) delova dokumenata i, uz svaki deo kao metapodatak, tekstualni segment tog dela dokumenta (do 40.000 znakova), koji služi za pretragu. Originalni fajl se ne šalje Pinecone-u, ali se tekstualni sadržaj dokumenta tamo čuva u segmentima. Ti segmenti nisu dodatno šifrovani na nivou aplikacije.</div>
   <div><strong>Izolovano po korisniku:</strong> Da</div>
   <div><strong>Mehanizam prenosa:</strong> zaključenje standardnih ugovornih klauzula (SCC) sa ovim dobavljačem nije potvrđeno.</div>
 </div>
 <div class="card">
   <div class="card-title">Render Services, Inc. — Hosting</div>
-  <div><strong>Lokacija:</strong> SAD</div>
-  <div><strong>Podaci:</strong> Aplikacioni logovi, privremeni keš</div>
-  <div><strong>Certifikati:</strong> SOC 2 Type II</div>
+  <div><strong>Lokacija:</strong> Render servis „vindex-ai“, povezan sa repozitorijumom Vindex AI, prema dostupnim podešavanjima nalazi se u regionu Ohio (SAD).</div>
+  <div><strong>Podaci:</strong> Fajlovi i tekst koji se šalju Vindex API-ju prolaze kroz Render servis koji ga hostuje; servis obrađuje i aplikacione logove i privremeni keš. Sadržaj i rok čuvanja logova/keša nisu potvrđeni.</div>
+  <div><strong>Procena pružaoca:</strong> Render navodi SOC 2 Type II; izveštaj je dostupan samo za određene workspace planove. To je procena Render-a, ne Vindexa. Aktivni Render plan nije potvrđen.</div>
 </div>
 
 <h2 id="beta-prijava">Prijava za beta testiranje</h2>
@@ -130,17 +142,18 @@
 </ul>
 
 <h2>Rokovi čuvanja podataka</h2>
-<table>
+<div class="table-scroll" role="region" tabindex="0" aria-label="Tabela: Kategorija podataka, Rok čuvanja, Osnov"><p class="table-hint">Na užem ekranu pomerite tabelu vodoravno da vidite ostale kolone.</p><table>
   <tr><th>Kategorija podataka</th><th>Rok čuvanja</th><th>Osnov</th></tr>
   <tr><td>Nalog (email, ime)</td><td>Anonimizacija odmah po odobrenom zahtevu za brisanje naloga.</td><td>Ugovor / čl. 17 GDPR</td></tr>
   <tr><td>Predmeti, klijenti i dokumenti</td><td>Zadržavaju se nepromenjeni nakon brisanja naloga, u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ne brišu se automatski povodom zahteva za brisanje naloga.<br><small style="color:#64748b;">Obrazloženje: obaveza čuvanja advokatskih spisa (Zakon o advokaturi) postoji nezavisno od statusa korisničkog naloga u Platformi. Brisanje ovih podataka mimo zakonskog roka zahteva poseban, dokumentovan zahtev na benny13.n@gmail.com.</small></td><td>Zakon o advokaturi / legitimni interes čuvanja poslovne evidencije</td></tr>
   <tr><td>Vektori i tekstualni segmenti dokumenata (Pinecone)</td><td>Poseban rok nije utvrđen; brisanje naloga ih ne briše, jer se predmeti i dokumenti zadržavaju.</td><td>—</td></tr>
-  <tr><td>AI upiti (OpenAI)</td><td>Max 30 dana</td><td>OpenAI politika</td></tr>
-  <tr><td>Fakturisanje i računovodstvo</td><td>10 godina</td><td>Zakon o računovodstvu</td></tr>
+  <tr><td>Zapisi AI dobavljača</td><td>Zavisi od aktivnog dobavljača i podešavanja; OpenAI API može zadržati abuse-monitoring zapise do 30 dana, uz izuzetke. Azure ima zasebna pravila. Produkciona konfiguracija nije potvrđena.</td><td>Pravila aktivnog dobavljača</td></tr>
+  <tr><td>Vindex AI forensics evidencije</td><td>Kod predviđa cleanup posle 180 dana; sadrže prompt/response heševe, metapodatke i polje za poruku greške. Izvršavanje cleanup-a u produkciji nije potvrđeno.</td><td>Konfiguracija aplikacije</td></tr>
+  <tr><td>Fakturisanje i računovodstvo</td><td>Rok čuvanja zavisi od vrste dokumentacije i primenljivih propisa; stvarni jedinstveni aplikacioni rok nije potvrđen.</td><td>Zakon o računovodstvu, čl. 28 (različiti rokovi za računovodstvene isprave, poslovne knjige i finansijske izveštaje)</td></tr>
   <tr><td>Audit logovi</td><td>2 godine</td><td>Legitimni interes</td></tr>
   <tr><td>Prijava za beta testiranje</td><td>Najkasnije šest meseci od prijema; ako je otvoren nalog, najkasnije 30 dana posle otvaranja. Briše se ručno (videti odeljak iznad).</td><td>Legitimni interes</td></tr>
-  <tr><td>Backup baze</td><td>Aktivni plan baze (Supabase Free) ne uključuje automatske backup-e baze, pa rok čuvanja backup-a ne postoji.</td><td>—</td></tr>
-</table>
+  <tr><td>Backup baze</td><td>Povezana Supabase organizacija je na Free planu, koji ne uključuje automatske dnevne backup-e; nije potvrđeno da produkcioni API koristi taj projekat niti da postoje odvojene kopije.</td><td>Supabase plan / konfiguracija produkcije</td></tr>
+</table></div>
 
 <h2>Bezbednost podataka</h2>
 <ul>
@@ -149,13 +162,13 @@
   <li><strong>Kontrola pristupa:</strong> aplikacioni server pristupa bazi privilegovanim servisnim ključem, koji ne podleže pravilima Row Level Security (RLS). Zato granicu između naloga sprovodi provera na serveru pri svakom zahtevu, a ne same RLS politike baze.</li>
   <li><strong>Administrativni pristup:</strong> tehnički pristup bazi i skladištu ima ovlašćeni administrator sistema preko administrativnih naloga pružalaca infrastrukture. Sadržaju predmeta se tim putem pristupa samo kada je neophodno za rešavanje bezbednosnog incidenta ili kritične tehničke greške. Takav pristup ne beleži audit log aplikacije.</li>
   <li><strong>Audit logovi:</strong> određene osetljive operacije (uvid u šifrovane identifikatore klijenta, potpun izvoz podataka, brisanje naloga) beleže se u audit log koji se ne može menjati.</li>
-  <li><strong>Backup:</strong> aktivni plan baze (Supabase Free) ne uključuje automatske backup-e. Vindex trenutno nema potvrđen sistem automatskog backup-a i ne obećava rok oporavka podataka.</li>
+  <li><strong>Backup:</strong> povezana Supabase organizacija je na Free planu, koji ne uključuje automatske dnevne backup-e; nije potvrđeno da produkcioni API koristi baš taj projekat ili da postoje odvojene kopije. Vindex ne obećava rok oporavka podataka.</li>
   <li><strong>Incident response:</strong> U slučaju povrede zaštite podataka, nadzorni organ se obaveštava bez nepotrebnog odlaganja u skladu sa GDPR čl. 33 (rok od 72 sata primenjuje se na prijavu nadzornom organu, ne automatski na svaki incident). Korisnici se obaveštavaju kada postoji visok rizik po njihova prava i slobode (GDPR čl. 34).</li>
 </ul>
 
 <h2>Pristup podacima i profesionalna tajna</h2>
 <div class="highlight">
-  Pristup sadržaju predmeta ograničen je isključivo na tehničku obradu potrebnu za izvršenje funkcija koje korisnik eksplicitno pokrene. Vindex AI ne pregledava, ne analizira niti koristi sadržaj predmeta u bilo koje druge svrhe. Tehnički pristup bazi ima ovlašćeni administrator sistema i koristi ga samo u slučajevima navedenim u odeljku „Bezbednost podataka“.
+  Pristup sadržaju predmeta ograničen je na tehničku obradu potrebnu za funkcije koje korisnik pokrene. Kod Prijema dokumenata, otpremanje pokreće pozadinsko čitanje i izdvajanje; model može obraditi izdvojeni tekst bez dodatnog klika na analizu. Vindex AI ne koristi sadržaj predmeta u druge svrhe prema opisu ove usluge. Tehnički pristup bazi ima ovlašćeni administrator sistema i koristi ga samo u slučajevima navedenim u odeljku „Bezbednost podataka“.
 </div>
 
 <h2>Vaša prava</h2>

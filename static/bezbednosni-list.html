@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vindex AI — Bezbednosni list</title>
+<meta name="description" content="Sažet pregled bezbednosti i privatnosti Vindex AI i povezanih servisa; aktivne integracije, regioni i rokovi nisu svi potvrđeni.">
+<link rel="canonical" href="https://vindex.rs/bezbednosni-list">
+<meta property="og:title" content="Bezbednosni list — Vindex AI">
+<meta property="og:description" content="Sažet pregled bezbednosti i privatnosti Vindex AI i povezanih servisa; aktivne integracije, regioni i rokovi nisu svi potvrđeni.">
+<meta property="og:url" content="https://vindex.rs/bezbednosni-list">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#fff;color:#1a1a2e;font-family:'Georgia',serif;font-size:11px;line-height:1.38;max-width:780px;margin:0 auto;padding:1.5rem 2.1rem 1rem;}
@@ -25,6 +30,7 @@
   footer{margin-top:.6rem;padding-top:.4rem;border-top:1px solid #e2e8f0;font-size:.62rem;color:#94a3b8;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.3rem;}
   footer a{color:#2563eb;text-decoration:none;}
   .print-btn{position:fixed;top:1rem;right:1rem;background:#2563eb;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-size:.8rem;font-family:sans-serif;}
+  @media(max-width:480px){body{padding:1.25rem 1rem 3rem}h1{font-size:1.2rem;overflow-wrap:anywhere}.print-btn{position:static;display:block;margin:0 0 .75rem auto;max-width:100%;white-space:normal}}
   @media print{.no-print{display:none!important} body{padding:.6rem 1.3rem;max-width:100%;} @page{size:A4;margin:8mm;}}
 </style>
 </head>
@@ -32,16 +38,16 @@
 <button class="print-btn no-print" onclick="window.print()">⬇ Preuzmi PDF</button>
 
 <h1>Kako Vindex AI štiti advokatsku tajnu i podatke o klijentima</h1>
-<p class="subtitle">Bezbednosni list · v1.0 · Jul 2026, ispravke činjenica 2026-10-20 · Svaka tvrdnja na ovoj strani proverena je naspram izvornog koda platforme, ne samo naspram namere ili plana.</p>
+<p class="subtitle">Bezbednosni list · v1.0 · ažurirano 2026-11-06 · Javni informativni pregled; nije nezavisna bezbednosna revizija.</p>
 
 <p class="lede">Vindex AI je platforma za advokatske kancelarije. Advokatska tajna nije marketinška fraza za nas — to je pravni standard prema kom je sistem projektovan. Ispod su tri stuba te zaštite, sa tačno onim što je implementirano, bez ičega što tek treba da bude izgrađeno.</p>
 
-<h2><span class="num">1</span> Vaši podaci se ne koriste za treniranje AI modela</h2>
+<h2><span class="num">1</span> Pravila o upotrebi podataka zavise od AI dobavljača</h2>
 <ul class="proof">
-  <li>Vindex AI koristi zvanični <strong>OpenAI API</strong> (ne ChatGPT aplikaciju), pristupan isključivo putem privatnog API ključa servera — nikad putem korisničkog naloga koji bi mogao da deli podatke sa OpenAI proizvodima za potrošače.</li>
-  <li>Prema OpenAI-jevoj politici obrade podataka putem API-ja (na snazi od marta 2023, javno dostupna na openai.com/enterprise-privacy), podaci poslati putem API-ja se <strong>ne koriste za treniranje modela</strong> i ne dele se sa trećim stranama u reklamne svrhe.</li>
-  <li>Vindex AI ne trenira niti fino podešava (fine-tuning) sopstveni model na podacima korisnika. Nijedan sopstveni model ne postoji — koristi se isključivo eksterni OpenAI model putem API poziva.</li>
-  <li>Puna specifikacija: <strong>vindex.ai/ai-disclosure</strong></li>
+  <li>Smart Intake koristi GPT-4o-mini za izdvajanje slobodnog teksta iz uspešno pročitanih dokumenata, a može ga pozvati i za klasifikaciju kada heuristika ne prepozna vrstu. Kod aplikacije podržava OpenAI API i Azure OpenAI usmeravanje prema serverskoj konfiguraciji; aktivni produkcioni put nije potvrđen ovim pregledom.</li>
+  <li>Smart Intake upload pokreće pozadinsku obradu. OCR/čitanje se odvija u Vindexovom aplikacionom okruženju, a izdvojeni tekst se šalje modelu; originalni binarni fajl se ovim pozivima ne šalje. Tekst može sadržati poverljive i identifikacione podatke.</li>
+  <li>OpenAI API i Azure OpenAI su odvojene usluge sa različitim pravilima i kontrolama. Cohere reranker može biti uključen samo uz serverski paket, ključ i postavku; to nije dokaz saglasnosti pojedinačnog advokata. Ugovor i podešavanja aktivnog naloga nisu potvrđeni. Pogledajte <a href="/ai-disclosure">Obaveštenje o AI obradi</a>.</li>
+  <li>Puna specifikacija: <a href="/ai-disclosure">Obaveštenje o AI obradi</a></li>
 </ul>
 
 <h2><span class="num">2</span> Šifrovanje i kontrola pristupa: AES-256-GCM, TLS 1.2/1.3, provera na serveru</h2>
@@ -70,7 +76,7 @@
 </table>
 
 <div class="verify-strip">
-  <strong>Metodologija verifikacije:</strong> Svaka tvrdnja na ovoj strani proverena je direktnim čitanjem izvornog koda platforme (ne dokumentacije ili plana) neposredno pre objavljivanja ove verzije. Gde je postojala razlika između ranije objavljene pravne dokumentacije i stvarnog ponašanja sistema, dokumentacija (Politika privatnosti, Security Whitepaper, DPA) je ispravljena da odgovara stvarnom ponašanju — ne obrnuto.
+  <strong>Metodologija i ograničenja:</strong> Tokovi aplikacije provereni su prema lokalnom izvornom kodu, a tvrdnje o dobavljačima prema njihovoj javnoj dokumentaciji. Produkciona konfiguracija, ugovori, podešavanja naloga, pristupne kontrole, izvršavanje rasporeda i nezavisne revizije nisu potvrđeni ovim pregledom. Ovaj dokument nije pravno mišljenje ni nezavisna bezbednosna revizija.
 </div>
 
 <footer>

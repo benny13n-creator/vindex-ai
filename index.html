@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="rgba(255,255,255,0.72)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -105,7 +106,7 @@
         <button type="button" class="pw-eye" onclick="togglePw('reg-confirm-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <button class="modal-btn" id="reg-btn" onclick="doRegister()">Registruj se</button>
-      <p class="auth-trust">Nakon potrošenih 15 upita, vi odlučujete o daljem korišćenju. Bez automatske naplate i skrivenih troškova.</p>
+      <p class="auth-trust">Dostupnost AI funkcija i ograničenja zavise od vašeg beta naloga. Naplata trenutno nije uvedena.</p>
     </div>
 
     <!-- FORGOT PASSWORD -->
@@ -131,16 +132,16 @@
     </div>
 
     <div id="auth-error" class="auth-error"></div>
-    <div class="modal-note" id="auth-modal-note">Privatnost je zagarantovana. Bez spama.</div>
+    <div class="modal-note" id="auth-modal-note">Informacije o obradi nalaze se u <a href="/privacy">Politici privatnosti</a> i <a href="/ai-disclosure">Obaveštenju o AI obradi</a>.</div>
     <!-- Sigurnosne oznake -->
     <div style="display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin-top:.9rem;">
       <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx-3);padding:.2rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Azure EU
+        Spoljna AI obrada
       </span>
       <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx-3);padding:.2rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        GDPR
+        Politika privatnosti
       </span>
       <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx-3);padding:.2rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -161,7 +162,7 @@
     <div class="paywall-icon">&#9878;</div>
     <div class="modal-badge">Besplatni plan</div>
     <div class="modal-title" style="font-size:1.55rem;">Iskoristili ste<br>besplatne upite.</div>
-    <p class="modal-sub">Pređite na Basic paket za neograničen pristup svim zakonima i funkcijama.</p>
+    <p class="modal-sub">Dostupnost funkcija zavisi od pristupa omogućenog vašem nalogu tokom beta faze.</p>
     <div class="paywall-price-wrap"></div>
     <ul class="paywall-features">
       <li>Neograničen broj pravnih upita</li>
@@ -184,11 +185,11 @@
       <li><span class="pub-icon">→</span> Automatsko pisanje tužbi, žalbi i predloga za izvršenje uz automatsku asistenciju</li>
       <li> Pravno precizni šabloni usklađeni sa srpskim sudskim procedurama</li>
       <li> PDF export gotovog podneska u jednom kliku</li>
-      <li> Pretraga kroz 30.365 zakona, presuda i mišljenja pri svakom nacrtu</li>
-      <li> Zero-persistence protokol — dokumenti se ne čuvaju na serveru</li>
+      <li> Pretraga propisa i sudske prakse kada je ta funkcija dostupna</li>
+      <li> Zavisno od funkcije, originalni dokument, izdvojeni tekst ili vektorski zapis mogu se čuvati u Vindexu ili povezanim servisima</li>
     </ul>
     <button class="modal-btn pro-upgrade-cta" onclick="closeProUpgradeModal();openProModal();">Pogledajte planove i cene &rarr;</button>
-    <p style="font-size:0.68rem;color:var(--tx-4);margin-top:0.8rem;">Pošaljite zahtev — aktiviramo vaš PRO nalog ručno, obično isti dan.</p>
+    <p style="font-size:0.68rem;color:var(--tx-4);margin-top:0.8rem;">Zahtevi za dodatni pristup pregledaju se pojedinačno tokom kontrolisanog beta testiranja.</p>
   </div>
 </div>
 
@@ -279,30 +280,30 @@
     <div style="display:flex;flex-wrap:wrap;gap:.55rem;justify-content:center;margin-bottom:1rem;">
       <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .7rem;background:rgba(0,120,212,0.08);border:1px solid rgba(0,120,212,0.22);border-radius:4px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span style="font-size:.68rem;color:#60a5fa;font-weight:600;">Microsoft Azure EU</span>
+        <span style="font-size:.68rem;color:#60a5fa;font-weight:600;">AI obrada preko spoljnih servisa</span>
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .7rem;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.18);border-radius:4px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span style="font-size:.68rem;color:#4ade80;font-weight:600;">GDPR usklađeno</span>
+        <span style="font-size:.68rem;color:#4ade80;font-weight:600;">Politika privatnosti</span>
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .7rem;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.18);border-radius:4px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <span style="font-size:.68rem;color:#fbbf24;font-weight:600;">AES-256 enkripcija</span>
+        <span style="font-size:.68rem;color:#fbbf24;font-weight:600;">Zaštita podataka</span>
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .7rem;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.18);border-radius:4px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span style="font-size:.68rem;color:#a78bfa;font-weight:600;">Zero-persistence protokol</span>
+        <span style="font-size:.68rem;color:#a78bfa;font-weight:600;">Zadržavanje zavisi od funkcije</span>
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);border-radius:4px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        <span style="font-size:.68rem;color:var(--tx-3);font-weight:600;">Podaci ostaju u EU (Irska/Holandija)</span>
+        <span style="font-size:.68rem;color:var(--tx-3);font-weight:600;">Region zavisi od servisa</span>
       </div>
     </div>
     <!-- FAQ red -->
     <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;">
-      <div style="font-size:.75rem;color:var(--tx-3);"><strong style="color:var(--tx-2);">Da li postoji besplatni period?</strong><br>Da — 14 dana bez kreditne kartice.</div>
-      <div style="font-size:.75rem;color:var(--tx-3);"><strong style="color:var(--tx-2);">Mogu li otkazati?</strong><br>U svakom trenutku, bez penala.</div>
-      <div style="font-size:.75rem;color:var(--tx-3);"><strong style="color:var(--tx-2);">Gde su moji podaci?</strong><br>Microsoft Azure EU datacenter. Nijedan dokument se ne čuva posle analize.</div>
+      <div style="font-size:.75rem;color:var(--tx-3);"><strong style="color:var(--tx-2);">Kako se dobija pristup?</strong><br>Vindex je u kontrolisanoj beta verziji; naplata nije uvedena.</div>
+      <div style="font-size:.75rem;color:var(--tx-3);"><strong style="color:var(--tx-2);">Da li postoji naplata?</strong><br>Naplata još nije uvedena; pristup se odobrava u okviru beta testiranja.</div>
+      <div style="font-size:.75rem;color:var(--tx-3);"><strong style="color:var(--tx-2);">Gde se obrađuju podaci?</strong><br>Vindex koristi više povezanih servisa. Aktivna produkciona putanja i region nisu potvrđeni; dokumenti i izdvojeni tekst mogu se čuvati zavisno od funkcije. <a href="/privacy">Politika privatnosti</a>.</div>
     </div>
   </div>
 </div>
@@ -1059,6 +1060,7 @@
               <!-- ── TAB 2: Dokumenti ─────────────────────────────────── -->
               <div class="pred-subtab-pane" id="pred-pane-dokumenti" style="display:none;">
                 <div class="pred-section-lbl">Otpremi dokument</div>
+                <p class="ai-upload-disclosure">U ovom toku, dodavanje dokumenta pokreće čitanje, indeksiranje i automatsku AI analizu. Deo izdvojenog teksta može biti poslat spoljnom AI servisu bez dodatnog klika na „Analiza“. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
                 <input type="file" id="pred-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="pred_upload_doc(this.files[0])">
                 <div id="pred-upload-zone" class="upload-dropzone" role="button" tabindex="0" aria-label="Otpremi dokument — PDF ili DOCX, do 10MB" style="padding:0.85rem 1rem;margin-top:0;" onclick="pred_upload_trigger()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');pred_upload_doc(event.dataTransfer.files[0])">
                   <div style="font-size:1.15rem;margin-bottom:0.2rem;"><i data-lucide="paperclip" style="width:20px;height:20px;color:var(--tx-3);"></i></div>
@@ -2172,6 +2174,7 @@
                 <!-- Step 3 — Dokumenti -->
                 <div id="intake-s3" class="intake-step-content" style="display:none">
                   <div class="intake-step-heading">Dokumentacija (opciono)</div>
+                  <p class="ai-upload-disclosure">Otpremanje odmah pokreće čitanje, indeksiranje i klasifikaciju. Izdvojeni tekst može biti poslat spoljnom AI servisu; dodatnu analizu zatražićete kasnije u ovom toku. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
                   <div class="intake-upload-zone" id="intake-upload-zone" onclick="document.getElementById('intake-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="intakeDropFile(event)">
                     <div style="font-size:1.4rem;margin-bottom:6px;"></div>
                     <div style="font-size:0.82rem;color:var(--tx-3);">Prevucite PDF/DOCX ili kliknite za upload</div>
@@ -2312,6 +2315,7 @@
                 <!-- Step 1 — Upload -->
                 <div id="si-s1" class="intake-step-content">
                   <div class="intake-step-heading">Otpremite dokumenta predmeta</div>
+                  <p class="ai-upload-disclosure">Otpremanje pokreće automatsku obradu. OCR i početno prepoznavanje rade se u Vindexu, a izdvojeni tekst može biti poslat spoljnom AI servisu za klasifikaciju ili izdvajanje podataka, bez dodatnog klika na „Analiza“. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
                   <div class="intake-upload-zone" id="si-upload-zone" onclick="document.getElementById('si-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="siDropFiles(event)">
                     <div style="font-size:0.82rem;color:var(--tx-3);">Prevucite PDF, DOCX, TXT ili fotografije (JPG/PNG), ili kliknite za upload</div>
                     <div style="font-size:0.7rem;color:var(--tx-3);margin-top:4px;">Više fajlova odjednom — svi ulaze u isti predmet. Maks. 25MB po fajlu.</div>
@@ -2917,6 +2921,7 @@
                 <div class="t-guide-icon"><i data-lucide="file-search" style="width:24px;height:24px;color:var(--tx-3);stroke-width:1.5;"></i></div>
                 <div class="t-guide-text"><span class="t-guide-bold">Analizirajte dokument.</span> Otpremite ugovor, presudu ili pravni akt — sistem identifikuje pravne rizike i problematične odredbe.</div>
               </div>
+              <p class="ai-upload-disclosure">Otpremanje pokreće izdvajanje teksta, indeksiranje i automatsku klasifikaciju. Tekst može biti poslat spoljnom AI servisu pre nego što postavite pitanje ili zatražite analizu. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
               <input type="file" id="doc-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="doc_upload_file(this.files[0])">
               <div id="doc-upload-zone" class="upload-dropzone" onclick="doc_upload_trigger()">
                 <div class="upload-zone-icon"></div>
@@ -3052,6 +3057,7 @@
                 </summary>
                 <div class="playbook-body">
                   <p class="playbook-opis">Uploadujte interne dokumente firme (presedani, argumenti, šabloni). Vindex će ih automatski koristiti pri generisanju nacrta.</p>
+                  <p class="ai-upload-disclosure">Pri otpremanju se izdvaja tekst i šalje spoljnom AI servisu radi semantičkog indeksiranja; tekstualni segmenti čuvaju se u servisu za pretragu. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
                   <div class="playbook-upload-zona" id="playbook-drop-zona"
                        ondragover="event.preventDefault()"
                        ondrop="playbookDrop(event)">
@@ -3406,15 +3412,15 @@
             <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;padding:.55rem .75rem;background:rgba(0,0,0,.15);border:1px solid rgba(255,255,255,0.06);border-radius:2px;">
               <div style="display:flex;align-items:center;gap:.3rem;padding:.25rem .55rem;background:rgba(0,120,212,0.08);border:1px solid rgba(0,120,212,0.20);border-radius:4px;">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span style="font-size:.6875rem;color:#60a5fa;font-weight:600;">Microsoft Azure EU</span>
+                <span style="font-size:.6875rem;color:#60a5fa;font-weight:600;">AI obrada preko spoljnih servisa</span>
               </div>
               <div style="display:flex;align-items:center;gap:.3rem;padding:.25rem .55rem;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.16);border-radius:4px;">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                <span style="font-size:.6875rem;color:#4ade80;font-weight:600;">GDPR uskladjeno</span>
+                <span style="font-size:.6875rem;color:#4ade80;font-weight:600;">Politika privatnosti</span>
               </div>
               <div style="display:flex;align-items:center;gap:.3rem;padding:.25rem .55rem;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.16);border-radius:4px;">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span style="font-size:.6875rem;color:#fbbf24;font-weight:600;">Vasi podaci ostaju u EU</span>
+                <span style="font-size:.6875rem;color:#fbbf24;font-weight:600;">Region obrade nije potvrđen</span>
               </div>
             </div>
 
@@ -3728,7 +3734,7 @@
                     <span class="pomoc-faq-arrow">▸</span>
                   </div>
                   <div class="pomoc-faq-a" id="faq-a-0">
-                    Vindex AI koristi GPT-4o i bazu od ~95.000 sudskih odluka VKS i apelacionih sudova. AI daje preporuke na osnovu relevantnih presedana — uvek proverite konačni odgovor sa aktuelnim propisima i nadležnim organima. Korišćenje AI ne zamenjuje pravni savet.
+                    Model i izvor podataka zavise od pravne funkcije i aktivne konfiguracije, koja nije potvrđena ovim pregledom. AI rezultat je predlog, ne pravni zaključak; proverite izvore, važeće propise i nadležnost pre profesionalne upotrebe.
                   </div>
                 </div>
 
@@ -3768,7 +3774,7 @@
                     <span class="pomoc-faq-arrow">▸</span>
                   </div>
                   <div class="pomoc-faq-a" id="faq-a-4">
-                    Da. Podaci su šifrovani (TLS 1.3 u tranzitu, AES-256 u mirovanju) i čuvaju se na Supabase infrastrukturi u EU regionu. Niko iz tima Vindex AI nema pristup sadržaju vaših predmeta. Vidite <a href="/privacy" target="_blank" style="color:var(--tx-2);">Politiku privatnosti</a>.
+                    Podaci se, zavisno od funkcije, obrađuju u Vindexu i povezanim servisima. Dokumenti i izdvojeni tekst mogu se čuvati; region aktivne produkcione konfiguracije nije potvrđen ovim pregledom. Detalje pogledajte u <a href="/privacy" target="_blank" style="color:var(--tx-2);">Politici privatnosti</a> i <a href="/ai-disclosure" target="_blank" style="color:var(--tx-2);">Obaveštenju o AI obradi</a>.
                   </div>
                 </div>
 
@@ -3778,7 +3784,7 @@
                     <span class="pomoc-faq-arrow">▸</span>
                   </div>
                   <div class="pomoc-faq-a" id="faq-a-5">
-                    Podešavanja → <strong>Moj plan</strong> → <strong>Upravljaj</strong>. Možete nadograditi, sniziti ili otkazati plan u svakom trenutku. Otkazivanje stupa na snagu na kraju tekućeg perioda.
+                    Naplata nije uvedena. Pristup funkcijama uređuje se u okviru kontrolisanog beta testiranja.
                   </div>
                 </div>
               </div>
@@ -3848,6 +3854,7 @@
                   style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:5px 8px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;width:100%;box-sizing:border-box;">
                 <input type="text" id="law-sl-glasnik-input" placeholder="Sl. glasnik RS (npr. 36/2011, 99/2011...)" maxlength="100"
                   style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:5px 8px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;width:100%;box-sizing:border-box;">
+                <p class="ai-upload-disclosure">Pri otpremanju se tekst zakona izdvaja i šalje spoljnom AI servisu radi izrade indeksa za semantičku pretragu. <a href="/ai-disclosure">Obaveštenje o AI obradi</a> · <a href="/privacy">Politika privatnosti</a>.</p>
                 <div style="display:flex;gap:0.4rem;align-items:center;">
                   <input type="file" id="law-pdf-input" accept=".pdf"
                     style="flex:1;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:2px;padding:5px 8px;color:var(--tx-3);font-size:0.74rem;font-family:inherit;cursor:pointer;">
@@ -4645,40 +4652,39 @@
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Pravni osnov obrade (ZZPL / GDPR čl. 6)</div>
         <ul style="padding-left:1.2rem;margin:.3rem 0;">
           <li><strong style="color:var(--tx-1);">Izvršenje ugovora (čl. 6 st. 1 tač. b GDPR):</strong> Obrada neophodna za pružanje ugovorenih usluga</li>
-          <li><strong style="color:var(--tx-1);">Saglasnost (čl. 6 st. 1 tač. a GDPR):</strong> AI obrada dokumenata putem OpenAI API-ja</li>
+          <li><strong style="color:var(--tx-1);">Saglasnost (čl. 6 st. 1 tač. a GDPR):</strong> AI obrada dokumenata preko spoljnog servisa; konkretan dobavljač zavisi od funkcije i aktivne konfiguracije, koja ovim pregledom nije potvrđena. Pravnu osnovu proverite u <a href="/privacy" target="_blank">Politici privatnosti</a>.</li>
           <li><strong style="color:var(--tx-1);">Zakonska obaveza (čl. 6 st. 1 tač. c GDPR):</strong> Čuvanje poreskih i računovodstvenih zapisa</li>
         </ul>
 
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Gde i koliko dugo se podaci čuvaju</div>
         <div style="display:grid;gap:.5rem;margin:.3rem 0;">
           <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,212,255,0.10);border-radius:2px;padding:.65rem .85rem;">
-            <div style="font-weight:700;color:var(--tx-2);margin-bottom:.2rem;font-size:.76rem;">Supabase — Frankfurt (AWS eu-central-1)</div>
+            <div style="font-weight:700;color:var(--tx-2);margin-bottom:.2rem;font-size:.76rem;">Supabase — povezani projekat eu-west-1 (Irska)</div>
             <div>Predmeti, klijenti, dokumenti, korisničke postavke</div>
-            <div style="color:var(--tx-3);margin-top:.2rem;">Čuvanje: dok je nalog aktivan + 90 dana po brisanju</div>
+            <div style="color:var(--tx-3);margin-top:.2rem;">Nije potvrđeno da produkcioni API koristi ovaj projekat; rokovi zavise od vrste zapisa i funkcije.</div>
           </div>
           <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.15);border-radius:2px;padding:.65rem .85rem;">
-            <div style="font-weight:700;color:#fbbf24;margin-bottom:.2rem;font-size:.76rem;">OpenAI API — SAD/EU</div>
-            <div>Tekst upita i dokumenata tokom AI analize — isključivo radi izvršenja zahteva</div>
-            <div style="color:var(--tx-3);margin-top:.2rem;">OpenAI ne koristi API podatke za trening modela. Brisanje: max 30 dana (OpenAI politika, mar 2023). SCC: ✓</div>
+            <div style="font-weight:700;color:#fbbf24;margin-bottom:.2rem;font-size:.76rem;">OpenAI API / Azure OpenAI</div>
+            <div>Tekst pitanja ili dokumenata može se slati zavisno od funkcije; otpremanje može pokrenuti obradu bez dodatnog klika.</div>
+            <div style="color:var(--tx-3);margin-top:.2rem;">OpenAI API i Azure OpenAI imaju odvojena pravila. Aktivna produkciona putanja, region, podešavanja naloga i SCC nisu potvrđeni.</div>
           </div>
           <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);border-radius:2px;padding:.65rem .85rem;">
-            <div style="font-weight:700;color:#c4b5fd;margin-bottom:.2rem;font-size:.76rem;">Pinecone — SAD (us-east-1)</div>
-            <div>Numeričke reprezentacije sadržaja (embeddings) — nisu namenjeni niti pogodni za rekonstrukciju originalnog dokumenta; tretiraju se kao zaštićeni podaci</div>
-            <div style="color:var(--tx-3);margin-top:.2rem;">Izolovano po korisniku. Čuvanje: dok je nalog aktivan</div>
+            <div style="font-weight:700;color:#c4b5fd;margin-bottom:.2rem;font-size:.76rem;">Pinecone — semantička pretraga</div>
+            <div>Vektorski zapisi i tekstualni segmenti dokumenata mogu se koristiti za semantičku pretragu.</div>
+            <div style="color:var(--tx-3);margin-top:.2rem;">Region aktivnog indeksa i rok čuvanja nisu potvrđeni.</div>
           </div>
         </div>
 
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Bezbednost podataka</div>
         <ul style="padding-left:1.2rem;margin:.3rem 0;">
-          <li>Enkripcija u tranzitu: TLS 1.3</li>
-          <li>Enkripcija pri skladištenju: AES-256 (Supabase)</li>
-          <li>Kontrola pristupa: svaki korisnik vidi isključivo sopstvene podatke (Row Level Security)</li>
-          <li>Audit logovi: svi pristupi i operacije se beleže</li>
-          <li>Backup: dnevni automatski backup sa 30-dnevnim rokom čuvanja</li>
+          <li>Način šifrovanja i kontrole zavise od vrste podatka, funkcije i povezanog servisa; produkciona konfiguracija nije potvrđena ovim pregledom.</li>
+          <li>Ne tvrdimo da se svi pristupi i operacije beleže u jedinstven audit zapis.</li>
+          <li>Plan i raspoloživost rezervnih kopija za povezani produkcioni projekat nisu potvrđeni.</li>
+          <li>Detalje o obradi i pružaocima pogledajte u <a href="/security" target="_blank">bezbednosnom pregledu</a> i <a href="/privacy" target="_blank">Politici privatnosti</a>.</li>
         </ul>
 
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Pristup podacima i profesionalna tajna</div>
-        <p>Pristup sadržaju predmeta ograničen je isključivo na tehničku obradu potrebnu za izvršenje funkcija koje korisnik pokrene. Vindex AI ne pregledava niti koristi sadržaj predmeta u druge svrhe. Pristup zaposlenih regulisan je principom <strong style="color:var(--tx-1);">najmanjih privilegija (least privilege)</strong> — operativni pristup odobrava se samo kada je neophodan za rešavanje incidenta, uz evidentiranje u audit logu.</p>
+        <p>Sadržaj predmeta može se obrađivati u Vindexu i povezanim servisima radi rada funkcija, uključujući automatske korake posle otpremanja. Ovaj pregled nije nezavisno potvrdio sve operativne pristupe i evidencije; važeći opis obrade nalazi se u <a href="/privacy" target="_blank">Politici privatnosti</a> i <a href="/dpa" target="_blank">DPA</a>.</p>
 
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">6. Vaša prava</div>
         <p>U skladu sa ZZPL i GDPR imate pravo na: uvid, ispravku, brisanje, prenosivost i prigovor na obradu. Zahteve šaljite na <span style="color:var(--tx-2);">benny13.n@gmail.com</span>. Rok za odgovor: 30 dana.</p>
@@ -4689,35 +4695,35 @@
       <!-- TAB: AI Obrada -->
       <div id="tos-pane-ai" style="display:none;">
         <div style="color:var(--tx-2);font-weight:700;margin-bottom:.5rem;font-size:.8rem;">1. Koji AI sistem se koristi</div>
-        <p>Platforma koristi <strong style="color:var(--tx-1);">OpenAI GPT-4o</strong> putem zvaničnog OpenAI API servisa za sve AI funkcije (pravna analiza, generisanje dokumenata, semantička pretraga).</p>
+        <p>Kod sadrži više modela i putanja: GPT-4o, GPT-4o-mini i text-embedding-3-large; deo tekstualnih poziva može se usmeriti ka Azure OpenAI, a Cohere reranker je uslovan. Aktivna produkciona putanja i model nisu potvrđeni ovim pregledom.</p>
 
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Kako se podaci obrađuju</div>
-        <p>AI obrada vrši se putem OpenAI API servisa. <strong style="color:var(--tx-1);">Podaci poslati putem API-ja ne koriste se za treniranje OpenAI modela.</strong> Obrada se vrši isključivo radi izvršenja korisničkog zahteva i rezultat se vraća korisniku.</p>
+        <p>Kod podržava OpenAI API i usmeravanje dela tekstualnih poziva ka Azure OpenAI; te usluge imaju odvojena pravila. Otpremanje može automatski pokrenuti čitanje, vektorizaciju, klasifikaciju ili izdvajanje pre dodatnog klika. Aktivna produkciona konfiguracija i podešavanja naloga nisu potvrđeni.</p>
 
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Šta se šalje AI modelu</div>
         <ul style="padding-left:1.2rem;margin:.3rem 0;">
-          <li>Tekst opisa predmeta koji korisnik unese u polje za analizu</li>
-          <li>Sadržaj dokumenata koji korisnik eksplicitno pokrene za analizu</li>
-          <li>Nije: ime klijenta, JMBG, kontakt podaci — osim ako ih korisnik sam unese u opis</li>
+          <li>Zavisno od funkcije, mogu se slati pitanje, izdvojeni tekst dokumenta, tekstualni isečci predmeta i kontekst iz pretrage.</li>
+          <li>U više tokova otpremanje samo po sebi pokreće obradu, bez dodatnog klika na „Analiza“.</li>
+          <li>Ne pretpostavljajte da su imena, JMBG ili drugi lični podaci automatski uklonjeni iz teksta koji se obrađuje.</li>
         </ul>
         <p style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,212,255,0.10);border-radius:2px;padding:.6rem .8rem;margin:.5rem 0;color:rgba(200,235,255,.8);">Preporučujemo korišćenje inicijala ili pseudonima umesto punih imena stranaka u opisima predmeta koji se šalju AI-u.</p>
 
         <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Ograničenje AI odgovornosti</div>
         <p style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.22);border-radius:2px;padding:.7rem .9rem;color:rgba(255,245,200,.85);">AI analiza je <strong>pomoćni alat</strong>, ne zamena za stručnu pravnu procenu. Platforma može pogrešiti. Svaki AI output mora biti proveren od strane stručnog lica pre profesionalne primene. Pružalac usluge nije odgovoran za štetu nastalu oslanjanjem na neproveren AI output.</p>
 
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Podobrađivači (subprocessors)</div>
+        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Servisi pomenuti u kodu (aktivni status nije potvrđen)</div>
         <div style="display:grid;gap:.4rem;margin:.3rem 0;font-size:.74rem;">
           <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">OpenAI, Inc.</span><span style="color:var(--tx-3);">AI obrada — SAD/EU — SCC ✓</span>
+            <span style="color:var(--tx-2);">OpenAI API / Azure OpenAI</span><span style="color:var(--tx-3);">Odvojene usluge; aktivna putanja, region i SCC nisu potvrđeni</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">Supabase, Inc.</span><span style="color:var(--tx-3);">Baza podataka — Frankfurt (EU) — GDPR ✓</span>
+            <span style="color:var(--tx-2);">Supabase</span><span style="color:var(--tx-3);">Povezani projekat eu-west-1 (Irska); produkciona veza nije potvrđena</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">Pinecone Systems, Inc.</span><span style="color:var(--tx-3);">Vektorska baza — SAD — SCCs ✓</span>
+            <span style="color:var(--tx-2);">Pinecone</span><span style="color:var(--tx-3);">Vektori i tekstualni segmenti; aktivni region i SCC nisu potvrđeni</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">Render Services, Inc.</span><span style="color:var(--tx-3);">Hosting — SAD — SOC 2 ✓</span>
+            <span style="color:var(--tx-2);">Render</span><span style="color:var(--tx-3);">Aplikacioni hosting; aktivni uslovi prenosa i nalog nisu potvrđeni</span>
           </div>
         </div>
 
@@ -4755,28 +4761,26 @@
 
         <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,212,255,0.10);border-radius:2px;padding:.8rem 1rem;">
           <div style="font-weight:700;color:var(--tx-2);margin-bottom:.4rem;">Supabase — Predmeti i klijenti</div>
-          <div>Lokacija: <strong style="color:#fff;">Frankfurt, Nemačka (AWS eu-central-1)</strong></div>
-          <div>Enkripcija: AES-256 u mirovanju, TLS 1.2+ u prenosu</div>
-          <div>GDPR: ✓ &nbsp;SOC 2 Type II: ✓</div>
+          <div>Lokacija: <strong style="color:#fff;">povezani projekat eu-west-1 (Irska); produkciona veza nije potvrđena</strong></div>
+          <div>Šifrovanje, plan i nezavisne procene povezane produkcione konfiguracije nisu potvrđeni ovim pregledom.</div>
         </div>
 
         <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.15);border-radius:2px;padding:.8rem 1rem;">
-          <div style="font-weight:700;color:#fbbf24;margin-bottom:.4rem;">OpenAI — AI obrada</div>
-          <div>Podaci: Delovi teksta dokumenata tokom AI analize</div>
-          <div>Trening modela: <strong style="color:#7de0a0;">NE</strong> (politika od mar 2023)</div>
-          <div>Zadržavanje: Max 30 dana radi detekcije zloupotrebe, zatim brisanje</div>
-          <div>SCC: ✓ (EU Standard Contractual Clauses)</div>
+          <div style="font-weight:700;color:#fbbf24;margin-bottom:.4rem;">AI obrada — više mogućih servisa</div>
+          <div>Podaci: izdvojeni tekst i kontekst zavise od funkcije; upload može pokrenuti obradu automatski.</div>
+          <div>OpenAI API navodi da se API podaci po podrazumevanim pravilima ne koriste za treniranje; Azure OpenAI ima zasebna pravila.</div>
+          <div>Zadržavanje zavisi od dobavljača i usluge; OpenAI abuse-monitoring zapisi mogu se čuvati do 30 dana, uz izuzetke.</div>
+          <div>Aktivna produkciona putanja, region i SCC status nisu potvrđeni.</div>
         </div>
 
         <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);border-radius:2px;padding:.8rem 1rem;">
           <div style="font-weight:700;color:#c4b5fd;margin-bottom:.4rem;">Pinecone — Pretraga dokumenata</div>
-          <div>Podaci: Numeričke reprezentacije sadržaja (embeddings) — nisu namenjeni rekonstrukciji originalnog teksta</div>
-          <div>Lokacija: SAD (us-east-1)</div>
-          <div>Izolovano po korisniku: ✓</div>
+          <div>Podaci: vektorski zapisi i tekstualni segmenti dokumenata mogu se koristiti za semantičku pretragu.</div>
+          <div>Aktivni region i rok čuvanja nisu potvrđeni.</div>
         </div>
 
         <div style="background:rgba(125,224,160,.05);border:1px solid rgba(125,224,160,.12);border-radius:2px;padding:.7rem 1rem;font-size:.72rem;color:var(--tx-3);">
-          <strong style="color:var(--tx-2);">Vaša prava:</strong> Brisanje svih podataka na zahtev u roku od 30 dana.<br>
+          <strong style="color:var(--tx-2);">Vaša prava:</strong> Za zahteve i rokove obrade pogledajte <a href="/privacy">Politiku privatnosti</a>; ne obećava se automatsko brisanje svih kategorija u jednom roku.<br>
           Kontakt: <span style="color:var(--tx-2);">benny13.n@gmail.com</span>
         </div>
       </div>

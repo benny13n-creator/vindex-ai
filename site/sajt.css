@@ -62,6 +62,8 @@ body.sajt {
 .sajt .meni-mob__panel a { display: flex; align-items: center; min-height: 48px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--text-1); }
 .sajt .meni-mob__panel a[aria-current="page"] { color: var(--accent-strong); }
 .sajt .meni-mob__akcije { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.sajt .meni-mob__panel a.dugme { color: var(--bg); }
+.sajt .meni-mob__panel a.dugme--sporedno { color: var(--text-1); }
 
 /* ── Dugmad ────────────────────────────────────────────────── */
 .sajt .dugme {

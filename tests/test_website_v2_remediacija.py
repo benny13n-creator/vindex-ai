@@ -332,7 +332,8 @@ def test_javni_dokumenti_nemaju_nepodrzanu_tvrdnju(tekstovi, opis, rx):
 
 def test_dokumenti_kazu_stvarno_stanje_backup_a(tekstovi):
     for ruta in ("/privacy", "/security"):
-        assert "ne uključuje automatske backup" in tekstovi[ruta], ruta
+        assert "ne uključuje automatske dnevne backup-e" in tekstovi[ruta], ruta
+        assert "nije potvrđeno da produkcioni api koristi" in tekstovi[ruta].lower(), ruta
 
 
 def test_dokumenti_kazu_granicu_servisnog_kljuca(tekstovi):

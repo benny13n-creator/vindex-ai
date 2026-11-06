@@ -147,8 +147,8 @@ def test_bezbednost_ne_krije_materijalne_cinjenice(k):
     t = _cist(k, "/bezbednost")
     for cinjenica in ("servisnim ključem", "ne beleži evidencija aplikacije",          # pristup
                       "Supabase", "Render", "OpenAI", "Pinecone",                        # dobavljači
-                      "SCC) sa dobavljačima u SAD nije potvrđeno",
-                      "Automatske rezervne kopije baze trenutno nisu uključene",
+                      "SCC) sa relevantnim dobavljačima nije potvrđeno",
+                      "Povezana Supabase organizacija je na Free planu, koji ne uključuje automatske dnevne rezervne kopije",
                       "napušta Vindexovu infrastrukturu",                                # AI
                       "nije dodatno šifrovan",                                           # tekst
                       "Originalni fajlovi", "nisu u toj arhivi",                         # izvoz
