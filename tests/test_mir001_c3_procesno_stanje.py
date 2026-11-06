@@ -121,10 +121,19 @@ def test_dosledan_nacrt_je_ceo_u_ai_predlogu(nacrt, monkeypatch):
 def test_drugi_savetnici_bez_bloka_i_bez_oznake(nacrt, monkeypatch):
     k, b, pid, doks, snimljeno = nacrt
     _model_vraca(monkeypatch, snimljeno, PROTIVRECAN)
+    from shared.nacrt_za_sud import PRAVILA_ZA_MODEL
+    # MIR002 (izmena ugovora, odluka osnivača u sprintu MIR-02): litigation dobija procesno stanje servera, ali NE oblik
+    # nacrta — bez oznaka [[PS-nn]], bez pravila nacrta, bez starog C3 bloka; predlog teksta ostaje samo za nacrt.
     r = k.post("/api/agents/run", json={"agent": "litigation", "task": "Strategija za tuzioca.", "predmet_id": pid}, headers=A)
     assert r.status_code == 200, r.text
-    assert "PROCESNO STANJE IZ SPISA" not in snimljeno[-1]["user"] and "PROCESNO STANJE — ODLUKE SUDA" not in snimljeno[-1]["user"]
+    u, sistem = snimljeno[-1]["user"], snimljeno[-1]["system"]
+    assert "PROCESNO STANJE IZ SPISA" in u and "[[PS-" not in u and "PROCESNO STANJE — ODLUKE SUDA" not in u
+    assert PRAVILA_ZA_MODEL not in sistem
     assert r.json()["odgovor"] == PROTIVRECAN and "predlog_teksta" not in r.json()              # predlog samo za nacrt
+    r = k.post("/api/agents/run", json={"agent": "research", "task": "Strategija za tuzioca.", "predmet_id": pid}, headers=A)
+    assert r.status_code == 200, r.text
+    assert "PROCESNO STANJE IZ SPISA" not in snimljeno[-1]["user"] and "PROCESNO STANJE — ODLUKE SUDA" not in snimljeno[-1]["user"]
+    assert "predlog_teksta" not in r.json()
 
 
 def test_ponovni_predlog_odbijenog_i_negirane_negacije():
