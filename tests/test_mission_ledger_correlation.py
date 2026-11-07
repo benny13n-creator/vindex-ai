@@ -40,6 +40,7 @@ os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 os.environ.setdefault("PINECONE_HOST", "https://fake.pinecone.io")
 
 import pytest
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from api import app  # noqa: E402,F401 -- bootstraps _patch_prompt_guard()
@@ -180,15 +181,35 @@ class TestEventBusCorrelation:
 # 3. Audit — correlation_id auto-fill, not part of the hash chain
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestAuditCorrelation:
-    def _chain(self, data=None):
-        c = MagicMock()
-        for m in ["select", "eq", "order", "limit", "insert", "execute"]:
-            setattr(c, m, MagicMock(return_value=c))
-        r = MagicMock(); r.data = data if data is not None else [{"id": "audit-row-1"}]
-        c.execute = MagicMock(return_value=r)
-        return c
+def _empty_audit_table(insert):
+    """Return independent head-query builders and require exact count before INSERT."""
+    completed_counts = []
 
+    def select(column, *, count=None):
+        assert column == "entry_hash"
+        assert count in (None, "exact")
+        query = MagicMock()
+        query.order.return_value = query
+        query.limit.return_value = query
+
+        def execute():
+            query.order.assert_called_once_with("seq", desc=True)
+            query.limit.assert_called_once_with(1)
+            completed_counts.append(count)
+            return SimpleNamespace(data=[], count=0 if count == "exact" else None)
+
+        query.execute.side_effect = execute
+        return query
+
+    def checked_insert(record):
+        assert completed_counts == [None, "exact"]
+        assert record["prev_hash"] == "0" * 64
+        return insert(record)
+
+    return SimpleNamespace(select=select, insert=checked_insert)
+
+
+class TestAuditCorrelation:
     @pytest.mark.anyio
     async def test_log_action_auto_fills_correlation_id_from_context(self):
         from shared.audit_immutable import log_action
@@ -196,26 +217,15 @@ class TestAuditCorrelation:
         ai_provenance.set_request_context(user_id="u1", correlation_id="root-cid")
         inserted = []
 
-        def _table(name):
-            if name == "audit_immutable":
-                c = MagicMock()
-
-                def _insert(rec):
-                    inserted.append(rec)
-                    chain = MagicMock()
-                    r = MagicMock(); r.data = [{"id": "audit-1"}]
-                    chain.execute = MagicMock(return_value=r)
-                    return chain
-                c.insert = MagicMock(side_effect=_insert)
-                c.select.return_value = c
-                c.order.return_value = c
-                c.limit.return_value = c
-                c.execute = MagicMock(return_value=MagicMock(data=[]))
-                return c
-            return self._chain()
+        def _insert(rec):
+            inserted.append(rec)
+            chain = MagicMock()
+            r = MagicMock(); r.data = [{"id": "audit-1"}]
+            chain.execute = MagicMock(return_value=r)
+            return chain
 
         supa = MagicMock()
-        supa.table = MagicMock(side_effect=_table)
+        supa.table.return_value = _empty_audit_table(_insert)
 
         with patch("api._get_supa", return_value=supa):
             await log_action(action="genome_refresh", user_id="u1", resource_type="predmet", resource_id="p1")
@@ -230,30 +240,20 @@ class TestAuditCorrelation:
         ai_provenance.set_request_context(user_id="u1", correlation_id="root-cid")
         inserted = []
 
-        def _table(name):
-            if name == "audit_immutable":
-                c = MagicMock()
-
-                def _insert(rec):
-                    inserted.append(rec)
-                    chain = MagicMock()
-                    r = MagicMock(); r.data = [{"id": "audit-1"}]
-                    chain.execute = MagicMock(return_value=r)
-                    return chain
-                c.insert = MagicMock(side_effect=_insert)
-                c.select.return_value = c
-                c.order.return_value = c
-                c.limit.return_value = c
-                c.execute = MagicMock(return_value=MagicMock(data=[]))
-                return c
-            return self._chain()
+        def _insert(rec):
+            inserted.append(rec)
+            chain = MagicMock()
+            r = MagicMock(); r.data = [{"id": "audit-1"}]
+            chain.execute = MagicMock(return_value=r)
+            return chain
 
         supa = MagicMock()
-        supa.table = MagicMock(side_effect=_table)
+        supa.table.return_value = _empty_audit_table(_insert)
 
         with patch("api._get_supa", return_value=supa):
             await log_action(action="genome_refresh", user_id="u1", correlation_id="explicit-cid")
 
+        assert len(inserted) == 1
         assert inserted[0]["correlation_id"] == "explicit-cid"
 
     @pytest.mark.anyio
@@ -266,36 +266,26 @@ class TestAuditCorrelation:
         attempts = []
         call_count = {"n": 0}
 
-        def _table(name):
-            if name == "audit_immutable":
-                c = MagicMock()
-
-                def _insert(rec):
-                    attempts.append(rec)
-                    call_count["n"] += 1
-                    chain = MagicMock()
-                    if call_count["n"] == 1:
-                        chain.execute = MagicMock(side_effect=Exception('column "correlation_id" does not exist'))
-                    else:
-                        r = MagicMock(); r.data = [{"id": "audit-1"}]
-                        chain.execute = MagicMock(return_value=r)
-                    return chain
-                c.insert = MagicMock(side_effect=_insert)
-                c.select.return_value = c
-                c.order.return_value = c
-                c.limit.return_value = c
-                c.execute = MagicMock(return_value=MagicMock(data=[]))
-                return c
-            return self._chain()
+        def _insert(rec):
+            attempts.append(rec)
+            call_count["n"] += 1
+            chain = MagicMock()
+            if call_count["n"] == 1:
+                chain.execute = MagicMock(side_effect=Exception('column "correlation_id" does not exist'))
+            else:
+                r = MagicMock(); r.data = [{"id": "audit-1"}]
+                chain.execute = MagicMock(return_value=r)
+            return chain
 
         supa = MagicMock()
-        supa.table = MagicMock(side_effect=_table)
+        supa.table.return_value = _empty_audit_table(_insert)
 
         with patch("api._get_supa", return_value=supa):
             entry_id = await log_action(action="genome_refresh", user_id="u1", correlation_id="cid-x")
 
         assert entry_id == "audit-1"
         assert len(attempts) == 2
+        assert attempts[0]["correlation_id"] == "cid-x"
         assert "correlation_id" not in attempts[1]
 
     def test_correlation_id_not_part_of_hash_chain_computation(self):
@@ -426,21 +416,13 @@ class TestReplayPremise:
 
         # Audit
         audit_rows = []
-        def _audit_table(name):
-            c = MagicMock()
-            def _insert(rec):
-                audit_rows.append(rec)
-                chain = MagicMock()
-                chain.execute = MagicMock(return_value=MagicMock(data=[{"id": "audit-1"}]))
-                return chain
-            c.insert = MagicMock(side_effect=_insert)
-            c.select.return_value = c
-            c.order.return_value = c
-            c.limit.return_value = c
-            c.execute = MagicMock(return_value=MagicMock(data=[]))
-            return c
+        def _insert(rec):
+            audit_rows.append(rec)
+            return SimpleNamespace(execute=lambda: SimpleNamespace(data=[{"id": "audit-1"}]))
+
+        audit_table = _empty_audit_table(_insert)
         supa_audit = MagicMock()
-        supa_audit.table = MagicMock(side_effect=_audit_table)
+        supa_audit.table = MagicMock(return_value=audit_table)
         with patch("api._get_supa", return_value=supa_audit):
             await log_action(action="genome_refresh", user_id="u1", resource_type="predmet", resource_id="p1")
 
@@ -455,6 +437,8 @@ class TestReplayPremise:
             await log_provenance_from_wrapper(module_name="case_dna", model_provider="openai", model_name="gpt-4o")
 
         assert published["event"].correlation_id == root_cid
+        supa_audit.table.assert_called_with("audit_immutable")
+        assert len(audit_rows) == 1
         assert audit_rows[0]["correlation_id"] == root_cid
         assert provenance_rows[0]["correlation_id"] == root_cid
         assert provenance_rows[0]["audit_reference"] == root_cid

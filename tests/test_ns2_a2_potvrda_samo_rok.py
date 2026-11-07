@@ -86,7 +86,7 @@ def test_odbijanje_neizjavljenog_reda_dozvoljeno_i_opoziva_raniju_potvrdu(ok):
     """Zatecena potvrda reda bez `vrsta` (pre ove kapije) mora moci da se opozove."""
     k, b = ok
     b.tabele["audit_immutable"].append({"action": "rok_potvrdjen", "resource_type": "rok", "resource_id": "r-null",
-                                        "user_id": "uid-A", "seq": 0})
+                                        "user_id": "uid-A", "seq": 0, "entry_hash": "a" * 64})
     assert _stanja(k)["r-null"] == "CONFIRMED"
     r = k.post("/api/rokovi/r-null/odbij", json={}, headers=zaglavlje("A"))
     assert r.status_code == 200, r.text

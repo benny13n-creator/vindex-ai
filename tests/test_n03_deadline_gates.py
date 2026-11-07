@@ -519,8 +519,8 @@ def _baza_http():
         ],
         "rocista": [],
         "audit_immutable": [
-            {"seq": 1, "action": "rok_odbijen", "resource_type": "rok", "resource_id": "r-odbijen", "user_id": "uid-A"},
-            {"seq": 2, "action": "rok_potvrdjen", "resource_type": "rok", "resource_id": "r-potvrdjen", "user_id": "uid-A"},
+            {"seq": 1, "action": "rok_odbijen", "resource_type": "rok", "resource_id": "r-odbijen", "user_id": "uid-A", "entry_hash": "a" * 64},
+            {"seq": 2, "action": "rok_potvrdjen", "resource_type": "rok", "resource_id": "r-potvrdjen", "user_id": "uid-A", "entry_hash": "b" * 64},
         ],
     }
 
@@ -854,7 +854,7 @@ def test_FD4_datum_dostave_nije_rok_ni_u_smart_intake():
 
 def _potvrdi_u_lancu(b, rid, korisnik="uid-A", akcija="rok_potvrdjen", vreme=None):
     red = {"seq": 100 + len(b.tabele["audit_immutable"]), "action": akcija, "resource_type": "rok",
-           "resource_id": rid, "user_id": korisnik}
+           "resource_id": rid, "user_id": korisnik, "entry_hash": "c" * 64}
     if vreme:
         red["created_at"] = vreme
     b.tabele["audit_immutable"].append(red)

@@ -464,21 +464,33 @@ def _build_and_insert(
 
 
 def _get_last_hash(supa) -> str:
-    """Vraća entry_hash poslednjeg zapisa, ili genesis hash ako tabela prazna."""
-    try:
-        result = (
+    """Genesis je dozvoljen samo posle uspešnog čitanja praznog lanca."""
+    rows = (
+        supa.table("audit_immutable")
+        .select("entry_hash")
+        .order("seq", desc=True)
+        .limit(1)
+        .execute()
+    ).data
+    if rows == []:
+        # postgrest-py also decodes an empty HTTP body as []. Ask for an
+        # explicit zero count only on this rare path, never on normal appends.
+        empty_check = (
             supa.table("audit_immutable")
-            .select("entry_hash")
+            .select("entry_hash", count="exact")
             .order("seq", desc=True)
             .limit(1)
             .execute()
         )
-        rows = result.data or []
-        if rows:
-            return rows[0]["entry_hash"]
-    except Exception:
-        pass
-    return _GENESIS_HASH
+        if empty_check.data == [] and empty_check.count == 0:
+            return _GENESIS_HASH
+        raise RuntimeError("Empty audit chain could not be confirmed")
+    if not isinstance(rows, list) or len(rows) != 1:
+        raise RuntimeError("Invalid audit head response")
+    head = rows[0]["entry_hash"]
+    if not isinstance(head, str) or not re.fullmatch(r"[0-9a-f]{64}", head):
+        raise RuntimeError("Invalid audit head hash")
+    return head
 
 
 def _compute_entry_hash(

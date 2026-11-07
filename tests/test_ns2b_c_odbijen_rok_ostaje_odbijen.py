@@ -71,7 +71,7 @@ def _post(k, rid, akcija, ko="A", **telo):
 def _upisi(b, rid, akcija, uid="uid-A"):
     """Upis u lanac MIMO rute (simulira konkurentni zahtev ciji je upis vec prosao proveru)."""
     b.table("audit_immutable").insert({"action": akcija, "resource_type": "rok", "resource_id": rid,
-                                       "user_id": uid}).execute()
+                                       "user_id": uid, "entry_hash": "a" * 64}).execute()
 
 
 # (1) A otvori prozor, B (druga sesija istog advokata) odbije, A potvrdi iz zastarelog prozora
