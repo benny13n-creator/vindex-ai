@@ -84,6 +84,28 @@ def test_successful_empty_head_allows_genesis(writer):
     assert writer(transport)() == "genesis"
 
 
+
+@pytest.mark.parametrize("status,headers", [
+    (200, {}),
+    (200, {"Content-Range": "*/2"}),
+    (503, {}),
+], ids=["no-count", "positive-count", "count-read-failure"])
+def test_empty_head_requires_successful_zero_count(writer, status, headers):
+    requests = []
+
+    def transport(request):
+        prefer = request.headers.get("prefer")
+        requests.append((request.method, prefer))
+        if request.method != "GET":
+            return httpx.Response(201, json=[{"id": "unexpected-insert"}])
+        if prefer == "count=exact":
+            return httpx.Response(status, json=[], headers=headers)
+        return httpx.Response(200, json=[])
+
+    assert writer(transport)() is None
+    assert requests == [("GET", None), ("GET", "count=exact")]
+
+
 def test_unique_collision_retries_from_fresh_head(writer):
     heads = iter([HEAD, NEXT_HEAD])
     attempts = []
