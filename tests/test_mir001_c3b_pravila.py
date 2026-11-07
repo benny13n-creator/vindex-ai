@@ -7,9 +7,13 @@ izuzetak važi samo za rečenicu koja JE oznaka, ne za golu tvrdnju kojoj je mod
 """
 import hashlib
 
-# Sistemske poruke svih savetnika = `ab63f913` (nacrt vraćen; ostali nikad menjani u C3b)
+# Sistemske poruke svih savetnika = `ab63f913` (nacrt vraćen; ostali nikad menjani u C3b). Jedini izuzetak: intake,
+# MIR002 S06 (odobrenje osnivača 2026-11-03) — samo red o čl. 371 ZOO (3 god. → 10 godina, osim kada zakon propisuje
+# drugi rok; glasilo „Sl. gl. RS 29/1978“ → „Sl. list SFRJ, br. 29/78“); `tests/test_mir002_zoo371_intake.py`.
+# Drugi dozvoljeni izuzetak: samo red o žalbi, čl. 367 ZPP sa izuzecima.
+# Prethodni heševi intake: 4d9cc68a…94397f5 (ab63f913), d27da808…5ac635142 (342ae188, samo rok).
 AB63 = {
-    "intake": "4d9cc68a524cbdc0fad27f98abd18c82423288885925a69b7a5d7340494397f5",
+    "intake": "2e4756220d42674e1db82c76d5399e44674543bac30d6542f06f778e66c2cf6f",
     "research": "259b0da9e5fc3485244a9bb58ae3443db021783ca65fee1e29554742812ece16",
     "drafting": "bac2d39145b7c09adb60f84cf3e63a4c2046511e030d11d13c52282f573718b2",
     "litigation": "d4604b35cdba119e2ef30cb2cd2747384b7eb00ce9c4ea380c23bcbbabdda2c0",

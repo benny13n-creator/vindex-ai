@@ -31,6 +31,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.reminder_clock import reminder_clock, reminder_day  # noqa: F401
+
+pytestmark = pytest.mark.usefixtures("reminder_clock")
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # FAZA 6.4.2 — SVI ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
@@ -228,8 +232,7 @@ def _rok(datum_iso):
 
 
 def _sutra():
-    from datetime import date, timedelta
-    return (date.today() + timedelta(days=1)).isoformat()
+    return reminder_day(1).isoformat()
 
 
 def _request():

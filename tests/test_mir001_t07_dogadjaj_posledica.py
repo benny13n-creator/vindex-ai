@@ -3,8 +3,8 @@
 Case Evolution (`services/case_evolution.py`, Rule 6: rok iz dokumenta čeka odluku advokata) i `case_actions`.
 
 Stvarno: prijem DOK-08 (rute, worker), trajni događaji i dispečer, Genome osvežavanje, sinhronizacija rokova u
-hronologiju, rekoncilijacija `case_actions`, brisanje izvora, V2 čitanje radnji. Zamenjen je samo Genome model
-(TASK-03): rok iz DOK-08 navodi SAMO ako je tekst DOK-08 stvarno u promptu, sa oznakom tog dokumenta.
+hronologiju, rekoncilijacija `case_actions`, brisanje izvora, V2 čitanje radnji. Zamenjen je Genome model. Stub namerno predlaže datum samo uz DOK-08 u promptu.
+Datum služi testu životnog ciklusa AI predloga i nema status utvrđenog roka u spisu.
 """
 import asyncio
 import json
@@ -30,7 +30,7 @@ def _s02_advokat_potvrdjuje(monkeypatch):
     advokat_video_trenutni_sadrzaj(monkeypatch)
 
 treba_ocr = pytest.mark.skipif(_OCR is None, reason="Tesseract nije dostupan — DOK-05 (sken) se ne može pročitati")
-ROK = gc.KASNIJA_PROMENA["rok"]
+ROK = "2026-10-27"  # Datum koji predlaže stub, nezavisan od oracle-a.
 
 
 def _genome_sa_rokom(pozivi):
@@ -42,7 +42,7 @@ def _genome_sa_rokom(pozivi):
         ime = gc.KASNIJI["ime"]
         if ime in sek and "rok od 8 dana od dana dopune" in sek[ime][1]:
             g["rokovi_kriticni"] = [{"naziv": "Rok za izjasnjenje na dopunu nalaza vestaka", "datum": ROK, "status": "aktivan",
-                                     "opis": "8 dana od dana dopune nalaza (20.10.2026)", "lokacija": sek[ime][0]}]
+                                     "opis": "Sintetički predlog Genome stub-a", "lokacija": sek[ime][0]}]
         return json.dumps(g, ensure_ascii=False)
     return _pozovi
 
@@ -239,7 +239,7 @@ def _danas(monkeypatch, iso):
 @treba_ocr
 def test_kandidati_oznacavaju_rok_ciji_je_izvor_povucen(spis, monkeypatch):
     k, b, pid, doks = spis
-    _danas(monkeypatch, gc.KASNIJA_PROMENA["od"])          # dan dopune nalaza: rok (+8 dana) je predstojeći
+    _danas(monkeypatch, gc.KASNIJA_PROMENA["datum_dopune"])  # datum iz stub-a je predstojeći
     d8 = _dodaj(k, b, pid, gc.KASNIJI)
     def _kand(**dod):
         r = k.get("/api/rokovi/kandidati", params={"predmet_id": pid, "dana": 60, **dod}, headers=A)
@@ -254,7 +254,7 @@ def test_kandidati_oznacavaju_rok_ciji_je_izvor_povucen(spis, monkeypatch):
     # stanjem — semantika endpointa, ne svojstvo testa.
     _danas(monkeypatch, "2026-10-29")
     assert _kand() == []
-    [istekao] = _kand(od=gc.KASNIJA_PROMENA["od"])
+    [istekao] = _kand(od=gc.KASNIJA_PROMENA["datum_dopune"])
     assert istekao["izvor_povucen"] is True and istekao["stanje_odluke"] == "UNCONFIRMED"
 
 

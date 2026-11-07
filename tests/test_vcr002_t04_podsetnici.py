@@ -11,11 +11,14 @@ Dopunjuje tests/test_b10_reminder_claim.py tamo gde njegova lažna baza nije ver
 
 NIJEDAN TEST NE ŠALJE PRAVI EMAIL — `_smtp_send` je uvek zamenjen.
 """
-from datetime import date, timedelta
 
 import pytest
 
+from tests.reminder_clock import reminder_clock, reminder_day  # noqa: F401
+
 from tests import test_b10_reminder_claim as b10
+
+pytestmark = pytest.mark.usefixtures("reminder_clock")
 
 
 @pytest.fixture(autouse=True)
@@ -44,7 +47,7 @@ def _rok(rid, datum, predmet=PID, izvor="HUMAN_DIRECT", dogadjaj="Rok za žalbu"
 
 
 def _sutra():
-    return (date.today() + timedelta(days=1)).isoformat()
+    return reminder_day(1).isoformat()
 
 
 def test_dva_potvrdjena_roka_istog_dana_u_istom_predmetu_jedan_email_sa_oba(monkeypatch):

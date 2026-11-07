@@ -54,8 +54,8 @@ Navedi 2-4 konkretna pravna pitanja koja predmet otvara, sa relevantnim zakonski
 
 ## 4. HITNOST I ROKOVI
 Identifikuj da li postoje prekluzivni rokovi koji ističu (zastarelost, žalbeni rok, rok za tužbu).
-- Opšti zastarni rok: 3 god. (čl. 371 ZOO, Sl. gl. RS 29/1978)
-- Žalba u parnici: 15 dana (čl. 368 ZPP)
+- Opšti zastarni rok: 10 godina, osim kada zakon propisuje drugi rok (čl. 371 ZOO, Sl. list SFRJ, br. 29/78)
+- Žalba protiv prvostepene presude: 15 dana od dostavljanja prepisa presude ako ZPP ne određuje drugi rok; u meničnim i čekovnim sporovima 8 dana od dostavljanja prepisa (čl. 367 ZPP).
 - Radni spor: tužba u roku od 60 dana od dana dostave rešenja o otkazu (čl. 195 ZR)
 
 ## 5. POTREBNA DOKUMENTACIJA
@@ -622,6 +622,74 @@ def _procesno_stanje_za_nacrt(izvori: Optional[dict]) -> str:
               "da li je o njoj već odlučeno, umesto preporuke napiši „[PROVERITI PROCESNO STANJE: …]“.\n")
 
 
+_MAKS_IZVOD_SAVETNIKU = 400           # MIR002: jedan izvod u bloku savetnika (OCR bez interpunkcije = ceo dokument)
+_BUDZET_IZVODA_SAVETNIKU = 6_000      # MIR002: zbir izvoda u bloku savetnika; procesno stanje se čita iz CELOG teksta
+PRAVILA_PROCESNOG_STANJA_SAVETNIKA = """\
+PROCESNO STANJE IZ SPISA (obavezno kad je blok dostavljen):
+- Šta je sud odlučio, naložio ili zakazao navodi iz bloka PROCESNO STANJE, sa oznakom dokumenta i doslovnim izvodom. Vrsta i akter u bloku su KANDIDATI sistema po obrascu teksta, ne utvrđene činjenice; izvod nikad ne proširuj značenjem koje ne sadrži (ne „sud je utvrdio“, ne „dopuna je nužna/izvršena“).
+- Radnju o kojoj sud prema izvodu već odlučio ne predlaži kao otvoreno pitanje; predloži ono što procesno sledi.
+- Ono što je u bloku pod „NIJE UTVRĐENO“ (tok i istek roka, postupanje po nalogu, uplata, dejstvo kasnijeg dokumenta) ne tvrdi ni u jednom smeru — navedi kao neutvrđeno.
+- Sudski rok računaj samo kad merodavan sudski izvor IZRIČITO određuje početni događaj i spis potvrđuje kada se on desio. Navod o roku u nalazu veštaka ne dokazuje sudski nalog ni početak roka. Kad početak nije izričito naveden (npr. samo „u roku od 15 dana“), datum dokumenta ili ročišta NIJE početak roka — napiši da tok i istek roka nisu utvrđeni iz spisa. Ovo pravilo ima prednost nad opštim pravilom o računanju rokova.
+- Dokument koji nije pročitan ili je pročitan delimično može sadržati odluku suda: odsustvo u bloku nije dokaz da odluke nema.
+- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda."""
+
+
+def _procesno_stanje_za_savetnika(stanje: Optional[dict]) -> str:
+    """MIR002: isto procesno stanje servera kao za nacrt iz spisa (`shared/procesno_stanje.utvrdi`, prikaz
+    `nacrt_za_sud.blok_za_model`), za savetnika „litigation“. Bez oznaka [[PS-nn]] — njih ovde server ne zamenjuje
+    izvodom. Izvod je ograničen (`_MAKS_IZVOD_SAVETNIKU`, `_BUDZET_IZVODA_SAVETNIKU`); skraćenje je OBELODANJENO u bloku,
+    nikad tiho. Izvodi su tekst dokumenta (T3) → u granici poverenja; natpis piše server."""
+    if not stanje:
+        return ""
+    from security.prompt_guard import IZVOR_DOKUMENT, zapakuj_nepoverljivo
+    from shared import nacrt_za_sud as _NZ
+    sve = stanje.get("dogadjaji") or []
+    # Budžet: najpre događaji koje sistem pripisuje sudu (obiman podnesak stranke ne istiskuje odluku), pa ostali;
+    # prikaz ostaje po redosledu spisa.
+    izabrani, zbir, skracenih = {}, 0, 0
+    for i in sorted(range(len(sve)), key=lambda i: (sve[i].get("akter") != "SUD", i)):
+        if len(izabrani) >= 40:
+            break
+        izvod = " ".join((sve[i].get("izvod") or "").split())
+        skracen = len(izvod) > _MAKS_IZVOD_SAVETNIKU
+        if skracen:
+            izvod = izvod[:_MAKS_IZVOD_SAVETNIKU] + " … [izvod skraćen]"
+        if zbir + len(izvod) > _BUDZET_IZVODA_SAVETNIKU:
+            continue
+        zbir, skracenih = zbir + len(izvod), skracenih + skracen
+        izabrani[i] = izvod
+    dogadjaji = [{**sve[i], "izvod": izabrani[i]} for i in sorted(izabrani)]
+    izostali = [sve[i] for i in range(len(sve)) if i not in izabrani]
+    # Granica od 30 stavki ne sme da odseče baš upozorenja koja nose MIR002: nepročitan/nepouzdan spis i rok, uplata i
+    # postupanje po nalogu suda (`utvrdi` ih dodaje na kraj, iza nerazvrstanih rečenica).
+    vazno = {n for i, d in enumerate(sve) if d.get("akter") == "SUD" or i in izabrani for n in d.get("nepoznato") or []}
+    _POUZDANOST = ("nije (potpuno) pročitan", "nisu potpuno ili pouzdano", "greška sistema", "vrsta dokumenta sporna",
+                   "nema dokumenta prepoznatog kao sudski")
+    nepoznato = sorted(stanje.get("nepoznato") or [],
+                       key=lambda n: 0 if any(k in n for k in _POUZDANOST) else 1 if n in vazno else 2)
+    serverske = []
+    if skracenih:
+        serverske.append(f"{skracenih} izvod(a) je skraćeno — ceo tekst je u dokumentu")
+    if izostali:
+        po_dok: dict = {}
+        for d in izostali:
+            po_dok[d.get("oznaka") or "DOK-??"] = po_dok.get(d.get("oznaka") or "DOK-??", 0) + 1
+        serverske.append(
+            f"prikaz je skraćen zbog veličine: {len(izostali)} od {len(sve)} procesnih događaja nije prikazano ("
+            + ", ".join(f"{oz}: {n}" for oz, n in po_dok.items()) + ")"
+            + ("; među njima su i događaji koje sistem pripisuje sudu" if any(d.get("akter") == "SUD" for d in izostali)
+               else "") + " — procesno stanje u ovom bloku je NEPOTPUNO")
+    nepoznato = serverske + nepoznato
+    if len(nepoznato) > 30:
+        nepoznato = nepoznato[:29] + [f"još {len(nepoznato) - 29} neutvrđenih stavki nije prikazano"]
+    natpis, podaci = _NZ.blok_za_model({**stanje, "dogadjaji": dogadjaji, "nepoznato": nepoznato})
+    if not podaci:
+        return ""
+    podaci = re.sub(r"(?m)^\[\[PS-\d+\]\] ", "", podaci)
+    return (f"\n\n{natpis}\n" + zapakuj_nepoverljivo(_bez_lazne_evidencije(_NZ.neutralisi(podaci)), IZVOR_DOKUMENT)
+            + "\n")
+
+
 _LAT = str.maketrans({"č": "c", "ć": "c", "ž": "z", "š": "s", "đ": "dj", "Č": "C", "Ć": "C", "Ž": "Z", "Š": "S", "Đ": "Dj"})
 _STOP_ODLUKE = {"prihvata", "prihvatio", "prihvatila", "usvaja", "usvojio", "nalaze", "nalozio", "odbija", "odbio",
                 "odredjuje", "odredio", "zakazano", "zakazan", "tuzenom", "tuziocu", "tuzeni", "tuzilac", "dostavi",
@@ -860,7 +928,7 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                     meta_res = await asyncio.to_thread(
                         lambda: supa.table("predmet_dokumenti")
                             .select("id,naziv_fajla,redni_broj,velicina_kb", count="exact")
-                            .eq("predmet_id", predmet_id)
+                            .eq("predmet_id", predmet_id).eq("user_id", uid)
                             .order("redni_broj", desc=True).execute()
                     )
                     meta = meta_res.data or []
@@ -875,7 +943,7 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                 try:
                     rok_data = await asyncio.to_thread(
                         lambda: supa.table("rocista").select("sud,datum,status")
-                            .eq("predmet_id", predmet_id).order("datum").limit(5).execute()
+                            .eq("predmet_id", predmet_id).eq("user_id", uid).order("datum").limit(5).execute()
                     )
                     rok_count = len(rok_data.data or [])
                     rok_summary = "; ".join([
@@ -915,7 +983,7 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                         _ids = [d.get("id") for d in kandidati if d.get("id")]
                         tx = await asyncio.to_thread(
                             lambda: supa.table("predmet_dokumenti").select("id,tekst_sadrzaj,predmet_id,user_id")
-                                .eq("predmet_id", predmet_id).in_("id", _ids).execute()
+                                .eq("predmet_id", predmet_id).eq("user_id", uid).in_("id", _ids).execute()
                         )
                         tekstovi = {r.get("id"): (r.get("tekst_sadrzaj") or "") for r in (tx.data or [])}
                         vlasnici = {r.get("id"): (r.get("predmet_id"), r.get("user_id")) for r in (tx.data or [])}
@@ -1110,6 +1178,17 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
     return predmet_ctx, predmet_verifikovan, izvori
 
 
+async def _zahtevaj_predmet(supa, uid: str, predmet_id: str) -> None:
+    try:
+        rezultat = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).limit(1).execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Provera predmeta trenutno nije dostupna.") from exc
+    if not rezultat.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+
+
 class AgentReq(BaseModel):
     agent:      Optional[str] = None  # ako None, auto-select
     task:       str
@@ -1136,6 +1215,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     # ── Auto-selekcija agenta ────────────────────────────────────────────────
     agent_id = req.agent
     if not agent_id:
+        if req.predmet_id:
+            await _zahtevaj_predmet(supa, uid, req.predmet_id)
         try:
             from openai import OpenAI
             client = OpenAI()
@@ -1159,7 +1240,9 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     # ── Dohvati kontekst predmeta (VCR002 T05: zajednički sa /run-parallel) ──
     predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(
         supa, uid, req.predmet_id, zahtev=(req.task or "") + " " + (req.kontekst or ""),
-        procesno=(agent_id == "drafting" and bool(req.predmet_id)))
+        procesno=(agent_id in ("drafting", "litigation") and bool(req.predmet_id)))
+    if req.predmet_id and not predmet_verifikovan:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
     # MIR001 C3b: nacrt iz spisa = zaštićen tok (procesno stanje servera → JSON predlog + napomene → AI RADNI PREDLOG na
     # pregledu → izričito usvajanje u dokument za sud). Ostali savetnici i nacrt bez predmeta — nepromenjeno.
     nacrt_iz_spisa = agent_id == "drafting" and bool(req.predmet_id) and predmet_verifikovan
@@ -1207,7 +1290,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             be = await asyncio.to_thread(
                 lambda: supa.table("billing_entries").select(
                     "opis,kolicina,jedinica,cena_po_jedinici,ukupno,datum,fakturisano"
-                ).eq("predmet_id", req.predmet_id).order("datum", desc=True).limit(30).execute()
+                ).eq("predmet_id", req.predmet_id).eq("user_id", uid).order("datum", desc=True).limit(30).execute()
             )
             if be.data:
                 ukupno_sve = sum(float(r.get("ukupno") or 0) for r in be.data)
@@ -1234,7 +1317,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             rok_r = await asyncio.to_thread(
                 lambda: supa.table("rocista").select(
                     "sud,datum,status,napomena"
-                ).eq("predmet_id", req.predmet_id).order("datum").limit(20).execute()
+                ).eq("predmet_id", req.predmet_id).eq("user_id", uid).order("datum").limit(20).execute()
             )
             now = datetime.now(_tz.utc)
             rokovi_list = []
@@ -1266,6 +1349,10 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
         if natpis:
             procesno_ctx = (f"\n\n{natpis}\n" + zapakuj_nepoverljivo(_bez_lazne_evidencije(_NZ.neutralisi(podaci)), IZVOR_DOKUMENT)
                             + "\n")
+    elif agent_id == "litigation" and predmet_verifikovan and (izvori_predmeta or {}).get("dokumenata_u_predmetu") != 0:
+        # MIR002: parnična strategija dobija ISTO procesno stanje servera (odluke suda sa izvodom, šta NIJE utvrđeno),
+        # ne samo isečke spisa — model je iz „u roku od 15 dana“ sam izvodio početak roka (MIR001_T05, 7/10 uzoraka).
+        procesno_ctx = _procesno_stanje_za_savetnika((izvori_predmeta or {}).get("_procesno_stanje"))
     user_msg = f"{predmet_ctx}{billing_ctx}{rokovi_ctx}{rag_ctx}\n{req.kontekst or ''}{procesno_ctx}\n\nZahtev: {req.task}".strip()
 
     napomene_modela: list = []
@@ -1277,7 +1364,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             resp = await asyncio.to_thread(_pozovi_nacrt_api, client, agent_cfg["system"] + "\n\n" + _NZ.PRAVILA_ZA_MODEL,
                                            user_msg)
         else:
-            resp = await asyncio.to_thread(_pozovi_agent_api, client, agent_cfg["system"], user_msg)
+            sistem = agent_cfg["system"] + (f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}" if procesno_ctx else "")
+            resp = await asyncio.to_thread(_pozovi_agent_api, client, sistem, user_msg)
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
         _sentry_capture(exc)
@@ -1433,7 +1521,15 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     except Exception as _pe:
         logger.warning("[PARA] provera budžeta nije izvršena (naplata ostaje autoritativna): %s", _pe)
 
-    predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(supa, uid, req.predmet_id, zahtev=req.task)
+    predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(
+        supa, uid, req.predmet_id, zahtev=req.task, procesno=("litigation" in agenti_ids and bool(req.predmet_id)))
+    if req.predmet_id and not predmet_verifikovan:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+    # MIR002: litigation i u paralelnoj analizi dobija ISTO procesno stanje servera kao na /run (isti uslov: proveren
+    # predmet sa dokumentima) i pravila uz blok; ostali savetnici ostaju bez bloka.
+    procesno_lit = ""
+    if "litigation" in agenti_ids and predmet_verifikovan and (izvori_predmeta or {}).get("dokumenata_u_predmetu") != 0:
+        procesno_lit = _procesno_stanje_za_savetnika((izvori_predmeta or {}).get("_procesno_stanje"))
 
     # RAG za research i litigation — upit je zadatak (kao /run), ne tekst dokumenata predmeta.
     rag_ctx = ""
@@ -1465,7 +1561,11 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     async def _pozovi_agenta(agent_id: str) -> dict:
         cfg = _AGENTS[agent_id]
         try:
-            resp = await _pozovi_para_api(oai, cfg["system"], base_msg)
+            if agent_id == "litigation" and procesno_lit:
+                resp = await _pozovi_para_api(oai, cfg["system"] + f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}",
+                                              f"{predmet_ctx}{rag_ctx}{procesno_lit}\n\nZahtev: {req.task}".strip())
+            else:
+                resp = await _pozovi_para_api(oai, cfg["system"], base_msg)
             odgovor = (resp.choices[0].message.content or "").strip()
             if not odgovor:
                 raise ValueError("prazan odgovor modela")
@@ -1609,6 +1709,9 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
 
     uid   = user["user_id"]
     email = user.get("email", "")
+
+    if req.predmet_id:
+        await _zahtevaj_predmet(_get_supa(), uid, req.predmet_id)
 
     _cached = _pipeline_cached(uid, req.idempotency_key)
     if _cached is not None:

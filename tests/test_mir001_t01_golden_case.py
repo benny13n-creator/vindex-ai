@@ -4,7 +4,7 @@
 skeniran dokument, nedostupna informacija, kasnija promena, izolacija korisnika B)."""
 import io
 import re
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 
@@ -73,7 +73,8 @@ def test_svaki_navod_postoji_samo_u_svom_dokumentu():
     for nid, n in gc.NAVODI.items():
         u = [oz for oz, tx in t.items() if n["tekst"] in tx]
         assert u == [n["dok"]], (nid, u)
-        strana = gc.po_oznaci(n["dok"])["strana"]
+        # Zapisnik beleži radnje više aktera; status sledi autora radnje.
+        strana = "tuzilac" if nid in ("N-13", "N-15") else gc.po_oznaci(n["dok"])["strana"]
         ocekivano = {"tuzilac": "NAVOD_TUZIOCA", "tuzeni": "NAVOD_TUZENOG", "vestak": "NALAZ_VESTAKA", "sud": "SUD"}[strana]
         assert n["status"] == ocekivano, nid
 
@@ -152,12 +153,20 @@ def test_aktuelni_tuzbeni_zahtev_zamenjuje_iznos_iz_tuzbe():
     assert z["iznos"] in gc.NAVODI[z["aktuelan"]]["tekst"] and z["iznos"] not in t["DOK-01"]
 
 
-def test_kasnija_promena_nosi_nov_rok_koji_nije_u_spisu():
+def test_radnje_tuzioca_u_zapisniku_nisu_odluke_suda():
+    for nid in ("N-13", "N-15"):
+        assert gc.NAVODI[nid]["dok"] == "DOK-07"
+        assert gc.NAVODI[nid]["status"] == "NAVOD_TUZIOCA"
+    assert gc.NAVODI["N-12"]["status"] == gc.NAVODI["N-14"]["status"] == "SUD"
+
+
+def test_kasnija_dopuna_ne_utvrdjuje_sudski_rok():
     k = gc.KASNIJA_PROMENA
-    assert date.fromisoformat(k["od"]) + timedelta(days=k["rok_dana"]) == date.fromisoformat(k["rok"])
+    assert k["autoritet"] == "NALAZ_VESTAKA"
+    assert k["od"] is None and k["rok"] is None
     tk = gc.tekst(gc.KASNIJI)
     assert f"rok od {k['rok_dana']} dana od dana dopune" in tk and k["navod"] in tk
-    assert _dmy(k["od"]) in tk and date.fromisoformat(gc.SADA) <= date.fromisoformat(k["rok"])
+    assert _dmy(k["datum_dopune"]) in tk and "28.10.2026" not in tk
     assert k["navod"] not in "\n".join(_ceo_tekst().values())
 
 

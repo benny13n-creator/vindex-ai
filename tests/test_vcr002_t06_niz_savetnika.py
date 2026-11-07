@@ -126,10 +126,9 @@ def test_halucinacija_prenesena_iz_koraka_u_korak_ostaje_neproverena(niz):
 
 def test_tudj_predmet_ni_u_jednom_koraku(niz):
     k, _, st = niz
-    d = _niz(k, {"opis": "Analiza.", "pipeline": TRI, "predmet_id": PB}).json()
-    assert d["kontekst_predmeta"] is False
-    for _, prompt in st["pozivi"]:
-        assert "TAJNI" not in prompt and "Tajni B" not in prompt
+    r = _niz(k, {"opis": "Analiza.", "pipeline": TRI, "predmet_id": PB})
+    assert r.status_code == 404
+    assert st["pozivi"] == []
 
 
 def test_pad_drugog_koraka_prvi_ostaje_isporucen_i_naplacen_drugi_nije(niz):

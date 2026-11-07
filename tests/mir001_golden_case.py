@@ -141,9 +141,9 @@ NAVODI = {
     "N-10": {"dok": "DOK-05", "status": "NALAZ_VESTAKA", "tekst": "Visina stete iznosi 3.150.000"},
     "N-11": {"dok": "DOK-06", "status": "NAVOD_TUZENOG", "tekst": "nije izvrsio uvid u gradjevinski dnevnik"},
     "N-12": {"dok": "DOK-07", "status": "SUD", "tekst": "dostavi gradjevinski dnevnik u roku od 15 dana"},
-    "N-13": {"dok": "DOK-07", "status": "SUD", "tekst": "povlaci zahtev za naknadu stete na robi"},
+    "N-13": {"dok": "DOK-07", "status": "NAVOD_TUZIOCA", "tekst": "povlaci zahtev za naknadu stete na robi"},
     "N-14": {"dok": "DOK-07", "status": "SUD", "tekst": "zakazano je za 18.11.2026"},
-    "N-15": {"dok": "DOK-07", "status": "SUD", "tekst": "precizirao tuzbeni zahtev na iznos od 3.150.000"},
+    "N-15": {"dok": "DOK-07", "status": "NAVOD_TUZIOCA", "tekst": "precizirao tuzbeni zahtev na iznos od 3.150.000"},
 }
 
 # Zastareo navod: tužbeni zahtev iz tužbe (N-03, 4.200.000) više nije aktuelan — preciziran na ročištu (N-15).
@@ -192,11 +192,12 @@ NEDOSTUPNO = [
 # mora povući i njegove AI tvrdnje (N-06, N-07) — više ne smeju biti aktivne ni autoritativne.
 POVUCENO = {"sadrzinski": {"navod": "N-07", "povlaci": "N-13"}, "brisanje_izvora": "DOK-03"}
 
-# Kasnija promena: novi rok iz DOK-08 (8 dana od dopune) → očekivana nova radnja; isti događaj ponovljen = bez duplikata.
-# Rok teče „od dana dopune nalaza“ (izričito u tekstu DOK-08), pa je 2026-10-28 izračunljiv bez pretpostavke o dostavi.
+# DOK-08 je dopuna nalaza veštaka. Beležimo tekst o osam dana i datum dopune,
+# ali iz tog izvora nisu utvrđeni sudski nalog, početak ni istek roka.
 # Testovi koji zavise od „danas“ koriste SADA (zamrznuto) ili pomeraju datume relativno — korpus ne zastareva.
 SADA = "2026-10-22"
-KASNIJA_PROMENA = {"dok": "DOK-08", "rok_dana": 8, "od": "2026-10-20", "rok": "2026-10-28",
+KASNIJA_PROMENA = {"dok": "DOK-08", "rok_dana": 8, "datum_dopune": "2026-10-20",
+                   "autoritet": "NALAZ_VESTAKA", "od": None, "rok": None,
                    "navod": "ne sadrzi upis o probi vodonepropusnosti"}
 
 # ── Korisnik B: nepovezan predmet, jedinstven marker za otkrivanje curenja ──────────────────────────────────────────
