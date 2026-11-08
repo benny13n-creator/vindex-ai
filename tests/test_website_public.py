@@ -742,5 +742,6 @@ def test_pre_auth_ulaz_cuva_ugovor_prijave_i_vodi_na_beta(klijent):
     assert 'href="/beta"' in ulaz
     assert "/v2/site/brand/vindex-logo-final-tamna.png" in ulaz
     telo = _tekst(klijent, "/app-legacy")
-    assert '<div class="modal-title" id="auth-modal-title">Dobrodošli.</div>' in telo
+    assert re.search(r'<dialog id="auth-modal"[^>]+aria-labelledby="auth-modal-title"', telo)
+    assert '<h2 id="auth-modal-title">Dobrodošli.</h2>' in telo
     assert "15 besplatnih upita.</div>" not in telo, "početni naslov modala prijave ne sme biti tekst registracije"

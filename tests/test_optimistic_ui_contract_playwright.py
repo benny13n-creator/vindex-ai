@@ -110,6 +110,34 @@ def _stranica(browser, server, ruta, ishod):
     return st
 
 
+def test_auth_jedno_slanje_dok_se_klijent_ucitava(browser, server):
+    st = _stranica(browser, server, r".*/unused", "ok")
+    st.evaluate("""() => {
+        openModal();
+        window.brojPrijava = 0;
+        window._waitSupa = () => new Promise(resolve => {
+            window.dovrsiAuth = () => resolve({auth: {
+                signInWithPassword: async () => {
+                    ++window.brojPrijava;
+                    return {error: {message: 'Invalid login credentials'}};
+                },
+            }});
+        });
+    }""")
+    st.locator("#login-email").fill("advokat@example.test")
+    st.locator("#login-password").fill("sinteticka-lozinka")
+    st.locator("#login-password").press("Enter")
+    assert st.locator("#login-btn").is_disabled()
+    st.evaluate("""() => {
+        document.getElementById('auth-login-form').requestSubmit();
+        dovrsiAuth();
+    }""")
+    st.get_by_text("Pogrešan email ili lozinka.", exact=False).wait_for()
+    assert st.evaluate("brojPrijava") == 1
+    assert st.locator("#login-btn").is_enabled()
+    st.close()
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # FS-P1-30 — PRIHVATANJE USLOVA KORIŠĆENJA
 # ═══════════════════════════════════════════════════════════════════════════
@@ -117,13 +145,13 @@ def _stranica(browser, server, ruta, ishod):
 def _tos(browser, server, ishod):
     st = _stranica(browser, server, r".*/api/tos/accept", ishod)
     st.evaluate("""() => {
-        document.getElementById('tos-overlay').style.display = 'flex';
+        document.getElementById('tos-overlay').showModal();
         document.getElementById('tos-confirm-chk').checked = true;
     }""")
     st.evaluate("async () => { await tosAccept(); }")
     st.wait_for_timeout(400)
     stanje = st.evaluate("""() => ({
-        overlay: document.getElementById('tos-overlay').style.display,
+        overlay: document.getElementById('tos-overlay').open,
         greska:  (document.getElementById('tos-greska')||{}).innerText || '',
         dugme:   document.getElementById('tos-accept-btn').dataset.stanje || '',
         onemogucen: document.getElementById('tos-accept-btn').disabled,
@@ -133,9 +161,36 @@ def _tos(browser, server, ishod):
     return stanje
 
 
+def test_v2_preusmeravanje_ceka_proveru_i_prihvatanje_uslova(browser, server):
+    from api import _V2_NG_KLJUC_SESIJE, _V2_NG_POVRATAK_SKRIPT
+
+    st = _stranica(browser, server, r".*/api/tos/accept", "ok")
+    st.route("**/app", lambda route: route.fulfill(status=200, body="V2"))
+    st.clock.install()
+    st.evaluate("""key => {
+        history.replaceState(null, '', '/index.html?posle=app');
+        document.getElementById('auth-login-form').setAttribute('aria-busy', 'true');
+        localStorage.setItem(key, JSON.stringify({access_token:'t', user:{id:'u1'}}));
+    }""", _V2_NG_KLJUC_SESIJE)
+    st.add_script_tag(content=_V2_NG_POVRATAK_SKRIPT.removeprefix("<script>").removesuffix("</script>"))
+    st.clock.run_for(450)
+    assert st.url.endswith("?posle=app")
+    st.evaluate("""() => {
+        document.getElementById('tos-overlay').showModal();
+        document.getElementById('auth-login-form').removeAttribute('aria-busy');
+        document.getElementById('tos-confirm-chk').checked = true;
+    }""")
+    st.clock.run_for(450)
+    assert st.url.endswith("?posle=app")
+    st.evaluate("async () => { await tosAccept(); }")
+    st.clock.run_for(450)
+    st.wait_for_url("**/app")
+    st.close()
+
+
 def test_tos_uspeh_zatvara_overlay(browser, server):
     s = _tos(browser, server, "ok")
-    assert s["overlay"] == "none"
+    assert s["overlay"] is False
     assert s["dugme"] == "CONFIRMED"
 
 
@@ -143,7 +198,7 @@ def test_tos_500_NE_zatvara_overlay(browser, server):
     """NAJVAŽNIJI TEST ZA FS-P1-30. Prihvatanje Uslova je pravno obavezujući
     čin — ne sme se smatrati datim ako server nema zapis."""
     s = _tos(browser, server, "500")
-    assert s["overlay"] != "none", "overlay zatvoren iako server nije potvrdio"
+    assert s["overlay"] is True, "overlay zatvoren iako server nije potvrdio"
     assert s["dugme"] == "FAILED"
     assert s["onemogucen"] is False, "korisnik ne može ni da pokuša ponovo"
     assert "NIJE zabeleženo" in s["greska"]
@@ -151,7 +206,7 @@ def test_tos_500_NE_zatvara_overlay(browser, server):
 
 def test_tos_pad_mreze_NE_zatvara_overlay(browser, server):
     s = _tos(browser, server, "mreza")
-    assert s["overlay"] != "none"
+    assert s["overlay"] is True
     assert s["dugme"] == "FAILED"
 
 

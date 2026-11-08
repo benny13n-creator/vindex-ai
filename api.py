@@ -3125,9 +3125,10 @@ _V2_NG_POVRATAK_SKRIPT = (
     "(typeof o.expires_at!=='number'||o.expires_at*1000-Date.now()>30000));}catch(e){return false;}}"
     "if(q.get('odjava')==='1'){history.replaceState(null,'','/app-legacy?posle=app');var n=0;"
     "(function x(){if(typeof window.doLogout==='function'){window.doLogout();return;}if(++n<100)setTimeout(x,100);})();return;}"
-    "if(q.get('posle')==='app'){if(v()){location.replace('/app');return;}"
-    "var t=setInterval(function(){if(v()){clearInterval(t);location.replace('/app');}},400);"
-    "window.addEventListener('storage',function(e){if(e.key===K&&v())location.replace('/app');});}"
+    "function spreman(){return !document.querySelector('#auth-modal form[aria-busy=true],#tos-overlay[open]')&&v();}"
+    "if(q.get('posle')==='app'){if(spreman()){location.replace('/app');return;}"
+    "var t=setInterval(function(){if(spreman()){clearInterval(t);location.replace('/app');}},400);"
+    "window.addEventListener('storage',function(e){if(e.key===K&&spreman())location.replace('/app');});}"
     "})();</script>"
 )
 
