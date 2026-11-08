@@ -6,7 +6,9 @@ Tests cover this natural phrasing and fail-closed negative controls.
 No real LLM, HTTP, Supabase or criminal case data.
 """
 
-from shared.visestruki_povrat import analiza, NEPOZNATO, izracunaj
+import pytest
+
+from shared.visestruki_povrat import analiza, blok, DA, NEPOZNATO, izracunaj
 
 
 SCENARIO = (
@@ -91,3 +93,42 @@ def test_hypothetical_release_interval_does_not_establish_intent_or_time():
     a, _ = analiza(SCENARIO.replace("od dana", "pretpostavimo da su od dana"))
     assert a["novo_delo_umisljaj"] is None
     assert a["proteklo_od_otpusta_meseci"] is None
+
+
+_DATIRANI_SCENARIO = (
+    "Okrivljeni je dva puta pravnosnažno osuđen za ranije umišljajne krađe na zatvor od po dve godine, "
+    "otpušten je 01.11.2023. godine, a novo delo izvršio je 01.11.2026. godine sa umišljajem, "
+    "za koje je propisan zatvor od jedne do osam godina."
+)
+
+
+@pytest.mark.parametrize("navod,istovrsna,ishod", [
+    ("Ranija dela su istovrsna sa novim delom.", True, DA),
+    ("Pretpostavimo da su ranija dela istovrsna sa novim delom.", None, NEPOZNATO),
+    ("Ako su ranija dela istovrsna sa novim delom, to bi promenilo pravni zaključak.", None, NEPOZNATO),
+    ("U udžbeniku je primer: „Ranija dela su istovrsna sa novim delom.“", None, NEPOZNATO),
+    ('U udžbeniku je primer: "Najpre je došlo do otpusta. Ranija dela su istovrsna."', None, NEPOZNATO),
+])
+def test_hipoteza_ili_citat_ne_utvrdjuju_istovrsnost(navod, istovrsna, ishod):
+    pitanje = f"{_DATIRANI_SCENARIO} {navod}"
+    cinjenice, _ = analiza(pitanje)
+    tekst, rezultat = blok(pitanje)
+    assert cinjenice["istovrsna"] is istovrsna
+    assert rezultat.primenjuje_se == ishod
+    assert ("sud MORA" in tekst) is (ishod == DA)
+
+
+@pytest.mark.parametrize("negacija", [
+    "nije dva puta pravnosnažno osuđen",
+    "nije ranije dva puta pravnosnažno osuđen",
+    "nije bio pravnosnažno osuđen dva puta",
+])
+def test_negiran_broj_osuda_ne_daje_dve_pravnosnazne_osude(negacija):
+    pitanje = _DATIRANI_SCENARIO.replace("je dva puta pravnosnažno osuđen", negacija)
+    pitanje += " Ranija dela su istovrsna sa novim delom."
+    cinjenice, _ = analiza(pitanje)
+    tekst, rezultat = blok(pitanje)
+    assert cinjenice["broj_ranijih_osuda"] is None
+    assert cinjenice["pravnosnaznost"] != DA
+    assert rezultat.primenjuje_se == NEPOZNATO
+    assert "sud MORA" not in tekst

@@ -341,6 +341,12 @@ def _raspon(odlomak: str) -> tuple[Optional[int], Optional[int], bool]:
     return None, None, False
 
 
+_NEGACIJA_BROJA_OSUDA_RE = re.compile(
+    r"\b(?:ne|nije|nisu|nisam|nisi|nismo|niste)\s+"
+    r"(?:(?:ranije|nikada?|bio|bila|bilo|bili|bile|pravnosnazno)\s+)*$"
+)
+
+
 def _broj_osuda(q: str):
     for obrazac in (r"\b(dva|dvaput|tri|triput|cetiri)\s*(?:puta\s+)?(?:je\s+)?(?:ranije\s+)?(?:pravnosnazno\s+)?osudj\w*",
                     r"\b(\d{1,2})\s+puta\s+(?:je\s+)?(?:ranije\s+)?(?:pravnosnazno\s+)?osudj\w*",
@@ -349,6 +355,8 @@ def _broj_osuda(q: str):
                     r"\b(?:ima\s+)?(dve|tri|cetiri|\d{1,2})\s+ranij\w*\s+osud\w*"):
         m = re.search(obrazac, q)
         if m:
+            if _NEGACIJA_BROJA_OSUDA_RE.search(q[:m.start()]):
+                return None, None
             return _broj(m.group(1).replace("put", "")), m
     return None, None
 
@@ -567,7 +575,8 @@ def _pravnosnaznost_iz_navoda(pitanje: str, broj_osuda: Optional[int]) -> Option
             ishodi.add(NEPOZNATO)
         elif (re.search(r"\b(?:obe|obje|sve)\s+(?:ranij\w*|prethodn\w*)\s+(?:presud|osud)\w*\s+"
                         r"(?:su|jesu)\s+(?:(?:vec|bile|postale)\s+)?pravn?osnazne\b", rec)
-              or re.search(r"\b(?:dva puta|dvaput)\b.{0,35}\bpravn?osnazno\s+osudj\w*", rec)):
+              or (broj_osuda == 2
+                  and re.search(r"\b(?:dva puta|dvaput)\b.{0,35}\bpravn?osnazno\s+osudj\w*", rec))):
             ishodi.add(DA)
     if NEPOZNATO in ishodi or len(ishodi) > 1:
         return NEPOZNATO
@@ -577,15 +586,18 @@ def _pravnosnaznost_iz_navoda(pitanje: str, broj_osuda: Optional[int]) -> Option
 _ISTOVRSNO_RE = re.compile(r"\bistovrsn\w*|\b(?:ista|isto)\s+(?:takv\w*\s+)?(?:krivicn\w*\s+)?del\w*")
 _NEGACIJA_RE = re.compile(r"\b(?:ne|nije|nisu|ni|nema|nijedno|nikako)\b|\bneistovrsn")
 _OGRADA_RE = re.compile(r"\bda\s+li\b|\bsva\b|\bsvi\b|\bsve\b|osporav|tvrd\w*|navodn|mozda|verovatn|sporn|ali\b|"
-                        r"\bili\b|nejasn|nije\s+poznat")
+                        r"\bili\b|nejasn|nije\s+poznat|\b(?:ako|ukoliko|pretpostav\w*|hipotetic\w*|u\s+slucaju\s+da)\b")
+_NAVOD_RE = re.compile(r'„[^“”]*[“”]|“[^”]*”|"[^"]*"|«[^»]*»|»[^«]*«')
 _CISTA_NEGACIJA_RE = re.compile(r"^(?:\w+\s+){0,4}?(?:nisu|nije|ne\s+radi\s+se\s+o|nije\s+rec\s+o)\s+(?:bil[aio]\s+)?"
                                 r"(?:ista|isto|istovrsn\w*)\b")
 
 
 def _istovrsnost_iz_navoda(pitanje: str) -> Optional[bool]:
     """DA samo iz izjavne rečenice bez negacije i ograde („Ranija dela su istovrsna sa novim.“); NE samo iz čiste negacije
-    („Ranija dela nisu istovrsna.“); pitanje, sporna tvrdnja, delimičnost ili više rečenica koje se ne slažu → None."""
+    („Ranija dela nisu istovrsna.“); pitanje, hipoteza, citat, delimičnost ili više nesaglasnih rečenica → None."""
     q = _norm(pitanje)
+    if any(_ISTOVRSNO_RE.search(navod.group()) for navod in _NAVOD_RE.finditer(q)):
+        return None
     ishodi = set()
     for rec in re.split(r"(?<=[.?!;])\s+", q):
         if not _ISTOVRSNO_RE.search(rec):
