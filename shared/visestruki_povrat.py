@@ -361,11 +361,17 @@ _GLAGOL_DELA = r"(?:izvrs|ucin)\w*"
 _GODINA = r"(?<![/\d.])\b(?:19|20)\d{2}\b(?!\s*/)"        # godina, ali ne „94/2016“ (broj Službenog glasnika) ni deo datuma
 
 
+_SAMOSTALAN_PROCESNI_DATUM = re.compile(
+    r"(?<=[.!?])\s+(?:presuda je doneta|zalba je izjavljena)\s+" + _DATUM + r"(?:\.\s+godine)?(?=\.(?:\s|$)|$)"
+)
+
+
 def _datum_novog_dela(novo: str):
-    """S1: datum NOVOG dela samo kad je jedini datum (i jedina godina) u delu o novom delu i stoji uz glagol izvršenja —
-    datum ročišta/suđenja nije datum dela."""
+    """Datum novog dela mora biti jednoznačan i uz glagol izvršenja."""
     if not novo:
         return None
+    # Samostalne rečenice sa datumom presude ili žalbe ne menjaju datum izvršenja.
+    novo = _SAMOSTALAN_PROCESNI_DATUM.sub(lambda m: " " * len(m[0]), novo)
     datumi = list(re.finditer(_DATUM, novo))
     godine = re.findall(_GODINA, re.sub(_DATUM, " ", novo))
     if len(datumi) != 1 or godine:

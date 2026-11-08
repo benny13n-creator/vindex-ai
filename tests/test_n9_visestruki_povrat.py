@@ -129,6 +129,41 @@ _FINALNOST = (
 )
 
 
+_PRETHODNE_PRESUDE = " Obe prethodne presude su pravnosnažne."
+_PROCESNI_DATUMI = " Presuda je doneta 02.11.2026. Žalba je izjavljena 06.11.2026."
+
+
+@pytest.mark.parametrize("dodatak,datum_dela", [
+    (_PROCESNI_DATUMI, date(2026, 11, 1)),
+    (" Presuda je doneta 02. 11. 2026. godine. Žalba je izjavljena 06.11.2026", date(2026, 11, 1)),
+    (_PROCESNI_DATUMI + " Drugi navod kaže da je novo delo izvršio 31.10.2026.", None),
+    (_PROCESNI_DATUMI + " U spisu se navodi i 31.10.2026.", None),
+    (" Presuda je doneta 02.11.2026, a novo delo je navodno izvršio 31.10.2026.", None),
+])
+def test_procesni_datumi_ne_zamenjuju_datum_novog_dela(dodatak, datum_dela):
+    pitanje = _FINALNOST.format(datum="01.11.2026") + _PRETHODNE_PRESUDE + dodatak
+    assert iz_pitanja(pitanje)["novo_delo"] == datum_dela
+    _, rezultat = blok(pitanje)
+    assert rezultat.primenjuje_se == (DA if datum_dela else NEPOZNATO)
+    assert (rezultat.raspon is not None) == (datum_dela is not None)
+
+
+def test_datum_presude_i_zalbe_ne_popunjavaju_nedostajuci_datum_dela():
+    pitanje = _FINALNOST.format(datum="01.11.2026").replace("01.11.2026. godine", "")
+    pitanje += _PRETHODNE_PRESUDE + _PROCESNI_DATUMI
+    assert iz_pitanja(pitanje)["novo_delo"] is None
+    _, rezultat = blok(pitanje)
+    assert rezultat.primenjuje_se == NEPOZNATO and rezultat.raspon is None
+
+
+def test_otpust_posle_dela_ne_resava_uslov_od_pet_godina():
+    # Kzz 114/2026: raniji kvalifikovani otpust može biti dovoljan.
+    pitanje = _FINALNOST.format(datum="01.11.2026").replace("01.11.2023", "01.12.2026")
+    tekst, rezultat = blok(pitanje + _PRETHODNE_PRESUDE)
+    assert rezultat.primenjuje_se == NEPOZNATO and rezultat.raspon is None
+    assert "sud MORA" not in tekst
+
+
 @pytest.mark.parametrize("datum,navod,stanje", [
     ("01.11.2026", " Obe prethodne presude su pravnosnažne.", DA),
     ("01.11.2026", "", NEPOZNATO),
