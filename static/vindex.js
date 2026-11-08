@@ -8575,6 +8575,16 @@ window.addEventListener('scroll',function(){var _n=document.getElementById('nav'
 (function(){
   var auth = document.getElementById('auth-modal');
   if (auth) {
+    Object.entries({
+      'auth-login-form': doLogin,
+      'auth-register-form': doRegister,
+      'auth-forgot-form': doForgotPassword,
+      'auth-reset-form': doResetPassword,
+    }).forEach(function([id, action]) {
+      document.getElementById(id).addEventListener('submit', function(event) {
+        submitAuth(event, action);
+      });
+    });
     auth.addEventListener('cancel', function(event) {
       event.preventDefault();
       closeModal();

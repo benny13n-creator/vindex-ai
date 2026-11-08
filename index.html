@@ -89,7 +89,7 @@
     <button type="button" id="auth-reg-tab" data-auth-switch aria-pressed="false" aria-controls="auth-register-form" onclick="setAuthMode('register')">Registracija</button>
   </div>
 
-  <form id="auth-login-form" class="vx-auth__form" novalidate onsubmit="submitAuth(event, doLogin)">
+  <form id="auth-login-form" class="vx-auth__form" novalidate>
     <div class="vx-auth__field">
       <label for="login-email">Email adresa</label>
       <input type="email" id="login-email" autocomplete="username" placeholder="ime@primer.rs" required autofocus>
@@ -105,7 +105,7 @@
     <button type="submit" class="vx-auth__primary" id="login-btn" data-pending-label="Prijavljivanje…">Prijavite se</button>
   </form>
 
-  <form id="auth-register-form" class="vx-auth__form" hidden novalidate onsubmit="submitAuth(event, doRegister)">
+  <form id="auth-register-form" class="vx-auth__form" hidden novalidate>
     <div class="vx-auth__field">
       <label for="reg-name">Ime i prezime <span class="vx-auth__meta">(opciono)</span></label>
       <input type="text" id="reg-name" maxlength="100" autocomplete="name">
@@ -133,7 +133,7 @@
     <p class="vx-auth__meta">Dobijate 15 besplatnih upita odmah po registraciji. Dostupnost AI funkcija i ograničenja zavise od vašeg beta naloga. Naplata trenutno nije uvedena.</p>
   </form>
 
-  <form id="auth-forgot-form" class="vx-auth__form" hidden novalidate onsubmit="submitAuth(event, doForgotPassword)">
+  <form id="auth-forgot-form" class="vx-auth__form" hidden novalidate>
     <div class="vx-auth__field">
       <label for="forgot-email">Email adresa</label>
       <input type="email" id="forgot-email" autocomplete="email" placeholder="ime@primer.rs" required>
@@ -142,7 +142,7 @@
     <button type="button" class="vx-auth__link" data-auth-switch onclick="setAuthMode('login')">Nazad na prijavu</button>
   </form>
 
-  <form id="auth-reset-form" class="vx-auth__form" hidden novalidate onsubmit="submitAuth(event, doResetPassword)">
+  <form id="auth-reset-form" class="vx-auth__form" hidden novalidate>
     <div class="vx-auth__field">
       <label for="reset-password">Nova lozinka</label>
       <div class="vx-auth__password">
