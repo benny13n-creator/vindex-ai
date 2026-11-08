@@ -653,9 +653,12 @@ def test_fallback_posle_beogradske_ponoci_ceka_novi_utc_termin():
     assert _svima(b, _t(DAN + timedelta(days=1), 8), ("r1",))[0]["poslato"] == 1
 
 
-@pytest.mark.parametrize("sat,tabela", [(7, "email_podsetnik_pokretanje"), (8, b10.FakeBaza.TABELA)])
-def test_periodicna_provera_ne_guta_gresku_citanja(monkeypatch, sat, tabela):
-    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+@pytest.mark.parametrize("sat,tabela,ocekivano", [
+    (7, "email_podsetnik_pokretanje", [("r2", "kasni", "poslato")]),
+    (8, b10.FakeBaza.TABELA, []),
+])
+def test_periodicna_provera_ne_guta_gresku_citanja(monkeypatch, sat, tabela, ocekivano):
+    b = _baza([_rok("r1", _d(1)), _rok("r2", _d(0))], pragovi=(1,))
     original = b.table
 
     def citaj(ime):
@@ -664,8 +667,10 @@ def test_periodicna_provera_ne_guta_gresku_citanja(monkeypatch, sat, tabela):
         return original(ime)
 
     monkeypatch.setattr(b, "table", citaj)
-    rez, poslati = _svima(b, _t(DAN, sat), ("r1",))
-    assert rez["greske"] == 1 and rez["poslato"] == 0 and poslati == [] and b.log == []
+    rez, poslati = _svima(b, _t(DAN, sat), ("r1", "r2"))
+    assert rez["greske"] == 1
+    assert rez["poslato"] == len(poslati) == len(ocekivano)
+    assert _svrhe(b) == ocekivano
 
 
 def test_periodicna_provera_nadoknadjuje_prolazni_smtp_pad_hitne_provere():
