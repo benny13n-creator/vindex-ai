@@ -945,27 +945,57 @@ def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
     if tip != "odgovor_na_tuzbu":
         return
     lat = _cirilica_u_latinicu(tekst)
+    # Tačka iza broja člana nije kraj rečenice kad sledi oznaka propisa.
+    lat = re.sub(r"(\b(?:čl(?:an\w*)?|cl(?:an\w*)?)\.?\s*\d+)\."
+                 r"(?=\s+(?:ZPP|Zakona? o parni[čc]nom postupku)\b)",
+                 r"\1", lat, flags=re.IGNORECASE)
+    prethodni_rok = False
+    dostava = (r"je tuzba(?: sa prilozima)? (?:uredno )?(?:dostavljena|urucena|primljena)"
+               r"(?: sa prilozima)?(?: tuzenom)?")
     for rec in re.split(r"(?<=[.!?;])\s+(?=[A-ZČĆŽŠĐ])|\n+", lat):
         rec = _normalizuj(rec)
         rok = re.search(r"\b(?:rok\w*|(?:30|trideset)\s+dana)\b", rec)
-        clan_298 = re.search(r"\b(?:clan\w*|cl\.|zpp)\s*298\b", rec)
+        clan_298 = re.search(r"\b(?:clan\w*|cl\.?|zpp)\s*298\b", rec)
         datum = re.search(
             r"\b(?:\d{1,2}[./-]\s*\d{1,2}[./-]\s*\d{4}|\d{4}-\d{2}-\d{2}|"
             r"\d{1,2}\.?\s+(?:januar|februar|mart|april|maj|jun|jul|avgust|septembar|"
             r"septembr|oktobar|oktobr|novembar|novembr|decembar|decembr)\w*\s+\d{4})\b",
             rec,
         )
-        tvrdi_dostavu = re.search(r"\btuzb\w*\b", rec) and re.search(r"\bdostavljen(?:a|o|e|i)?\b", rec)
+        relativni_datum = re.search(
+            r"\b(?:danas|sutra|prekosutra|juce|ponedelj\w*|utor\w*|sred[uae]|"
+            r"cetvrt\w*|pet(?:ak|k\w*)|subot\w*|nedelj\w*|"
+            r"januar\w*|februar\w*|mart\w*|april\w*|maj[ua]?|jun[ua]?|jul[ua]?|"
+            r"avgust\w*|septembr\w*|oktobr\w*|novembr\w*|decembr\w*)\b",
+            rec,
+        )
+        konkretan_rok = re.search(r"\b(?:poslednji|krajnji) dan\b", rec) or (
+            re.search(r"\bnajkasnije\b", rec) and (rok or re.search(r"\bodgovor\w*\b", rec))
+        )
+        fiksni_istek = relativni_datum and re.search(r"\b(?:istic\w*|istek\w*|zavrsava\s+se)\b", rec)
+        dostava_neutvrdjena = re.fullmatch(
+            rf"(?:(?:nije (?:utvrdjeno|poznato) (?:da li|kada)|(?:u spisu )?nema dokaza da) {dostava}"
+            rf"|ako {dostava},? rok (?:od (?:30|trideset) dana )?(?:tece|racuna se) od tada)[.!]?",
+            rec.strip(),
+        )
+        tvrdi_dostavu = re.search(r"\btuzb\w*\b", rec) and not dostava_neutvrdjena and re.search(
+            r"\b(?:dostavljen|urucen|primljen|zaprimljen)(?:a|o|e|i)?\b|\b(?:za)?primi(?:o|la|lo|li|le)\b"
+            r"|\b(?:dostav[aeu]|dostavljanj[aeu])\b.*\b(?:izvrsen|obavljen)(?:a|o|e|i)?\b",
+            rec,
+        )
         tvrdi_podnosenje = re.search(r"\bodgovor\w*\b", rec) and re.search(
-            r"\b(?:podneo|podnela|podnelo|podneli|podnet(?:a|o)?|blagovremen\w*)\b"
+            r"\b(?:podneo|podnela|podnelo|podneli|podnet(?:a|o)?|preda(?:o|la|lo|li|le)|predat(?:a|o)?|blagovremen\w*)\b"
             r"|\btuzen\w*\s+podnosi\b.*\bu\s+(?:(?:zakonskom|propisanom)\s+)?roku\b",
             rec,
         )
-        if (rok and (clan_298 or datum)) or tvrdi_dostavu or tvrdi_podnosenje:
+        pogresan_osnov = clan_298 and (rok or (prethodni_rok and re.search(r"\bpravni osnov\b", rec)))
+        if (pogresan_osnov or (rok and (datum or fiksni_istek)) or (konkretan_rok and (datum or relativni_datum))
+                or tvrdi_dostavu or tvrdi_podnosenje):
             raise HTTPException(status_code=422, detail=(
                 "Nacrt sadrži nepotvrđenu tvrdnju o dostavljanju, podnošenju ili roku. "
                 "Čl. 297 ZPP uređuje rok od dostavljanja tužbe sa prilozima, a čl. 298 sadržaj odgovora."
             ))
+        prethodni_rok = bool(rok)
 
 
 @router.post("/api/podnesak")

@@ -14,6 +14,20 @@ from starlette.requests import Request
     "Rok za odgovor ističe 14.11.2026. godine.",
     "Tužba sa prilozima je dostavljena tuženom 15. oktobra 2026. godine.",
     "Рок за одговор на тужбу прописан је чланом 298. ЗПП.",
+    "Tužba je uručena tuženom 15. oktobra 2026. godine.",
+    "Tuženi je primio tužbu sa prilozima 15. oktobra 2026. godine.",
+    "Dostava tužbe izvršena je 15. oktobra 2026. godine.",
+    "Rok za odgovor na tužbu ističe sutra.",
+    "Рок за одговор истиче четрнаестог новембра.",
+    "Prema čl. 298. ZPP rok iznosi 30 dana.",
+    "Rok za odgovor na tužbu je 30 dana. Pravni osnov je član 298 ZPP.",
+    "Tuženi je predao ovaj odgovor na tužbu sudu u ponedeljak.",
+    "Po članu 298. Zakona o parničnom postupku rok iznosi 30 dana.",
+    "Poslednji dan za odgovor na tužbu je sutra.",
+    "Odgovor na tužbu se može podneti najkasnije 14.11.2026.",
+    "Dostavljanje tužbe obavljeno je 15. oktobra 2026. godine.",
+    "Tuženi je zaprimio tužbu 15. oktobra 2026.",
+    "Nije utvrđeno kada je tužba uručena, ali je tuženi primio tužbu 15. oktobra 2026.",
 ])
 async def test_formalni_odgovor_sa_neutemeljenom_tvrdnjom_ne_vraca_uspeh(monkeypatch, tekst):
     import routers.drafting as dr
@@ -42,4 +56,14 @@ def test_opste_pravilo_zpp_bez_tvrdnje_o_dostavljanju_prolazi():
         "odgovor_na_tuzbu",
         "Član 297 ZPP propisuje rok od 30 dana od dostavljanja tužbe sa prilozima. "
         "Član 298 ZPP uređuje sadržaj odgovora. Datum dostavljanja nije potvrđen.",
+    )
+    _proveri_rok_odgovora_na_tuzbu(
+        "odgovor_na_tuzbu",
+        "Rok od 30 dana računa se od uručenja tužbe sa prilozima. "
+        "Član 298. ZPP uređuje sadržaj odgovora. Nije utvrđeno kada je tužba uručena.",
+    )
+    _proveri_rok_odgovora_na_tuzbu(
+        "odgovor_na_tuzbu",
+        "U spisu nema dokaza da je tužba dostavljena. "
+        "Ako je tužba dostavljena sa prilozima, rok od 30 dana teče od tada.",
     )

@@ -757,6 +757,7 @@ CITAT_IZUZET = "EXEMPT_FRAMEWORK"
 # Jedini kod u `_ZAKON_KODOVI` čija vrednost u korpusu nije pun naziv („kz“ → „KZ“); pun naziv je
 # ključ u SL_GLASNIK_MAP. Bez ovoga bi ispravan citat „Krivičnog zakonika“ uz izvor „ZAKON: KZ“ bio odbijen.
 _ZAKON_PUNI_NAZIV_KOD: dict[str, str] = {"krivicni zakonik": "kz"}
+_CITAT_KRATICE_ZAKONA = {"zus": "zakon o uredjenju sudova"}
 
 _CITAT_RE = re.compile(r"(?<![a-z])(?:clan(?:a|u|om|ovi|ova|ovima)?|cl\.)\s*(\d+[a-z]?)(?![0-9])")
 _ZAGLAVLJE_RE = re.compile(r"^ZAKON:[ \t]*(.+?)[ \t]*\r?\n[ \t]*ČLAN:[ \t]*(.+?)[ \t]*$", re.M)
@@ -784,6 +785,8 @@ def _kanon_zakona(naziv: str) -> str:
     """Kanonski identitet zakona: kod iz `_ZAKON_KODOVI` kad je poznat, inače normalizovan pun naziv."""
     from app.services.retrieve import _ZAKON_KODOVI
     n = _nominativ_zakona(_normalizuj(naziv).strip(" .,;:()")).strip()
+    if n in _CITAT_KRATICE_ZAKONA:
+        return _CITAT_KRATICE_ZAKONA[n]
     if n in _ZAKON_KODOVI:
         return n
     for kod, vrednost in _ZAKON_KODOVI.items():
@@ -825,7 +828,7 @@ def _zakon_uz_citat(tekst: str, pocetak: int, kraj: int, nazivi: list) -> "str |
     """Identitet zakona navedenog neposredno POSLE (ili, ako tamo nema, neposredno PRE) citata.
     None = citat ne imenuje zakon. „?<fraza>“ = imenuje zakon koji nije prepoznat."""
     from app.services.retrieve import _ZAKON_KODOVI
-    kodovi = "|".join(map(re.escape, _ZAKON_KODOVI))
+    kodovi = "|".join(map(re.escape, (*_ZAKON_KODOVI, *_CITAT_KRATICE_ZAKONA)))
     posle = tekst[kraj:kraj + 160].split("\n", 1)[0]
     sledeci = _CITAT_RE.search(posle)
     if sledeci:
@@ -834,7 +837,7 @@ def _zakon_uz_citat(tekst: str, pocetak: int, kraj: int, nazivi: list) -> "str |
     posle_n = _nominativ_zakona(posle)
     m = re.match(r"(?:" + kodovi + r")\b", posle_n)          # posle nominativa: i „Ustava RS“ → ustav
     if m:
-        return m.group(0)
+        return _kanon_zakona(m.group(0))
     for naziv, ident in nazivi:
         if posle_n.startswith(naziv):
             return ident
@@ -843,7 +846,7 @@ def _zakon_uz_citat(tekst: str, pocetak: int, kraj: int, nazivi: list) -> "str |
     pre = tekst[max(0, pocetak - 100):pocetak].rsplit("\n", 1)[-1].rstrip(" ,:(")
     m = re.search(r"\b(" + kodovi + r")$", pre)
     if m:
-        return m.group(1)
+        return _kanon_zakona(m.group(1))
     pre_n = _nominativ_zakona(pre)
     for naziv, ident in nazivi:
         if pre_n.endswith(naziv):

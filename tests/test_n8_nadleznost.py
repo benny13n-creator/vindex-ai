@@ -308,6 +308,9 @@ def test_s1_gradjanska_nadleznost_i_dalje(q):
 @pytest.mark.parametrize("odgovor,ok", [
     ("Prema članu 39 ZPP. Član 39 ZPP uređuje opšte pravilo. Prema članu 40 ZPP sedište je merodavno. "
      "Za stvarnu nadležnost primenjuje se član 27 Zakona o uređenju sudova.", True),
+    ("Stvarno je nadležan privredni sud po čl. 27 ZUS, a sedište tuženog je merodavno po čl. 40 ZPP.", True),
+    ("ЗУС члан 27 и члан 40 ЗПП уређују стварну и месну надлежност.", True),
+    ("Prema čl. 40 ZUS sedište tuženog je merodavno.", False),
     ("Prema članu 40 ZOO sedište određuje sud.", False),
     ("Prema članu 999 ZPP sedište određuje sud.", False),
     ("Prema članu 40 ZPP. Takođe član 999 ZPP.", False),
