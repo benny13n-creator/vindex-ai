@@ -4097,32 +4097,6 @@ def _generate_high_interpretation(pitanje: str, article: str, law: str, text: st
 
 # ─── Javne funkcije agenta ───────────────────────────────────────────────────
 
-# zaključak modela u svim oblicima izlaza: „--- PRAVNI ZAKLJUČAK“ (strukturni), „PRAVNI ZAKLJUČAK:“ i
-# „KRATAK ZAKLJUČAK (TL;DR):“ (rezervni oblik, OBAVEZNE_SEKCIJE_QA)
-_ZAKLJUCAK_SEKCIJA_RE = re.compile(r"(--- PRAVNI ZAKLJUČAK\n)(.*?)(?=\n\n---|\n---|\Z)", re.S)
-_ZAKLJUCAK_RED_RE = re.compile(r"((?:PRAVNI ZAKLJUČAK|KRATAK ZAKLJUČAK \(TL;DR\)):[ \t]*)([^\n]*)")
-_TVRDNJA_DA_RE = re.compile(
-    r"(?<![a-z])su\s+ispunjeni|(?<![a-z])ispunjeni\s+su\s+(?:svi\s+)?uslovi|(?<![a-z])ispunjeni\s+(?:svi\s+)?uslovi"
-    r"|primenjuje\s+se\s+(?:cl\w*\.?\s+)?55\s?a|55\s?a\s+(?:kz\s+)?se\s+primenjuje|(?<![a-z])primenjuje\s+se\s+visestruk")
-_TVRDNJA_NE_RE = re.compile(r"nisu\s+ispunjeni|nije\s+ispunjen|ne\s+primenjuje\s+se|se\s+ne\s+primenjuje|ne\s+moze\s+(?:se\s+)?primeniti")
-_USLOVNO_RE = re.compile(r"\b(?:ako|ukoliko|kada|kad|ne|nisu|nije|samo\s+ako)\b")
-_USLOVNO_NE_RE = re.compile(r"\b(?:ako|ukoliko|kada|kad|da\s+li|smatra\w*|ospor\w*|tvrdi\w*)\b")
-
-
-def _tvrdnje_o_primeni(tekst: str) -> set:
-    """{"DA", "NE"} — šta AI tekst TVRDI o primeni čl. 55a; uslovne rečenice („ukoliko su ispunjeni uslovi“) nisu tvrdnja."""
-    t = _normalizuj(tekst)
-    out = set()
-    for m in _TVRDNJA_DA_RE.finditer(t):
-        if not _USLOVNO_RE.search(t[max(0, m.start() - 25): m.start()]):
-            out.add("DA")
-    for m in _TVRDNJA_NE_RE.finditer(t):
-        # „može da ospori ako smatra da uslovi nisu ispunjeni“ nije tvrdnja (izmereno: lažno UPOZORENJE, Bojan beta)
-        if not _USLOVNO_NE_RE.search(t[max(0, m.start() - 30): m.start()]):
-            out.add("NE")
-    return out
-
-
 # Tekst čl. 55a PRE izmene 63/2026: „iznad polovine raspona propisane kazne, pod sledećim uslovima“ (bez „polazeći od
 # najmanje mere te kazne“) i ranije osude „za krivična dela učinjena sa umišljajem“ (bez „ista ili istovrsna“).
 _STARI_55A_RE = re.compile(r"iznad\s+polovine\s+raspona\s+propisane\s+kazne,?\s+pod\s+sledećim\s+uslovima", re.I)
@@ -4130,15 +4104,15 @@ _OZNAKA_STARI_55A = "[TEKST ČL. 55a PRE IZMENE 63/2026 — za dela izvršena od
 
 
 def _dodaj_proracun_povrata(pitanje: str, rezultat: dict) -> dict:
-    """N9: izmereno je da model tvrdi „uslovi iz čl. 55a su ispunjeni“ i kad ranija kazna traje šest meseci ili je od
-    otpusta prošlo sedam godina, a da pitanje sa činjenicama blokira bez ikakvog odgovora. Uslove i raspon računa
-    `shared.visestruki_povrat`; zaključak modela se zamenjuje determinističkim kad su činjenice navedene, a tvrdnja AI
-    teksta koja se ne slaže sa proračunom (u bilo kom smeru) se izričito označava."""
+    """N9: za konkretne činjenice vrati obrazloženi sistemski proračun i zaključak.
+    Slobodan modelski tekst može protivrečiti i uslovima i rasponu, bez prepoznatljive fraze."""
     if not isinstance(rezultat, dict) or rezultat.get("status") != "success" or not isinstance(rezultat.get("data"), str):
         return rezultat
     try:
+        from security.prompt_guard import razdvoji_po_poreklu
         from shared.visestruki_povrat import DA, NE, blok
-        b = blok(pitanje)
+        pitanje_korisnika, _ = razdvoji_po_poreklu(pitanje)
+        b = blok(pitanje_korisnika)
     except Exception as exc:  # proračun nikad ne sme da obori odgovor
         logger.warning("[N9_POVRAT] proračun nije uspeo: %s", exc)
         return rezultat
@@ -4146,27 +4120,19 @@ def _dodaj_proracun_povrata(pitanje: str, rezultat: dict) -> dict:
         return rezultat
     tekst_bloka, r = b
     odgovor = rezultat["data"]
-    # S3 (63/2026): baza zakona još ima tekst čl. 55a pre izmene — svaki njegov navod u AI delu se označava (ne briše).
-    odgovor = _STARI_55A_RE.sub(lambda m: _OZNAKA_STARI_55A + m.group(0), odgovor)
-    sa_cinjenicama = "Uslovi prema činjenicama iz pitanja:" in tekst_bloka
-    if sa_cinjenicama:
-        zakljucak = {DA: "Uslovi iz čl. 55a KZ su ispunjeni — vidi PRORAČUN (računa sistem).",
-                     NE: "Čl. 55a KZ se ne primenjuje na navedene činjenice — vidi PRORAČUN (računa sistem)."}.get(
-            r.primenjuje_se, "Primena čl. 55a KZ se ne može utvrditi iz navedenih činjenica — vidi PRORAČUN (računa sistem).")
-        odgovor = _ZAKLJUCAK_SEKCIJA_RE.sub(lambda m: m.group(1) + zakljucak, odgovor, count=1)
-        odgovor = _ZAKLJUCAK_RED_RE.sub(lambda m: m.group(1) + zakljucak, odgovor)
-        ostatak = _ZAKLJUCAK_RED_RE.sub("", _ZAKLJUCAK_SEKCIJA_RE.sub("", odgovor))
-        tvrdnje = _tvrdnje_o_primeni(ostatak)
-        suprotno = {DA: tvrdnje & {"NE"}, NE: tvrdnje & {"DA"}}.get(r.primenjuje_se, tvrdnje)
-        if suprotno:
-            opis = "da se čl. 55a primenjuje" if "DA" in suprotno and "NE" not in suprotno else (
-                "da se čl. 55a ne primenjuje" if "NE" in suprotno and "DA" not in suprotno else "ishod primene čl. 55a")
-            tekst_bloka += (f"\nUPOZORENJE: deo AI teksta ispod tvrdi {opis}, što se ne slaže sa proračunom iz činjenica u pitanju; "
-                            "merodavan je ovaj proračun.")
-    # blokada iz guard-a stiže i bez zastavice `blocked` (izmereno: V1, V3) — prepoznaje se i po tekstu
     if rezultat.get("blocked") or "Odgovor je blokiran" in odgovor:
-        tekst_bloka += ("\n(Slobodan AI odgovor ispod je blokiran zbog neproverenih navoda; ovaj proračun se zasniva na proverenom "
-                        "tekstu čl. 55a i ne zavisi od njega.)")
+        tekst_bloka += ("\n(Slobodan AI odgovor je blokiran zbog neproverenih navoda. "
+                        "Proračun se zasniva na proverenom tekstu čl. 55a i ne zavisi od njega.)")
+    if "Uslovi prema činjenicama iz pitanja:" in tekst_bloka:
+        zakljucak = {
+            DA: "Uslovi iz čl. 55a KZ su ispunjeni — vidi PRORAČUN (računa sistem).",
+            NE: "Čl. 55a KZ se ne primenjuje na navedene činjenice — vidi PRORAČUN (računa sistem).",
+        }.get(r.primenjuje_se,
+              "Primena čl. 55a KZ se ne može utvrditi iz navedenih činjenica — vidi PRORAČUN (računa sistem).")
+        odgovor = f"--- PRAVNI ZAKLJUČAK\n{zakljucak}" + DISCLAIMER
+    else:
+        # Baza zakona ima staru verziju. Označi je kad se navodi u opštem obrazloženju.
+        odgovor = _STARI_55A_RE.sub(lambda m: _OZNAKA_STARI_55A + m.group(0), odgovor)
     logger.info("[N9_POVRAT] proračun dodat: primena=%s", r.primenjuje_se)
     return {**rezultat, "data": tekst_bloka + "\n\n" + odgovor, "proracun_povrata": r.primenjuje_se}
 

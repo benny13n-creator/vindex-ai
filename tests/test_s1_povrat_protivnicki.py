@@ -54,11 +54,18 @@ def test_ranije_osude_nisu_jednoznacne(q):
     assert _uslov(q, 2) == V.NEPOZNATO and _ishod(q) == V.NEPOZNATO
 
 
+def _proveri_pozitivan_ishod(q):
+    # Pozitivne varijante zadržavaju formulaciju, ali sada eksplicitno utvrđuju datum i pravnosnažnost.
+    pitanje = (q.replace("pre dve godine", "01.11.2024. godine").replace("pre tri godine", "01.11.2023. godine")
+               .replace("izvršio", "izvršio 01.11.2026. godine", 1))
+    assert _ishod(pitanje + ISTO + " Obe prethodne presude su pravnosnažne.") == V.DA
+
+
 def test_jednoznacan_slucaj_i_dalje_DA():
     q = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa izdržavanja "
          "kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je propisan zatvor od jedne "
          "do osam godina. U kom rasponu sud mora da izrekne kaznu?")
-    assert _ishod(q + ISTO) == V.DA
+    _proveri_pozitivan_ishod(q)
     assert _ishod(q) == V.NEPOZNATO              # 63/2026: bez navoda o istovrsnosti uslov je nepoznat
 
 
@@ -97,7 +104,7 @@ def test_protivrecna_krivica_posle_recenice_osude_nije_DA(q):
     "do osam godina. U kom rasponu sud mora da izrekne kaznu?",
 ])
 def test_jednoznacan_slucaj_ostaje_DA(q):
-    assert _ishod(q + ISTO) == V.DA
+    _proveri_pozitivan_ishod(q)
     assert _ishod(q) == V.NEPOZNATO              # 63/2026: bez navoda o istovrsnosti uslov je nepoznat
 
 
