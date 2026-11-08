@@ -428,7 +428,12 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         eksplicitno_novo = re.findall(
             r"\bnov\w*\s+umisljajn\w*\s+(?:krivicn\w*\s+)?del\w*", q
         )
-        if len(eksplicitno_novo) == 1:
+        if len(eksplicitno_novo) == 1 and re.search(
+            r"\bod\s+(?:dana\s+)?(?:poslednj\w*\s+)?otpust\w*[^.;]{0,90}?\bdo\s+nov\w*\s+"
+            r"umisljajn\w*\s+(?:krivicn\w*\s+)?del\w*\s+(?:prosl\w*\s+su|protek\w*\s+je)", q
+        ):
+            # Require affirmative, specifically timed new-offence context;
+            # quoted law or a question "da li je novo delo umišljajno" is not proof.
             out["novo_delo_umisljaj"] = True
 
     # S3 (63/2026): istovrsnost ranijih dela — samo IZRIČIT, izjavni navod. Završna revizija (M1): prefiks naziva dela
