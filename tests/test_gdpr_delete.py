@@ -123,7 +123,7 @@ def fake_supa(monkeypatch, fake_user):
 
 
 # Tabele koje SME da dodirne. Sve ostalo je regresija.
-_ALLOWED_TABLES = {"profiles", "korisnik_email_notif"}
+_ALLOWED_TABLES = {"profiles", "korisnik_email_notif", "word_sessions"}
 
 # Tabele koje predstavljaju stvarne poslovne/pravne podatke klijenta —
 # ako se ijedna od ovih pojavi u .calls, dokumentacija laže.
@@ -184,6 +184,14 @@ class TestGdprAccountDeleteAnonymizesOnly:
         profile_deletes = [c for c in fake_supa.calls if c["table"] == "profiles" and c["op"] == "delete"]
         assert not profile_deletes, "profiles red se anonimizuje (UPDATE), ne briše (DELETE)."
 
+    def test_revokes_word_sessions_before_profile_anonymization(self, client, fake_supa):
+        _delete_account(client, "10.0.0.12")
+        tables_in_order = [call["table"] for call in fake_supa.calls]
+        assert tables_in_order.index("word_sessions") < tables_in_order.index("profiles")
+        revoke = next(call for call in fake_supa.calls if call["table"] == "word_sessions")
+        assert revoke["op"] == "update"
+        assert revoke["data"].get("revoked_at")
+
     def test_founder_account_cannot_be_deleted_via_api(self, client, monkeypatch):
         """Postojeća zaštita: FOUNDER_EMAILS ne mogu obrisati nalog preko API-ja."""
         import routers.gdpr as gdpr_module
@@ -212,8 +220,9 @@ class TestGdprAccountDeleteAnonymizesOnly:
 #
 # STARI UGOVOR: rezultati oba upisa su se odbacivali kao izraz; odgovor je
 #               uvek glasio „Vaš korisnički nalog je anonimizovan".
-# NOVI UGOVOR:  `profiles` update koji ne pogodi nijedan red je NEUSPEH (503),
-#               a podaci se izričito proglašavaju nepromenjenima.
+# NOVI UGOVOR:  `profiles` update koji ne pogodi nijedan red je NEUSPEH (503).
+#               Pošto je opoziv Word sesija zaseban upis, odgovor ne sme da
+#               tvrdi da su svi podaci ostali nepromenjeni posle delimičnog uspeha.
 # ZAŠTO JE STARI BIO POGREŠAN: to je tvrdnja po članu 17 GDPR-a izrečena bez
 #               ijednog dokaza da se išta promenilo.
 
@@ -240,6 +249,18 @@ class _PaoUpisSupa(_FakeSupa):
         return q
 
 
+class _NedostajeWordSessionsSupa(_FakeSupa):
+    """Simulira da Word migration još nije primenjena (tabela ne postoji)."""
+
+    def table(self, name):
+        q = _FakeQuery(self, name)
+        if name == "word_sessions":
+            def _missing_table():
+                raise RuntimeError('relation "word_sessions" does not exist')
+            q.execute = _missing_table
+        return q
+
+
 class TestGdprDeleteMoraDokazatiBrisanje:
     def test_prazan_rezultat_NIJE_uspesno_brisanje(self, client, fake_supa, monkeypatch):
         """NAJVAŽNIJI TEST U KLASI.
@@ -251,7 +272,7 @@ class TestGdprDeleteMoraDokazatiBrisanje:
         monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
         r = _delete_account(client, "10.0.0.9")
         assert r.status_code == 503, r.text
-        assert "NIJE izvršeno" in r.text
+        assert "NIJE završeno" in r.text
         assert "anonimizovan" not in r.text
 
     def test_pad_baze_NIJE_uspesno_brisanje(self, client, fake_supa, monkeypatch):
@@ -260,10 +281,70 @@ class TestGdprDeleteMoraDokazatiBrisanje:
         monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
         r = _delete_account(client, "10.0.0.10")
         assert r.status_code == 503
-        assert "nepromenjeni" in r.text
+        assert "NIJE završeno" in r.text
+        assert "možda" in r.text
+        assert "nepromenjeni" not in r.text
+        assert [call["table"] for call in supa.calls] == ["word_sessions", "profiles"]
+
+    def test_missing_word_sessions_table_fails_closed_before_profile_update(
+        self, client, fake_supa, monkeypatch
+    ):
+        import routers.gdpr as gdpr
+        supa = _NedostajeWordSessionsSupa()
+        monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
+        r = _delete_account(client, "10.0.0.14")
+        assert r.status_code == 503
+        assert supa.tables_touched == {"word_sessions"}
+        assert "NIJE završeno" in r.text
+        assert "nepromenjeni" not in r.text
+
+    def test_success_with_no_word_sessions_still_anonymizes_profile(
+        self, client, fake_supa, monkeypatch
+    ):
+        import routers.gdpr as gdpr
+
+        class _NoWordSessionsSupa(_FakeSupa):
+            def table(self, name):
+                query = _FakeQuery(self, name)
+                if name == "word_sessions":
+                    class _EmptyResult:
+                        data = []
+                    query.execute = lambda: _EmptyResult()
+                return query
+
+        supa = _NoWordSessionsSupa()
+        monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
+        r = _delete_account(client, "10.0.0.15")
+        assert r.status_code == 200, r.text
+        assert "anonimizovan" in r.text
+        assert [call["table"] for call in supa.calls] == [
+            "word_sessions",
+            "profiles",
+            "korisnik_email_notif",
+        ]
 
     def test_uspesno_brisanje_i_dalje_prolazi(self, client, fake_supa):
         """Negativna kontrola: popravka ne sme da obori legitiman tok."""
         r = _delete_account(client, "10.0.0.11")
         assert r.status_code == 200
         assert "anonimizovan" in r.text
+
+    def test_word_session_revocation_failure_stops_account_erasure(self, client, fake_supa, monkeypatch):
+        import routers.gdpr as gdpr
+
+        class _BrokenWordSessionSupa(_FakeSupa):
+            def table(self, name):
+                query = _FakeQuery(self, name)
+                if name == "word_sessions":
+                    def fail():
+                        raise RuntimeError("session store unavailable")
+                    query.execute = fail
+                return query
+
+        supa = _BrokenWordSessionSupa()
+        monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
+        r = _delete_account(client, "10.0.0.13")
+        assert r.status_code == 503, r.text
+        assert supa.tables_touched == {"word_sessions"}
+        assert "možda" in r.text
+        assert "nepromenjeni" not in r.text

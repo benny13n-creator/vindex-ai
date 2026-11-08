@@ -229,6 +229,13 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
         # `profiles` je OBAVEZAN: bez njega email i ime ostaju u bazi.
         # `korisnik_email_notif` je dopuna (gasi obavestenja) -- njegov pad ne
         # obara brisanje, ali se glasno belezi.
+        # Word pane sessions are separate from the user's web login. Revoke
+        # every live Word session before anonymizing the account so a failed
+        # session-store write cannot be reported as a completed erasure.
+        supa.table("word_sessions").update({
+            "revoked_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("user_id", uid).is_("revoked_at", "null").execute()
+
         res = supa.table("profiles").update({
             "email":     anon_email,
             "full_name": "Obrisani korisnik",
@@ -248,14 +255,18 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
     try:
         await asyncio.to_thread(_delete)
     except Exception as _exc:
-        logger.error("[GDPR] anonimizacija NIJE izvrsena uid=%.8s: %s", uid, _exc)
-        # Namerni korisnicki ugovor: korisnik MORA saznati da podaci NISU
-        # obrisani -- tisina bi bila neodvojiva od uspesnog brisanja.
+        logger.error("[GDPR] brisanje naloga nije potvrđeno uid=%.8s: %s", uid, _exc)
+        # PostgREST writes are separate transactions: session revocation may
+        # already have committed when the profile update fails. Report the
+        # operation as incomplete without claiming every record is unchanged.
         from shared.http_errors import NamerniHTTPException as _Namerni
         raise _Namerni(
             status_code=503,
-            detail="Brisanje naloga NIJE izvršeno. Vaši podaci su nepromenjeni. "
-                   "Pokušajte ponovo ili nam pišite na benny13.n@gmail.com.",
+            detail=(
+                "Brisanje naloga NIJE završeno. Opoziv Word sesija je možda već "
+                "izvršen, dok anonimizacija profila možda nije. Proverite stanje "
+                "sa podrškom pre ponovnog pokušaja: benny13.n@gmail.com."
+            ),
         )
     logger.info("[GDPR] account deleted uid=%.8s", uid)
 
