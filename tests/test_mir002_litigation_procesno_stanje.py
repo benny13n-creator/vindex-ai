@@ -476,3 +476,18 @@ def test_k_pipeline_bez_predmeta_bez_bloka(lit):
     assert r.status_code == 200, r.text
     [poruka] = sn[n:]
     assert NATPIS not in poruka["user"] and "PROCESNO STANJE IZ SPISA (obavezno" not in poruka["system"]
+
+
+def test_savetnik_za_rokove_salje_proverene_osnove_bez_izmisljanja_datuma(lit):
+    client, _db, predmet, _docs, captured = lit
+    _pitaj(client, predmet, agent="deadline")
+    assert len(captured) == 1
+    sistem = captured[0]["system"]
+    for pravilo in (
+        "čl. 367 ZPP", "8 dana", "čl. 479 ZPP", "čl. 110 ZPP",
+        "čl. 403 ZPP", "čl. 428 ZPP", "čl. 432 ZKP", "čl. 153 ZUP",
+        "čl. 145, 151 i 153 ZUP", "datum isteka i status nisu utvrđeni",
+    ):
+        assert pravilo in sistem
+    for pogresno in ("čl. 368 ZPP", "čl. 410 ZPP", "max 6 mes.", "čl. 147 ZUP", "čl. 148 ZUP"):
+        assert pogresno not in sistem

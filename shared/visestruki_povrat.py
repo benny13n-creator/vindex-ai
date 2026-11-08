@@ -112,7 +112,7 @@ def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional
               ranije_osude: Optional[list[RanijaOsuda]], broj_ranijih_osuda: Optional[int] = None,
               proteklo_od_otpusta_meseci: Optional[float] = None, otpust: Optional[date] = None,
               novo_delo: Optional[date] = None, min_iz_opsteg_minimuma: bool = False,
-              istovrsna: Optional[bool] = None) -> Rezultat:
+              istovrsna: Optional[bool] = None, pravnosnaznost: Optional[str] = None) -> Rezultat:
     uslovi: list[Uslov] = []
     nedostaje: list[str] = []
     napomene: list[str] = []
@@ -194,6 +194,13 @@ def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional
         uslovi.append(Uslov("1b) ranija dela su ista ili istovrsna kao novo delo", NEPOZNATO,
                             "nije navedeno; Krivični zakonik ne definiše istovrsnost — ocenjuje je sud"))
         nedostaje.append("da li su ranija krivična dela ista ili istovrsna kao novo delo")
+    if pravnosnaznost in (NE, NEPOZNATO):
+        oznaka = "1c) dovoljan broj ranijih osuda utvrđen je pravnosnažnim presudama"
+        if pravnosnaznost == NE and novo_delo and novo_delo >= POCETAK_PRIMENE_63_2026:
+            uslovi.append(Uslov(oznaka, NE, "iz pitanja sledi da nema dve pravnosnažne ranije osude"))
+        else:
+            uslovi.append(Uslov(oznaka, NEPOZNATO, "pravnosnažnost ili vremenski merodavan tekst KZ nisu utvrđeni"))
+            nedostaje.append("pravnosnažnost ranijih presuda i, ako nije utvrđen, datum novog dela")
     if novo_delo is None or novo_delo < POCETAK_PRIMENE_63_2026:
         napomene.append(_NAPOMENA_VREME)
 
@@ -498,7 +505,42 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
                     out["proteklo_od_otpusta_meseci"] = 67.0
     elif len(pomeni) > 1:
         napomene.append("Otpust se pominje više puta — za uslov od pet godina potreban je jedan datum otpusta sa izdržavanja kazne.")
+    pravnosnaznost = _pravnosnaznost_iz_navoda(pitanje, broj)
+    if pravnosnaznost is None and out["novo_delo"] and out["novo_delo"] >= POCETAK_PRIMENE_63_2026:
+        pravnosnaznost = NEPOZNATO
+    out["pravnosnaznost"] = pravnosnaznost
     return out, napomene
+
+
+def _pravnosnaznost_iz_navoda(pitanje: str, broj_osuda: Optional[int]) -> Optional[str]:
+    """Nedostatak ili spor izričito naveden u pitanju ne može dati kategorično DA."""
+    from shared.rociste_iz_teksta import preslovi
+
+    ishodi = set()
+    for rec in re.split(r"(?<=[.?!;])\s+", _norm(preslovi(pitanje))):
+        if not (re.search(r"\b(?:ne)?pravn?osnazn\w*", rec) and re.search(r"\b(?:presud|osud)\w*", rec)):
+            continue
+        if not re.search(r"\b(?:ranij\w*|prethodn\w*|obe|obje|prv[aeu]|drug[aeu]|nijedn\w*)\b", rec):
+            continue
+        if rec.endswith("?") or re.search(r"\b(?:da li|nije jasno|nije poznato|nije tacno|ne zna se|nejasn\w*|"
+                                          r"sporn\w*|osporav\w*|navodn\w*|tvrd\w*|mozda|verovatn\w*)\b", rec):
+            return NEPOZNATO
+        negativno = re.search(r"\b(?:nepravn?osnazn\w*|(?:nije|nisu)\s+(?:jos\s+)?(?:bil[aeo]\s+)?"
+                              r"(?:sve\s+)?pravn?osnazn\w*)", rec)
+        obe = re.search(r"\b(?:obe|obje)\b", rec)
+        nijedna = re.search(r"\bnijedn\w*\b", rec)
+        samo_jedna = re.search(r"\bsamo\s+(?:jedn[aeu]|prv[aeu]|drug[aeu])\b[^,.]{0,65}\bje\s+pravn?osnazn\w*", rec)
+        if samo_jedna or (negativno and (nijedna or (obe and broj_osuda == 2))):
+            ishodi.add(NE)
+        elif negativno:
+            ishodi.add(NEPOZNATO)
+        elif (re.search(r"\b(?:obe|obje|sve)\s+(?:ranij\w*|prethodn\w*)\s+(?:presud|osud)\w*\s+"
+                        r"(?:su|jesu)\s+(?:(?:vec|bile|postale)\s+)?pravn?osnazne\b", rec)
+              or re.search(r"\b(?:dva puta|dvaput)\b.{0,35}\bpravn?osnazno\s+osudj\w*", rec)):
+            ishodi.add(DA)
+    if NEPOZNATO in ishodi or len(ishodi) > 1:
+        return NEPOZNATO
+    return next(iter(ishodi), None)
 
 
 _ISTOVRSNO_RE = re.compile(r"\bistovrsn\w*|\b(?:ista|isto)\s+(?:takv\w*\s+)?(?:krivicn\w*\s+)?del\w*")

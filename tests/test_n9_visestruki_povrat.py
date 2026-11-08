@@ -120,6 +120,42 @@ def test_v2_raspon_u_tekstu_bloka():
     assert "NE predviđanje kazne" in t and "čl. 54" in t
 
 
+
+
+_FINALNOST = (
+    "Višestruki povrat po članu 55a. Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine "
+    "za krađe učinjene sa umišljajem, otpušten je 01.11.2023. godine, a novo delo izvršio je {datum}. godine: "
+    "sa umišljajem izvršio krađu za koju je propisan zatvor od jedne do osam godina." + ISTO
+)
+
+
+@pytest.mark.parametrize("datum,navod,stanje", [
+    ("01.11.2026", " Obe prethodne presude su pravnosnažne.", DA),
+    ("01.11.2026", "", NEPOZNATO),
+    ("01.11.2026", " Obe prethodne presude nisu pravnosnažne; žalba je još u toku.", NE),
+    ("01.11.2026", " Samo prva prethodna presuda je pravnosnažna, druga nije pravnosnažna.", NE),
+    ("01.11.2026", " Nije jasno da li su prethodne presude pravnosnažne.", NEPOZNATO),
+    ("01.11.2026", " Obe prethodne presude nisu pravnosnažne. Obe prethodne presude su pravnosnažne.", NEPOZNATO),
+    ("01.11.2026", " Обе претходне пресуде нису правноснажне.", NE),
+    ("01.11.2026", " Ranije presude nisu sve pravnosnažne.", NEPOZNATO),
+    ("01.11.2026", " Samo prva od ranijih presuda nije pravnosnažna.", NEPOZNATO),
+    ("01.11.2026", " Obe prethodne presude su pravnosnažne. Presuda za novo delo još nije pravnosnažna.", DA),
+    ("01.11.2026", " Obe prethodne presude čekaju potvrdu pravnosnažnosti.", NEPOZNATO),
+    ("01.11.2026", " Obe prethodne presude su postale pravnosnažne.", DA),
+    ("01.11.2026", " Samo neke prethodne presude su pravnosnažne.", NEPOZNATO),
+    ("17.07.2026", "", DA),
+    ("17.07.2026", " Obe prethodne presude nisu pravnosnažne.", NEPOZNATO),
+    ("18.07.2026", " Obe prethodne presude nisu pravnosnažne.", NE),
+])
+def test_pravnosnaznost_ranijih_presuda_u_korisnickom_proracunu(datum, navod, stanje):
+    tekst, rezultat = blok(_FINALNOST.format(datum=datum) + navod)
+    assert rezultat.primenjuje_se == stanje
+    assert ("sud MORA" in tekst) is (stanje == DA)
+    assert (rezultat.raspon is not None) is (stanje == DA)
+    if stanje != DA:
+        assert any("pravnosnažn" in uslov.oznaka for uslov in rezultat.uslovi)
+
+
 def test_v6_propisan_zatvor_bez_reci_propisan_je():
     # „sa propisanim zatvorom od dve do deset godina“
     c = iz_pitanja(V6)

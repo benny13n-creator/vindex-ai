@@ -11,6 +11,7 @@ import hashlib
 # MIR002 S06 (odobrenje osnivača 2026-11-03) — samo red o čl. 371 ZOO (3 god. → 10 godina, osim kada zakon propisuje
 # drugi rok; glasilo „Sl. gl. RS 29/1978“ → „Sl. list SFRJ, br. 29/78“); `tests/test_mir002_zoo371_intake.py`.
 # Drugi dozvoljeni izuzetak: samo red o žalbi, čl. 367 ZPP sa izuzecima.
+# Deadline: ciljana korekcija pogrešnih pravnih osnova i neuslovljenog datuma isteka (beta acceptance).
 # Prethodni heševi intake: 4d9cc68a…94397f5 (ab63f913), d27da808…5ac635142 (342ae188, samo rok).
 AB63 = {
     "intake": "2e4756220d42674e1db82c76d5399e44674543bac30d6542f06f778e66c2cf6f",
@@ -18,7 +19,7 @@ AB63 = {
     "drafting": "bac2d39145b7c09adb60f84cf3e63a4c2046511e030d11d13c52282f573718b2",
     "litigation": "d4604b35cdba119e2ef30cb2cd2747384b7eb00ce9c4ea380c23bcbbabdda2c0",
     "billing": "9b92e42dc61282a780ebd1580cd8b334b402e7eb73795da790e7001f38eb2fd0",
-    "deadline": "50e0d20e9d3cda1481e382b6ee82879ae96092078731372abe5ead785192ba3a",
+    "deadline": "a02053cb8e2e00d81a7a227bc52ec3a4c02c03969e742b479a50abb0f7767db2",
 }
 
 
