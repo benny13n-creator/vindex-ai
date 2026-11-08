@@ -417,14 +417,31 @@ function updateAuthUI() {
 
 // ─── Auth modal ───────────────────────────────────────────────────────────────
 var authMode = 'login';
+var authPending = false;
+
+function _focusAuthField() {
+  var dialog = document.getElementById('auth-modal');
+  if (!dialog.open) return;
+  dialog.scrollTop = 0;
+  dialog.querySelector('#auth-' + authMode + '-form input').focus();
+}
 
 function openModal() {
-  document.getElementById('auth-modal').classList.add('open');
+  var dialog = document.getElementById('auth-modal');
+  if (!dialog.open) {
+    dialog.showModal();
+    _focusAuthField();
+  }
 }
+
 function closeModal() {
-  document.getElementById('auth-modal').classList.remove('open');
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-error').style.color = '';
+  var dialog = document.getElementById('auth-modal');
+  if (dialog.open) dialog.close();
+  _setAuthError('');
+  dialog.querySelectorAll('.vx-auth__password button').forEach(function(btn) {
+    var input = document.getElementById(btn.getAttribute('aria-controls'));
+    if (input.type === 'text') togglePw(input.id, btn);
+  });
 }
 
 /* ── Waitlist / Early Access ─────────────────────────────────────── */
@@ -488,15 +505,15 @@ document.addEventListener('keydown', function(e) {
   el.click();
 });
 
-var _EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-var _EYE_SHUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+var _EYE_OPEN = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var _EYE_SHUT = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
 function togglePw(inputId, btn) {
   var inp = document.getElementById(inputId);
   var showing = inp.type === 'text';
   inp.type = showing ? 'password' : 'text';
   btn.innerHTML = showing ? _EYE_OPEN : _EYE_SHUT;
-  btn.title = showing ? 'Prikaži lozinku' : 'Sakrij lozinku';
+  btn.setAttribute('aria-label', showing ? 'Prikaži lozinku' : 'Sakrij lozinku');
 }
 
 function showToast(msg, type, duration) {
@@ -556,112 +573,140 @@ function _friendlyErr(e) {
 
 function setAuthMode(mode) {
   authMode = mode;
-  var allForms = ['auth-login-form','auth-register-form','auth-forgot-form','auth-reset-form'];
-  allForms.forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.style.display = 'none';
+  ['login', 'register', 'forgot', 'reset'].forEach(function(name) {
+    document.getElementById('auth-' + name + '-form').hidden = name !== mode;
   });
-  var target = document.getElementById('auth-' + mode + '-form');
-  if (target) target.style.display = 'flex';
 
-  var showTabs = (mode === 'login' || mode === 'register');
-  var tabsEl = document.getElementById('auth-tabs-row');
-  if (tabsEl) tabsEl.style.display = showTabs ? '' : 'none';
-  document.getElementById('auth-login-tab').classList.toggle('active', mode === 'login');
-  document.getElementById('auth-reg-tab').classList.toggle('active', mode === 'register');
+  document.getElementById('auth-tabs-row').hidden = mode !== 'login' && mode !== 'register';
+  document.getElementById('auth-login-tab').setAttribute('aria-pressed', mode === 'login');
+  document.getElementById('auth-reg-tab').setAttribute('aria-pressed', mode === 'register');
 
   var titles = {
-    login:    ['Dobrodošli.', 'Prijavite se na vaš nalog.'],
-    register: ['Dobrodošli.', 'Registracija je potpuno besplatna.'],
-    forgot:   ['Reset lozinke.', 'Poslaćemo vam link na email.'],
-    reset:    ['Nova lozinka.', 'Izaberite novu lozinku za nalog.'],
+    login:    ['Dobrodošli.', 'Prijavite se na svoj Vindex nalog.'],
+    register: ['Kreirajte nalog', 'Registrujte se za pristup Vindexu.'],
+    forgot:   ['Oporavak lozinke', 'Poslaćemo vam link za promenu lozinke.'],
+    reset:    ['Nova lozinka', 'Izaberite novu lozinku za svoj nalog.'],
   };
-  var t = titles[mode] || titles.login;
-  var titleEl = document.getElementById('auth-modal-title');
-  var subEl   = document.getElementById('auth-modal-sub');
-  if (titleEl) titleEl.innerHTML = t[0];
-  if (subEl)   subEl.textContent = t[1];
+  document.getElementById('auth-modal-title').textContent = titles[mode][0];
+  document.getElementById('auth-modal-sub').textContent = titles[mode][1];
+  _setAuthError('');
+  _focusAuthField();
+}
 
-  document.getElementById('auth-error').textContent = '';
+function _setAuthError(msg, isOk, field) {
+  var dialog = document.getElementById('auth-modal');
+  var status = document.getElementById('auth-error');
+  dialog.querySelectorAll('[aria-invalid]').forEach(function(input) {
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-errormessage');
+  });
+  status.dataset.stanje = isOk ? 'uspeh' : 'greska';
+  status.textContent = msg;
+  if (field) {
+    field.setAttribute('aria-invalid', 'true');
+    field.setAttribute('aria-errormessage', status.id);
+    field.focus();
+  } else if (msg && dialog.open) {
+    status.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function _authEmail(input, missingMessage) {
+  var email = input.value.trim();
+  if (!email) _setAuthError(missingMessage, false, input);
+  else if (input.validity.typeMismatch) _setAuthError('Unesite ispravnu email adresu.', false, input);
+  else return email;
+  return '';
+}
+
+async function submitAuth(event, action) {
+  event.preventDefault();
+  if (authPending) return;
+  var form = event.currentTarget;
+  var btn = form.querySelector('button[type="submit"]');
+  var controls = document.querySelectorAll('#auth-modal [data-auth-switch]');
+  var label = btn.textContent;
+  authPending = true;
+  _setAuthError('');
+  btn.disabled = true;
+  btn.textContent = btn.dataset.pendingLabel;
+  form.setAttribute('aria-busy', 'true');
+  controls.forEach(function(control) { control.disabled = true; });
+  try {
+    await action();
+  } catch (error) {
+    _setAuthError('Veza sa serverom nije uspela. Pokušajte ponovo.');
+  } finally {
+    authPending = false;
+    btn.disabled = false;
+    btn.textContent = label;
+    form.removeAttribute('aria-busy');
+    controls.forEach(function(control) { control.disabled = false; });
+  }
 }
 
 async function doForgotPassword() {
+  var email = _authEmail(document.getElementById('forgot-email'), 'Unesite email adresu.');
+  if (!email) return;
   var sb = await _waitSupa(4000);
   if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
-  var email = document.getElementById('forgot-email').value.trim();
-  if (!email) { _setAuthError('Unesite email adresu.'); return; }
-  var btn = document.getElementById('forgot-btn');
-  btn.textContent = 'Šalje se...'; btn.disabled = true;
   var redirectTo = window.location.origin + window.location.pathname;
   var res = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo });
-  btn.textContent = 'Pošalji reset link'; btn.disabled = false;
   if (res.error) { _setAuthError('Greška: ' + (res.error.message || 'Pokušajte ponovo.')); return; }
-  _setAuthError('Link je poslat! Proverite email (i Spam folder).', true);
+  _setAuthError('Link je poslat. Proverite prijemno sanduče i neželjenu poštu.', true);
   showToast('Reset link poslat na ' + email, 'info');
 }
 
 async function doResetPassword() {
+  var first = document.getElementById('reset-password');
+  var second = document.getElementById('reset-password2');
+  var pass = first.value;
+  if (pass.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.', false, first); return; }
+  if (pass !== second.value) { _setAuthError('Lozinke se ne poklapaju.', false, second); return; }
   var sb = await _waitSupa(4000);
   if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
-  var p1 = document.getElementById('reset-password').value;
-  var p2 = document.getElementById('reset-password2').value;
-  if (!p1 || p1.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.'); return; }
-  if (p1 !== p2) {
-    _setAuthError('Lozinke se ne poklapaju.');
-    showToast('Lozinke se ne poklapaju.', 'err');
-    return;
-  }
-  var btn = document.getElementById('reset-btn');
-  btn.textContent = 'Čuvam...'; btn.disabled = true;
-  var res = await sb.auth.updateUser({ password: p1 });
-  btn.textContent = 'Sačuvaj novu lozinku'; btn.disabled = false;
+  var res = await sb.auth.updateUser({ password: pass });
   if (res.error) { _setAuthError('Greška: ' + (res.error.message || 'Pokušajte ponovo.')); return; }
   showToast('Lozinka uspešno promenjena!', 'ok');
   history.replaceState(null, '', window.location.pathname);
+  first.value = '';
+  second.value = '';
   setAuthMode('login');
-  document.getElementById('reset-password').value = '';
-  document.getElementById('reset-password2').value = '';
-}
-
-function _setAuthError(msg, isOk) {
-  var el = document.getElementById('auth-error');
-  el.textContent = msg;
-  el.style.color = isOk ? '#4ade80' : '#ff6b6b';
+  _setAuthError('Lozinka je promenjena. Prijavite se novom lozinkom.', true);
 }
 
 async function doLogin() {
+  var email = _authEmail(document.getElementById('login-email'), 'Unesite email i lozinku.');
+  if (!email) return;
+  var password = document.getElementById('login-password');
+  var pass = password.value;
+  if (!pass) { _setAuthError('Unesite email i lozinku.', false, password); return; }
   var sb = await _waitSupa(4000);
   if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
-  var email = document.getElementById('login-email').value.trim();
-  var pass  = document.getElementById('login-password').value;
-  if (!email || !pass) { _setAuthError('Unesite email i lozinku.'); return; }
-  var btn = document.getElementById('login-btn');
-  btn.textContent = 'Prijava...'; btn.disabled = true;
   var res = await sb.auth.signInWithPassword({ email: email, password: pass });
-  btn.textContent = 'Prijavite se'; btn.disabled = false;
   if (res.error) { _setAuthError('Pogrešan email ili lozinka. Pokušajte ponovo.'); return; }
   currentSession = res.data.session;
   currentUser    = res.data.user;
   closeModal();
   updateAuthUI();
   loadCredits();
-  tosCheck();
+  await tosCheck();
   await _sesijaRegistruj();
   _sesijaStartHeartbeat();
 }
 
 async function doRegister() {
+  var fullName = document.getElementById('reg-name').value.trim();
+  var email = _authEmail(document.getElementById('reg-email'), 'Unesite email i lozinku.');
+  if (!email) return;
+  var password = document.getElementById('reg-password');
+  var confirmation = document.getElementById('reg-confirm-password');
+  var pass = password.value;
+  if (!pass) { _setAuthError('Unesite email i lozinku.', false, password); return; }
+  if (pass.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.', false, password); return; }
+  if (pass !== confirmation.value) { _setAuthError('Lozinke se ne poklapaju.', false, confirmation); return; }
   var sb = await _waitSupa(4000);
   if (!sb) { _setAuthError('Veza nije uspostavljena. Proverite internet i pokušajte ponovo.'); return; }
-  var fullName = (document.getElementById('reg-name')?.value?.trim()) || '';
-  var email   = document.getElementById('reg-email').value.trim();
-  var pass    = document.getElementById('reg-password').value;
-  var confirm = document.getElementById('reg-confirm-password').value;
-  if (!email || !pass) { _setAuthError('Unesite email i lozinku.'); return; }
-  if (pass.length < 8) { _setAuthError('Lozinka mora imati najmanje 8 karaktera.'); return; }
-  if (pass !== confirm) { _setAuthError('Lozinke se ne poklapaju.'); return; }
-  var btn = document.getElementById('reg-btn');
-  btn.textContent = 'Registracija...'; btn.disabled = true;
   try {
     var chk = await fetch(BASE_URL + '/api/check-email', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -669,8 +714,7 @@ async function doRegister() {
     });
     var chkData = await chk.json();
     if (!chkData.valid) {
-      _setAuthError('Privremene email adrese nisu dozvoljene. Koristite pravu email adresu.');
-      btn.textContent = 'Registruj se'; btn.disabled = false;
+      _setAuthError('Privremene email adrese nisu dozvoljene. Koristite pravu email adresu.', false, document.getElementById('reg-email'));
       return;
     }
   } catch(e) { /* Nastavlja bez provere ako API nije dostupan */ }
@@ -684,24 +728,24 @@ async function doRegister() {
     });
     var regData = await regRes.json();
     if (!regRes.ok) {
-      var msg = regData.detail || 'Greška pri registraciji.';
+      var msg = typeof regData.detail === 'string' ? regData.detail : 'Greška pri registraciji.';
       if (msg.toLowerCase().includes('već registrovana') || msg.toLowerCase().includes('already')) {
         msg = 'Ovaj email je već registrovan. Prijavite se.';
       }
       _setAuthError(msg);
-      btn.textContent = 'Registruj se'; btn.disabled = false;
       return;
     }
   } catch(e) {
     _setAuthError('Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.');
-    btn.textContent = 'Registruj se'; btn.disabled = false;
     return;
   }
 
   // Login za Supabase sesiju (backend kreirao korisnika sa email_confirm=true)
-  var loginRes = await sb.auth.signInWithPassword({ email: email, password: pass });
-  btn.textContent = 'Registruj se'; btn.disabled = false;
-  if (loginRes.error) {
+  var loginRes;
+  try {
+    loginRes = await sb.auth.signInWithPassword({ email: email, password: pass });
+  } catch (error) { /* Nalog je već kreiran; ponovni pokušaj je prijava. */ }
+  if (!loginRes || loginRes.error) {
     _setAuthError('Registracija uspešna. Prijavite se sa vašim podacima.', true);
     return;
   }
@@ -716,7 +760,7 @@ async function doRegister() {
   closeModal();
   updateAuthUI();
   loadCredits();
-  tosCheck();
+  await tosCheck();
   await _sesijaRegistruj();
   _sesijaStartHeartbeat();
 }
@@ -733,7 +777,16 @@ async function tosCheck() {
     var d = await r.json();
     if (!d.accepted) {
       var ov = document.getElementById('tos-overlay');
-      if (ov) { ov.style.display = 'flex'; }
+      if (ov && !ov.open) {
+        document.getElementById('tos-confirm-chk').checked = false;
+        document.getElementById('tos-greska').textContent = '';
+        var btn = document.getElementById('tos-accept-btn');
+        delete btn.dataset.stanje;
+        btn.textContent = 'Prihvatam';
+        tosChkChange();
+        tosTab('tos');
+        ov.showModal();
+      }
     }
   } catch(e) { /* ne blokiraj na greški */ }
 }
@@ -741,33 +794,16 @@ async function tosCheck() {
 function tosTab(tab) {
   ['tos','privacy','ai'].forEach(function(t) {
     var pane = document.getElementById('tos-pane-' + t);
-    var btn  = document.getElementById('tos-tab-' + t);
-    var active = t === tab;
-    if (pane) pane.style.display = active ? '' : 'none';
-    if (btn) {
-      btn.style.background   = active ? 'rgba(99,102,241,.2)' : 'transparent';
-      btn.style.borderColor  = active ? 'rgba(99,102,241,.6)' : 'rgba(255,255,255,.1)';
-      btn.style.color        = active ? 'rgba(210,205,255,.95)' : 'rgba(255,255,255,.45)';
-      btn.style.fontWeight   = active ? '700' : '600';
-    }
+    var btn = document.getElementById('tos-tab-' + t);
+    pane.hidden = t !== tab;
+    btn.setAttribute('aria-pressed', t === tab);
   });
 }
 
 function tosChkChange() {
   var chk = document.getElementById('tos-confirm-chk');
   var btn = document.getElementById('tos-accept-btn');
-  if (!chk || !btn) return;
-  if (chk.checked) {
-    btn.disabled = false;
-    btn.style.background = '#00d4ff';
-    btn.style.color = '#010308';
-    btn.style.cursor = 'pointer';
-  } else {
-    btn.disabled = true;
-    btn.style.background = 'rgba(0,212,255,.20)';
-    btn.style.color = 'rgba(255,255,255,.35)';
-    btn.style.cursor = 'not-allowed';
-  }
+  btn.disabled = !chk.checked || btn.dataset.stanje === 'SUBMITTING' || btn.dataset.stanje === 'DECLINING';
 }
 
 async function tosAccept() {
@@ -780,8 +816,11 @@ async function tosAccept() {
   // obavezujuceg cina. Sada se overlay zatvara tek kad server potvrdi.
   var btn = document.getElementById('tos-accept-btn');
   var err = document.getElementById('tos-greska');
-  if (btn) { btn.disabled = true; btn.dataset.stanje = 'SUBMITTING'; }
-  if (err) err.style.display = 'none';
+  if (btn.dataset.stanje === 'SUBMITTING' || btn.dataset.stanje === 'DECLINING') return;
+  btn.dataset.stanje = 'SUBMITTING';
+  btn.textContent = 'Beleženje…';
+  tosChkChange();
+  err.textContent = '';
   try {
     var r = await fetch(BASE_URL + '/api/tos/accept', {
       method: 'POST',
@@ -789,24 +828,32 @@ async function tosAccept() {
     });
     if (!r || !r.ok) throw new Error('server nije potvrdio prihvatanje');
   } catch(e) {
-    if (btn) { btn.disabled = false; btn.dataset.stanje = 'FAILED'; }
-    if (err) {
-      err.textContent = 'Prihvatanje NIJE zabeleženo. Pokušajte ponovo.';
-      err.style.display = 'block';
-    } else {
-      showToast('Prihvatanje Uslova NIJE zabeleženo. Pokušajte ponovo.', 'err');
-    }
+    btn.dataset.stanje = 'FAILED';
+    btn.textContent = 'Prihvatam';
+    tosChkChange();
+    err.textContent = 'Prihvatanje NIJE zabeleženo. Pokušajte ponovo.';
+    err.scrollIntoView({ block: 'nearest' });
     return;
   }
-  if (btn) btn.dataset.stanje = 'CONFIRMED';
-  var ov = document.getElementById('tos-overlay');
-  if (ov) ov.style.display = 'none';
+  btn.dataset.stanje = 'CONFIRMED';
+  document.getElementById('tos-overlay').close();
 }
 
-function tosDecline() {
-  var ov = document.getElementById('tos-overlay');
-  if (ov) ov.style.display = 'none';
-  doLogout();
+async function tosDecline() {
+  var btn = document.getElementById('tos-accept-btn');
+  if (btn.dataset.stanje === 'SUBMITTING' || btn.dataset.stanje === 'DECLINING') return;
+  // Odjava ponovo učitava stranicu. Do tada dijalog zadržava preusmeravanje.
+  btn.dataset.stanje = 'DECLINING';
+  tosChkChange();
+  try {
+    await doLogout();
+  } catch (error) {
+    btn.dataset.stanje = 'FAILED';
+    tosChkChange();
+    var status = document.getElementById('tos-greska');
+    status.textContent = 'Odjava nije uspela. Pokušajte ponovo.';
+    status.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 function dataResidencyOpen() {
@@ -8526,7 +8573,24 @@ window.addEventListener('scroll',function(){var _n=document.getElementById('nav'
 
 /* MODAL CLOSE ON BACKDROP */
 (function(){
-  var _am=document.getElementById('auth-modal'); if(_am) _am.addEventListener('click',function(e){if(e.target===this)closeModal();});
+  var auth = document.getElementById('auth-modal');
+  if (auth) {
+    auth.addEventListener('cancel', function(event) {
+      event.preventDefault();
+      closeModal();
+    });
+    auth.addEventListener('click', function(event) {
+      if (event.target !== auth) return;
+      var bounds = auth.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom) closeModal();
+    });
+    auth.addEventListener('input', function() {
+      if (!authPending) _setAuthError('');
+    });
+  }
+  var consent = document.getElementById('tos-overlay');
+  if (consent) consent.addEventListener('cancel', function(event) { event.preventDefault(); });
   var _pm=document.getElementById('paywall-modal'); if(_pm) _pm.addEventListener('click',function(e){if(e.target===this)closePaywall();});
   var _pr=document.getElementById('pro-modal'); if(_pr) _pr.addEventListener('click',function(e){if(e.target===this)closeProModal();});
 })();

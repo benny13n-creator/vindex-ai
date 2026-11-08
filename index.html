@@ -69,91 +69,110 @@
 <canvas id="cv"></canvas>
 <canvas id="kc-bg-canvas"></canvas>
 
-<!-- AUTH MODAL -->
-<div class="modal-overlay" id="auth-modal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal()">&#x2715;</button>
-    <div class="modal-badge">Vindex AI — Beta</div>
-    <div class="modal-title" id="auth-modal-title">Dobrodošli.</div>
-    <p class="modal-sub" id="auth-modal-sub">Prijavite se na vaš nalog.</p>
-    <div class="auth-tabs" id="auth-tabs-row">
-      <button class="auth-tab active" id="auth-login-tab" onclick="setAuthMode('login')">Prijava</button>
-      <button class="auth-tab" id="auth-reg-tab" onclick="setAuthMode('register')">Registracija</button>
+<!-- Kanonski ulaz za prijavu, registraciju i oporavak -->
+<dialog id="auth-modal" class="vx-auth vxp" aria-labelledby="auth-modal-title" aria-describedby="auth-modal-sub">
+  <header class="vx-auth__header">
+    <div class="vx-auth__brand">
+      <span class="vxp-logo"><img src="/v2/site/brand/vindex-logo-final-tamna.png" alt="Vindex" width="398" height="287"></span>
+      <span class="vx-auth__meta">Beta</span>
     </div>
+    <button type="button" class="vx-auth__icon" onclick="closeModal()" aria-label="Zatvori">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="vx-auth__heading">
+      <h2 id="auth-modal-title">Dobrodošli.</h2>
+      <p id="auth-modal-sub">Prijavite se na svoj Vindex nalog.</p>
+    </div>
+  </header>
 
-    <!-- LOGIN -->
-    <div id="auth-login-form" style="display:flex;flex-direction:column;gap:0.9rem;">
-      <input class="modal-input" type="email" id="login-email" placeholder="Email adresa" autocomplete="email">
-      <div class="pw-wrap">
-        <input class="modal-input" type="password" id="login-password" placeholder="Lozinka" autocomplete="current-password">
-        <button type="button" class="pw-eye" onclick="togglePw('login-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
-      <div class="auth-forgot"><a onclick="setAuthMode('forgot')">Zaboravili ste lozinku?</a></div>
-      <button class="modal-btn" id="login-btn" onclick="doLogin()">Prijavite se</button>
-    </div>
-
-    <!-- REGISTER -->
-    <div id="auth-register-form" style="display:none;flex-direction:column;gap:0.9rem;">
-      <div class="auth-credit-note">&#x2713;&nbsp; 15 besplatnih upita odmah po registraciji</div>
-      <input class="modal-input" type="text" id="reg-name" placeholder="Ime i prezime" maxlength="100" autocomplete="name">
-      <input class="modal-input" type="email" id="reg-email" placeholder="Email adresa" autocomplete="email">
-      <div class="pw-wrap">
-        <input class="modal-input" type="password" id="reg-password" placeholder="Lozinka" autocomplete="new-password">
-        <button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
-      <div class="pw-wrap">
-        <input class="modal-input" type="password" id="reg-confirm-password" placeholder="Potvrdi lozinku" autocomplete="new-password">
-        <button type="button" class="pw-eye" onclick="togglePw('reg-confirm-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
-      <button class="modal-btn" id="reg-btn" onclick="doRegister()">Registruj se</button>
-      <p class="auth-trust">Dostupnost AI funkcija i ograničenja zavise od vašeg beta naloga. Naplata trenutno nije uvedena.</p>
-    </div>
-
-    <!-- FORGOT PASSWORD -->
-    <div id="auth-forgot-form" style="display:none;flex-direction:column;gap:0.9rem;">
-      <p class="auth-form-hint">Unesite email adresu. Poslaćemo vam link za resetovanje lozinke.</p>
-      <input class="modal-input" type="email" id="forgot-email" placeholder="Email adresa" autocomplete="email">
-      <button class="modal-btn" id="forgot-btn" onclick="doForgotPassword()">Pošalji reset link</button>
-      <div style="text-align:center;"><a class="auth-back-link" onclick="setAuthMode('login')">← Nazad na prijavu</a></div>
-    </div>
-
-    <!-- RESET PASSWORD -->
-    <div id="auth-reset-form" style="display:none;flex-direction:column;gap:0.9rem;">
-      <p class="auth-form-hint">Unesite novu lozinku za vaš nalog.</p>
-      <div class="pw-wrap">
-        <input class="modal-input" type="password" id="reset-password" placeholder="Nova lozinka (min. 8 karaktera)" autocomplete="new-password">
-        <button type="button" class="pw-eye" onclick="togglePw('reset-password',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
-      <div class="pw-wrap">
-        <input class="modal-input" type="password" id="reset-password2" placeholder="Potvrdite novu lozinku" autocomplete="new-password">
-        <button type="button" class="pw-eye" onclick="togglePw('reset-password2',this)" aria-label="Prikaži/sakrij lozinku"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
-      <button class="modal-btn" id="reset-btn" onclick="doResetPassword()">Sačuvaj novu lozinku</button>
-    </div>
-
-    <div id="auth-error" class="auth-error"></div>
-    <div class="modal-note" id="auth-modal-note">Informacije o obradi nalaze se u <a href="/privacy">Politici privatnosti</a> i <a href="/ai-disclosure">Obaveštenju o AI obradi</a>.</div>
-    <!-- Sigurnosne oznake -->
-    <div style="display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin-top:.9rem;">
-      <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx-3);padding:.2rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Spoljna AI obrada
-      </span>
-      <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx-3);padding:.2rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Politika privatnosti
-      </span>
-      <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx-3);padding:.2rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        AES-256
-      </span>
-      <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx-3);padding:.2rem .55rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        Podaci u EU
-      </span>
-    </div>
+  <div class="vx-auth__tabs" id="auth-tabs-row" role="group" aria-label="Pristup nalogu">
+    <button type="button" id="auth-login-tab" data-auth-switch aria-pressed="true" aria-controls="auth-login-form" onclick="setAuthMode('login')">Prijava</button>
+    <button type="button" id="auth-reg-tab" data-auth-switch aria-pressed="false" aria-controls="auth-register-form" onclick="setAuthMode('register')">Registracija</button>
   </div>
-</div>
+
+  <form id="auth-login-form" class="vx-auth__form" novalidate onsubmit="submitAuth(event, doLogin)">
+    <div class="vx-auth__field">
+      <label for="login-email">Email adresa</label>
+      <input type="email" id="login-email" autocomplete="username" placeholder="ime@primer.rs" required autofocus>
+    </div>
+    <div class="vx-auth__field">
+      <label for="login-password">Lozinka</label>
+      <div class="vx-auth__password">
+        <input type="password" id="login-password" autocomplete="current-password" required>
+        <button type="button" class="vx-auth__icon" onclick="togglePw('login-password',this)" aria-label="Prikaži lozinku" aria-controls="login-password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <button type="button" class="vx-auth__link" data-auth-switch onclick="setAuthMode('forgot')">Zaboravili ste lozinku?</button>
+    <button type="submit" class="vx-auth__primary" id="login-btn" data-pending-label="Prijavljivanje…">Prijavite se</button>
+  </form>
+
+  <form id="auth-register-form" class="vx-auth__form" hidden novalidate onsubmit="submitAuth(event, doRegister)">
+    <div class="vx-auth__field">
+      <label for="reg-name">Ime i prezime <span class="vx-auth__meta">(opciono)</span></label>
+      <input type="text" id="reg-name" maxlength="100" autocomplete="name">
+    </div>
+    <div class="vx-auth__field">
+      <label for="reg-email">Email adresa</label>
+      <input type="email" id="reg-email" autocomplete="username" placeholder="ime@primer.rs" required>
+    </div>
+    <div class="vx-auth__field">
+      <label for="reg-password">Lozinka</label>
+      <div class="vx-auth__password">
+        <input type="password" id="reg-password" autocomplete="new-password" required aria-describedby="reg-password-help">
+        <button type="button" class="vx-auth__icon" onclick="togglePw('reg-password',this)" aria-label="Prikaži lozinku" aria-controls="reg-password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <p class="vx-auth__meta vx-auth__help" id="reg-password-help">Najmanje 8 karaktera.</p>
+    <div class="vx-auth__field">
+      <label for="reg-confirm-password">Potvrdite lozinku</label>
+      <div class="vx-auth__password">
+        <input type="password" id="reg-confirm-password" autocomplete="new-password" required>
+        <button type="button" class="vx-auth__icon" onclick="togglePw('reg-confirm-password',this)" aria-label="Prikaži lozinku" aria-controls="reg-confirm-password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <button type="submit" class="vx-auth__primary" id="reg-btn" data-pending-label="Registracija u toku…">Registrujte se</button>
+    <p class="vx-auth__meta">Dobijate 15 besplatnih upita odmah po registraciji. Dostupnost AI funkcija i ograničenja zavise od vašeg beta naloga. Naplata trenutno nije uvedena.</p>
+  </form>
+
+  <form id="auth-forgot-form" class="vx-auth__form" hidden novalidate onsubmit="submitAuth(event, doForgotPassword)">
+    <div class="vx-auth__field">
+      <label for="forgot-email">Email adresa</label>
+      <input type="email" id="forgot-email" autocomplete="email" placeholder="ime@primer.rs" required>
+    </div>
+    <button type="submit" class="vx-auth__primary" id="forgot-btn" data-pending-label="Slanje linka…">Pošaljite link</button>
+    <button type="button" class="vx-auth__link" data-auth-switch onclick="setAuthMode('login')">Nazad na prijavu</button>
+  </form>
+
+  <form id="auth-reset-form" class="vx-auth__form" hidden novalidate onsubmit="submitAuth(event, doResetPassword)">
+    <div class="vx-auth__field">
+      <label for="reset-password">Nova lozinka</label>
+      <div class="vx-auth__password">
+        <input type="password" id="reset-password" autocomplete="new-password" required aria-describedby="reset-password-help">
+        <button type="button" class="vx-auth__icon" onclick="togglePw('reset-password',this)" aria-label="Prikaži lozinku" aria-controls="reset-password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <p class="vx-auth__meta vx-auth__help" id="reset-password-help">Najmanje 8 karaktera.</p>
+    <div class="vx-auth__field">
+      <label for="reset-password2">Potvrdite novu lozinku</label>
+      <div class="vx-auth__password">
+        <input type="password" id="reset-password2" autocomplete="new-password" required>
+        <button type="button" class="vx-auth__icon" onclick="togglePw('reset-password2',this)" aria-label="Prikaži lozinku" aria-controls="reset-password2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <button type="submit" class="vx-auth__primary" id="reset-btn" data-pending-label="Čuvanje lozinke…">Sačuvajte novu lozinku</button>
+  </form>
+
+  <p id="auth-error" class="vx-auth__notice" role="status" aria-atomic="true"></p>
+  <footer class="vx-auth__legal" aria-label="Pravne informacije">
+    <p>Vindex koristi spoljne AI servise.</p>
+    <nav aria-label="Pravna dokumentacija">
+      <a href="/privacy">Politika privatnosti</a>
+      <a href="/ai-disclosure">AI obrada</a>
+      <a href="/terms">Uslovi korišćenja</a>
+      <a href="/security">Bezbednost</a>
+    </nav>
+  </footer>
+</dialog>
 
 <!-- PAYWALL MODAL -->
 <div class="modal-overlay" id="paywall-modal">
@@ -4598,154 +4617,143 @@
 <!-- ═══════════════════════════════════════════════════════════════
      TOS MODAL — prikazuje se posle prve prijave ako ToS nije prihvaćen
      ═══════════════════════════════════════════════════════════════ -->
-<div id="tos-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);align-items:center;justify-content:center;">
-  <div style="background:#0f1117;border:1px solid rgba(255,255,255,0.1);border-radius:4px;max-width:560px;width:94%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:scale-in-dlg .2s ease;">
+<dialog id="tos-overlay" class="vx-auth vx-auth--consent vxp" aria-labelledby="tos-title" aria-describedby="tos-description">
+  <header class="vx-auth__heading">
+    <h2 id="tos-title" tabindex="-1" autofocus>Pravna dokumentacija platforme</h2>
+    <p id="tos-description">Verzija 2026-07-05 &nbsp;·&nbsp; Molimo pročitajte pre nastavka</p>
+  </header>
+  <div class="vx-auth__tabs" id="tos-tabs" role="group" aria-label="Pravni dokumenti">
+    <button type="button" onclick="tosTab('tos')" id="tos-tab-tos" aria-controls="tos-pane-tos" aria-pressed="true">Uslovi</button>
+    <button type="button" onclick="tosTab('privacy')" id="tos-tab-privacy" aria-controls="tos-pane-privacy" aria-pressed="false">Privatnost</button>
+    <button type="button" onclick="tosTab('ai')" id="tos-tab-ai" aria-controls="tos-pane-ai" aria-pressed="false">AI obrada</button>
+  </div>
+  <div class="vx-auth__consent-copy">
+    <!-- TAB: Uslovi korišćenja -->
+    <div id="tos-pane-tos">
+      <h3>1. Ugovorne strane i predmet</h3>
+      <p>Vindex AI platforma (u daljem tekstu: "Platforma") je softverski servis koji pruža Benjamin Nađ, osnivač Vindex AI (u daljem tekstu: "Pružalac usluge"). Korišćenjem Platforme, korisnik (advokat, pravnik ili pravno lice, u daljem tekstu: "Korisnik") prihvata ove Uslove kao pravno obavezujući ugovor.</p>
 
-    <!-- Header -->
-    <div style="padding:1.3rem 1.6rem 0.9rem;border-bottom:1px solid rgba(255,255,255,0.07);">
-      <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.2rem;">Pravna dokumentacija platforme</div>
-      <div style="font-size:.7rem;color:var(--tx-3);">Verzija 2026-07-05 &nbsp;·&nbsp; Molimo pročitajte pre nastavka</div>
-      <!-- Tabs -->
-      <div style="display:flex;gap:.3rem;margin-top:.8rem;" id="tos-tabs">
-        <button onclick="tosTab('tos')" id="tos-tab-tos" style="padding:.3rem .8rem;font-size:.72rem;font-weight:700;border-radius:2px;border:1px solid rgba(99,102,241,.6);background:rgba(99,102,241,.2);color:rgba(210,205,255,.95);cursor:pointer;">Uslovi</button>
-        <button onclick="tosTab('privacy')" id="tos-tab-privacy" style="padding:.3rem .8rem;font-size:.72rem;font-weight:600;border-radius:2px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--tx-3);cursor:pointer;">Privatnost</button>
-        <button onclick="tosTab('ai')" id="tos-tab-ai" style="padding:.3rem .8rem;font-size:.72rem;font-weight:600;border-radius:2px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--tx-3);cursor:pointer;">AI Obrada</button>
-      </div>
+      <h3>2. Opis usluge</h3>
+      <p>Platforma pruža alate za upravljanje predmetima, AI analizu pravnih dokumenata, semantičku pretragu sudske prakse i generisanje pravnih dokumenata. Usluga se pruža putem pretplatnog modela definisanog cenovnikom Pružaoca usluge.</p>
+
+      <h3>3. Ograničenje odgovornosti za AI</h3>
+      <p class="vx-auth__legal-warning">AI analize i odgovori koje generiše Platforma predstavljaju <strong>pomoćni alat pri radu</strong> i ne predstavljaju pravni savet u smislu Zakona o advokaturi. Korisnik je <strong>isključivo odgovoran</strong> za proveru tačnosti rezultata pre profesionalne upotrebe. Pružalac usluge ne odgovara za štetu nastalu oslanjanjem na AI output bez stručne provere.</p>
+
+      <h3>4. Obaveze korisnika</h3>
+      <ul>
+        <li>Ne koristiti Platformu za nezakonite svrhe</li>
+        <li>Čuvati pristupne podatke i ne deliti nalog sa trećim licima</li>
+        <li>Obavestiti klijente da platforma koristi AI obradu podataka</li>
+        <li>Pre unosa osetljivih podataka, proceniti primerenost u skladu sa advokatskom etikom</li>
+      </ul>
+
+      <h3>5. Intelektualna svojina</h3>
+      <p>Korisnik zadržava sva prava na sadržaj koji unosi u Platformu. Pružalac usluge ne stiče nikakva prava na predmete, dokumente ili podatke korisnika.</p>
+
+      <h3>6. Pravo i nadležnost</h3>
+      <p>Na ovaj ugovor primenjuje se pravo Republike Srbije. Za sporove je nadležan Privredni sud u Beogradu.</p>
+
+      <div class="vx-auth__legal-links"><a href="/terms" target="_blank">Puni tekst Uslova korišćenja →</a></div>
     </div>
 
-    <!-- Scrollable body -->
-    <div style="overflow-y:auto;padding:1rem 1.6rem;font-size:.77rem;color:var(--tx-2);line-height:1.68;flex:1;">
+    <!-- TAB: Politika privatnosti -->
+    <div id="tos-pane-privacy" hidden>
+      <h3>1. Rukovalac podacima</h3>
+      <p>Rukovalac podacima o ličnosti je Benjamin Nađ, osnivač Vindex AI. Kontakt za zaštitu podataka: <span>benny13.n@gmail.com</span></p>
 
-      <!-- TAB: Uslovi korišćenja -->
-      <div id="tos-pane-tos">
-        <div style="color:var(--tx-2);font-weight:700;margin-bottom:.5rem;font-size:.8rem;">1. Ugovorne strane i predmet</div>
-        <p>Vindex AI platforma (u daljem tekstu: "Platforma") je softverski servis koji pruža Benjamin Nađ, osnivač Vindex AI (u daljem tekstu: "Pružalac usluge"). Korišćenjem Platforme, korisnik (advokat, pravnik ili pravno lice, u daljem tekstu: "Korisnik") prihvata ove Uslove kao pravno obavezujući ugovor.</p>
+      <h3>2. Pravni osnov obrade (ZZPL / GDPR čl. 6)</h3>
+      <ul>
+        <li><strong>Izvršenje ugovora (čl. 6 st. 1 tač. b GDPR):</strong> Obrada neophodna za pružanje ugovorenih usluga</li>
+        <li><strong>Saglasnost (čl. 6 st. 1 tač. a GDPR):</strong> AI obrada dokumenata preko spoljnog servisa; konkretan dobavljač zavisi od funkcije i aktivne konfiguracije, koja ovim pregledom nije potvrđena. Pravnu osnovu proverite u <a href="/privacy" target="_blank">Politici privatnosti</a>.</li>
+        <li><strong>Zakonska obaveza (čl. 6 st. 1 tač. c GDPR):</strong> Čuvanje poreskih i računovodstvenih zapisa</li>
+      </ul>
 
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Opis usluge</div>
-        <p>Platforma pruža alate za upravljanje predmetima, AI analizu pravnih dokumenata, semantičku pretragu sudske prakse i generisanje pravnih dokumenata. Usluga se pruža putem pretplatnog modela definisanog cenovnikom Pružaoca usluge.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Ograničenje odgovornosti za AI</div>
-        <p style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.22);border-radius:2px;padding:.7rem .9rem;color:rgba(255,245,200,.85);">AI analize i odgovori koje generiše Platforma predstavljaju <strong>pomoćni alat pri radu</strong> i ne predstavljaju pravni savet u smislu Zakona o advokaturi. Korisnik je <strong>isključivo odgovoran</strong> za proveru tačnosti rezultata pre profesionalne upotrebe. Pružalac usluge ne odgovara za štetu nastalu oslanjanjem na AI output bez stručne provere.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Obaveze korisnika</div>
-        <ul style="padding-left:1.2rem;margin:.3rem 0;">
-          <li>Ne koristiti Platformu za nezakonite svrhe</li>
-          <li>Čuvati pristupne podatke i ne deliti nalog sa trećim licima</li>
-          <li>Obavestiti klijente da platforma koristi AI obradu podataka</li>
-          <li>Pre unosa osetljivih podataka, proceniti primerenost u skladu sa advokatskom etikom</li>
-        </ul>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Intelektualna svojina</div>
-        <p>Korisnik zadržava sva prava na sadržaj koji unosi u Platformu. Pružalac usluge ne stiče nikakva prava na predmete, dokumente ili podatke korisnika.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">6. Pravo i nadležnost</div>
-        <p>Na ovaj ugovor primenjuje se pravo Republike Srbije. Za sporove je nadležan Privredni sud u Beogradu.</p>
-
-        <div style="margin-top:.8rem;text-align:right;"><a href="/terms" target="_blank" style="font-size:.72rem;color:rgba(137,200,255,.7);text-decoration:underline;">Puni tekst Uslova korišćenja →</a></div>
-      </div>
-
-      <!-- TAB: Politika privatnosti -->
-      <div id="tos-pane-privacy" style="display:none;">
-        <div style="color:var(--tx-2);font-weight:700;margin-bottom:.5rem;font-size:.8rem;">1. Rukovalac podacima</div>
-        <p>Rukovalac podacima o ličnosti je Benjamin Nađ, osnivač Vindex AI. Kontakt za zaštitu podataka: <span style="color:var(--tx-2);">benny13.n@gmail.com</span></p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Pravni osnov obrade (ZZPL / GDPR čl. 6)</div>
-        <ul style="padding-left:1.2rem;margin:.3rem 0;">
-          <li><strong style="color:var(--tx-1);">Izvršenje ugovora (čl. 6 st. 1 tač. b GDPR):</strong> Obrada neophodna za pružanje ugovorenih usluga</li>
-          <li><strong style="color:var(--tx-1);">Saglasnost (čl. 6 st. 1 tač. a GDPR):</strong> AI obrada dokumenata preko spoljnog servisa; konkretan dobavljač zavisi od funkcije i aktivne konfiguracije, koja ovim pregledom nije potvrđena. Pravnu osnovu proverite u <a href="/privacy" target="_blank">Politici privatnosti</a>.</li>
-          <li><strong style="color:var(--tx-1);">Zakonska obaveza (čl. 6 st. 1 tač. c GDPR):</strong> Čuvanje poreskih i računovodstvenih zapisa</li>
-        </ul>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Gde i koliko dugo se podaci čuvaju</div>
-        <div style="display:grid;gap:.5rem;margin:.3rem 0;">
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(0,212,255,0.10);border-radius:2px;padding:.65rem .85rem;">
-            <div style="font-weight:700;color:var(--tx-2);margin-bottom:.2rem;font-size:.76rem;">Supabase — povezani projekat eu-west-1 (Irska)</div>
-            <div>Predmeti, klijenti, dokumenti, korisničke postavke</div>
-            <div style="color:var(--tx-3);margin-top:.2rem;">Nije potvrđeno da produkcioni API koristi ovaj projekat; rokovi zavise od vrste zapisa i funkcije.</div>
-          </div>
-          <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.15);border-radius:2px;padding:.65rem .85rem;">
-            <div style="font-weight:700;color:#fbbf24;margin-bottom:.2rem;font-size:.76rem;">OpenAI API / Azure OpenAI</div>
-            <div>Tekst pitanja ili dokumenata može se slati zavisno od funkcije; otpremanje može pokrenuti obradu bez dodatnog klika.</div>
-            <div style="color:var(--tx-3);margin-top:.2rem;">OpenAI API i Azure OpenAI imaju odvojena pravila. Aktivna produkciona putanja, region, podešavanja naloga i SCC nisu potvrđeni.</div>
-          </div>
-          <div style="background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.15);border-radius:2px;padding:.65rem .85rem;">
-            <div style="font-weight:700;color:#c4b5fd;margin-bottom:.2rem;font-size:.76rem;">Pinecone — semantička pretraga</div>
-            <div>Vektorski zapisi i tekstualni segmenti dokumenata mogu se koristiti za semantičku pretragu.</div>
-            <div style="color:var(--tx-3);margin-top:.2rem;">Region aktivnog indeksa i rok čuvanja nisu potvrđeni.</div>
-          </div>
+      <h3>3. Gde i koliko dugo se podaci čuvaju</h3>
+      <div class="vx-auth__legal-list">
+        <div>
+          <h4>Supabase — povezani projekat eu-west-1 (Irska)</h4>
+          <div>Predmeti, klijenti, dokumenti, korisničke postavke</div>
+          <div>Nije potvrđeno da produkcioni API koristi ovaj projekat; rokovi zavise od vrste zapisa i funkcije.</div>
         </div>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Bezbednost podataka</div>
-        <ul style="padding-left:1.2rem;margin:.3rem 0;">
-          <li>Način šifrovanja i kontrole zavise od vrste podatka, funkcije i povezanog servisa; produkciona konfiguracija nije potvrđena ovim pregledom.</li>
-          <li>Ne tvrdimo da se svi pristupi i operacije beleže u jedinstven audit zapis.</li>
-          <li>Plan i raspoloživost rezervnih kopija za povezani produkcioni projekat nisu potvrđeni.</li>
-          <li>Detalje o obradi i pružaocima pogledajte u <a href="/security" target="_blank">bezbednosnom pregledu</a> i <a href="/privacy" target="_blank">Politici privatnosti</a>.</li>
-        </ul>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Pristup podacima i profesionalna tajna</div>
-        <p>Sadržaj predmeta može se obrađivati u Vindexu i povezanim servisima radi rada funkcija, uključujući automatske korake posle otpremanja. Ovaj pregled nije nezavisno potvrdio sve operativne pristupe i evidencije; važeći opis obrade nalazi se u <a href="/privacy" target="_blank">Politici privatnosti</a> i <a href="/dpa" target="_blank">DPA</a>.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">6. Vaša prava</div>
-        <p>U skladu sa ZZPL i GDPR imate pravo na: uvid, ispravku, brisanje, prenosivost i prigovor na obradu. Zahteve šaljite na <span style="color:var(--tx-2);">benny13.n@gmail.com</span>. Rok za odgovor: 30 dana.</p>
-
-        <div style="margin-top:.8rem;text-align:right;"><a href="/privacy" target="_blank" style="font-size:.72rem;color:rgba(137,200,255,.7);text-decoration:underline;">Puna Politika privatnosti →</a></div>
-      </div>
-
-      <!-- TAB: AI Obrada -->
-      <div id="tos-pane-ai" style="display:none;">
-        <div style="color:var(--tx-2);font-weight:700;margin-bottom:.5rem;font-size:.8rem;">1. Koji AI sistem se koristi</div>
-        <p>Kod sadrži više modela i putanja: GPT-4o, GPT-4o-mini i text-embedding-3-large; deo tekstualnih poziva može se usmeriti ka Azure OpenAI, a Cohere reranker je uslovan. Aktivna produkciona putanja i model nisu potvrđeni ovim pregledom.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">2. Kako se podaci obrađuju</div>
-        <p>Kod podržava OpenAI API i usmeravanje dela tekstualnih poziva ka Azure OpenAI; te usluge imaju odvojena pravila. Otpremanje može automatski pokrenuti čitanje, vektorizaciju, klasifikaciju ili izdvajanje pre dodatnog klika. Aktivna produkciona konfiguracija i podešavanja naloga nisu potvrđeni.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">3. Šta se šalje AI modelu</div>
-        <ul style="padding-left:1.2rem;margin:.3rem 0;">
-          <li>Zavisno od funkcije, mogu se slati pitanje, izdvojeni tekst dokumenta, tekstualni isečci predmeta i kontekst iz pretrage.</li>
-          <li>U više tokova otpremanje samo po sebi pokreće obradu, bez dodatnog klika na „Analiza“.</li>
-          <li>Ne pretpostavljajte da su imena, JMBG ili drugi lični podaci automatski uklonjeni iz teksta koji se obrađuje.</li>
-        </ul>
-        <p style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,212,255,0.10);border-radius:2px;padding:.6rem .8rem;margin:.5rem 0;color:rgba(200,235,255,.8);">Preporučujemo korišćenje inicijala ili pseudonima umesto punih imena stranaka u opisima predmeta koji se šalju AI-u.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">4. Ograničenje AI odgovornosti</div>
-        <p style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.22);border-radius:2px;padding:.7rem .9rem;color:rgba(255,245,200,.85);">AI analiza je <strong>pomoćni alat</strong>, ne zamena za stručnu pravnu procenu. Platforma može pogrešiti. Svaki AI output mora biti proveren od strane stručnog lica pre profesionalne primene. Pružalac usluge nije odgovoran za štetu nastalu oslanjanjem na neproveren AI output.</p>
-
-        <div style="color:var(--tx-2);font-weight:700;margin:1rem 0 .4rem;font-size:.8rem;">5. Servisi pomenuti u kodu (aktivni status nije potvrđen)</div>
-        <div style="display:grid;gap:.4rem;margin:.3rem 0;font-size:.74rem;">
-          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">OpenAI API / Azure OpenAI</span><span style="color:var(--tx-3);">Odvojene usluge; aktivna putanja, region i SCC nisu potvrđeni</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">Supabase</span><span style="color:var(--tx-3);">Povezani projekat eu-west-1 (Irska); produkciona veza nije potvrđena</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">Pinecone</span><span style="color:var(--tx-3);">Vektori i tekstualni segmenti; aktivni region i SCC nisu potvrđeni</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;background:rgba(255,255,255,.03);border-radius:2px;">
-            <span style="color:var(--tx-2);">Render</span><span style="color:var(--tx-3);">Aplikacioni hosting; aktivni uslovi prenosa i nalog nisu potvrđeni</span>
-          </div>
+        <div>
+          <h4>OpenAI API / Azure OpenAI</h4>
+          <div>Tekst pitanja ili dokumenata može se slati zavisno od funkcije; otpremanje može pokrenuti obradu bez dodatnog klika.</div>
+          <div>OpenAI API i Azure OpenAI imaju odvojena pravila. Aktivna produkciona putanja, region, podešavanja naloga i SCC nisu potvrđeni.</div>
         </div>
-
-        <div style="margin-top:.8rem;text-align:right;"><a href="/ai-disclosure" target="_blank" style="font-size:.72rem;color:rgba(137,200,255,.7);text-decoration:underline;">Puni AI Disclosure dokument →</a>&nbsp;&nbsp;<a href="/dpa" target="_blank" style="font-size:.72rem;color:rgba(167,139,250,0.78);text-decoration:underline;">DPA za poslovne korisnike →</a></div>
+        <div>
+          <h4>Pinecone — semantička pretraga</h4>
+          <div>Vektorski zapisi i tekstualni segmenti dokumenata mogu se koristiti za semantičku pretragu.</div>
+          <div>Region aktivnog indeksa i rok čuvanja nisu potvrđeni.</div>
+        </div>
       </div>
 
+      <h3>4. Bezbednost podataka</h3>
+      <ul>
+        <li>Način šifrovanja i kontrole zavise od vrste podatka, funkcije i povezanog servisa; produkciona konfiguracija nije potvrđena ovim pregledom.</li>
+        <li>Ne tvrdimo da se svi pristupi i operacije beleže u jedinstven audit zapis.</li>
+        <li>Plan i raspoloživost rezervnih kopija za povezani produkcioni projekat nisu potvrđeni.</li>
+        <li>Detalje o obradi i pružaocima pogledajte u <a href="/security" target="_blank">bezbednosnom pregledu</a> i <a href="/privacy" target="_blank">Politici privatnosti</a>.</li>
+      </ul>
+
+      <h3>5. Pristup podacima i profesionalna tajna</h3>
+      <p>Sadržaj predmeta može se obrađivati u Vindexu i povezanim servisima radi rada funkcija, uključujući automatske korake posle otpremanja. Ovaj pregled nije nezavisno potvrdio sve operativne pristupe i evidencije; važeći opis obrade nalazi se u <a href="/privacy" target="_blank">Politici privatnosti</a> i <a href="/dpa" target="_blank">DPA</a>.</p>
+
+      <h3>6. Vaša prava</h3>
+      <p>U skladu sa ZZPL i GDPR imate pravo na: uvid, ispravku, brisanje, prenosivost i prigovor na obradu. Zahteve šaljite na <span>benny13.n@gmail.com</span>. Rok za odgovor: 30 dana.</p>
+
+      <div class="vx-auth__legal-links"><a href="/privacy" target="_blank">Puna Politika privatnosti →</a></div>
     </div>
 
-    <!-- Footer: checkbox + dugmad -->
-    <div style="padding:.85rem 1.6rem;border-top:1px solid rgba(255,255,255,0.07);">
-      <label style="display:flex;align-items:flex-start;gap:.7rem;cursor:pointer;margin-bottom:.75rem;">
-        <input type="checkbox" id="tos-confirm-chk" onchange="tosChkChange()" style="margin-top:.1rem;flex-shrink:0;accent-color:#3A66D7;width:15px;height:15px;cursor:pointer;">
-        <span style="font-size:.72rem;color:var(--tx-3);line-height:1.55;">Potvrđujem da sam pročitao/la <a href="/terms" target="_blank" style="color:var(--tx-2);text-decoration:none;">Uslove korišćenja</a> i <a href="/privacy" target="_blank" style="color:var(--tx-2);text-decoration:none;">Politiku privatnosti</a>, i da sam saglasan/na sa obradom podataka putem AI servisa u obimu neophodnom za izvršavanje funkcionalnosti platforme.</span>
-      </label>
-      <div style="display:flex;gap:.6rem;justify-content:flex-end;">
-        <button onclick="tosDecline()" style="padding:.45rem 1rem;font-size:.78rem;border:1px solid rgba(255,255,255,.12);border-radius:2px;background:transparent;color:var(--tx-3);cursor:pointer;">Odjavi se</button>
-        <div id="tos-greska" style="display:none;width:100%;margin-bottom:.5rem;color:#ff9090;font-size:.78rem;"></div>
-        <button id="tos-accept-btn" onclick="tosAccept()" disabled style="padding:.45rem 1.4rem;font-size:.78rem;border:none;border-radius:2px;background:rgba(0,212,255,.20);color:var(--tx-3);cursor:not-allowed;font-weight:600;transition:all .2s;">Prihvatam ✓</button>
+    <!-- TAB: AI Obrada -->
+    <div id="tos-pane-ai" hidden>
+      <h3>1. Koji AI sistem se koristi</h3>
+      <p>Kod sadrži više modela i putanja: GPT-4o, GPT-4o-mini i text-embedding-3-large; deo tekstualnih poziva može se usmeriti ka Azure OpenAI, a Cohere reranker je uslovan. Aktivna produkciona putanja i model nisu potvrđeni ovim pregledom.</p>
+
+      <h3>2. Kako se podaci obrađuju</h3>
+      <p>Kod podržava OpenAI API i usmeravanje dela tekstualnih poziva ka Azure OpenAI; te usluge imaju odvojena pravila. Otpremanje može automatski pokrenuti čitanje, vektorizaciju, klasifikaciju ili izdvajanje pre dodatnog klika. Aktivna produkciona konfiguracija i podešavanja naloga nisu potvrđeni.</p>
+
+      <h3>3. Šta se šalje AI modelu</h3>
+      <ul>
+        <li>Zavisno od funkcije, mogu se slati pitanje, izdvojeni tekst dokumenta, tekstualni isečci predmeta i kontekst iz pretrage.</li>
+        <li>U više tokova otpremanje samo po sebi pokreće obradu, bez dodatnog klika na „Analiza“.</li>
+        <li>Ne pretpostavljajte da su imena, JMBG ili drugi lični podaci automatski uklonjeni iz teksta koji se obrađuje.</li>
+      </ul>
+      <p>Preporučujemo korišćenje inicijala ili pseudonima umesto punih imena stranaka u opisima predmeta koji se šalju AI-u.</p>
+
+      <h3>4. Ograničenje AI odgovornosti</h3>
+      <p class="vx-auth__legal-warning">AI analiza je <strong>pomoćni alat</strong>, ne zamena za stručnu pravnu procenu. Platforma može pogrešiti. Svaki AI output mora biti proveren od strane stručnog lica pre profesionalne primene. Pružalac usluge nije odgovoran za štetu nastalu oslanjanjem na neproveren AI output.</p>
+
+      <h3>5. Servisi pomenuti u kodu (aktivni status nije potvrđen)</h3>
+      <div class="vx-auth__legal-list">
+        <div>
+          <span>OpenAI API / Azure OpenAI</span><span>Odvojene usluge; aktivna putanja, region i SCC nisu potvrđeni</span>
+        </div>
+        <div>
+          <span>Supabase</span><span>Povezani projekat eu-west-1 (Irska); produkciona veza nije potvrđena</span>
+        </div>
+        <div>
+          <span>Pinecone</span><span>Vektori i tekstualni segmenti; aktivni region i SCC nisu potvrđeni</span>
+        </div>
+        <div>
+          <span>Render</span><span>Aplikacioni hosting; aktivni uslovi prenosa i nalog nisu potvrđeni</span>
+        </div>
       </div>
+
+      <div class="vx-auth__legal-links"><a href="/ai-disclosure" target="_blank">Puni AI Disclosure dokument →</a>&nbsp;&nbsp;<a href="/dpa" target="_blank">DPA za poslovne korisnike →</a></div>
     </div>
   </div>
-</div>
+  <footer class="vx-auth__consent-footer">
+    <div class="vx-auth__consent-check">
+      <input type="checkbox" id="tos-confirm-chk" onchange="tosChkChange()">
+      <label for="tos-confirm-chk">Potvrđujem da sam pročitao/la <a href="/terms" target="_blank">Uslove korišćenja</a> i <a href="/privacy" target="_blank">Politiku privatnosti</a>, i da sam saglasan/na sa obradom podataka putem AI servisa u obimu neophodnom za izvršavanje funkcionalnosti platforme.</label>
+    </div>
+    <div class="vx-auth__consent-actions">
+      <button type="button" class="vx-auth__secondary" onclick="tosDecline()">Odjavi se</button>
+      <button type="button" class="vx-auth__primary" id="tos-accept-btn" onclick="tosAccept()" disabled>Prihvatam</button>
+    </div>
+    <p class="vx-auth__notice" id="tos-greska" role="status" aria-atomic="true" data-stanje="greska"></p>
+  </footer>
+</dialog>
 
 <!-- ═══════════════════════════════════════════════════════════════
      DATA RESIDENCY MODAL — dostupan iz podešavanja

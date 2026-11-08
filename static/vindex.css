@@ -541,27 +541,6 @@ footer { padding: 2rem 1.5rem; }
   }
 }
 
-/* ── AUTH MODAL ─────────────────────────────────────────────────────────── */
-.auth-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.04); border-radius: 2px; padding: 3px; margin-bottom: 1.4rem; border: 1px solid rgba(255,255,255,0.06); }
-.auth-tab { flex: 1; padding: 0.5rem; text-align: center; font-size: 0.78rem; font-weight: 500; color: var(--tx-3); background: none; border: 1px solid transparent; border-radius: 2px; cursor: pointer; transition: all 0.25s; }
-.auth-tab.active { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.88); border-color: rgba(255,255,255,0.14); }
-.auth-tab:hover { color: rgba(255,255,255,0.7); }
-.auth-error { min-height: 1.4rem; font-size: 0.78rem; color: #ff6b6b; text-align: center; margin-top: 0.5rem; line-height: 1.5; }
-.auth-credit-note { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.18); border-radius: 2px; padding: 0.6rem 0.9rem; font-size: 0.75rem; color: rgba(74,222,128,0.85); text-align: center; margin-bottom: 1rem; }
-.auth-trust { font-size: 0.75rem; color: var(--tx-3); text-align: center; line-height: 1.6; margin-top: 0.6rem; }
-/* ── Password eye toggle ─────────────────────────────────────────────────── */
-.pw-wrap { position: relative; }
-.pw-wrap .modal-input { padding-right: 2.8rem; width: 100%; box-sizing: border-box; }
-.pw-eye { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--tx-3); padding: 0; display: flex; align-items: center; transition: color 0.18s; }
-.pw-eye:hover { color: rgba(255,255,255,0.65); }
-.pw-eye svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-/* ── Forgot password link ─────────────────────────────────────────────────── */
-.auth-forgot { text-align: right; margin-top: -0.25rem; }
-.auth-forgot a { font-size: 0.75rem; color: rgba(255,255,255,0.50); text-decoration: none; cursor: pointer; transition: color 0.18s; }
-.auth-forgot a:hover { color: rgba(255,255,255,0.72); }
-.auth-back-link { font-size: 0.75rem; color: var(--tx-3); cursor: pointer; text-decoration: none; text-align: center; }
-.auth-back-link:hover { color: rgba(255,255,255,0.65); }
-.auth-form-hint { font-size: 0.78rem; color: var(--tx-3); line-height: 1.65; margin: 0; }
 /* ── Toast notifikacije ──────────────────────────────────────────────────── */
 .toast-container { position: fixed; bottom: 1.8rem; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
 .toast { background: rgba(14,14,26,0.96); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; padding: 0.6rem 1.3rem; font-size: 0.78rem; color: rgba(255,255,255,0.8); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em; backdrop-filter: none; animation: toast-in 0.22s ease; max-width: 380px; text-align: center; white-space: nowrap; }
@@ -3839,81 +3818,6 @@ select.pro-input option { background: var(--surface); }
      pokazala da test prolazi i bez njega, dakle nije radilo ništa. */
 }
 
-/* Auth tabs */
-.auth-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 18px;
-  background: var(--s1);
-  border: 1px solid var(--bd-1);
-  border-radius: var(--r-sm);
-  padding: 3px;
-}
-.auth-tab {
-  flex: 1;
-  height: 30px;
-  background: transparent;
-  border: none;
-  border-radius: calc(var(--r-sm) - 2px);
-  color: var(--tx-3);
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background var(--t-fast), color var(--t-fast);
-}
-.auth-tab.active { background: #00d4ff; color: #010308; font-weight: 700; }
-
-.auth-error {
-  font-size: 0.75rem;
-  color: #f56565;
-  text-align: center;
-  margin-top: 8px;
-  min-height: 1em;
-}
-.auth-forgot {
-  text-align: right;
-  font-size: 0.75rem;
-}
-.auth-forgot a { color: #00d4ff; cursor: pointer; text-decoration: none; opacity: 0.7; }
-.auth-forgot a:hover { opacity: 1; }
-.auth-back-link { color: var(--tx-3); cursor: pointer; font-size: 0.7rem; text-decoration: none; }
-.auth-back-link:hover { color: #00d4ff; }
-.auth-form-hint { font-size: 0.75rem; color: var(--tx-3); line-height: 1.6; }
-.auth-credit-note {
-  font-size: 0.7rem;
-  color: var(--emerald);
-  font-family: var(--font-mono);
-}
-.auth-trust {
-  font-size: 0.75rem;
-  color: var(--tx-4);
-  text-align: center;
-  line-height: 1.5;
-  margin-top: 6px;
-}
-
-.pw-wrap { position: relative; }
-.pw-eye {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--tx-3);
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color var(--t-fast);
-}
-.pw-eye:hover { color: var(--tx-1); }
-.pw-eye svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
-
 /* paywall modal */
 .paywall-icon {
   font-size: 2.2rem;
@@ -6517,7 +6421,7 @@ body.light-theme {
    koji nose `color: var(--tx-N)`, pa im njihov nivo prolazi i u svetloj temi.
    Za sve ostalo (hardkodovane bele boje koje jos nisu migrirane) pokrivac
    radi kao i do sada. Jedna izmena selektora umesto 640 izmena u markupu. */
-body.light-theme *:not([style*="--tx-"]) { color: rgba(10,18,32,0.88) !important; }
+body.light-theme *:not([style*="--tx-"], :where(.vx-auth, .vx-auth *)) { color: rgba(10,18,32,0.88) !important; }
 /* Primarna dugmad — zadržava beli tekst na plavom gradijentu */
 body.light-theme .crm-save-btn,
 body.light-theme .intake-next-btn,
@@ -6614,7 +6518,6 @@ body.light-theme .interni-input { background: rgba(0,0,0,0.02) !important; borde
 body.light-theme .interni-search-btn { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.55) !important; }
 body.light-theme .interni-rezultat-red { background: rgba(0,0,0,0.02) !important; border-color: rgba(0,0,0,0.08) !important; }
 body.light-theme .kom-input { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.88) !important; }
-body.light-theme .auth-tabs { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.07) !important; }
 body.light-theme .cyr-toggle-wrap { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.14) !important; }
 body.light-theme .manual-compare-inputs input { background: rgba(0,0,0,0.03) !important; border-color: rgba(0,0,0,0.10) !important; color: rgba(0,0,0,0.80) !important; }
 /* Billing */
@@ -6969,15 +6872,15 @@ body.light-theme .kc-kpi-n { color: rgba(10,18,32,0.88) !important; }
 body.light-theme .kc-kpi-n.warn { color: #ef4444 !important; }
 
 /* ── Svetla tema: headings (h1/h2/h3) ───────────────────────── */
-body.light-theme h1, body.light-theme h2, body.light-theme h3 { color: rgba(10,18,32,0.92) !important; }
+body.light-theme :is(h1, h2, h3):not(:where(.vx-auth *)) { color: rgba(10,18,32,0.92) !important; }
 
 /* ── Svetla tema: Select / Input elementi ────────────────────── */
 body.light-theme select,
 body.light-theme select option { background: #ffffff !important; border-color: rgba(10,18,32,0.14) !important; }
 body.light-theme select { border: 1px solid rgba(10,18,32,0.14) !important; }
-body.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(:where(.vx-auth *)),
 body.light-theme textarea { background: #ffffff !important; border-color: rgba(10,18,32,0.14) !important; }
-body.light-theme input::placeholder, body.light-theme textarea::placeholder { color: rgba(10,18,32,0.35) !important; }
+body.light-theme input:not(:where(.vx-auth *))::placeholder, body.light-theme textarea::placeholder { color: rgba(10,18,32,0.35) !important; }
 
 /* ── Svetla tema: CRM slide-in panel ────────────────────────── */
 body.light-theme .crm-panel { background: #ffffff !important; border-left-color: rgba(10,18,32,0.10) !important; }
@@ -9963,7 +9866,7 @@ body.light-theme .vx-btn-ghost            { color: var(--tx-4) !important; }  /*
    Merenje je naslo 1 od 25 tab-meta bez ijedne vizuelne promene pri fokusu.
    Ovo je sigurnosna mreza, ne globalno prebojavanje: dira ISKLJUCIVO
    `:focus-visible`, dakle samo kretanje tastaturom. */
-input:focus-visible,
+input:focus-visible:not(:where(.vx-auth *)),
 select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--blue) !important;
@@ -9980,9 +9883,11 @@ body.light-theme #delete-account-btn { color: #991b1b !important; }
 /* ── Website V2: pre-auth ulaz (#vx-landing.vxp) ───────────────────────────
    Isti vizuelni identitet kao V2 radni prostor i javni sajt (frontend-v2-ng/src/tokens.css,
    tamna tema). Sve je pod .vxp, da ništa ne curi u legacy aplikaciju. */
-.vx-landing.vxp {
+:is(.vx-landing.vxp, .vx-auth) {
   --vxp-bg: #0d0e10; --vxp-sheet: #131417; --vxp-line: #24272c; --vxp-line-strong: #33373e;
   --vxp-t1: #e8e6e1; --vxp-t2: #a9acb2; --vxp-t3: #8a8e95; --vxp-accent: #98b8e8;
+}
+.vx-landing.vxp {
   width: 100%; min-height: 100dvh; background: var(--vxp-bg); color: var(--vxp-t1);
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; font-size: 1rem; line-height: 1.6;
 }
@@ -10011,7 +9916,7 @@ body.light-theme #delete-account-btn { color: #991b1b !important; }
 .vxp a:focus-visible, .vxp button:focus-visible { outline: 2px solid var(--vxp-accent); outline-offset: 3px; border-radius: 3px; }
 /* Svetla tema legacy aplikacije (body.light-theme) boji sav tekst u tamno sa !important
    (pravilo `body.light-theme *`). Ulaz zato prelazi na V2 svetle tokene i svetli kanonski logo. */
-body.light-theme .vx-landing.vxp {
+body.light-theme :is(.vx-landing.vxp, .vx-auth) {
   --vxp-bg: #fbfaf8; --vxp-sheet: #f4f3ef; --vxp-line: #dedbd4; --vxp-line-strong: #c9c5bc;
   --vxp-t1: #1b1c1f; --vxp-t2: #4c5058; --vxp-t3: #62666d; --vxp-accent: #2c5a9c;
 }
@@ -10035,3 +9940,179 @@ body:has(#vx-landing.vxp:not([style*="none"])) #toast-container:empty { display:
 .vx-logo-img--svetla { display: none; }
 body.light-theme .vx-logo-img--tamna { display: none; }
 body.light-theme .vx-logo-img--svetla { display: block; }
+
+
+/* Kanonska prijava. Polja, navigacija i obaveštenja slede V2 NG app.css;
+   boje i kanonski logo dele se sa pre-auth ulazom iznad. */
+.vx-auth {
+  --auth-input: #0f1012;
+  --auth-hover: #1b1d21;
+  --auth-selected: #1e2229;
+  --auth-ok: #8fb59a;
+  --auth-warning: #d0a35f;
+  --auth-edge: clamp(12px, 3vw, 32px);
+  --auth-top: max(var(--auth-edge), env(safe-area-inset-top));
+  --auth-right: max(var(--auth-edge), env(safe-area-inset-right));
+  --auth-bottom: max(var(--auth-edge), env(safe-area-inset-bottom));
+  --auth-left: max(var(--auth-edge), env(safe-area-inset-left));
+  --auth-pad: clamp(16px, 5vw, 32px);
+
+  position: fixed;
+  inset: var(--auth-top) var(--auth-right) var(--auth-bottom) var(--auth-left);
+  margin: auto;
+  width: min(440px, calc(100% - var(--auth-left) - var(--auth-right)));
+  max-width: none;
+  max-height: calc(100dvh - var(--auth-top) - var(--auth-bottom));
+  padding: var(--auth-pad);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 12px;
+  overflow-wrap: anywhere;
+  background: var(--vxp-sheet);
+  color: var(--vxp-t1);
+  border: 1px solid var(--vxp-line-strong);
+  border-radius: 4px;
+  color-scheme: dark;
+  font: 400 0.90625rem/1.5 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+.vx-auth::backdrop { background: rgba(0, 0, 0, 0.60); }
+html:has(.vx-auth[open]) { overflow: hidden; }
+body.light-theme .vx-auth {
+  --auth-input: #fff;
+  --auth-hover: #f1f0ec;
+  --auth-selected: #e8edf5;
+  --auth-ok: #3d6e4b;
+  --auth-warning: #8a5a14;
+  color-scheme: light;
+}
+body.light-theme .vx-auth::backdrop { background: rgba(20, 22, 26, 0.32); }
+.vx-auth [hidden] { display: none; }
+.vx-auth p, .vx-auth h2, .vx-auth h3, .vx-auth h4 { margin: 0; }
+.vx-auth a, .vx-auth__link {
+  color: var(--vxp-t1);
+  text-decoration: underline;
+  text-decoration-color: var(--vxp-t3);
+  text-underline-offset: 3px;
+}
+.vx-auth a:hover, .vx-auth__link:hover { text-decoration-color: var(--vxp-accent); }
+.vx-auth :where(button, input) { font: inherit; color: inherit; }
+.vx-auth button { cursor: pointer; }
+.vx-auth button:disabled { opacity: 0.55; cursor: default; }
+.vx-auth :is(a, button, input):focus-visible {
+  outline: 2px solid var(--vxp-accent);
+  outline-offset: 2px;
+}
+
+.vx-auth__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.vx-auth__brand { display: flex; align-items: center; gap: 8px; }
+.vx-auth__brand .vxp-logo { padding: 0; }
+.vx-auth__brand .vxp-logo img { height: 40px; }
+.vx-auth__heading { grid-column: 1 / -1; }
+.vx-auth__heading h2 {
+  font: 500 1.75rem/1.25 "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  letter-spacing: -0.005em;
+}
+.vx-auth__heading p { margin-top: 4px; color: var(--vxp-t2); }
+.vx-auth__meta { color: var(--vxp-t3); font-size: 0.84375rem; }
+
+.vx-auth__tabs { display: flex; flex-wrap: wrap; gap: 0 16px; margin: 16px 0; border-bottom: 1px solid var(--vxp-line); }
+.vx-auth__tabs button {
+  min-height: 40px;
+  padding: 4px 4px 2px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--vxp-t2);
+}
+.vx-auth__tabs button:hover:not(:disabled) { color: var(--vxp-t1); }
+.vx-auth__tabs button[aria-pressed="true"] { border-bottom-color: var(--vxp-accent); color: var(--vxp-t1); font-weight: 500; }
+
+.vx-auth__form { display: grid; gap: 12px; min-width: 0; }
+.vx-auth__tabs[hidden] ~ .vx-auth__form:not([hidden]) { margin-top: 16px; }
+.vx-auth__field { display: grid; gap: 4px; min-width: 0; }
+.vx-auth__field label { color: var(--vxp-t2); font-size: 0.84375rem; }
+.vx-auth__field input {
+  width: 100%;
+  min-height: 44px;
+  min-width: 0;
+  padding: 8px 12px;
+  background: var(--auth-input);
+  border: 1px solid color-mix(in srgb, var(--vxp-t3) 75%, var(--vxp-sheet));
+  border-radius: 4px;
+}
+.vx-auth__field input::placeholder { color: var(--vxp-t3); }
+.vx-auth__field input:hover { border-color: var(--vxp-t3); }
+.vx-auth__field input[aria-invalid="true"] { border-color: var(--auth-warning); }
+.vx-auth__field input:focus-visible { outline-offset: 1px; }
+.vx-auth__password { position: relative; min-width: 0; }
+.vx-auth__password input { padding-inline-end: 52px; }
+.vx-auth__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--vxp-t2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.vx-auth__password .vx-auth__icon { position: absolute; inset: 0 0 0 auto; height: auto; }
+.vx-auth__icon:hover { background: var(--auth-hover); color: var(--vxp-t1); }
+.vx-auth__icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.vx-auth p.vx-auth__help { margin-top: -8px; }
+.vx-auth__form .vx-auth__link {
+  justify-self: start;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.84375rem;
+}
+.vx-auth__primary, .vx-auth__secondary {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--vxp-accent);
+  color: var(--vxp-t1);
+}
+.vx-auth button.vx-auth__primary { font-weight: 500; }
+.vx-auth__secondary { border-color: var(--vxp-line-strong); }
+.vx-auth__primary:hover:not(:disabled), .vx-auth__secondary:hover:not(:disabled) { background: var(--auth-selected); }
+.vx-auth .vx-auth__notice:not(:empty) {
+  margin-top: 12px;
+  padding: 8px 0 8px 12px;
+  border-left: 2px solid var(--auth-warning);
+  color: var(--vxp-t1);
+}
+.vx-auth .vx-auth__notice[data-stanje="uspeh"] { border-left-color: var(--auth-ok); }
+.vx-auth__legal {
+  margin-top: 16px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--vxp-line);
+  color: var(--vxp-t2);
+  font-size: 0.84375rem;
+}
+.vx-auth__legal nav { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 0 16px; padding: 0; }
+.vx-auth__legal nav a { display: inline-flex; align-items: center; min-height: 28px; }
+
+.vx-auth--consent { width: min(560px, calc(100% - var(--auth-left) - var(--auth-right))); }
+.vx-auth__consent-copy { color: var(--vxp-t2); }
+.vx-auth__consent-copy :is(h3, h4) { color: var(--vxp-t1); font: inherit; font-weight: 500; }
+.vx-auth__consent-copy h3 { margin: 16px 0 4px; }
+.vx-auth__consent-copy ul { padding-inline-start: 20px; }
+.vx-auth__consent-copy .vx-auth__legal-warning { padding-inline-start: 12px; border-left: 2px solid var(--auth-warning); }
+.vx-auth__legal-list { display: grid; gap: 8px; }
+.vx-auth__legal-list > div { padding: 8px 12px; background: var(--auth-input); border: 1px solid var(--vxp-line); }
+.vx-auth__legal-list > div > span { display: block; }
+.vx-auth__legal-links { margin-top: 12px; }
+.vx-auth__consent-footer { margin-top: 20px; padding: 16px 0 0; border-top: 1px solid var(--vxp-line); }
+.vx-auth__consent-check { display: flex; align-items: flex-start; gap: 8px; color: var(--vxp-t2); }
+.vx-auth__consent-check input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--vxp-accent); }
+.vx-auth__consent-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
