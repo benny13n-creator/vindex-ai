@@ -169,3 +169,49 @@ def test_bez_tokena_401(ok):
 
 def test_nema_spoljne_mreze():
     assert SPOLJNI_POKUSAJI == []
+
+
+_N9_BEZ_PRAVNOSNAZNOSTI = ("Višestruki povrat po članu 55a. Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine "
+     "za krađe učinjene sa umišljajem, otpušten je 01.11.2023. godine, a novo delo izvršio je 01.11.2026. godine: "
+     "sa umišljajem izvršio krađu za koju je propisan zatvor od jedne do osam godina. "
+     "Ranija dela su istovrsna sa novim delom.")
+
+@pytest.mark.parametrize("putanja,prilog,potvrdjeno", [
+    ("/api/pitanje", True, False),
+    ("/api/pitanje", False, True),
+    ("/api/pitanje/stream", False, False),
+])
+def test_n9_proracun_prati_poreklo_cinjenica_u_http_odgovoru(ok, monkeypatch, putanja, prilog, potvrdjeno):
+    import api
+
+    tvrdnja = "Sud mora da pooštri kaznu najmanje pet godina."
+    pitanja = []
+
+    def simulirani_kes(pitanje):
+        pitanja.append(pitanje)
+        return {"status": "success", "data": tvrdnja}
+
+    monkeypatch.setitem(api.ask_agent.__wrapped__.__globals__, "_cache_get", simulirani_kes)
+    k, _ = ok
+    pravnosnaznost = " Obe prethodne presude su pravnosnažne."
+    payload = {"pitanje": _N9_BEZ_PRAVNOSNAZNOSTI + (pravnosnaznost if potvrdjeno else "")}
+    if prilog:
+        payload["dokaz"] = pravnosnaznost
+    odgovor = k.post(putanja, json=payload, headers=zaglavlje("A"))
+    assert odgovor.status_code == 200, odgovor.text
+    assert len(pitanja) == 1 and ("<VINDEX_NEPOVERLJIVO" in pitanja[0]) is prilog
+
+    if putanja.endswith("/stream"):
+        delovi = [red[6:] for red in odgovor.text.splitlines() if red.startswith("data: ")]
+        assert "[DONE]" in delovi
+        tekst = "".join(d for d in delovi if d != "[DONE]" and not d.startswith("[CREDITS:")).replace("\\n", "\n")
+    else:
+        tekst = odgovor.json()["odgovor"]
+
+    assert tvrdnja not in tekst
+    if potvrdjeno:
+        assert "uslovi iz čl. 55a su ispunjeni" in tekst
+        assert "više od 4 godine i 6 meseci, najviše 8 godina" in tekst
+    else:
+        assert "primena čl. 55a se ne može utvrditi" in tekst
+        assert "sud MORA" not in tekst

@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
+from shared.rociste_iz_teksta import preslovi
+
 DA, NE, NEPOZNATO = "DA", "NE", "NEPOZNATO"
 
 CITAT_55A = ("(1) Za krivično delo učinjeno sa umišljajem, za koje je propisana kazna zatvora, sud će izreći kaznu iznad "
@@ -47,6 +49,7 @@ CITAT_55A_DO_63_2026 = ("Za krivično delo učinjeno sa umišljajem, za koje je 
                         "polovine raspona propisane kazne, pod sledećim uslovima: 1) ako je učinilac ranije dva puta osuđen za "
                         "krivična dela učinjena sa umišljajem na zatvor od najmanje jednu godinu; 2) ako od dana otpuštanja "
                         "učinioca sa izdržavanja izrečene kazne do izvršenja novog krivičnog dela nije proteklo pet godina.")
+POCETAK_PRIMENE_55A = date(2019, 12, 1)  # Sl. glasnik RS 35/2019
 POCETAK_PRIMENE_63_2026 = date(2026, 7, 18)
 OPSTI_MINIMUM_DANA = 30          # čl. 45 st. 1
 _NAPOMENA_POLOVINA = ("Način računanja: polovina raspona = minimum + (maksimum − minimum) / 2. Važeći tekst čl. 55a to izričito "
@@ -57,8 +60,8 @@ _NAPOMENA_POLOVINA = ("Način računanja: polovina raspona = minimum + (maksimum
 _NAPOMENA_BAZA = ("Napomena o izvoru: baza zakona Vindex sadrži tekst Krivičnog zakonika zaključno sa izmenom 94/2024 — izmena "
                   "63/2026 (čl. 55a) još nije u bazi. Navedeni citat čl. 55a je važeći tekst; ako se u ostatku odgovora pojavi "
                   "stariji tekst, važi ovaj.")
-_NAPOMENA_VREME = ("Vremensko važenje (čl. 5 KZ): na delo izvršeno pre 18.07.2026 u vreme izvršenja primenjivao se tekst bez uslova "
-                   "„ista ili istovrsna“ dela; ako je zakon posle izmenjen, primenjuje se zakon najblaži za učinioca (čl. 5 st. 2). "
+_NAPOMENA_VREME = ("Vremensko važenje (čl. 5 KZ): od 01.12.2019 do izmene 63/2026 važio je tekst čl. 55a bez uslova "
+                   "„ista ili istovrsna“ dela. Za delo izvršeno pre 18.07.2026 proverava se i kasniji blaži zakon (čl. 5 st. 2). "
                    "Kad ranija dela nisu ista ili istovrsna, blaži je važeći tekst (čl. 55a se ne primenjuje); koji je zakon "
                    "blaži kad postoji osuda stranog suda, procenjuje sud.")
 _NAPOMENA_NAJNIZA = "Najniža kazna važi ako se kazna ne ublažava (vidi otvoreno pitanje)."
@@ -201,6 +204,12 @@ def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional
         else:
             uslovi.append(Uslov(oznaka, NEPOZNATO, "pravnosnažnost ili vremenski merodavan tekst KZ nisu utvrđeni"))
             nedostaje.append("pravnosnažnost ranijih presuda i, ako nije utvrđen, datum novog dela")
+    if novo_delo is not None and novo_delo < POCETAK_PRIMENE_55A:
+        uslovi.append(Uslov("vremenski merodavan zakon", NEPOZNATO, "čl. 55a još nije bio na snazi na dan novog dela"))
+        nedostaje.append("koji je zakon vremenski merodavan prema čl. 5 KZ")
+    elif novo_delo is None and pravnosnaznost is not None:
+        uslovi.append(Uslov("vremenski merodavan zakon", NEPOZNATO, "datum izvršenja novog dela nije utvrđen"))
+        nedostaje.append("datum izvršenja novog dela")
     if novo_delo is None or novo_delo < POCETAK_PRIMENE_63_2026:
         napomene.append(_NAPOMENA_VREME)
 
@@ -253,7 +262,7 @@ _DATUM = r"(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})"
 
 
 def _norm(t: str) -> str:
-    t = (t or "").lower()
+    t = preslovi(t or "").lower()
     for a, b in {"š": "s", "đ": "dj", "č": "c", "ć": "c", "ž": "z"}.items():
         t = t.replace(a, b)
     return re.sub(r"\s+", " ", t)
@@ -506,24 +515,24 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     elif len(pomeni) > 1:
         napomene.append("Otpust se pominje više puta — za uslov od pet godina potreban je jedan datum otpusta sa izdržavanja kazne.")
     pravnosnaznost = _pravnosnaznost_iz_navoda(pitanje, broj)
-    if pravnosnaznost is None and out["novo_delo"] and out["novo_delo"] >= POCETAK_PRIMENE_63_2026:
-        pravnosnaznost = NEPOZNATO
+    if pravnosnaznost is None and any(v is not None and v is not False for v in out.values()):
+        if out["novo_delo"] is None or out["novo_delo"] >= POCETAK_PRIMENE_63_2026:
+            pravnosnaznost = NEPOZNATO
     out["pravnosnaznost"] = pravnosnaznost
     return out, napomene
 
 
 def _pravnosnaznost_iz_navoda(pitanje: str, broj_osuda: Optional[int]) -> Optional[str]:
     """Nedostatak ili spor izričito naveden u pitanju ne može dati kategorično DA."""
-    from shared.rociste_iz_teksta import preslovi
-
     ishodi = set()
-    for rec in re.split(r"(?<=[.?!;])\s+", _norm(preslovi(pitanje))):
+    for rec in re.split(r"(?<=[.?!;])\s+", _norm(pitanje)):
         if not (re.search(r"\b(?:ne)?pravn?osnazn\w*", rec) and re.search(r"\b(?:presud|osud)\w*", rec)):
             continue
         if not re.search(r"\b(?:ranij\w*|prethodn\w*|obe|obje|prv[aeu]|drug[aeu]|nijedn\w*)\b", rec):
             continue
         if rec.endswith("?") or re.search(r"\b(?:da li|nije jasno|nije poznato|nije tacno|ne zna se|nejasn\w*|"
-                                          r"sporn\w*|osporav\w*|navodn\w*|tvrd\w*|mozda|verovatn\w*)\b", rec):
+                                          r"sporn\w*|osporav\w*|navodn\w*|tvrd\w*|mozda|verovatn\w*|"
+                                          r"ako|ukoliko|pod uslovom|u slucaju da|pretpostav\w*)\b", rec):
             return NEPOZNATO
         negativno = re.search(r"\b(?:nepravn?osnazn\w*|(?:nije|nisu)\s+(?:jos\s+)?(?:bil[aeo]\s+)?"
                               r"(?:sve\s+)?pravn?osnazn\w*)", rec)
@@ -637,7 +646,8 @@ def blok(pitanje: str) -> Optional[tuple[str, Rezultat]]:
     r = izracunaj(**cinjenice)
     redovi = ["--- PRORAČUN: VIŠESTRUKI POVRAT (KZ čl. 55a — računa sistem, ne AI)"]
     for n in _nepostojeci_clanovi_kz(pitanje):
-        redovi.append(f"Član {n} ne postoji u Krivičnom zakoniku (proveren lokalni tekst); višestruki povrat uređuje čl. 55a.")
+        redovi.append(f"Član {n} nije pronađen u lokalnom tekstu Krivičnog zakonika. Proverite vremenski merodavan tekst. "
+                      "Višestruki povrat uređuje čl. 55a.")
     redovi.append(f"Izvor ({IZVOR_55A}): „{CITAT_55A}“")
     redovi.append(_NAPOMENA_BAZA)
     bez_cinjenica = all(v in (None, False) for v in cinjenice.values())
@@ -671,7 +681,8 @@ def blok(pitanje: str) -> Optional[tuple[str, Rezultat]]:
         redovi.append(tekst)
     else:
         redovi.append("Zaključak: primena čl. 55a se ne može utvrditi bez sledećih činjenica: " + "; ".join(r.nedostaje) + ".")
-        if cinjenice.get("propisan_max_dana"):
+        datum_dela = cinjenice.get("novo_delo")
+        if cinjenice.get("propisan_max_dana") and (datum_dela is None or datum_dela >= POCETAK_PRIMENE_55A):
             mn = cinjenice.get("propisan_min_dana") or OPSTI_MINIMUM_DANA
             pol = mn + (cinjenice["propisan_max_dana"] - mn) / 2
             dodatak = " (najmanja mera nije propisana — opšti minimum 30 dana, čl. 45 st. 1)" if cinjenice.get("min_iz_opsteg_minimuma") else ""

@@ -52,8 +52,7 @@ def test_raspon_iznad_polovine(mn, mx, polovina, najniza):
 
 
 def test_bez_propisanog_minimuma_vazi_opsti_minimum_30_dana():
-    r = izracunaj(**{**iz_pitanja("Ranije je dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpušten je pre "
-                                  "dve godine, a sada je sa umišljajem učinio delo za koje je propisan zatvor do tri godine." + ISTO)})
+    r = izracunaj(**iz_pitanja(V2.replace("od jedne do osam godina", "do tri godine")))
     assert r.primenjuje_se == DA and r.raspon["propisano_od_dana"] == 30
     assert r.raspon["polovina_raspona_dana"] == 30 + (3 * GOD - 30) / 2
     assert any("opšti minimum" in n for n in r.napomene) and any("30 dana" in n for n in r.napomene)
@@ -100,8 +99,9 @@ def test_novo_delo_iz_nehata_iskljucuje_55a():
     assert r.primenjuje_se == NE and r.raspon is None
 
 
-V2 = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa izdržavanja kazne je "
-      "otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je propisan zatvor od jedne do osam godina. "
+V2 = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, "
+      "otpušten je 01.11.2023. godine, a novo delo izvršio je 01.11.2026. godine sa umišljajem, za koje je "
+      "propisan zatvor od jedne do osam godina. Obe prethodne presude su pravnosnažne. "
       "U kom rasponu sud mora da izrekne kaznu?" + ISTO)
 V5 = ("Okrivljeni je dva puta osuđen na zatvor od po šest meseci za umišljajna dela i otpušten je pre dve godine. Sada je sa "
       "umišljajem učinio delo za koje je propisan zatvor od šest meseci do pet godina. Da li se primenjuje višestruki povrat?")
@@ -132,6 +132,7 @@ _FINALNOST = (
 @pytest.mark.parametrize("datum,navod,stanje", [
     ("01.11.2026", " Obe prethodne presude su pravnosnažne.", DA),
     ("01.11.2026", "", NEPOZNATO),
+    ("01.11.2026", " Ako obe prethodne presude jesu pravnosnažne, uslov bi bio ispunjen.", NEPOZNATO),
     ("01.11.2026", " Obe prethodne presude nisu pravnosnažne; žalba je još u toku.", NE),
     ("01.11.2026", " Samo prva prethodna presuda je pravnosnažna, druga nije pravnosnažna.", NE),
     ("01.11.2026", " Nije jasno da li su prethodne presude pravnosnažne.", NEPOZNATO),
@@ -154,6 +155,34 @@ def test_pravnosnaznost_ranijih_presuda_u_korisnickom_proracunu(datum, navod, st
     assert (rezultat.raspon is not None) is (stanje == DA)
     if stanje != DA:
         assert any("pravnosnažn" in uslov.oznaka for uslov in rezultat.uslovi)
+
+
+@pytest.mark.parametrize("navod", ["", " Obe prethodne presude su pravnosnažne."])
+def test_bez_datuma_novog_dela_nema_obaveznog_raspona(navod):
+    pitanje = (P + NOVO + ISTO + navod)
+    tekst, rezultat = blok(pitanje)
+    assert rezultat.primenjuje_se == NEPOZNATO and rezultat.raspon is None
+    assert "datum izvršenja novog dela nije utvrđen" in tekst and "sud MORA" not in tekst
+
+
+@pytest.mark.parametrize("datum,stanje", [("30.11.2019", NEPOZNATO), ("01.12.2019", DA)])
+def test_clan_55a_ne_racuna_raspon_pre_stupanja_na_snagu(datum, stanje):
+    pitanje = V2.replace("01.11.2023", "01.11.2016").replace("01.11.2026", datum)
+    tekst, rezultat = blok(pitanje)
+    assert rezultat.primenjuje_se == stanje
+    assert (rezultat.raspon is not None) is (stanje == DA)
+    if stanje != DA:
+        assert "čl. 55a još nije bio na snazi" in tekst
+        assert "sud MORA" not in tekst and "kazna bi morala" not in tekst
+
+
+def test_55a_celo_cirilicno_pitanje_ima_iste_pravne_uslove():
+    pitanje = ("Вишеструки поврат по члану 55а. Окривљени је раније два пута осуђен на затвор од по две године "
+               "за крађе учињене са умишљајем, отпуштен је 01.11.2023. године, а ново дело извршио је 01.11.2026. "
+               "године са умишљајем, за које је прописан затвор од једне до осам година. "
+               "Ранија дела су истоврсна са новим делом.")
+    assert blok(pitanje + " Обе претходне пресуде нису правноснажне.")[1].primenjuje_se == NE
+    assert blok(pitanje + " Обе претходне пресуде су правноснажне.")[1].primenjuje_se == DA
 
 
 def test_v6_propisan_zatvor_bez_reci_propisan_je():
@@ -190,11 +219,14 @@ def test_prepoznavanje_pitanja_o_povratu(q, da):
     assert je_pitanje_o_povratu(q) is da
 
 
-def test_nepostojeci_clan_kz_se_imenuje_a_postojeci_ne():
-    t, _ = blok("Prema članu 55b Krivičnog zakonika, koliko se povećava kazna za višestruki povrat?")
-    assert "Član 55b ne postoji u Krivičnom zakoniku" in t
+def test_nedostupan_clan_u_lokalnom_korpusu_ne_dokazuje_nepostojanje():
+    # Čl. 348a je objavljen izmenom 63/2026, s početkom primene posle devet meseci.
+    for clan in ("55b", "348a"):
+        tekst, _ = blok(f"Prema članu {clan} Krivičnog zakonika, koliko se povećava kazna za višestruki povrat?")
+        assert f"Član {clan} nije pronađen u lokalnom tekstu" in tekst
+        assert "ne postoji" not in tekst and "Proverite vremenski merodavan tekst" in tekst
     t2, _ = blok("Da li po članu 55a KZ sud kod višestrukog povrata izriče kaznu iznad propisanog maksimuma?")
-    assert "ne postoji" not in t2 and "raspon propisane kazne se ne prekoračuje" in t2
+    assert "nije pronađen" not in t2 and "raspon propisane kazne se ne prekoračuje" in t2
 
 
 def test_blok_ne_tvrdi_stav_sudske_prakse():
@@ -219,10 +251,13 @@ def test_pogresan_zakljucak_modela_se_zamenjuje_i_upozorava():
     assert ulaz["data"].startswith("--- PRAVNI ZAKLJUČAK")    # ulaz (moguće iz keša) se ne menja
 
 
-def test_upozorenje_kad_drugi_deo_teksta_tvrdi_primenu():
+def test_ai_tekst_sa_suprotno_procenom_ne_stize_u_odgovor():
     import main as M
-    ulaz = {"status": "success", "data": "--- PRAVNI ZAKLJUČAK\nx\n\n--- BRZA PROCENA\nUslovi su ispunjeni za strožu kaznu."}
-    assert "UPOZORENJE" in M._dodaj_proracun_povrata(V5, ulaz)["data"]
+    tvrdnja = "Uslovi su ispunjeni za strožu kaznu."
+    ulaz = {"status": "success", "data": "--- PRAVNI ZAKLJUČAK\nx\n\n--- BRZA PROCENA\n" + tvrdnja}
+    rezultat = M._dodaj_proracun_povrata(V5, ulaz)
+    assert rezultat["proracun_povrata"] == NE and tvrdnja not in rezultat["data"]
+    assert "kraća od jedne godine" in rezultat["data"]
     assert "UPOZORENJE" not in M._dodaj_proracun_povrata(V5, _odgovor("Uslovi nisu ispunjeni."))["data"]
 
 
@@ -265,7 +300,7 @@ def _ishod(q):
 
 
 @pytest.mark.parametrize("q,ocekivano", [
-    (P + NOVO + ISTO, DA),
+    (V2, DA),
     (P + NOVO, NEPOZNATO),                     # S3: istovrsnost nije navedena
     (P + "a sada je bez umišljaja učinio delo za koje je propisan zatvor od jedne do osam godina.", NE),
     (P + "a sada je učinio delo koje nije umišljajno, propisan zatvor od jedne do osam godina.", NE),
@@ -281,7 +316,7 @@ def _ishod(q):
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpust je predložen 01.01.2018, a otpušten je "
      "10.10.2020. Novo delo sa umišljajem učinio je 05.05.2024, propisan zatvor od jedne do osam godina.", NEPOZNATO),
     ("Okrivljeni je dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpušten je pre više od pet godina, " + NOVO, NE),
-    ("Okrivljeni je dva puta osuđen na zatvor od po godinu dana za umišljajna dela, otpušten je pre godinu dana, " + NOVO + ISTO, DA),
+    (V2.replace("po dve godine", "po godinu dana").replace("01.11.2023", "01.11.2025"), DA),
     ("Okrivljeni je dva puta osuđen na zatvor od po pola godine za umišljajna dela, otpušten je pre tri godine, " + NOVO, NE),
 ])
 def test_revizija_parser_ne_pogadja(q, ocekivano):
@@ -335,8 +370,7 @@ def test_revizija_detektor(q, da):
 def test_revizija_bez_laznog_nepostojeceg_clana_i_tekst_bloka():
     t, _ = blok("Kako se po članu 54 i 55a KZ odmerava kazna povratniku?")
     assert "ne postoji" not in t
-    t2, _ = blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpušten je pre dve godine, "
-                 "a sada je sa umišljajem učinio delo za koje je propisan zatvor do tri godine." + ISTO)
+    t2, _ = blok(V2.replace("od jedne do osam godina", "do tri godine"))
     assert "Propisana kazna: 30 dana do 3 godine" in t2 and "više od 1 godine, 6 meseci i 15 dana" in t2
     t3, _ = blok(P + "a sada je iz nehata učinio delo za koje je propisan zatvor od jedne do osam godina.")
     assert "NE primenjuje" in t3 and "čl. 55 (povrat)" not in t3                  # čl. 55 traži umišljajno novo delo
@@ -346,26 +380,26 @@ def test_revizija_bez_laznog_nepostojeceg_clana_i_tekst_bloka():
 V_NE = P.replace("pre tri godine", "pre sedam godina") + NOVO
 
 
-@pytest.mark.parametrize("q,ai,upozorenje", [
-    (V_NE, "Nisu ispunjeni uslovi iz čl. 55a.", False),                      # AI se slaže sa NE
-    (V_NE, "Ukoliko su ispunjeni uslovi, sud izriče strožu kaznu.", False),  # uslovna rečenica nije tvrdnja
-    (V_NE, "Primenjuje se čl. 55a, sud mora izreći kaznu iznad polovine.", True),
-    (P + NOVO, "Čl. 55a se ne primenjuje na ovaj slučaj.", True),             # DA, a AI kaže suprotno
-    ("Okrivljeni je dva puta osuđen za umišljajna dela, " + NOVO, "Uslovi su ispunjeni.", True),   # NEPOZNATO, a AI tvrdi ishod
+@pytest.mark.parametrize("q,ai,ishod", [
+    (V_NE, "Nisu ispunjeni uslovi iz čl. 55a.", NE),
+    (V_NE, "Ukoliko su ispunjeni uslovi, sud izriče strožu kaznu.", NE),
+    (V_NE, "Primenjuje se čl. 55a, sud mora izreći kaznu iznad polovine.", NE),
+    (V2, "Čl. 55a se ne primenjuje na ovaj slučaj.", DA),
+    ("Okrivljeni je dva puta osuđen za umišljajna dela, " + NOVO, "Uslovi su ispunjeni.", NEPOZNATO),
 ])
-def test_revizija_upozorenje_u_oba_smera(q, ai, upozorenje):
+def test_revizija_ceo_odgovor_zadrzava_samo_sistemski_zakljucak(q, ai, ishod):
     import main as M
     izlaz = M._dodaj_proracun_povrata(q, {"status": "success", "data": f"--- PRAVNI ZAKLJUČAK\nx\n\n--- OBRAZLOŽENJE\n{ai}"})
-    assert ("UPOZORENJE" in izlaz["data"]) is upozorenje
+    assert izlaz["proracun_povrata"] == ishod
+    assert ai not in izlaz["data"] and "--- PRAVNI ZAKLJUČAK" in izlaz["data"]
 
 
 def test_revizija_rezervni_oblik_zakljucka_se_zamenjuje():
     import main as M
     izlaz = M._dodaj_proracun_povrata(V_NE, {"status": "success", "data": "PRAVNI ZAKLJUČAK: Uslovi su ispunjeni.\n"
                                                                           "KRATAK ZAKLJUČAK (TL;DR): Primenjuje se čl. 55a."})
-    assert "PRAVNI ZAKLJUČAK: Čl. 55a KZ se ne primenjuje" in izlaz["data"]
-    assert "KRATAK ZAKLJUČAK (TL;DR): Čl. 55a KZ se ne primenjuje" in izlaz["data"]
-
+    assert "--- PRAVNI ZAKLJUČAK\nČl. 55a KZ se ne primenjuje" in izlaz["data"]
+    assert "Uslovi su ispunjeni." not in izlaz["data"] and "Primenjuje se čl. 55a." not in izlaz["data"]
 
 
 def test_mutacije_dozivotni_posle_raspona_se_ne_racuna():
@@ -392,9 +426,7 @@ def test_mutacije_godina_uz_osudu_nije_broj_osuda():
 def test_v4_nacin_racunanja_polovine_ima_izvor():
     """V4 → S3: ranije je sredina min–max bila tumačenje bez izvora. Sada: važeći tekst („polazeći od najmanje mere te
     kazne“, 63/2026) i VKS Kzz 602/2022 — oba se navode, uz oznaku da presuda nije u bazi Vindex."""
-    tekst, r = V.blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa "
-                      "izdržavanja kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio tešku krađu za koju je "
-                      "propisan zatvor od jedne do osam godina. U kom rasponu sud mora da izrekne kaznu?" + ISTO)
+    tekst, r = V.blok(V2)
     assert "više od 4 godine i 6 meseci, najviše 8 godina" in tekst and "4 godine i 7 meseci" in tekst
     assert "polazeći od najmanje mere te kazne" in tekst and "Kzz 602/2022" in tekst and "nije u bazi" in tekst
     assert "ne ublažava" in tekst
@@ -410,8 +442,7 @@ def test_g5_primer_vks_kzz_602_2022():
     """G5: primarni izvor (vrh.sud.rs, VKS Kzz 602/2022 od 14.06.2022, provereno 2026-10-27; NIJE u bazi Vindexa):
     raspon 3–12 godina → kazna „duža od sedam godina i šest meseci“; izrečenih 7 godina i 7 meseci = pravilna primena
     čl. 55a. Polovina raspona = (max − min) / 2 + min."""
-    tekst, r = V.blok("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, sa "
-                      "izdržavanja kazne je otpušten pre tri godine, a sada je sa umišljajem izvršio delo za koje je "
-                      "propisan zatvor od tri do dvanaest godina. U kom rasponu sud mora da izrekne kaznu?" + ISTO)
+    pitanje = V2.replace("od jedne do osam godina", "od tri do dvanaest godina")
+    tekst, r = V.blok(pitanje)
     assert "više od 7 godina i 6 meseci, najviše 12 godina" in tekst
     assert "najniža takva kazna" in tekst and "7 godina i 7 meseci" in tekst

@@ -143,25 +143,25 @@ KADA SU DOSTAVLJENI DOKUMENTI PREDMETA (spis):
 - Navod protivne strane i nalaz veštaka nisu utvrđene činjenice („veštak u nalazu navodi“, nikad „utvrdio“); ono što je SPORNO ostaje sporno i u nacrtu.
 - Pre pisanja utvrdi PROCESNO STANJE iz najnovijih procesnih dokumenata (zapisnik, rešenje, dopuna nalaza): ne predlaži ono o čemu je sud već odlučio, nego se pozovi na tu odluku sa oznakom dokumenta.
 - Konkretan član zakona navedi samo ako je u izvorima prava iz konteksta; inače piši „[PROVERITI član zakona]“.
-- Rokove računaj prema današnjem datumu iz konteksta.
+- Rok računaj samo od dokazanog zakonski merodavnog događaja. Ako početak nije dokazan, napiši „datum isteka nije utvrđen“.
 
 Pri generisanju svakog dokumenta tipa (A) primenjuj:
 
-### FORMALNI ZAHTEVI (ZPP čl. 98-106):
+### FORMALNI ZAHTEVI ZA PODNESAK (ZPP čl. 98):
 - Zaglavlje: naziv suda, ime/adresa stranaka, broj predmeta ako postoji
 - Predmet podneska jasno naznačen
-- Taksativno navedeni dokazi koji se predlažu (čl. 106 st. 1 t. 7 ZPP)
-- Vrednost predmeta spora ako je novčana (čl. 33 ZPP)
+- Navedi činjenice i potrebne dokaze prema vrsti podneska (čl. 98 st. 4, za tužbu čl. 192 st. 1, za osporavanje u odgovoru čl. 298 st. 2 ZPP)
+- Vrednost predmeta spora prema vrsti zahteva kada je merodavna (čl. 28–33 ZPP)
 - Potpis i datum
 
 ### VRSTE DOKUMENATA I OSNOV:
 - **Tužba**: čl. 192-200 ZPP — tužbeni zahtev mora biti određen i konkretan
-- **Žalba na presudu**: čl. 368-384 ZPP — rok 15 dana, žalbeni razlozi čl. 373 ZPP
-- **Žalba na rešenje**: čl. 395 ZPP — rok 15 dana
+- **Žalba na presudu**: čl. 367 st. 1 ZPP — opšti rok 15 dana od dostavljanja prepisa presude. Proveri izuzetke, uključujući menične i čekovne sporove i sporove male vrednosti (čl. 479). Žalbeni razlozi: čl. 373 ZPP.
+- **Žalba na rešenje**: proveri da li je posebna žalba dozvoljena po čl. 399 ZPP. Za rok primeni čl. 402 u vezi sa čl. 367 st. 1 ako nema posebnog pravila.
 - **Revizija**: čl. 403-415 ZPP — rok 30 dana, vrednosni cenzus čl. 403 st. 3
-- **Odgovor na tužbu**: čl. 295-296 ZPP — rok 30 dana
-- **Predlog za izvršenje**: ZOIO čl. 35-52 — izvršna isprava, predmet i sredstvo izvršenja
-- **Radni spor — tužba**: ZR čl. 195, rok 60 dana od dostave rešenja
+- **Odgovor na tužbu**: čl. 297 st. 1 ZPP — u redovnom postupku 30 dana od dostavljanja tužbe sa prilozima. Proveri posebna pravila postupka.
+- **Predlog za izvršenje na osnovu izvršne isprave**: ZIO čl. 59. Za izvršenje na celokupnoj imovini proveri izuzetak iz čl. 60.
+- **Radni spor — zaštita pojedinačnih prava**: čl. 195 st. 2 ZR — rok 60 dana od dostavljanja rešenja, odnosno saznanja za povredu prava.
 - **Ugovor**: odgovarajući tip uz primenu ZOO odredbi o formi i sadržini
 
 ### JEZIČKI STANDARD:
@@ -206,8 +206,8 @@ Identifikuj procesne propuste koji mogu dovesti do odbačaja ili odbijanja:
 - Mesna i stvarna nadležnost suda (ZPP čl. 16-54)
 - Aktivna i pasivna legitimacija stranaka
 - Rokovi — zastarelost, prekluzivni rokovi
-- Forma tužbe i urednost podneska (ZPP čl. 101-103)
-- Litispendencija ili presuđena stvar (ZPP čl. 208 st. 2)
+- Sadržina tužbe i urednost podneska (ZPP čl. 192, 98 i 101)
+- Litispendencija (ZPP čl. 203) i pravnosnažno presuđena stvar (ZPP čl. 359 st. 2)
 
 ## 2. MATERIJALNOPRAVNE SLABOSTI
 Za svaku od 3-5 identifikovanih slabosti:
