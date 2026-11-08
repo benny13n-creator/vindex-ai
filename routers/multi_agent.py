@@ -1099,7 +1099,11 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                                   "potpunost": "NEPOTPUNO", "odbaceni": [], "greska": True}
                     izvori["_procesno_stanje"] = stanje
                     # C3b FINAL CLOSURE: identitet dokumenata spisa za snimak AI predloga (advokat otvara izvor po id-u)
-                    izvori["_dokumenti_ids"] = {x["oznaka"]: x["id"] for x in dok_za_stanje if x.get("id")}
+                    from shared.usvajanje_nacrta import sha as _sha_teksta
+                    izvori["_snimci_dokumenata"] = {
+                        x["oznaka"]: {"dokument_id": x["id"], "sha256_teksta": _sha_teksta(x["tekst"])}
+                        for x in dok_za_stanje if x.get("id") and x.get("tekst")
+                    }
                 _evidencija = (_evidencija_za_model({**izvori, "trazeni_nisu_dostavljeni": trazeni_nisu}, izostavljeni)
                                if meta or greska_citanja or nepostojeci else "")
                 # Dodaj Case Genome sazetak ako postoji (kao i ranije: samo uz predmet koji ima dokumente)
@@ -1391,8 +1395,9 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             # za izričito usvajanje u dokument za sud (`shared/usvajanje_nacrta`). Ništa u snimku nije „potvrđeno“.
             from shared import usvajanje_nacrta as _UN
             ip = izvori_predmeta or {}
-            ids = ip.get("_dokumenti_ids") or {}
-            dokumenti = ([{"oznaka": u["oznaka"], "naziv": u.get("naziv") or "", "dokument_id": ids.get(u["oznaka"]),
+            snimci = ip.get("_snimci_dokumenata") or {}
+            dokumenti = ([{"oznaka": u["oznaka"], "naziv": u.get("naziv") or "",
+                           **snimci.get(u["oznaka"], {"dokument_id": None}),
                            "stanje": "PROCITAN" if u.get("potpun") else "DELIMICNO_PROCITAN"} for u in ip.get("ukljuceni") or []]
                          + [{"oznaka": x["oznaka"], "naziv": x.get("naziv") or "", "dokument_id": None, "stanje": "BEZ_TEKSTA"}
                             for x in ip.get("bez_teksta") or []]

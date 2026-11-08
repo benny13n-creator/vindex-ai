@@ -163,6 +163,34 @@ def proveri_odluku_tacke(kljuc: str, o: dict, poznati_dokumenti: set) -> Optiona
     return None
 
 
+def posle_izmene_teksta(pre: str, posle: str, usvajanje: dict, predlog: dict) -> dict:
+    """Samo brisanje celog pasusa odvaja njegov izvor. Izmena ili parafraza zadržava zavisnost."""
+    stari = {_norm(p) for p in re.split(r"\r?\n[ \t]*\r?\n", pre.strip()) if p.strip()}
+    novi = {_norm(p) for p in re.split(r"\r?\n[ \t]*\r?\n", posle.strip()) if p.strip()}
+    uklonjeni = stari - novi if novi <= stari else set()
+    stavke = {s["id"]: _norm(s["tekst_za_dokument"]) for s in predlog.get("stavke") or []}
+    novi_tekst = _norm(posle)
+    zapis = []
+    for odluka in usvajanje.get("stavke") or []:
+        tekst = stavke.get(odluka["id"])
+        if odluka.get("odluka") == "USVOJENO" and tekst:
+            odluka = dict(odluka)
+            if tekst in novi_tekst:
+                odluka.pop("uklonjen_iz_teksta", None)
+            elif any(tekst in pasus for pasus in uklonjeni):
+                odluka["uklonjen_iz_teksta"] = True
+        zapis.append(odluka)
+    return {**usvajanje, "stavke": zapis}
+
+
+def zavisni_izvori(usvajanje: dict, predlog: dict) -> set:
+    """Oznake izvora usvojenih stavki koje ostaju u tekstu i izričito navedenih uz procesne odluke."""
+    usvojene = {s["id"] for s in usvajanje.get("stavke") or []
+                if s.get("odluka") == "USVOJENO" and not s.get("uklonjen_iz_teksta")}
+    return ({oznaka for s in predlog.get("stavke") or [] if s["id"] in usvojene for oznaka in s.get("izvori") or []}
+            | {oznaka for t in (usvajanje.get("procesne_tacke") or {}).values() for oznaka in t.get("izvori") or []})
+
+
 def nedozvoljen_sadrzaj(tekst: str) -> list:
     """Serverski natpisi i nerazrešena mesta u tekstu (strukturno, ne po smislu) — ne smeju u dokument za sud."""
     return [f"Tekst sadrži {opis}." for rx, opis in _ZABRANJENO if rx.search(tekst or "")]

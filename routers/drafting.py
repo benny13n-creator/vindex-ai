@@ -1434,7 +1434,7 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
     from shared import usvajanje_nacrta as UN
     supa = _get_supa()
     r = await asyncio.to_thread(
-        lambda: supa.table("staging_memory").select("id,tip,naziv,tekst,status,quality_detail")
+        lambda: supa.table("staging_memory").select("id,tip,naziv,predmet_id,tekst,status,quality_detail")
             .eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
     )
     red = getattr(r, "data", None)
@@ -1457,9 +1457,14 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
             raise HTTPException(status_code=409, detail=" ".join(razlozi) + " Odobren tekst se pri izvozu ne menja: "
                                 "napravite novu verziju, ispravite tekst i odobrite je (ako je AI predlog izrađen pre "
                                 "ovog pravila, potreban je novi predlog).")
+        uid = user["user_id"]
+        izvori = odobreno.get("sha256_izvori")
+        if izvori is None:
+            _, snimak = await _predlog_dokumenta(supa, red, uid)
+            izvori = _snimi_izvore_za_sud(red, snimak)
+        await _proveri_izvore_za_sud(supa, red["predmet_id"], uid, izvori)
         try:
-            docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, "", await _firma_za_zaglavlje(supa, user["user_id"]),
-                                                 True)
+            docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, "", await _firma_za_zaglavlje(supa, uid), True)
         except Exception as e:
             logger.error("DOCX export (dokument za sud) greška: %s", type(e).__name__)
             raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
@@ -1594,7 +1599,8 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
     za_sud = red.get("tip") == UN.TIP_DOKUMENTA_ZA_SUD
     if za_sud:
         # zapis usvajanja ostaje; izmena važi samo nad pročitanim tekstom i revizijom (bez izgubljenog usvajanja u trci)
-        detalj["usvajanje"] = _usvajanje(red)
+        _, snimak = await _predlog_dokumenta(supa, red, user["user_id"])
+        detalj["usvajanje"] = UN.posle_izmene_teksta(red.get("tekst") or "", req.tekst, _usvajanje(red), snimak)
         detalj["usvajanje_rev"] = _rev(red) + 1
 
     def _azuriraj():
@@ -1677,6 +1683,40 @@ async def _predlog_dokumenta(supa, dok: dict, uid: str) -> tuple:
         raise HTTPException(status_code=409, detail="AI predlog ovog dokumenta nije dostupan ili je promenjen — "
                                                     "usvajanje nije moguće.")
     return pr, snimak
+
+
+_NEPOTVRDJEN_IZVOR = (
+    "Izvor na koji se dokument oslanja nije potvrđen u aktuelnom spisu. Pregledajte i izradite novi predlog."
+)
+
+
+def _snimi_izvore_za_sud(dok: dict, snimak: dict) -> dict:
+    from shared import usvajanje_nacrta as UN
+
+    oznake = UN.zavisni_izvori(_usvajanje(dok), snimak)
+    izvori = {d["oznaka"]: d for d in snimak.get("dokumenti") or [] if d.get("oznaka") in oznake}
+    if set(izvori) != oznake or any(not d.get("dokument_id") or not d.get("sha256_teksta") for d in izvori.values()):
+        raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR)
+    return {d["dokument_id"]: d["sha256_teksta"] for d in izvori.values()}
+
+
+async def _proveri_izvore_za_sud(supa, predmet_id: str, uid: str, ocekivani: dict) -> None:
+    from shared import usvajanje_nacrta as UN
+
+    if not isinstance(ocekivani, dict):
+        raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR)
+    if not ocekivani:
+        return
+    try:
+        odgovor = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select("id,tekst_sadrzaj")
+                .eq("predmet_id", predmet_id).eq("user_id", uid).in_("id", list(ocekivani)).execute())
+        aktuelni = {red["id"]: UN.sha(red.get("tekst_sadrzaj") or "") for red in odgovor.data}
+    except Exception as exc:
+        logger.warning("[USVAJANJE] provera izvora nije uspela: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Stanje izvora trenutno nije moguće proveriti. Pokušajte ponovo.") from exc
+    if aktuelni != ocekivani:
+        raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR)
 
 
 def _prikaz_dokumenta(dok: dict, snimak: Optional[dict]) -> dict:
@@ -1879,8 +1919,11 @@ async def _odobri_dokument_za_sud(supa, dok: dict, request: Request, user: dict)
     razlozi = UN.razlozi_protiv_odobrenja(tekst, usv, snimak)
     if razlozi:
         raise HTTPException(status_code=409, detail={"razlog": "NIJE_SPREMNO", "razlozi": razlozi})
+    izvori = _snimi_izvore_za_sud(dok, snimak)
+    await _proveri_izvore_za_sud(supa, dok["predmet_id"], uid, izvori)
     sad = now_iso()
-    qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "odobreno": {"sha256": trazeni, "by": uid, "at": sad}}}
+    odobreno = {"sha256": trazeni, "by": uid, "at": sad, "sha256_izvori": izvori}
+    qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "odobreno": odobreno}}
     await _uslovno_azuriraj_dokument(supa, dok, uid, {"status": "approved", "is_lawyer_approved": True, "approved_by": uid,
                                                       "approved_at": sad, "quality_detail": qd})
     _audit_usvajanja("dokument_za_sud_odobren", user, dok["id"], {"predmet_id": dok.get("predmet_id"), "sha256": trazeni,

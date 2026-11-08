@@ -641,3 +641,83 @@ def test_promena_izvora_izmedju_predloga_i_odobrenja(lit, monkeypatch):
     assert dx.status_code == 200
     assert "\n".join(U.docx_pasusi(dx.content)) == sacuvan["tekst"]
     assert U.predlog(k, A, st["id"])["predlog"]["stavke"] == p["predlog"]["stavke"]
+
+
+@pytest.mark.parametrize("promena", ["obrisan", "izmenjen", "tudji", "nepovezan", "necitljiv"])
+def test_odobrenje_proverava_aktuelni_izvor_usvojene_stavke(lit, monkeypatch, promena):
+    from tests.test_mir001_t07_dogadjaj_posledica import _obrisi
+
+    k, b, pid, doks, snimljeno = _pripremi_nacrt(lit, monkeypatch)
+    _model(monkeypatch, snimljeno)
+    assert k.post("/api/agents/run", json={"agent": "drafting", "task": "Sastavi podnesak.", "predmet_id": pid},
+                  headers=A).status_code == 200
+    [st] = _nacrti(b, pid)
+    linked = _stavka_sa(U.predlog(k, A, st["id"]), "sud odbio")
+    assert linked["izvori"] == ["DOK-07"]
+    doc = U.dokument(k, A, st["id"])
+    assert U.stavka(k, A, doc["id"], linked["id"]).status_code == 200
+    assert U.tacke(k, A, doc["id"]).status_code == 200
+
+    izvor = next(d for d in b.tabele["predmet_dokumenti"] if d["id"] == doks["DOK-07"]["id"])
+    if promena == "obrisan":
+        _obrisi(k, b, pid, izvor["id"])
+    elif promena == "izmenjen":
+        izvor["tekst_sadrzaj"] += "\nSasvim nova napomena."
+    elif promena == "tudji":
+        izvor["user_id"] = "uid-B"
+    elif promena == "necitljiv":
+        from tests.ns006_fake import Upit6
+
+        original = Upit6.execute
+
+        def nedostupan(upit):
+            if upit.t == "predmet_dokumenti" and upit.kol == "id,tekst_sadrzaj":
+                raise RuntimeError("sintetički nedostupna baza")
+            return original(upit)
+
+        monkeypatch.setattr(Upit6, "execute", nedostupan)
+    else:
+        _obrisi(k, b, pid, doks["DOK-04"]["id"])
+
+    if promena == "nepovezan":
+        assert U.odobri(k, A, doc["id"]).status_code == 200
+        assert k.post(f"/api/staging/{doc['id']}/docx", headers=A).status_code == 200
+        _obrisi(k, b, pid, izvor["id"])
+        assert k.post(f"/api/staging/{doc['id']}/docx", headers=A).status_code == 409
+        assert U.sacuvan(k, A, doc["id"])["status"] == "approved"
+    else:
+        assert U.odobri(k, A, doc["id"]).status_code == (503 if promena == "necitljiv" else 409)
+        assert U.sacuvan(k, A, doc["id"])["odobreno"] is None
+        assert k.post(f"/api/staging/{doc['id']}/docx", headers=A).status_code == 409
+
+
+def test_izvor_procesne_tacke_se_proverava_i_posle_uklanjanja_usvojene_stavke(lit, monkeypatch):
+    from tests.test_mir001_t07_dogadjaj_posledica import _obrisi
+
+    k, b, pid, doks, snimljeno = _pripremi_nacrt(lit, monkeypatch)
+    _model(monkeypatch, snimljeno)
+    assert k.post("/api/agents/run", json={"agent": "drafting", "task": "Sastavi podnesak.", "predmet_id": pid},
+                  headers=A).status_code == 200
+    [st] = _nacrti(b, pid)
+    linked = _stavka_sa(U.predlog(k, A, st["id"]), "sud odbio")
+    doc = U.dokument(k, A, st["id"])
+    assert U.stavka(k, A, doc["id"], "S-01").status_code == 200
+    samo_zaglavlje = U.sacuvan(k, A, doc["id"])["tekst"]
+    assert U.stavka(k, A, doc["id"], linked["id"]).status_code == 200
+    _obrisi(k, b, pid, doks["DOK-07"]["id"])
+
+    # Mala izmena citata ne uklanja zavisnost. Čisto brisanje pasusa je dozvoljeno.
+    tekst = U.sacuvan(k, A, doc["id"])["tekst"]
+    assert U.tacke(k, A, doc["id"]).status_code == 200
+    assert k.patch(f"/api/staging/{doc['id']}/tekst",
+                   json={"tekst": tekst + " Dodatak advokata."}, headers=A).status_code == 200
+    assert U.odobri(k, A, doc["id"]).status_code == 409
+    assert k.patch(f"/api/staging/{doc['id']}/tekst", json={"tekst": samo_zaglavlje}, headers=A).status_code == 200
+
+    # Izričito pozivanje na isti izvor ostaje zavisnost, nezavisno od teksta.
+    tacke = {**U.SVE_NEPOZNATO, "ODLUKE_SUDA": {
+        "odluka": "POTVRDJENO", "tekst": "Provera evidencije.", "izvori": ["DOK-07"]}}
+    assert U.tacke(k, A, doc["id"], tacke).status_code == 200
+    assert U.odobri(k, A, doc["id"]).status_code == 409
+    assert U.tacke(k, A, doc["id"]).status_code == 200
+    assert U.odobri(k, A, doc["id"]).status_code == 200
