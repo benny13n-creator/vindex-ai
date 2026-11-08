@@ -303,3 +303,21 @@ def test_s1_nije_gradjanska_nadleznost(q):
 def test_s1_gradjanska_nadleznost_i_dalje(q):
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
     assert je_pitanje_gradjanske_nadleznosti(q)
+
+
+@pytest.mark.parametrize("odgovor,ok", [
+    ("Prema članu 39 ZPP. Član 39 ZPP uređuje opšte pravilo. Prema članu 40 ZPP sedište je merodavno. "
+     "Za stvarnu nadležnost primenjuje se član 27 Zakona o uređenju sudova.", True),
+    ("Prema članu 40 ZOO sedište određuje sud.", False),
+    ("Prema članu 999 ZPP sedište određuje sud.", False),
+    ("Prema članu 40 ZPP. Takođe član 999 ZPP.", False),
+])
+def test_n8_tema_nadleznosti_proverava_zakon_i_clan(odgovor, ok):
+    from main import _ZUS_KONTEKST, _proveri_tematsku_relevantnost
+    docs = [
+        "ZAKON: Zakon o parničnom postupku\nČLAN: Član 39\nOpšta mesna nadležnost prema prebivalištu tuženog.",
+        "ZAKON: Zakon o parničnom postupku\nČLAN: Član 40\nMesna nadležnost prema sedištu pravnog lica.",
+        "ZAKON: Zakon o obligacionim odnosima\nČLAN: Član 40\nUgovor se može zaključiti na drugi način.",
+    ] + _ZUS_KONTEKST
+    pitanje = "Koji je mesno i stvarno nadležan sud za spor dva privredna društva zbog isporuke po ugovoru?"
+    assert _proveri_tematsku_relevantnost(pitanje, odgovor, docs)[0] is ok

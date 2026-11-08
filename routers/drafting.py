@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import uuid
 from typing import Optional, List
 
@@ -37,7 +38,7 @@ from shared.usage import UsageService
 from shared.sentry import capture_exception as _sentry_capture
 from shared.llm_retry import llm_retry
 
-from main import ask_analiza, _skini_pii
+from main import ask_analiza, _cirilica_u_latinicu, _normalizuj, _skini_pii
 from drafting.router import generate_draft as _drafting_generate
 from drafting.templates import get_types_list as _drafting_get_types
 from templates.podnesci import (
@@ -939,6 +940,34 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
     return {"status": "ok"}
 
 
+def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
+    """Formalni nacrt nema verifikovan događaj dostavljanja ni podnošenja."""
+    if tip != "odgovor_na_tuzbu":
+        return
+    lat = _cirilica_u_latinicu(tekst)
+    for rec in re.split(r"(?<=[.!?;])\s+(?=[A-ZČĆŽŠĐ])|\n+", lat):
+        rec = _normalizuj(rec)
+        rok = re.search(r"\b(?:rok\w*|(?:30|trideset)\s+dana)\b", rec)
+        clan_298 = re.search(r"\b(?:clan\w*|cl\.|zpp)\s*298\b", rec)
+        datum = re.search(
+            r"\b(?:\d{1,2}[./-]\s*\d{1,2}[./-]\s*\d{4}|\d{4}-\d{2}-\d{2}|"
+            r"\d{1,2}\.?\s+(?:januar|februar|mart|april|maj|jun|jul|avgust|septembar|"
+            r"septembr|oktobar|oktobr|novembar|novembr|decembar|decembr)\w*\s+\d{4})\b",
+            rec,
+        )
+        tvrdi_dostavu = re.search(r"\btuzb\w*\b", rec) and re.search(r"\bdostavljen(?:a|o|e|i)?\b", rec)
+        tvrdi_podnosenje = re.search(r"\bodgovor\w*\b", rec) and re.search(
+            r"\b(?:podneo|podnela|podnelo|podneli|podnet(?:a|o)?|blagovremen\w*)\b"
+            r"|\btuzen\w*\s+podnosi\b.*\bu\s+(?:(?:zakonskom|propisanom)\s+)?roku\b",
+            rec,
+        )
+        if (rok and (clan_298 or datum)) or tvrdi_dostavu or tvrdi_podnosenje:
+            raise HTTPException(status_code=422, detail=(
+                "Nacrt sadrži nepotvrđenu tvrdnju o dostavljanju, podnošenju ili roku. "
+                "Čl. 297 ZPP uređuje rok od dostavljanja tužbe sa prilozima, a čl. 298 sadržaj odgovora."
+            ))
+
+
 @router.post("/api/podnesak")
 @limiter.limit("5/minute")
 async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(PermissionService.require("drafting"))):
@@ -973,6 +1002,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         )
         _tekst = (_staged.data or [{}])[0].get("tekst") if _staged.data else None
         if _tekst:
+            _proveri_rok_odgovora_na_tuzbu(req.tip, _tekst)
             return {
                 "status":  "success",
                 "odgovor": _tekst,
@@ -1123,6 +1153,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
 
         nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
         nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
+        _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
 
     # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-027): this charged unconditionally even
     # when entity extraction (the step whose failure makes the draft closest to worthless --
@@ -1315,12 +1346,12 @@ def _docx_content_disposition(naslov: str) -> str:
     """
     from urllib.parse import quote
 
-    clean = "".join(c if c.isalnum() or c in " _-" else "_" for c in (naslov or "Nacrt"))[:40].strip(" _-") or "Nacrt"
+    clean = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
+    if clean.isascii():
+        return f'attachment; filename="{clean}.docx"'
     latin = clean.translate(str.maketrans("čćđšžČĆĐŠŽ", "ccdszCCDSZ"))
     fallback = "".join(c if c.isascii() and (c.isalnum() or c in " _-") else "_" for c in latin).strip(" _-") or "Nacrt"
     ordinary = f'attachment; filename="{fallback}.docx"'
-    if clean == fallback:  # preserve the existing ASCII contract exactly
-        return ordinary
     return ordinary + "; filename*=UTF-8''" + quote(clean + ".docx", safe="")
 
 
@@ -1348,6 +1379,7 @@ async def export_nacrt_docx(
         raise HTTPException(status_code=409, detail="Tekst sadrži interne napomene za advokata. Nacrt sa pregleda "
                                                     "izvezite iz pregleda nacrta — u DOCX ide samo tekst za sud.")
 
+    _proveri_rok_odgovora_na_tuzbu(req.tip, req.tekst)
     try:
         docx_bytes = await asyncio.to_thread(_nacrt_to_docx, req.tekst, naslov, firma_info)
     except Exception as e:
@@ -1411,6 +1443,7 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
         tekst, razlog = za_izvoz(tekst)
         if razlog:
             raise HTTPException(status_code=409, detail=razlog)
+    _proveri_rok_odgovora_na_tuzbu(red.get("tip"), tekst)
     naslov = red.get("naziv") or red.get("tip") or "Nacrt"
     try:
         docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, naslov, await _firma_za_zaglavlje(supa, user["user_id"]))
@@ -1525,6 +1558,7 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
 
     from services.quality_gate import evaluate_draft_quality
     from shared.vector_origin import now_iso
+    _proveri_rok_odgovora_na_tuzbu(red.get("tip"), req.tekst)
     kvalitet = await evaluate_draft_quality(req.tekst, red.get("tip") or "")
     detalj = {**(kvalitet.get("detail") or {}), "izmenio_advokat": True, "izmenjeno_at": now_iso()}
     za_sud = red.get("tip") == UN.TIP_DOKUMENTA_ZA_SUD
@@ -1899,6 +1933,7 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
     if not row_res.data:
         raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
     staging_row = row_res.data
+    _proveri_rok_odgovora_na_tuzbu(staging_row.get("tip"), staging_row.get("tekst") or "")
     # C3b FINAL CLOSURE TASK-01: AI radni predlog se ne odobrava (nije dokument ni znanje); dokument za sud se odobra-
     # va po svom ugovoru (tačan tekst, procesne tačke, bez promocije) — `_odobri_dokument_za_sud`.
     if staging_row.get("tip") == _TIP_IZ_SPISA:

@@ -1012,6 +1012,27 @@ def _proveri_tematsku_relevantnost(pitanje: str, odgovor: str, docs: list[str]) 
 
     Returns (ok, reason). Returns False only when confident mismatch detected.
     """
+    from app.services.retrieve import _clan_nadleznosti_zpp, je_pitanje_gradjanske_nadleznosti
+
+    if je_pitanje_gradjanske_nadleznosti(pitanje):
+        citati = _klasifikuj_citate(odgovor, docs)
+        if not citati:
+            return True, "ok"
+        if any(c["nivo"] == CITAT_UNVERIFIED for c in citati):
+            return False, "Citirani član nije potvrđen u izvoru navedenog propisa."
+        relevantan = any(
+            c["nivo"] == CITAT_SOURCE_MATCHED and (
+                (c["zakon"] == "zpp" and _clan_nadleznosti_zpp({
+                    "law": "zakon o parnicnom postupku", "article": c["clan"],
+                }))
+                or (c["zakon"] == "zakon o uredjenju sudova" and c["clan"] in {"24", "25", "27"})
+            )
+            for c in citati
+        )
+        return (True, "ok") if relevantan else (
+            False, "U citiranim izvorima nije potvrđeno pravilo nadležnosti suda."
+        )
+
     q_norm = _normalizuj(pitanje)
     kontekst_norm = _normalizuj(" ".join(docs))
 
@@ -3597,7 +3618,10 @@ def _ukloni_neproverenu_praksu(data):
 # S3 (noćni sprint): Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023, bez kasnijih izmena) — doslovni citati
 # (transliteracija ćiriličnog teksta sa pravno-informacioni-sistem.rs, provereno 27.10.2026; test: test_s3_kz_55a_63_2026).
 # Zakon NIJE u bazi zakona Vindex (Pinecone) — zato se navodi ovde, sa izvorom.
-ZUS_IZVOR = "Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023), proveren tekst sa pravno-informacioni-sistem.rs"
+ZUS_IZVOR = (
+    "Zakon o uređenju sudova („Sl. glasnik RS“ 10/2023), statički izvod proveren 27.10.2026; "
+    "zvanični tekst: https://ob.pk.sud.rs/documents/zakon-o-uredjenju-sudova-lat.pdf"
+)
 ZUS_24_2 = ("Osnovni sud u prvom stepenu sudi u građanskopravnom sporu ako za pojedini građanskopravni spor nije nadležan drugi "
             "sud i vodi izvršni i vanparnični postupak, osim ako zakonom nije drukčije propisano.")
 ZUS_24_3 = ("Osnovni sud u prvom stepenu sudi u stambenom sporu; sporu povodom zasnivanja, postojanja i prestanka radnog odnosa; o "
@@ -3673,7 +3697,13 @@ def _napomene_nadleznosti(pitanje: str, tekst: str) -> str:
         return tekst
     q = _normalizuj(pitanje)
     if "stvarn" in q or (("privredn" in q or "osnovn" in q or "visi sud" in q) and "mesn" not in q):
-        tekst += _NAPOMENA_STVARNA
+        if re.search(r"\b(?:dva|dve|oba)\s+privredn\w*\s+(?:drustv\w*|subjekt\w*)", q):
+            tekst += (
+                "\n\n--- STVARNA NADLEŽNOST (" + ZUS_IZVOR + "; zakon nije u bazi Vindex)\n"
+                "Za spor dva privredna društva primenjuje se čl. 27 st. 1 tač. 1 ZUS. „" + ZUS_27_1_1 + "“"
+            )
+        else:
+            tekst += _NAPOMENA_STVARNA
     if _BEOGRAD_SUD_RE.search(q) and re.search(r"osnovn\w*\s+sud|konkret\w*\s+sud|koji\s+sud|kom\s+sudu", q):
         tekst += _NAPOMENA_SEDISTA
     if _VISE_TUZENIH_RE.search(q):

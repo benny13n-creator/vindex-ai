@@ -74,3 +74,20 @@ def test_quoted_new_offence_question_is_not_accepted_as_fact():
     q = "Da li bi se član 55a primenio ako bi postojalo novo umišljajno krivično delo?"
     a, _ = analiza(q)
     assert a["novo_delo_umisljaj"] is None
+
+
+def test_duration_of_nonprison_sanction_is_not_a_prison_sentence():
+    q = SCENARIO.replace("na po 2 godine zatvora, kazne je izdržalo", "na po 2 godine zabrane upravljanja")
+    a, _ = analiza(q)
+    assert all(o.zatvor_meseci is None for o in a["ranije_osude"])
+
+
+def test_alternative_durations_are_not_an_affirmative_interval():
+    a, _ = analiza(SCENARIO.replace("prošle su 3 godine", "prošle su 3 godine ili 7 godina"))
+    assert a["proteklo_od_otpusta_meseci"] is None
+
+
+def test_hypothetical_release_interval_does_not_establish_intent_or_time():
+    a, _ = analiza(SCENARIO.replace("od dana", "pretpostavimo da su od dana"))
+    assert a["novo_delo_umisljaj"] is None
+    assert a["proteklo_od_otpusta_meseci"] is None
