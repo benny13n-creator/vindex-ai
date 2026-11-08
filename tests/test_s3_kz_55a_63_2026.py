@@ -91,6 +91,32 @@ def test_vremensko_vazenje_i_strana_osuda_se_navode():
     assert not any(n.startswith("Vremensko važenje") for n in V.izracunaj(**c).napomene)   # delo posle 18.07.2026
 
 
+@pytest.mark.parametrize("datum,pravnosnazne,ishod", [
+    ("17.07.2026", False, V.NEPOZNATO),
+    ("17.07.2026", True, V.NEPOZNATO),
+    ("18.07.2026", False, V.NEPOZNATO),
+    ("18.07.2026", True, V.DA),
+])
+def test_strana_osuda_trazi_utvrdjenu_pravnosnaznost_i_vremenski_merodavan_zakon(datum, pravnosnazne, ishod):
+    # Kzz 144/2024: po ranijem čl. 55a, strane presude su uzete u obzir u konkretnom slučaju
+    # uz dokaze iz kaznene evidencije i već izvršene kazne u inostranstvu.
+    q = NOVO.replace("01.11.2026", datum) + " Jednom ga je osudio strani sud. Ranija dela su istovrsna sa novim."
+    if not pravnosnazne:
+        q = q.replace(" Obe prethodne presude su pravnosnažne.", "")
+    c = V.iz_pitanja(q)
+    tekst, rezultat = V.blok(q)
+    assert c["pravnosnaznost"] == (V.DA if pravnosnazne else V.NEPOZNATO)
+    assert rezultat.primenjuje_se == ishod
+    assert ("sud MORA" in tekst) is (ishod == V.DA)
+    if datum == "17.07.2026":
+        assert any("blaži zakon" in uslov.razlog for uslov in rezultat.uslovi if uslov.stanje == V.NEPOZNATO)
+
+
+def test_pomen_inostranstva_bez_strane_osude_ne_menja_proracun():
+    q = NOVO.replace("01.11.2026", "17.07.2026") + " Svedok je u inostranstvu. Ranija dela su istovrsna sa novim."
+    assert _ishod(q) == V.DA
+
+
 @pytest.mark.parametrize("mn_g,mx_g,polovina,najniza", [
     (1, 8, (4, 6), (4, 7)),            # 1–8: polovina 4 g. 6 m.; najniža iznad polovine na pune mesece 4 g. 7 m.
     (3, 12, (7, 6), (7, 7)),           # VKS Kzz 602/2022: 3–12 → 7 g. 6 m.; 7 g. 7 m. pravilno
