@@ -80,15 +80,21 @@ def _svrhe(b):
 @pytest.mark.parametrize("utc,ocekivano", [
     (datetime(2026, 11, 2, 22, 30, tzinfo=UTC), datetime(2026, 11, 2, 23, 30)),        # CET +1
     (datetime(2026, 11, 2, 23, 30, tzinfo=UTC), datetime(2026, 11, 3, 0, 30)),         # preko ponoći u Beogradu
+    (datetime(2026, 7, 1, 21, 30, tzinfo=UTC), datetime(2026, 7, 1, 23, 30)),        # pre CEST ponoći
     (datetime(2026, 7, 1, 22, 30, tzinfo=UTC), datetime(2026, 7, 2, 0, 30)),           # CEST +2
     (datetime(2026, 10, 25, 0, 30, tzinfo=UTC), datetime(2026, 10, 25, 2, 30)),        # pre kraja DST (01:00 UTC)
     (datetime(2026, 10, 25, 1, 30, tzinfo=UTC), datetime(2026, 10, 25, 2, 30)),        # posle kraja DST
     (datetime(2027, 3, 28, 0, 30, tzinfo=UTC), datetime(2027, 3, 28, 1, 30)),          # pre početka DST
     (datetime(2027, 3, 28, 1, 30, tzinfo=UTC), datetime(2027, 3, 28, 3, 30)),          # posle početka DST
 ])
-def test_vreme_beograd(utc, ocekivano):
+def test_vreme_beograd(utc, ocekivano, monkeypatch):
     import routers.email_notif as en
-    assert en._beograd(utc) == ocekivano and en._danas_beograd(utc) == ocekivano.date()
+    from tests.reminder_clock import reminder_day
+
+    monkeypatch.setattr(en, "_sada", lambda: utc)
+    assert en._beograd(utc) == ocekivano
+    assert reminder_day() == ocekivano.date()
+    assert reminder_day(1) == ocekivano.date() + timedelta(days=1)
 
 
 def test_utc_granica_dogadjaj_danas_u_beogradu_nije_sutra():

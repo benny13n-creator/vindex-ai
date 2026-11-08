@@ -5,19 +5,23 @@ rute), sa STVARNIM `_smtp_send` prema lokalnom SMTP serveru na 127.0.0.1. Bez pr
 (primaoci `@example.invalid`). Datumi su relativni od današnjeg; „sutra“ se simulira samo za dnevno slanje."""
 import email as _email
 import html as _html
-from datetime import date, datetime, timedelta, timezone
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+
+from tests.reminder_clock import reminder_clock, reminder_day  # noqa: F401
 
 from tests.test_n3_rocista import _predmet
 from tests.test_n4_ispravka_roka import _predlog, _stanje, lanac  # noqa: F401
 from tests.test_osb002_solo_tok import A, B, solo  # noqa: F401
 from tests.test_s2_smtp_transport_lokalno import LokalniSmtp, _sertifikat
 
+pytestmark = pytest.mark.usefixtures("reminder_clock")
+
 
 def _d(n):
-    return (date.today() + timedelta(days=n)).isoformat()
+    return reminder_day(n).isoformat()
 
 
 def _profil(b):
@@ -56,7 +60,7 @@ def _cron(pomak_dana=0, pomak_min=0):
     from shared.rate import limiter
     from tests import test_b10_reminder_claim as b10
     limiter.reset()
-    sada = datetime.now(timezone.utc) + timedelta(days=pomak_dana, minutes=pomak_min)
+    sada = en._sada() + timedelta(days=pomak_dana, minutes=pomak_min)
     with patch.object(en, "_sada", lambda: sada):
         return asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
 

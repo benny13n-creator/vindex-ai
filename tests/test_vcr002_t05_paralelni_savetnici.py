@@ -89,18 +89,11 @@ def _ok(k, telo, korisnik="A"):
 
 
 # ── vlasništvo i kontekst ──────────────────────────────────────────────────────────────────────────────────────
-def test_tudj_predmet_izricito_bez_konteksta_i_bez_ijednog_bajta_iz_njega(para):
+@pytest.mark.parametrize("predmet", [PB, "ne-postoji"])
+def test_nedostupan_predmet_odbijen_pre_modela(para, predmet):
     k, _, st = para
-    d = _ok(k, {"task": "Analiziraj odgovornost.", "predmet_id": PB})
-    assert d["kontekst_predmeta"] is False                                   # nikad tiho kao „opšti“
-    for _, prompt in st["prompti"]:
-        assert "TAJNI" not in prompt and "Tajni B" not in prompt
-
-
-def test_nepostojeci_predmet_isto_kao_tudj(para):
-    k, _, st = para
-    d = _ok(k, {"task": "Analiziraj.", "predmet_id": "ne-postoji"})
-    assert d["kontekst_predmeta"] is False
+    r = _para(k, {"task": "Analiziraj.", "predmet_id": predmet})
+    assert r.status_code == 404 and st["prompti"] == [] and st["naplate"] == []
 
 
 def test_sopstven_predmet_ima_dokumente_i_opis_u_granici_poverenja(para):
@@ -231,12 +224,11 @@ def test_istovremeni_zahtevi_dva_korisnika_ne_mesaju_kontekst(para):
     import concurrent.futures as cf
     with cf.ThreadPoolExecutor(4) as ex:
         fa = [ex.submit(_ok, k, {"task": "A zadatak", "predmet_id": PA, "agenti": ["intake"]}, "A") for _ in range(3)]
-        fb = [ex.submit(_ok, k, {"task": "B zadatak", "predmet_id": PA, "agenti": ["intake"]}, "B") for _ in range(3)]
+        fb = [ex.submit(_para, k, {"task": "B zadatak", "predmet_id": PA, "agenti": ["intake"]}, "B") for _ in range(3)]
         ra, rb = [f.result() for f in fa], [f.result() for f in fb]
-    assert all(d["kontekst_predmeta"] is True for d in ra) and all(d["kontekst_predmeta"] is False for d in rb)
+    assert all(d["kontekst_predmeta"] is True for d in ra) and all(r.status_code == 404 for r in rb)
     for _, prompt in st["prompti"]:
-        if "B zadatak" in prompt:
-            assert "Ugovor.pdf" not in prompt and "Jović" not in prompt
+        assert "B zadatak" not in prompt
 
 
 def test_nema_spoljne_mreze():

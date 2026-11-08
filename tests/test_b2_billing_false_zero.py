@@ -464,7 +464,17 @@ def test_8c_mesecni_racuna_tacno():
     assert d["aktivnih_predmeta"] == 2
 
 
-def test_8d_zastarele_racuna_tacno():
+def test_8d_zastarele_racuna_tacno(monkeypatch):
+    # Synthetic D90 was generated at module import. Keep the request clock
+    # on that SAME day even if the full suite crosses UTC midnight.
+    anchor = date.fromisoformat(D90) + timedelta(days=90)
+
+    class _StableDate(date):
+        @classmethod
+        def today(cls):
+            return anchor
+
+    monkeypatch.setattr(br, "date", _StableDate)
     supa, c = _klijent(aged=True)
     with patch.object(br, "_get_supa", return_value=supa):
         d = c.get("/billing/report/zastarele").json()

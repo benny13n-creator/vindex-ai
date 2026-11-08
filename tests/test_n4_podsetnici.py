@@ -8,14 +8,17 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.reminder_clock import reminder_clock, reminder_day  # noqa: F401
+
 from tests import test_b10_reminder_claim as b10
+
+pytestmark = pytest.mark.usefixtures("reminder_clock")
 
 UID, PID, P2 = b10.UID, b10.PID, "p-2"
 
 
 def _sutra():
-    from routers.email_notif import _danas_beograd
-    return (date.today() + timedelta(days=1)).isoformat()
+    return reminder_day(1).isoformat()
 
 
 def _rok(rid, datum, predmet=PID, dogadjaj="Rok za žalbu"):
@@ -115,7 +118,8 @@ def test_nedeljni_pregled_bez_otkazanih_rocista(monkeypatch):
     monkeypatch.setattr(U, "order", lambda self, *a, **k: self, raising=False)
     b = b10.FakeBaza([])
     b.tabele["korisnik_email_notif"][0]["nedeljni"] = True
-    b.tabele["rocista"] = [_roc("h1", _sutra()), dict(_roc("h2", _sutra(), status="otkazano"), sud="OTKAZANI sud")]
+    sutra = (date.today() + timedelta(days=1)).isoformat()
+    b.tabele["rocista"] = [_roc("h1", sutra), dict(_roc("h2", sutra, status="otkazano"), sud="OTKAZANI sud")]
     b.tabele["billing_entries"] = []
     vidjena = []
     with patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), patch.object(en, "_get_supa", return_value=b),          patch.object(en, "_smtp_send", lambda *a: None), patch.object(en, "_potvrdjeni_ids", lambda ids: set()),          patch.object(en, "_weekly_digest_html", lambda ime, rokovi, rocista, *a, **k: vidjena.append([r["dogadjaj"] for r in rocista]) or "<html/>"):

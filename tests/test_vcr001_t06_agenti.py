@@ -5,7 +5,7 @@
   DOBIO (`main._klasifikuj_citate`, isti čuvar kao pravno pitanje). Neprovereni se vraćaju izričito; pad provere
   je NEPOZNATO, nikad „provereno“. Dokumenti predmeta nisu izvor za proveru zakona.
 - Tekst dokumenata predmeta je T3: ulazi u prompt unutar granice autoriteta (`zapakuj_nepoverljivo`).
-- `kontekst_predmeta`: da li je predmet stvarno pročitan (tuđ → False, ništa iz njega u promptu).
+- `kontekst_predmeta`: da li je predmet stvarno pročitan (tuđ → 404 pre poziva modela).
 Model i pretraga su zamenjeni; ništa ne ide na OpenAI/Pinecone.
 """
 from unittest.mock import MagicMock
@@ -137,8 +137,9 @@ def test_dokument_predmeta_je_u_granici_poverenja(ag):
 
 def test_tudj_predmet_nije_procitan(ag):
     k, _, st = ag
-    d = _pokreni(k, "research", predmet=PB)
-    assert d["kontekst_predmeta"] is False and "TAJNI SADRZAJ B" not in st["prompt"] and "Tajni B" not in st["prompt"]
+    r = k.post("/api/agents/run", json={"agent": "research", "task": "Analiziraj.", "predmet_id": PB},
+               headers=zaglavlje("A"))
+    assert r.status_code == 404 and st["prompt"] is None
 
 
 def test_bez_predmeta_kontekst_null(ag):

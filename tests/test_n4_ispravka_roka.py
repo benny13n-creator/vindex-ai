@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """N4 — ispravka AI predloga roka (POST /api/rokovi/{id}/ispravi) nad stvarnim rutama i stvarnim lancem odluka
 (shared/rok_potvrda, audit_immutable u bazi u memoriji). Browser tok: frontend-v2-ng/tests/live-n4-rokovi-e2e.mjs."""
-from datetime import date, timedelta
 
 import pytest
+
+from tests.reminder_clock import reminder_day
 
 from tests.test_osb002_solo_tok import A, B, solo  # noqa: F401
 
@@ -32,7 +33,7 @@ def lanac(solo, monkeypatch):
 
 def _predlog(b, rid="rok-ai", uid="uid-A", pid="p-1", dana=10):
     b.tabele.setdefault("predmeti", []).append({"id": pid, "user_id": uid, "naziv": "P", "status": "aktivan"})
-    d = (date.today() + timedelta(days=dana)).isoformat()
+    d = reminder_day(dana).isoformat()
     b.tabele.setdefault("predmet_hronologija", []).append({"id": rid, "predmet_id": pid, "user_id": uid, "dogadjaj": "Rok za tužbu",
         "datum": d, "datum_iso": d, "vaznost": "važan", "akter": "Smart Intake (AI)", "izvor": "AI_AUTONOMOUS", "vrsta": "rok",
         "dokument_id": "dok-1", "dokument_naziv": "Resenje.pdf"})
@@ -47,7 +48,7 @@ def _stanje(k, rid):
 def test_ispravka_upisuje_potvrdjen_nov_rok_i_odbija_predlog(lanac):
     k, b = lanac
     _predlog(b)
-    tacan = (date.today() + timedelta(days=12)).isoformat()
+    tacan = reminder_day(12).isoformat()
     r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": tacan}, headers=A)
     assert r.status_code == 200, r.text
     d = r.json()
@@ -74,7 +75,7 @@ def test_neispravan_datum(lanac, telo, status):
 def test_tudj_i_potvrdjen_rok(lanac):
     k, b = lanac
     _predlog(b)
-    tacan = (date.today() + timedelta(days=13)).isoformat()
+    tacan = reminder_day(13).isoformat()
     assert k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": tacan}, headers=B).status_code == 404
     assert k.post("/api/rokovi/rok-ai/potvrdi", json={}, headers=A).status_code == 200
     assert k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": tacan}, headers=A).status_code == 409
@@ -84,7 +85,7 @@ def test_tudj_i_potvrdjen_rok(lanac):
 def test_delimican_neuspeh_pa_ponovni_pokusaj_ne_pravi_drugi_rok(lanac):
     k, b = lanac
     _predlog(b)
-    tacan = (date.today() + timedelta(days=14)).isoformat()
+    tacan = reminder_day(14).isoformat()
     b.lanac_puca = "rok_potvrdjen"                               # upis novog reda uspe, potvrda ne
     r1 = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": tacan}, headers=A)
     assert r1.status_code == 503

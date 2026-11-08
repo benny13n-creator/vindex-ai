@@ -261,8 +261,15 @@ def test_prozor_je_podrazumevano_sedam_dana():
     assert [x.izvor_id for x in r.rokovi] == ["h1"]
 
 
-def test_prekoracen_i_dana_do_se_racunaju_ovde():
-    """Trinaest pozivalaca je ovo računalo svaki za sebe."""
+def test_prekoracen_i_dana_do_se_racunaju_ovde(monkeypatch):
+    """The test row uses import-time DANAS; normalize with the same clock."""
+
+    class _StableDate(date):
+        @classmethod
+        def today(cls):
+            return DANAS
+
+    monkeypatch.setattr(R, "date", _StableDate)
     supa = _Supa(redovi=[_red(dana_od_danas=-3, rid="prosli")],
                  )
     r = asyncio.run(R.rokovi_za_korisnika(

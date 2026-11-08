@@ -16,6 +16,8 @@ the GPT call -- not just that no exception was raised.
 import asyncio
 import os
 import sys
+
+import pytest
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("FOUNDER_EMAILS", "test@test.com")
@@ -27,6 +29,7 @@ os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from fastapi import HTTPException  # noqa: E402
 from starlette.requests import Request as StarletteRequest  # noqa: E402
 import routers.multi_agent as multi_agent  # noqa: E402
 
@@ -51,11 +54,11 @@ def _table_for(predmet_owned: bool, billing_rows=None, rocista_rows=None):
                      "tuzilac": "A", "tuzeni": "B", "opis": ""}] if predmet_owned else []
             t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = data
         elif name == "billing_entries":
-            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = billing_rows or []
+            t.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = billing_rows or []
         elif name == "rocista":
-            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = rocista_rows or []
+            t.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = rocista_rows or []
         elif name == "predmet_dokumenti":
-            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+            t.select.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value.data = []
         return t
     return _table
 
@@ -78,7 +81,13 @@ def _run(agent_id, predmet_owned, billing_rows=None, rocista_rows=None):
     with patch.object(multi_agent, "_get_supa", return_value=mock_supa), \
          patch.object(multi_agent, "_pozovi_agent_api", side_effect=_fake_pozovi_agent_api), \
          patch("shared.usage.UsageService.consume", return_value=None):
-        asyncio.run(multi_agent.run_agent(req, _req(), user={"user_id": "u1", "email": "a@b.com"}))
+        if predmet_owned:
+            asyncio.run(multi_agent.run_agent(req, _req(), user={"user_id": "u1", "email": "a@b.com"}))
+        else:
+            with pytest.raises(HTTPException) as denied:
+                asyncio.run(multi_agent.run_agent(req, _req(), user={"user_id": "u1", "email": "a@b.com"}))
+            assert denied.value.status_code == 404
+            assert not captured
 
     return captured.get("user_msg", "")
 

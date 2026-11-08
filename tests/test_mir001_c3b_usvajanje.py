@@ -12,8 +12,9 @@ import types
 import pytest
 
 from tests import c3b_usvajanje_pomoc as U
-from tests.test_mir001_t06_nacrt_iz_spisa import _nacrti, nacrt, treba_ocr  # noqa: F401
+from tests.test_mir001_t06_nacrt_iz_spisa import _nacrti, _pripremi_nacrt, nacrt, treba_ocr  # noqa: F401
 from tests.test_mir001_t04_savetnik_spis import savetnik  # noqa: F401
+from tests.test_mir002_litigation_procesno_stanje import lit  # noqa: F401
 from tests.test_osb002_solo_tok import A, B, solo  # noqa: F401
 
 from shared import usvajanje_nacrta as UN
@@ -612,3 +613,31 @@ def test_stavke_su_strukturne_a_razlozi_ne_tumace_tekst():
     assert UN.razlozi_protiv_odobrenja("Sud je odbio dopunu veštačenja.", sve, pr) == []
     for natpis in ("[PROVERITI: adresa]", "[IZOSTAVLJENO I-1: x]", "[[PS-03]]", "═══ VINDEX — INTERNE NAPOMENE x"):
         assert UN.nedozvoljen_sadrzaj("Tekst " + natpis), natpis
+
+
+
+def test_promena_izvora_izmedju_predloga_i_odobrenja(lit, monkeypatch):
+    k, b, pid, doks, snimljeno = _pripremi_nacrt(lit, monkeypatch)
+    _model(monkeypatch, snimljeno)
+    r = k.post("/api/agents/run", json={"agent": "drafting", "task": "Sastavi podnesak.", "predmet_id": pid}, headers=A)
+    assert r.status_code == 200, r.text
+    [st] = _nacrti(b, pid)
+    p = U.predlog(k, A, st["id"])
+    sporna = _stavka_sa(p, "sud odbio")
+    red = next(d for d in b.tabele["predmet_dokumenti"] if d["id"] == doks["DOK-07"]["id"])
+    red["tekst_sadrzaj"] = "Izmenjen izvor: sud odlaže odlučivanje o dopuni."
+
+    d = U.dokument(k, A, st["id"])
+    assert d["provera_izvora"] == "NIJE_IZVRSENA_SERVEROM"
+    assert U.tacke(k, A, d["id"]).status_code == 200
+    assert U.odobri(k, A, d["id"]).status_code == 409
+    assert k.post(f"/api/staging/{d['id']}/docx", headers=A).status_code == 409
+
+    assert U.stavka(k, A, d["id"], "S-01").status_code == 200
+    assert U.odobri(k, A, d["id"]).status_code == 200
+    sacuvan = U.sacuvan(k, A, d["id"])
+    assert sporna["tekst_za_dokument"] not in sacuvan["tekst"]
+    dx = k.post(f"/api/staging/{d['id']}/docx", headers=A)
+    assert dx.status_code == 200
+    assert "\n".join(U.docx_pasusi(dx.content)) == sacuvan["tekst"]
+    assert U.predlog(k, A, st["id"])["predlog"]["stavke"] == p["predlog"]["stavke"]

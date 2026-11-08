@@ -90,7 +90,17 @@ def _kljuc_rocista(id_):
 
 # ── matrica ──────────────────────────────────────────────────────────────────
 
-def test_rociste_akcija_i_pomeranje_azurira_istu(okr):
+def test_rociste_akcija_i_pomeranje_azurira_istu(okr, monkeypatch):
+    # The business function imports date INSIDE _compute_target_actions.
+    # Isolate its test clock to module-import DANAS across UTC midnight.
+    import datetime as _datetime_module
+
+    class _StableDate(date):
+        @classmethod
+        def today(cls):
+            return DANAS
+
+    monkeypatch.setattr(_datetime_module, "date", _StableDate)
     _, baza = okr(rocista=[_roc("r1", 5)])
     _reconcile("d1")
     a = _otvorene(baza)[_kljuc_rocista("r1")]

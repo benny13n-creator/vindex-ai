@@ -97,7 +97,7 @@ def test_E_isti_naziv_kod_drugog_korisnika_vazi_samo_sopstveni_dokument(ag):
     k, _ = pr(_baza7())
     st["odgovor"] = "U zapisnik_rociste.pdf piše…"
     r = k.post("/api/agents/run", json={"agent": "intake", "task": "Procena.", "predmet_id": PA}, headers=zaglavlje("B"))
-    assert r.status_code == 200 and r.json()["izvori_predmeta"] is None        # B ne vidi A-ov predmet
+    assert r.status_code == 404        # B ne vidi A-ov predmet
     assert _run(k, "Procena.")["izvori_predmeta"]["odgovor_pominje_nedostavljene"] == ["DOK-02 (zapisnik_rociste.pdf)"]
 
 

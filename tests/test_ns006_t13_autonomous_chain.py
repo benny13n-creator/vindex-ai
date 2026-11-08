@@ -88,7 +88,18 @@ def lanac(monkeypatch):
     ocisti()
 
 
-def test_promena_predmeta_bez_rucnog_refresha(lanac):
+def test_promena_predmeta_bez_rucnog_refresha(lanac, monkeypatch):
+    # ROCISTE_DATUM is anchored at module import; the action engine imports
+    # datetime.date locally during dispatch. Freeze that clock for this test.
+    import datetime as _datetime_module
+    anchor = date.fromisoformat(ROCISTE_DATUM) - timedelta(days=9)
+
+    class _StableDate(date):
+        @classmethod
+        def today(cls):
+            return anchor
+
+    monkeypatch.setattr(_datetime_module, "date", _StableDate)
     k, baza, pozivi = lanac
     pre = {"verzija": baza.tabele["predmeti"][0]["case_dna"]["verzija"],
            "akcije": len(baza.tabele["case_actions"]), "kontr": len(baza.tabele["predmet_contradictions"])}

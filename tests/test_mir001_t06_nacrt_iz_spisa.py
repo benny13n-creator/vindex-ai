@@ -34,7 +34,11 @@ NACRT = ("PRIVREDNOM SUDU U PRIMERGRADU\nBroj predmeta: P 9901/2026\nTuzilac: Al
 
 @pytest.fixture
 def nacrt(savetnik, monkeypatch):
-    k, b, pid, doks, snimljeno = savetnik
+    return _pripremi_nacrt(savetnik, monkeypatch)
+
+
+def _pripremi_nacrt(spis, monkeypatch):
+    k, b, pid, doks, snimljeno = spis
     import routers.multi_agent as MA
     import services.quality_gate as QG
 
@@ -154,7 +158,8 @@ def test_bez_predmeta_ili_drugi_savetnik_nema_nacrta_i_nema_spoljnog_slanja(nacr
     assert r.status_code == 200
     r = k.post("/api/agents/run", json={"agent": "research", "task": ZADATAK, "predmet_id": pid}, headers=A)
     assert r.status_code == 200
-    _pisi(k, pid, h=B)                                             # B traži A-ov predmet: ništa se ne upisuje
+    r = k.post("/api/agents/run", json={"agent": "drafting", "task": ZADATAK, "predmet_id": pid}, headers=B)
+    assert r.status_code == 404
     assert b.odlozeni == []                                        # nijedan upis na pregled nije ni zakazan
     assert _nacrti(b, pid) == []
     assert len(SPOLJNI_POKUSAJI) == n0                            # nema slanja sudu/trećem licu (nijedna spoljna veza)

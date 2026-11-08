@@ -6,19 +6,22 @@ Ključ rezervacije je postojeći UNIQUE(user_id, predmet_id, datum_roka, dana_pr
 po PREDMETU, datumu i pragu (1/3/7 dana), sa svim događajima tog predmeta i datuma u istom emailu."""
 import asyncio
 import html as _html
-from datetime import date, timedelta
 from unittest.mock import patch
 
 import pytest
+
+from tests.reminder_clock import reminder_clock, reminder_day  # noqa: F401
 
 from tests import test_b10_reminder_claim as b10
 from tests.test_n4_podsetnici import P2, PID, UID, _pokreni, _roc, _rok, _sutra
 from tests.test_n4_ispravka_roka import _predlog, lanac  # noqa: F401
 from tests.test_osb002_solo_tok import A, solo  # noqa: F401
 
+pytestmark = pytest.mark.usefixtures("reminder_clock")
+
 
 def _za_3_dana():
-    return (date.today() + timedelta(days=3)).isoformat()
+    return reminder_day(3).isoformat()
 
 
 def _baza(rokovi=(), rocista=(), drugi_predmet=False):
@@ -152,7 +155,7 @@ def test_lanac_dvostruka_potvrda_ne_salje_dvaput(lanac):
 def test_lanac_ispravka_salje_ispravljen_datum_a_ne_predlog(lanac):
     k, b = lanac
     _predlog(b, dana=3)                                                            # AI pročitao pogrešan datum
-    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": (date.today() + timedelta(days=1)).isoformat()}, headers=A)
+    r = k.post("/api/rokovi/rok-ai/ispravi", json={"datum_iso": reminder_day(1).isoformat()}, headers=A)
     assert r.status_code == 200, r.text
     b.tabele["korisnik_email_notif"] = [{"user_id": "uid-A", "aktivan": True, "dan_1": True, "dan_3": True, "dan_7": False}]
     b.tabele.setdefault("profiles", []).append({"id": "uid-A", "email": "advokat@example.invalid"})
@@ -161,4 +164,4 @@ def test_lanac_ispravka_salje_ispravljen_datum_a_ne_predlog(lanac):
     _, poslati = _cron(b)
     assert len(poslati) == 1 and "Sutra" in poslati[0][1]                          # samo ispravljen (sutra)
     assert [(x["datum_dogadjaja"], x["svrha"]) for x in b.tabele["email_podsetnik_dogadjaj"]] == [
-        ((date.today() + timedelta(days=1)).isoformat(), "prag_1")]                # odbijen predlog (za 3 dana): ništa
+        (reminder_day(1).isoformat(), "prag_1")]                # odbijen predlog (za 3 dana): ništa

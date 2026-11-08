@@ -169,9 +169,9 @@ def test_D_nepostojeci_dokument_se_izricito_prijavljuje(ag):
 def test_D_tudji_predmet_i_isti_naziv_drugog_korisnika(ag):
     pr, st = ag
     k, b = pr(_baza(7))
-    d = _run(k, "Analiziraj DOK-01 (01_ugovor.pdf).", predmet=PB)          # A traži B-ov predmet
-    assert d["kontekst_predmeta"] is False and d["izvori_predmeta"] is None
-    assert "TAJNA-B" not in st["promptovi"][-1]
+    r = k.post("/api/agents/run", json={"agent": "litigation", "task": "Analiziraj DOK-01.",
+                                       "predmet_id": PB}, headers=zaglavlje("A"))
+    assert r.status_code == 404 and st["promptovi"] == []
     # svoj predmet, isti naziv fajla kao kod B — dobija SAMO svoj tekst
     _run(k, "Analiziraj 01_ugovor.pdf.")
     assert CINJENICA in st["promptovi"][-1] and "TAJNA-B" not in st["promptovi"][-1]
