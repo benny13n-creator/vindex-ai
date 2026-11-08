@@ -987,7 +987,13 @@ def proveri_hitne_svima() -> dict:
         termin = datetime(danas.year, danas.month, danas.day, _DNEVNI_TERMIN_UTC_SAT, tzinfo=timezone.utc)
         dnevno_proslo = sada >= termin
         if not dnevno_proslo:
-            dnevno_proslo = bool(supa.table(_TABELA_POKRETANJA).select("dan").eq("dan", danas.isoformat()).execute().data)
+            try:
+                oznaka = supa.table(_TABELA_POKRETANJA).select("dan").eq("dan", danas.isoformat()).execute()
+                dnevno_proslo = bool(oznaka.data)
+            except Exception as exc:
+                # Greška oznake ne sme ni otvoriti redovne pragove ni sprečiti nezavisne hitne poruke.
+                logger.error("[EMAIL-HITNO] dnevna oznaka nije pročitana: %s", type(exc).__name__)
+                n["greske"] += 1
         emails = {str(p["id"]): p.get("email", "") for p in (supa.table("profiles").select("id, email").execute().data or [])}
         for profil in profili:
             _obradi_korisnika(supa, profil, emails.get(profil["user_id"], ""), danas, sada_bg, n,
