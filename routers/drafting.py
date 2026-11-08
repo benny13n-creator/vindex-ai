@@ -1306,6 +1306,24 @@ async def _firma_za_zaglavlje(supa, uid: str):
     return None
 
 
+def _docx_content_disposition(naslov: str) -> str:
+    """RFC 6266/5987: Latin-1-safe header with UTF-8 filename for Serbian/Cyrillic titles.
+
+    Starlette encodes response headers as Latin-1. Passing e.g. "tužbu" directly
+    raises UnicodeEncodeError AFTER a valid DOCX was generated (beta 2026-11-08).
+    This helper never exposes untrusted title characters in a raw HTTP header.
+    """
+    from urllib.parse import quote
+
+    clean = "".join(c if c.isalnum() or c in " _-" else "_" for c in (naslov or "Nacrt"))[:40].strip(" _-") or "Nacrt"
+    latin = clean.translate(str.maketrans("čćđšžČĆĐŠŽ", "ccdszCCDSZ"))
+    fallback = "".join(c if c.isascii() and (c.isalnum() or c in " _-") else "_" for c in latin).strip(" _-") or "Nacrt"
+    ordinary = f'attachment; filename="{fallback}.docx"'
+    if clean == fallback:  # preserve the existing ASCII contract exactly
+        return ordinary
+    return ordinary + "; filename*=UTF-8''" + quote(clean + ".docx", safe="")
+
+
 @router.post("/api/nacrti/export/docx")
 @limiter.limit("30/minute")
 async def export_nacrt_docx(
@@ -1336,12 +1354,10 @@ async def export_nacrt_docx(
         logger.error("DOCX export greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
 
-    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
-    filename = f"{safe_name}.docx"
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _docx_content_disposition(naslov)},
     )
 
 
@@ -1401,11 +1417,10 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
     except Exception as e:
         logger.error("DOCX export (staging) greška: %s", type(e).__name__)
         raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
-    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}.docx"'},
+        headers={"Content-Disposition": _docx_content_disposition(naslov)},
     )
 
 
