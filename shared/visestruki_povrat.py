@@ -399,6 +399,15 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     # krivica novog dela
     if novo:
         out["novo_delo_umisljaj"] = _krivica(novo)
+    if out["novo_delo_umisljaj"] is None:
+        # TEST N9 (2026-11-08): explicit intentional *new* offence may appear
+        # before a later "Za novo delo propisan je ..." anchor. Only accept the
+        # narrow affirmative phrase; never infer intent from a past conviction.
+        eksplicitno_novo = re.findall(
+            r"\bnov\w*\s+umisljajn\w*\s+(?:krivicn\w*\s+)?del\w*", q
+        )
+        if len(eksplicitno_novo) == 1:
+            out["novo_delo_umisljaj"] = True
 
     # S3 (63/2026): istovrsnost ranijih dela — samo IZRIČIT, izjavni navod. Završna revizija (M1): prefiks naziva dela
     # („nasilje“/„nasilničko“) i rečenice sa negacijom, pitanjem ili spornom tvrdnjom su davale lažno DA → uklonjeno.
@@ -440,7 +449,9 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         elif (_o_ranijim and _k_ranije != kriv) or any(_krivica(s) != kriv for s in _drugo):
             kriv = None
         seg = re.sub(r"\([^)]*\)", " ", seg)
-        po = re.search(r"zatvor\w*\s+od\s+po\s+(" + _DUR + ")", seg)
+        # "na po 2 godine zatvora" is as explicit as "zatvor od po 2 godine".
+        # Match only inside the already-scoped earlier-convictions sentence.
+        po = re.search(r"(?:zatvor\w*\s+od\s+po\s+|na\s+po\s+)(" + _DUR + ")", seg)
         par = re.search(r"zatvor\w*\s+od\s+(\w+)\s+i\s+(\w+)\s+(" + _JED_TXT + ")", seg)
         pojedinacno = [x for x in re.findall(r"zatvor\w*\s+od\s+(" + _DUR + ")", seg) if not x.startswith("po ")]
         trajanja: Optional[list] = None
@@ -487,6 +498,16 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         if not out["otpust"] and not mo:
             mp = (re.search(r"otpust\w*[^.,;]{0,40}?\bpre\s+(vise\s+od\s+)?(" + _DUR + ")", q)
                   or re.search(r"\bpre\s+(vise\s+od\s+)?(" + _DUR + r")\s+(?:je\s+)?(?:bio\s+)?otpust", q))
+            # "Od poslednjeg otpuštanja do novog ... dela prošle su 3 godine"
+            # denotes the INTERVAL, not elapsed time from release to today.
+            # Require one affirmative bounded construction; negation or multiple
+            # incompatible spans stay UNKNOWN rather than being guessed.
+            intervali = re.findall(
+                r"\bod\s+(?:dana\s+)?(?:poslednj\w*\s+)?otpust\w*[^.;]{0,90}?\bdo\s+nov\w*[^.;]{0,80}?\b"
+                r"(?:prosl\w*\s+su|protek\w*\s+je)\s+(" + _DUR + ")", q
+            )
+            if not mp and len(intervali) == 1 and _dur_dana(intervali[0]) is not None:
+                out["proteklo_od_otpusta_meseci"] = _dur_dana(intervali[0]) / _DANA_U_MESECU
             # bez sidra novog dela — tekst posle rečenice o otpustu („Prošle godine je izvršio …“)
             _posle = q[mo_poz.start():] if mo_poz else ""          # 4. krug: i ostatak rečenice o otpustu („…, a krađu je izvršio 2022.“)
             # 3. krug revizije: ceo tekst posle rečenice o otpustu („Otpušten je pre 6 g. Krađu je izvršio pre 4 g. Sada …“)
