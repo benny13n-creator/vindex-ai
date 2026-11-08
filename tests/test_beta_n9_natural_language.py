@@ -68,3 +68,9 @@ def test_old_unambiguous_prior_conviction_form_remains_supported():
     a, _ = analiza(q)
     assert a["broj_ranijih_osuda"] == 2
     assert [o.zatvor_meseci for o in a["ranije_osude"]] == [24, 24]
+
+
+def test_quoted_new_offence_question_is_not_accepted_as_fact():
+    q = "Da li bi se član 55a primenio ako bi postojalo novo umišljajno krivično delo?"
+    a, _ = analiza(q)
+    assert a["novo_delo_umisljaj"] is None
