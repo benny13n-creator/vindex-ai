@@ -514,6 +514,160 @@ def _svima(b, sada, potvrdjeni=(), smtp=None):
     return rez, smtp.poslati
 
 
+
+@pytest.mark.parametrize("prag", (1, 3, 7))
+def test_periodicna_provera_salje_redovni_prag_kada_dnevni_cron_izostane(prag):
+    b = _baza([_rok("r1", _d(prag))], pragovi=(prag,))
+    assert b.tabele["email_podsetnik_pokretanje"] == []
+    pre, pre_poslati = _svima(b, _t(DAN, 7, 59), potvrdjeni=("r1",))
+    assert pre["poslato"] == 0 and pre_poslati == [] and b.log == []
+
+    rez, poslati = _svima(b, _t(DAN, 8, 10), potvrdjeni=("r1",))
+    assert rez["poslato"] == len(poslati) == 1
+    assert rez["greske"] == rez["kasni"] == 0
+    assert _svrhe(b) == [("r1", f"prag_{prag}", "poslato")]
+    assert b.tabele["email_podsetnik_pokretanje"] == []
+
+
+
+@pytest.mark.parametrize("kasnjenje", (0, 6), ids=["na-vreme", "kasni-sest-sati"])
+def test_dnevni_cron_i_periodicna_provera_daju_jedan_podsetnik(kasnjenje):
+    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    smtp = _Smtp()
+    if kasnjenje:
+        assert _svima(b, _t(DAN, 8, 10), ("r1",), smtp)[0]["poslato"] == 1
+        assert b.tabele["email_podsetnik_pokretanje"] == []
+    rez, _ = _cron(b, _t(DAN, 8 + kasnjenje), ("r1",), smtp)
+    assert rez["poslato"] == (0 if kasnjenje else 1)
+    assert _svima(b, _t(DAN, 14, 10), ("r1",), smtp)[0]["poslato"] == 0
+    assert len(smtp.poslati) == 1 and _svrhe(b) == [("r1", "prag_1", "poslato")]
+
+
+def test_cron_i_fallback_oba_pokusaju_rezervaciju_ali_salju_jednom(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier, Lock
+
+    import routers.email_notif as en
+    from shared.rate import limiter
+
+    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    smtp = _Smtp()
+    spremni = Barrier(2, timeout=5)
+    atomican_upis = Lock()
+    upisi = b.upisi
+    rezervisi = en._rezervisi
+
+    def upisi_pod_unique(tabela, rows):
+        with atomican_upis:  # Model baze; zaseban PostgreSQL test proverava stvarni UNIQUE.
+            return upisi(tabela, rows)
+
+    def rezervisi_istovremeno(*args):
+        spremni.wait()  # Obe putanje već imaju prazan snimak rezervacija.
+        return rezervisi(*args)
+
+    monkeypatch.setattr(b, "upisi", upisi_pod_unique)
+    monkeypatch.setattr(en, "_rezervisi", rezervisi_istovremeno)
+    limiter.reset()
+    with _okruzenje(b, _t(DAN, 8), ("r1",), smtp), ThreadPoolExecutor(2) as pool:
+        cron = pool.submit(asyncio.run, en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
+        fallback = pool.submit(en.proveri_hitne_svima)
+        rezultati = [cron.result(timeout=10), fallback.result(timeout=10)]
+    assert sum(r["poslato"] for r in rezultati) == len(smtp.poslati) == 1
+    assert sum(r["preskoceno"] for r in rezultati) == 1
+    assert _svrhe(b) == [("r1", "prag_1", "poslato")]
+
+
+def test_fallback_grupise_samo_potvrdjene_rokove_istog_korisnika():
+    import routers.email_notif as en
+
+    b = _baza([
+        dict(_rok("r1", _d(1)), dogadjaj="Prvi potvrđeni rok A"),
+        dict(_rok("r2", _d(1)), dogadjaj="Drugi potvrđeni rok A"),
+        dict(_rok("r3", _d(1)), dogadjaj="Nepotvrđeni rok"),
+        dict(_rok("r4", _d(1)), dogadjaj="Odbijeni rok"),
+        dict(_rok("r-b", _d(1)), user_id="u-b", predmet_id="p-b", dogadjaj="Potvrđeni rok B"),
+    ], [dict(_roc("h1", _d(1)), status="otkazano")], pragovi=(1,))
+    b.tabele["korisnik_email_notif"].append({"user_id": "u-b", "aktivan": True, "dan_1": True})
+    b.tabele["profiles"].append({"id": "u-b", "email": "b@example.invalid"})
+    b.tabele["predmeti"].append({"id": "p-b", "user_id": "u-b", "status": "aktivan"})
+    from shared.rok_potvrda import AKCIJA_ODBIJANJE, AKCIJA_POTVRDA
+
+    odluke = [
+        {"action": AKCIJA_POTVRDA, "resource_id": rid, "user_id": uid}
+        for rid, uid in (("r1", UID), ("r2", UID), ("r4", UID), ("r-b", "u-b"))
+    ] + [{"action": AKCIJA_ODBIJANJE, "resource_id": "r4", "user_id": UID}]
+    smtp = _Smtp()
+    stvarne_potvrde = en._potvrdjeni_ids
+    with _okruzenje(b, _t(DAN, 8), (), smtp), patch.object(en, "_potvrdjeni_ids", stvarne_potvrde), \
+         patch("shared.rok_potvrda.procitaj_lanac", lambda ids, *_: [r for r in odluke if r["resource_id"] in ids]):
+        rez = en.proveri_hitne_svima()
+    tela = {email: telo for email, _, telo in smtp.poslati}
+    assert rez["poslato"] == len(smtp.poslati) == 2
+    assert "Prvi potvrđeni rok A" in tela[b10.MAIL] and "Drugi potvrđeni rok A" in tela[b10.MAIL]
+    assert "Potvrđeni rok B" not in tela[b10.MAIL] and "potvrđeni rok A" not in tela["b@example.invalid"]
+    assert "Potvrđeni rok B" in tela["b@example.invalid"]
+    assert {r["dogadjaj_id"] for r in b.log} == {"r1", "r2", "r-b"}
+
+
+def test_fallback_pomeranje_daje_novu_rezervaciju_na_novom_pragu():
+    b = _baza(rocista=[dict(_roc("h1", _d(1)), vreme="09:15:00")], pragovi=(1,))
+    assert _svima(b, _t(DAN, 8))[0]["poslato"] == 1
+    b.tabele["rocista"][0].update(datum=_d(3), vreme="16:45:00")
+    assert _svima(b, _t(DAN, 8, 10))[1] == []
+    _, poslati = _svima(b, _t(DAN + timedelta(days=2), 8))
+    assert len(poslati) == 1 and "16:45" in poslati[0][2] and "09:15" not in poslati[0][2]
+    assert [r["datum_dogadjaja"] for r in b.log] == [_d(1), _d(3)]
+
+
+def test_fallback_posle_pauze_i_restart_ne_ponavlja_nepoznat_ishod(monkeypatch):
+    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    monkeypatch.setenv("VINDEX_EMAIL_PODSETNICI_PAUZA", "1")
+    assert _svima(b, _t(DAN, 8), ("r1",))[0]["pauzirano"] and b.log == []
+    monkeypatch.delenv("VINDEX_EMAIL_PODSETNICI_PAUZA")
+    rez, poslati = _svima(b, _t(DAN, 8, 10), ("r1",), _Smtp(puca=TimeoutError()))
+    assert rez["neisporuceno"] == 1 and rez["poslato"] == 0 and poslati == []
+    obnovljena_baza = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    obnovljena_baza.log.extend(dict(r) for r in b.log)
+    assert _svima(obnovljena_baza, _t(DAN, 8, 20), ("r1",))[1] == []
+    assert _svrhe(obnovljena_baza) == [("r1", "prag_1", "nepoznato")]
+
+
+@pytest.mark.parametrize("dan,lokalni_sat", [
+    (date(2026, 11, 8), 9), (date(2026, 7, 8), 10),
+    (date(2026, 10, 25), 9), (date(2027, 3, 28), 10),
+])
+def test_fallback_utc_termin_u_cet_cest_i_dst_danima(dan, lokalni_sat):
+    import routers.email_notif as en
+
+    b = _baza([_rok("r1", _d(1, dan))], pragovi=(1,))
+    assert _svima(b, _t(dan, 7, 59), ("r1",))[1] == []
+    assert en._beograd(_t(dan, 8)).hour == lokalni_sat
+    assert _svima(b, _t(dan, 8), ("r1",))[0]["poslato"] == 1
+
+
+def test_fallback_posle_beogradske_ponoci_ceka_novi_utc_termin():
+    b = _baza([_rok("r1", _d(2))], pragovi=(1,))
+    b.tabele["email_podsetnik_pokretanje"].append({"dan": DAN.isoformat()})
+    assert _svima(b, _t(DAN, 22, 59), ("r1",))[1] == []
+    assert _svima(b, _t(DAN, 23, 10), ("r1",))[1] == [] and b.log == []
+    assert _svima(b, _t(DAN + timedelta(days=1), 8), ("r1",))[0]["poslato"] == 1
+
+
+@pytest.mark.parametrize("sat,tabela", [(7, "email_podsetnik_pokretanje"), (8, b10.FakeBaza.TABELA)])
+def test_periodicna_provera_ne_guta_gresku_citanja(monkeypatch, sat, tabela):
+    b = _baza([_rok("r1", _d(1))], pragovi=(1,))
+    original = b.table
+
+    def citaj(ime):
+        if ime == tabela:
+            raise RuntimeError("database unavailable")
+        return original(ime)
+
+    monkeypatch.setattr(b, "table", citaj)
+    rez, poslati = _svima(b, _t(DAN, sat), ("r1",))
+    assert rez["greske"] == 1 and rez["poslato"] == 0 and poslati == [] and b.log == []
+
+
 def test_periodicna_provera_nadoknadjuje_prolazni_smtp_pad_hitne_provere():
     import routers.email_notif as en
     b = _baza(pragovi=(1,))
