@@ -41,6 +41,9 @@ _SUD_PRIHVATA = re.compile(r"^sud (?:je (?:vec )?prihvatio|prihvata)\b")
 _NAPOMENA_AI = re.compile(
     r"^\W*ovaj nacrt generisala je ai i mora ga pregledati i potpisati ovlasceni advokat pre podnosenja sudu$"
 )
+_UPUT_ZA_PREGLED = re.compile(
+    r"(?:pogledaj(?:te)?|videti|proveriti) dok-\d{1,4}(?:(?:,|\s+i)\s+dok-\d{1,4})*[.!]?"
+)
 
 
 def _bez_oznaka(tekst: str) -> str:
@@ -177,6 +180,9 @@ def proveri(tekst: str, izvori: dict, stanje: dict | None = None, *, proverena_d
         prethodno_citiran = False
         for i in range(0, len(delovi), 2):
             deo = delovi[i]
+            if _UPUT_ZA_PREGLED.fullmatch(deo.strip()):
+                # Upućivanje na pregled ne tvrdi šta dokument sadrži.
+                continue
             oznake = {f"DOK-{int(broj):02d}" for broj in _DOK.findall(deo)}
             ps_izvodi = [procesni_izvodi[p] for p in _PS.findall(deo) if p in procesni_izvodi]
             ps_oznake = {d["oznaka"] for d in ps_izvodi}
