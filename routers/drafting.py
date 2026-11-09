@@ -1250,26 +1250,20 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
 
         obogacivanje.update(prazna_polja)
         nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
-        pregledan, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
-        _proveri_rok_odgovora_na_tuzbu(req.tip, pregledan)
+        osnovni_nacrt = nacrt
+        nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
+        _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
         oznake = set(prazna_polja.values()) - {""}
         if req.tip == "odgovor_na_tuzbu" and "datum" not in entiteti:
             oznake.add("[DATUM]")
         # Prisustvo oznake ne sprečava model da uz nju dopiše činjenice kojih nema u opisu.
-        if any(prazna_polja.values()) or any(oznaka not in pregledan for oznaka in oznake):
+        if any(prazna_polja.values()) or any(oznaka not in nacrt for oznaka in oznake):
+            nacrt = osnovni_nacrt
             critique_applied = False
             _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
-        else:
-            nacrt = pregledan
 
-    # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-027): this charged unconditionally even
-    # when entity extraction (the step whose failure makes the draft closest to worthless --
-    # a template with no real case facts filled in, just placeholders) silently degraded to
-    # an empty dict. Output here is never literally zero (unlike /api/nacrt's own failure
-    # mode, LIVINGSYS-DEBT-002), so this only skips the charge for the specific worst case,
-    # not for RAG/VKS/enrichment individually degrading -- those still produce a
-    # substantially useful draft and are still charged, matching this debt item's own
-    # "Medium, not High" severity distinction from -002.
+    # LIVINGSYS-DEBT-027: empty extraction leaves only placeholders and is not charged.
+    # A useful draft can still be produced when optional retrieval or enrichment degrades.
     if entiteti:
         await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
     else:
