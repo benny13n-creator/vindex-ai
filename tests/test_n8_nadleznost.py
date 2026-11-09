@@ -403,6 +403,7 @@ _N8_TEST_NATURAL = (
     (_N8_TEST_COMPANY, "Rokovi zastarelosti nisu predmet pitanja. Za ugovorna potraživanja mogu važiti posebni rokovi.", True),
     (_N8_TEST_NATURAL, "Oba suda su mesno nadležna prema prebivalištu i boravištu tuženog.", False),
     (_N8_TEST_NATURAL, "Oba suda su mesno nadležna ako okolnosti upućuju na duži boravak.", True),
+    (_N8_TEST_NATURAL, "Sud boravišta može biti nadležan kod dužeg boravka, ali to nije slučaj ovde jer prebivalište ima prednost.", False),
     (_N8_TEST_NATURAL + " Poznato je da će tuženi u Beogradu boraviti duže vreme.",
      "Oba suda su mesno nadležna.", True),
     (_N8_TEST_NATURAL + " Nije poznato da li će tu boraviti duže vreme.", "Oba suda su mesno nadležna.", False),
@@ -430,6 +431,36 @@ def test_n8_cache_samo_za_pitanja_o_nadleznosti_menja_verziju():
 
     assert M._cache_kljuc(_N8_TEST_COMPANY) != prethodni_kljuc(_N8_TEST_COMPANY)
     assert M._cache_kljuc(pitanje_drugo) == prethodni_kljuc(pitanje_drugo)
+
+
+@pytest.mark.parametrize("pitanje,preskoci_stari", [
+    ("Šta propisuje član 27 Zakona o uređenju sudova?", True),
+    ("Šta propisuje čl. 27, st. 1, tač. 1 Zakona o uređenju sudova?", True),
+    ("Шта прописује члан 27 Закона о уређењу судова?", True),
+    ("Šta propisuje član 27 ZUS u upravnom sporu?", False),
+    ("Koliki je opšti rok zastarelosti po ZOO?", False),
+])
+def test_n8_cache_izricitog_zakona_ne_preuzima_stari_odgovor(pitanje, preskoci_stari, monkeypatch):
+    import hashlib
+    from unittest.mock import Mock
+    import main as M
+
+    stari_kljuc = hashlib.md5(
+        f"{M._CACHE_VERZIJA}|{M._normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False,
+    ).hexdigest()
+    odgovor = {"status": "success", "data": "Prethodno sačuvani odgovor."}
+    monkeypatch.delenv("VINDEX_CACHE_BYPASS", raising=False)
+    monkeypatch.setattr(M, "_CACHE", {stari_kljuc: (odgovor, M.datetime.now())})
+    l2 = Mock(side_effect={stari_kljuc: odgovor}.get)
+    monkeypatch.setattr(M, "_supa_cache_get", l2)
+
+    if preskoci_stari:
+        assert M._cache_get(pitanje) is None
+        l2.assert_called_once_with(M._cache_kljuc(pitanje))
+        assert l2.call_args.args[0] != stari_kljuc
+    else:
+        assert M._cache_get(pitanje) == odgovor
+        l2.assert_not_called()
 
 
 @pytest.mark.parametrize("confidence", ["HIGH", "MEDIUM"])

@@ -193,8 +193,8 @@ KADA SU DOSTAVLJENI DOKUMENTI PREDMETA (spis):
 - Svaku činjenicu, datum i iznos veži za oznaku dokumenta iz kog potiče (npr. „DOK-02“).
 - Navod stranke ili nalaz veštaka nije utvrđena činjenica: piši „tužilac tvrdi“, „tuženi tvrdi“, „veštak u nalazu navodi“ — nikad „veštak je utvrdio/potvrdio“ (činjenice utvrđuje sud; nalaz se može osporiti i dopuniti). Ono što je označeno kao SPORNO tretiraj kao sporno.
 - Pre nego što predložiš pribavljanje dokaza, proveri da li je već u spisu (npr. povratnica, potvrda, nalaz) i navedi ga sa oznakom dokumenta.
-- Rokove računaj od datuma iz dokumenata u odnosu na današnji datum iz konteksta; istekao rok navedi kao istekao.
-- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: iz najnovijih procesnih dokumenata (zapisnik, rešenje, dopuna nalaza) navedi sledeće zakazano ročište sa datumom, naložene radnje sa rokovima i šta je pokrenuto, uz oznaku dokumenta.
+- Datum dokumenta sam po sebi ne dokazuje početak roka. Početak i istek navedi samo ako sudski izvor potvrđuje pravilo i spis potvrđuje odlučni početni događaj.
+- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: navedi zakazano ročište, sudske naloge i potvrđene radnje samo na osnovu merodavnog sudskog izvora, uz oznaku dokumenta. Dopunu nalaza navedi odvojeno kao navod veštaka. Ako je zapisnik zabeležio radnju stranke, pripiši radnju stranci.
 - Najnoviji dokument uporedi sa ranijima i u posebnoj stavci „**Šta menja <oznaka najnovijeg dokumenta>:**“ navedi kome ide u prilog i šta treba uraditi.
 - Dokaz koji je pomenut ili naložen, a nije dostavljen, navedi kao nedostajući — ne pretpostavljaj njegov sadržaj.
 ──────────────────────────────────────────────────────────
@@ -625,7 +625,7 @@ PROCESNO STANJE IZ SPISA (obavezno kad je blok dostavljen):
 - Sudski rok računaj samo kad merodavan sudski izvor IZRIČITO određuje početni događaj i spis potvrđuje kada se on desio. Navod o roku u nalazu veštaka ne dokazuje sudski nalog ni početak roka. Kad početak nije izričito naveden (npr. samo „u roku od 15 dana“), datum dokumenta ili ročišta NIJE početak roka — napiši da tok i istek roka nisu utvrđeni iz spisa. Ovo pravilo ima prednost nad opštim pravilom o računanju rokova.
 - Dokument koji nije pročitan ili je pročitan delimično može sadržati odluku suda: odsustvo u bloku nije dokaz da odluke nema.
 - Navod stranke u zapisniku i nalaz veštaka nisu odluka suda.
-- Kada nalaz veštaka pominje sud ili rok za izjašnjenje, pripiši navod veštaku, ne sudu. Posebno reci da li u spisu postoji
+- Pri svakoj procesnoj tvrdnji proveri oznaku i aktera iz bloka. Samo uz sudski dokument koristi afirmativno „Sud je naložio/odredio/ostavio“. Kada nesudski izvor pominje rok, čak i ako rečenica počinje sa „Sud ostavlja“, napiši „Izvor navodi rok, ali sudski nalog i početak roka nisu potvrđeni“. Posebno reci da li u spisu postoji
   merodavan sudski akt koji potvrđuje tu radnju i početni događaj. Datum dopune nalaza sam po sebi ne dokazuje početak
   roka. Ako nije utvrđen, ne računaj niti predlaži konkretan datum isteka, čak ni kao orijentaciju.
 - Kad stranka navodi da je priložila ispravu (npr. povratnicu), navedi šta stranka tvrdi da isprava dokazuje. Ne tvrdi da

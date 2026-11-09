@@ -108,3 +108,61 @@ def test_formalni_odgovor_ne_prihvata_nepostojece_dokaze_ili_datum_dostave():
     entiteti["datum"] = "04.10.2026."
     _nepotkrepljena_polja_odgovora(opis + " Datum izrade nacrta: 04.10.2026.", entiteti)
     assert entiteti["datum"] == "04.10.2026."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sa_cinjenicama", [False, True])
+async def test_formalna_kritika_ne_moze_dopisati_cinjenice_pored_praznih_polja(monkeypatch, sa_cinjenicama):
+    import json
+    from routers import drafting as dr
+
+    navodi = "Tuženi osporava visinu duga."
+    razlozi = "Osporeni iznos prema obračunu prelazi cenu iz ugovora."
+    dokazi = "Tuženi predlaže uvid u račun broj 123."
+    navod_modela = "Tuženi priznaje da je poslovna saradnja ugovorena i da je veštak već potvrdio iznos duga."
+    izvodi = {
+        "navodi_tuzbe_raw": navodi,
+        "materijalni_razlozi_raw": razlozi,
+        "dokazna_sredstva_raw": dokazi,
+    }
+    opis = "Sintetički spis bez dostavnice. "
+    if sa_cinjenicama:
+        opis += f"{navodi} {razlozi} {dokazi}"
+        dopuna = "Predlaže se provera računa broj 123."
+    else:
+        opis += "Nisu utvrđeni navodi stranaka ni predloženi dokazi."
+        dopuna = navod_modela
+
+    def model(*a, **k):
+        model_output = {"tuzeni_ime": "TEST BETA", **(izvodi if sa_cinjenicama else {})}
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(model_output)))])
+
+    async def kritika(tekst, *_a, **_k):
+        if not sa_cinjenicama:
+            assert "[IZJAŠNJENJE — POPUNITI]" in tekst
+            assert "[RAZLOZI — POPUNITI]" in tekst
+            assert "[DOKAZI — POPUNITI]" in tekst
+        assert "[DATUM]" in tekst
+        return tekst + "\n" + dopuna, True
+
+    monkeypatch.setattr("routers.copilot_ambient._proveri_vlasnistvo_predmeta", AsyncMock())
+    monkeypatch.setattr(dr, "_recent_generation_exists", AsyncMock(return_value=False))
+    monkeypatch.setattr("app.services.retrieve.retrieve_documents", lambda *_: ([], {}))
+    monkeypatch.setattr(dr, "_pozovi_drafting_api", model)
+    pozvana_kritika = AsyncMock(side_effect=kritika)
+    monkeypatch.setattr(dr, "_critique_and_refine_draft", pozvana_kritika)
+    consume, stage = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(dr.UsageService, "consume", consume)
+    monkeypatch.setattr(dr, "_stage_draft_for_review", stage)
+    req = dr.PodnesakReq(tip="odgovor_na_tuzbu", opis=opis, predmet_id="test-A")
+    request = Request({"type": "http", "method": "POST", "path": "/api/podnesak", "headers": []})
+
+    rezultat = await dr.podnesak.__wrapped__(req, request, {"user_id": "A"})
+
+    pozvana_kritika.assert_awaited_once()
+    assert rezultat["status"] == "success"
+    assert rezultat["critique_applied"] is sa_cinjenicama
+    assert (dopuna in rezultat["odgovor"]) is sa_cinjenicama
+    consume.assert_awaited_once()
+    stage.assert_called_once()
+    assert stage.call_args.args[4] == rezultat["odgovor"]

@@ -311,3 +311,9 @@ def test_neutvrdjen_ili_protivurecan_navod_ne_utvrdjuje_osude_okrivljenog(navod)
     assert cinjenice["ranije_osude"] is None
     assert cinjenice["pravnosnaznost"] != DA
     assert blok(pitanje)[1].primenjuje_se == NEPOZNATO
+
+
+def test_izricit_clan_kz_na_cirilici_trazi_tacnu_odredbu():
+    from app.services.retrieve import ekstrakcija_clana
+
+    assert ekstrakcija_clana("Да ли се примењује члан 55а КЗ?") == ("Član 55a", "KZ")

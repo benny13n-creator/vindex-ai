@@ -718,7 +718,7 @@ def _pronadji_clan(query: str) -> Optional[re.Match]:
         # bez provere postojanja (KORAK 1.5) i odgovor je tiho citirao drugi član.
         r"(?:clan|član)(?:a|u|om)?\s*(\d+[a-zA-Z]?)",
         r"(?:čl\.|cl\.)\s*(\d+[a-zA-Z]?)",  # Latin (with/without diacritic)
-        r"(?:чл(?:ан(?:а|у|ом)?)?\.?)\s*(\d+[a-zA-Z]?)",                 # Cyrillic
+        r"(?:чл(?:ан(?:а|у|ом)?)?\.?)\s*(\d+[a-zA-Zа]?)",                 # Cyrillic
     ]:
         m = re.search(obrazac, q)
         if m:
@@ -777,7 +777,7 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
     if not clan:
         return None, None
 
-    label_clana = f"Član {clan.group(1)}"
+    label_clana = f"Član {clan.group(1).replace('а', 'a')}"
     normalized = _normalizuj(query)
 
     # Pun naziv uz izabrani član ima prednost nad semantičkim hintom.
@@ -788,6 +788,9 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
         rf"\.?{_ODREDBA_CLANA}\s*,?\s+{_NAZIV_ZAKONA_O_SUDOVIMA}", iza,
     ):
         return label_clana, _ZAKON_O_UREDJENJU_SUDOVA
+
+    if re.match(r"\.?\s+кз\b", iza):
+        return label_clana, _ZAKON_KODOVI["kz"]
 
     for code, zakon_val in _ZAKON_KODOVI.items():
         if re.search(rf"\b{re.escape(code)}\b", normalized):

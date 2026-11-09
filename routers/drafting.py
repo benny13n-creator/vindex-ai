@@ -1255,7 +1255,8 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         oznake = set(prazna_polja.values()) - {""}
         if req.tip == "odgovor_na_tuzbu" and "datum" not in entiteti:
             oznake.add("[DATUM]")
-        if any(oznaka not in pregledan for oznaka in oznake):
+        # Prisustvo oznake ne sprečava model da uz nju dopiše činjenice kojih nema u opisu.
+        if any(prazna_polja.values()) or any(oznaka not in pregledan for oznaka in oznake):
             critique_applied = False
             _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
         else:

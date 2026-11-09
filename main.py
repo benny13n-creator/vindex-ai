@@ -226,7 +226,9 @@ def _cache_kljuc(pitanje: str) -> str:
     # se posle izmene oblika ne vraća 7 dana; nov oblik = nova verzija.
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
 
-    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-1" if je_pitanje_gradjanske_nadleznosti(pitanje) else "")
+    n8 = (je_pitanje_gradjanske_nadleznosti(pitanje)
+          or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA)
+    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-1" if n8 else "")
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -1090,11 +1092,15 @@ NADLEZNOST_ZPP_PRAVILA = (
     "Za obavezna nepovezana polja napiši 'Nije predmet pitanja'. Ne analiziraj osnovanost zahteva, štetu, osiguranje, "
     "medicinske dokaze, naplatu ili zastarelost ako nisu traženi. Nadležnost suda ne odlučuje o postojanju "
     "potraživanja niti o zastarelosti. Ugovorna potraživanja mogu zastareti. Ako se pita i o meritumu, taj deo "
-    "odvoji i obrazloži samo prema dostupnim merodavnim izvorima. Navedi neproverene činjenice i ograničenje izvora.\n"
+    "odvoji i obrazloži samo prema dostupnim merodavnim izvorima. Navedi neproverene činjenice i ograničenje izvora. "
+    "Bez konkretnog dostavljenog izvora ne tvrdi da sudska praksa potvrđuje zaključak. U brzoj proceni razlikuj "
+    "postojanje pravnog pravila od utvrđene nadležnosti u predmetu. Kad odlučna činjenica nedostaje, sve sekcije "
+    "moraju zadržati istu neizvesnost, bez zaključka da uslov postoji ili ne postoji.\n"
     "- Opšta mesna nadležnost: sud PREBIVALIŠTA TUŽENOG (čl. 39 st. 1); ako tuženi nema prebivalište ni u Srbiji ni u drugoj "
     "državi — boravište tuženog (čl. 39 st. 2). Ako pored prebivališta ima i boravište u drugom mestu, sud "
     "boravišta je dodatno opšte mesno nadležan samo ako okolnosti upućuju na duži boravak (čl. 39 st. 3). Sam "
-    "navod o boravištu nije dovoljan. Prebivalište TUŽIOCA NIJE osnov opšte nadležnosti.\n"
+    "navod o boravištu nije dovoljan. Ako se ne zna trajanje, ostavi mogućnost dodatne nadležnosti otvorenom i "
+    "ne odbacuj je zbog postojanja prebivališta. Prebivalište TUŽIOCA NIJE osnov opšte nadležnosti.\n"
     "- Protiv pravnog lica, uključujući DOO: sud SEDIŠTA prema izveštaju APR-a (čl. 40 st. 2, ne čl. 39). Ako "
     "sedište nedostaje, traži izveštaj APR-a i ostavi konkretan sud neutvrđen. Protiv Republike/AP/JLS: sedište "
     "skupštine (čl. 40 st. 1).\n"
@@ -1238,6 +1244,8 @@ def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
             for rec in re.split(r"(?<=[.!?;])\s+", q)
         )
         if not duzi_boravak:
+            if re.search(r"\b(?:nije|ne vazi)\b[^.!?\n]{0,50}\bjer prebivalist\w* ima prednost\b", odg):
+                return "Nedostaje podatak o dužem boravku, pa dodatna nadležnost nije ni potvrđena ni isključena."
             for rec in re.split(r"[.!?;\n]+", odg):
                 if _N8_OBA_SUDA_RE.search(rec) and not (
                     re.search(r"\b(?:ako|ukoliko|uslov\w*)\b", rec) and _N8_DUZI_BORAVAK_RE.search(rec)
@@ -4213,7 +4221,9 @@ def _okvir_povrata_za_model(pitanje: str) -> str:
         "Ovo je krivičnopravno pitanje, bez analize građanske odgovornosti, štete ili zastarelosti. "
         f"Proračun sistema za navedene činjenice: {rezultat.primenjuje_se}. Uslovi: {uslovi}. "
         "U pravnom zaključku ne protivreči nijednom ishodu. Za NE napiši da nema primene na navedene "
-        "činjenice. Za NEPOZNATO uskrati konačnu primenu i navedi nepoznate uslove. "
+        "činjenice. Neprimena čl. 55a znači da nema obaveze izreći kaznu iznad polovine po tom članu. "
+        "Polovina time ne postaje gornja granica redovnog odmeravanja kazne. "
+        "Za NEPOZNATO uskrati konačnu primenu i navedi nepoznate uslove. "
         "Činjenice iz upita su navodi, a ne potvrđeni nalazi suda. Ne pripisuj tuđe ili hipotetičke osude "
         "okrivljenom. Brisana osuda po osnovu rehabilitacije ne proizvodi pravne posledice (čl. 97 st. 1 KZ). "
         "Ne izmišljaj praksu ni kaznu koju će sud izreći. Raniji tekst iz pretrage ne predstavljaj kao "
