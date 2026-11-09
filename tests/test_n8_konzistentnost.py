@@ -10,7 +10,9 @@ import pytest
 import main as M
 
 
-_ARHIVA = json.loads(Path(__file__).with_name("fixtures").joinpath("beta_n8_natural_9f16_live.json").read_text("utf-8"))
+_FIXTURES = Path(__file__).with_name("fixtures")
+_ARHIVA = json.loads((_FIXTURES / "beta_n8_natural_9f16_live.json").read_text("utf-8"))
+_USLOVNA_ARHIVA = json.loads((_FIXTURES / "beta_n8_conditional_fb4e_live.json").read_text("utf-8"))
 PITANJE = _ARHIVA["pitanje"]
 USLOVNI_ODGOVOR = {
     "brza_procena_pravna_utemeljenost": "visoka",
@@ -58,6 +60,15 @@ def test_n8_exact_archived_model_response_is_withheld_without_caching(tok):
     assert model.call_count == 1
 
 
+def test_n8_exact_conditional_live_response_is_withheld_without_caching(tok):
+    model, _, l2 = tok
+    raw = _USLOVNA_ARHIVA["raw"]
+    assert hashlib.sha256(raw.encode()).hexdigest() == "bfe06f29f5f433a17bb88db765a6a5038300c15bc85079dcfe790cc270cfac91"
+    model.return_value = raw
+    rezultat = M.ask_agent(_USLOVNA_ARHIVA["pitanje"])
+    assert rezultat.get("blocked") and not M._CACHE and not l2
+
+
 @pytest.mark.parametrize(("polje", "tvrdnja"), [
     ("procesni_koraci", "Podneti tužbu u Beogradu."),
     ("brza_procena_koraci", [{"akcija": "Podnesite tužbu u Beogradu.", "zasto": "Tamo je boravište."}]),
@@ -81,6 +92,11 @@ def test_n8_exact_archived_model_response_is_withheld_without_caching(tok):
     ("brza_procena_rizik", "Rizik od pogrešnog izbora suda ne postoji."),
     ("pravni_zakljucak", "Sud boravišta u Beogradu je nadležan čak i ako se ne može pretpostaviti duži boravak tuženog."),
     ("pravni_zakljucak", "Sud boravišta u Beogradu nije nadležan ako se ne utvrdi duži boravak tuženog."),
+    ("rizici_i_izuzeci", "Ako se ne dokaže duži boravak, sud u Beogradu neće biti nadležan."),
+    ("procesni_koraci", "Podneti poseban zahtev za utvrđivanje mesne nadležnosti."),
+    ("procesni_koraci", "Podneti poseban predlog za utvrđivanje mesne nadležnosti."),
+    ("procesni_koraci", "Podneti zahtev da sud prethodno utvrdi svoju mesnu nadležnost."),
+    ("brza_procena_koraci", [{"akcija": "Podnesite zahtev za utvrđivanje mesne nadležnosti."}]),
 ])
 def test_n8_each_visible_contradiction_is_withheld(tok, polje, tvrdnja):
     model, _, l2 = tok
@@ -176,6 +192,36 @@ def test_n8_neutral_checks_and_questions_are_not_venue_claims(tok):
     assert provera in odgovor["data"] and pitanje in odgovor["data"]
 
 
+@pytest.mark.parametrize("koraci", [
+    "Ne podnositi poseban zahtev za utvrđivanje mesne nadležnosti. Proveriti okolnosti dužeg boravka.",
+    "Ne treba da podnesete poseban zahtev za utvrđivanje mesne nadležnosti.",
+    "Nije neophodno podneti poseban zahtev za utvrđivanje mesne nadležnosti.",
+    "Ako okolnosti upućuju na duži boravak, u tužbi obrazložiti osnov mesne nadležnosti suda boravišta.",
+])
+def test_n8_ordinary_procedural_advice_is_not_a_standalone_venue_request(tok, koraci):
+    model, _, _ = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "procesni_koraci": koraci})
+    rezultat = M.ask_agent(PITANJE)
+    assert not rezultat.get("blocked")
+    assert koraci in rezultat["data"]
+
+
+@pytest.mark.parametrize("utvrdjen", [False, True])
+def test_n8_prompt_overrides_generic_parnica_steps_only_within_residence_venue(tok, utvrdjen):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    pitanje = PITANJE
+    if utvrdjen:
+        pitanje += " Tuženi već duže boravi u Beogradu, gde radi i živi sa porodicom."
+    assert not M.ask_agent(pitanje).get("blocked")
+    prompt = model.call_args.args[0]
+    assert "Ne predlaži takav zahtev ni drugi neproveren procesni korak" in prompt
+    assert ("N8 — NEUTVRĐENE OKOLNOSTI" in prompt) is not utvrdjen
+    if not utvrdjen:
+        assert "Dodatna nadležnost suda boravišta ostaje neutvrđena" in prompt
+        assert "proveru okolnosti očekivanog dužeg boravka pre izbora suda" in prompt
+
+
 def test_n8_retrieved_wrong_law_cannot_be_a_basis_for_article_39_venue(tok, monkeypatch):
     model, meta, l2 = tok
     docs, _ = M.retrieve_documents(PITANJE)
@@ -199,7 +245,7 @@ def test_n8_alternative_conditional_wording_is_delivered(tok, zakljucak):
 
 
 @pytest.mark.parametrize(("pitanje", "suffix"), [
-    (PITANJE, "|n8-nadleznost-7"),
+    (PITANJE, "|n8-nadleznost-8"),
     ("Dva privredna društva su u sporu. Koji je sud nadležan?", "|n8-nadleznost-6"),
     ("Koji je rok zastarelosti po ZOO?", ""),
 ])
