@@ -374,3 +374,27 @@ def test_oznacen_poslednji_otpust_ne_preuzima_potvrdu_intervala_iz_citata():
     cinjenice, _ = analiza(uvod + " " + _DATUMI_OTPUSTA + " Član 55a KZ?")
     assert cinjenice["otpust"] is None
     assert cinjenice["novo_delo"] is None
+
+
+def test_neizvrsene_uslovne_osude_ne_dozvoljavaju_kategorican_modelski_zakljucak():
+    from main import _dodaj_proracun_povrata, _okvir_povrata_za_model
+
+    pitanje = (
+        "Okrivljeni je dobio dve uslovne osude, u obe je utvrđena kazna od po 2 godine zatvora, "
+        "ali nije izvršena. Novo umišljajno delo je od 01.08.2026. Da li se primenjuje čl. 55a KZ?"
+    )
+    pogresan = "Član 55a KZ se primenjuje jer su ispunjeni uslovi za izricanje kazne."
+    odgovor = _dodaj_proracun_povrata(pitanje, {"status": "success", "data": pogresan})
+
+    assert odgovor["proracun_povrata"] == NEPOZNATO
+    assert "Uslovi prema činjenicama iz pitanja" in odgovor["data"]
+    assert "Primena čl. 55a KZ se ne može utvrditi iz navedenih činjenica" in odgovor["data"]
+    assert pogresan not in odgovor["data"]
+    assert "Proračun sistema za navedene činjenice: NEPOZNATO" in _okvir_povrata_za_model(pitanje)
+
+
+def test_opsti_upit_bez_cinjenica_zadrzava_opsti_rezim():
+    tekst, rezultat = blok("Šta znači višestruki povrat prema čl. 55a KZ?")
+    assert rezultat.primenjuje_se == NEPOZNATO
+    assert "Uslovi prema činjenicama iz pitanja" not in tekst
+    assert "kad su uslovi ispunjeni" in tekst

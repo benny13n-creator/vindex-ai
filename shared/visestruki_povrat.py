@@ -805,7 +805,12 @@ def blok(pitanje: str) -> Optional[tuple[str, Rezultat]]:
                       "Višestruki povrat uređuje čl. 55a.")
     redovi.append(f"Izvor ({IZVOR_55A}): „{CITAT_55A}“")
     redovi.append(_NAPOMENA_BAZA)
-    bez_cinjenica = all(v in (None, False) for v in cinjenice.values())
+    # Nečitljiv ili pravno neproveren navod je i dalje činjenični upit.
+    # Eksplicitno odsustvo umišljaja ili nula osuda nisu odsustvo činjenica.
+    bez_cinjenica = not napomene_parsera and all(
+        vrednost is None for naziv, vrednost in cinjenice.items()
+        if naziv not in ("min_iz_opsteg_minimuma", "strana_osuda")
+    )
     if not bez_cinjenica:
         redovi.append(_prepoznato(cinjenice))
         redovi.append("Uslovi prema činjenicama iz pitanja:")
