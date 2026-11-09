@@ -513,8 +513,16 @@ def test_n8_izricit_naziv_sudskog_zakona_sa_interpunkcijom_i_cirilicom(pitanje):
     assert ekstrakcija_clana(pitanje) == ("Član 27", "zakon o uredjenju sudova")
 
 
-@pytest.mark.parametrize("prvi_zoo,pogresan_model", [(False, False), (True, False), (False, True)])
-def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch, prvi_zoo, pogresan_model):
+@pytest.mark.parametrize("prvi_zoo,tvrdnja,blokiran", [
+    (False, "Član 39 ZOO ne uređuje nadležnost.", False),
+    (True, "Član 39 ZOO ne uređuje nadležnost.", False),
+    (False, "U pitanju o nadležnosti naveden je član 39 ZOO, koji uređuje rok za prihvatanje ponude.", False),
+    (False, "Prema članu 39 ZOO, opšta mesna nadležnost se određuje po prebivalištu tuženog.", True),
+    (False, "Prema čl. 39 ZOO, opšta mesna nadležnost se određuje po prebivalištu tuženog.", True),
+    (False, "Prema članu 39 ZOO, opšta mesna nadležnost se određuje po prebivalištu tuženog, "
+            "a ne po prebivalištu tužioca.", True),
+])
+def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch, prvi_zoo, tvrdnja, blokiran):
     import json
     from unittest.mock import Mock
 
@@ -546,9 +554,8 @@ def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch, prvi_zoo, pogresan_m
     monkeypatch.setattr(M, "_direktan_fetch_clana", exact)
     monkeypatch.setattr(M, "_formatiraj_match", lambda hit: hit)
     model = Mock(return_value=json.dumps({
-        "pravni_zakljucak": (
-            "Prema članu 39 ZOO, opšta mesna nadležnost se određuje po prebivalištu tuženog."
-            if pogresan_model else "Član 39 ZOO ne uređuje nadležnost. Prema članu 39 ZPP opšte je nadležan sud prebivališta tuženog."
+        "pravni_zakljucak": tvrdnja if blokiran else (
+            tvrdnja + " Prema članu 39 ZPP opšte je nadležan sud prebivališta tuženog."
         ),
     }))
     monkeypatch.setattr(M, "_pozovi_openai", model)
@@ -559,7 +566,7 @@ def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch, prvi_zoo, pogresan_m
     )
 
     assert result["status"] == "success"
-    if pogresan_model:
+    if blokiran:
         assert result.get("blocked") is True
         cache_set.assert_not_called()
         return
@@ -568,6 +575,7 @@ def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch, prvi_zoo, pogresan_m
     assert result["top_law"] == "Zakon o parničnom postupku"
     assert result["top_article"] == "Član 39"
     assert "Doslovno citiran" not in result["data"]
+    assert result["izvori"][0]["zakon"] == "Zakon o parničnom postupku"
     exact.assert_called_once_with("Član 39", "zakon o obligacionim odnosima", raise_on_error=True)
     model.assert_called_once()
     prompt = model.call_args.args[1]

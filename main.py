@@ -229,7 +229,7 @@ def _cache_kljuc(pitanje: str) -> str:
 
     n8 = (je_pitanje_gradjanske_nadleznosti(pitanje)
           or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA)
-    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-3" if n8 else "")
+    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-4" if n8 else "")
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -1240,11 +1240,20 @@ def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
     label, zakon = ekstrakcija_clana(pitanje)
     if label and zakon and _clan_ne_uredjuje_nadleznost(label, zakon):
         citirani = (label.removeprefix("Član ").lower(), _kanon_zakona(zakon))
-        for recenica in re.split(r"(?<=[.!?])\s+|\n+", odg):
-            if "nadlez" not in recenica or re.search(r"\b(?:ne|nije|nisu)\b", recenica):
-                continue
-            if any((c["clan"], c["zakon"]) == citirani for c in _klasifikuj_citate(recenica, [])):
-                return "Citirani član ne uređuje nadležnost suda. Proverite merodavno pravilo u ZPP-u."
+        for red in odg.splitlines():
+            for recenica in _recenice_sa_razmacima(red)[::2]:
+                pravilo = _PRAVILO_NADLEZNOSTI_RE.search(recenica) or re.search(
+                    r"\bnadleznost\w*\s+(?:se\s+)?(?:odredjuj|utvrdjuj)\w*"
+                    r"|\b(?:uredjuj|odredjuj|utvrdjuj)\w*\s+(?:opstu\s+|mesnu\s+){0,2}nadleznost\w*",
+                    recenica,
+                )
+                odricanje = re.search(
+                    r"\b(?:ne|nije|nisu)\s+(?:uredjuj|odredjuj|utvrdjuj|merodav|nadlez)\w*", recenica
+                )
+                if not pravilo or odricanje:
+                    continue
+                if any((c["clan"], c["zakon"]) == citirani for c in _klasifikuj_citate(recenica, [])):
+                    return "Citirani član ne uređuje nadležnost suda. Proverite merodavno pravilo u ZPP-u."
 
     if _N8_ZASTARELOST_RE.search(odg):
         return "Nadležnost i zastarelost su odvojena pitanja. Potraživanje može zastareti i u ugovornom sporu."
@@ -4553,6 +4562,7 @@ def ask_agent(
                         if _clan_nadleznosti_zpp({"law": i.get("zakon", ""), "article": i.get("clan", "")})
                     ]
                     prvi = next(iter(merodavni), {})
+                    _izvori = merodavni + [i for i in _izvori if i not in merodavni]
                     top_article, top_law = prvi.get("clan", ""), prvi.get("zakon", "")
                     top_score = prvi.get("score", 0.0)
                     confidence = get_confidence_level(top_score)

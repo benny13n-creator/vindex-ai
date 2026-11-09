@@ -728,7 +728,7 @@ _ROK_ZA_IZJASNJENJE_IZVOD_RE = re.compile(r"\brok(?:u|a)?\s+od\s+\d+\s+dana\b[^.
 _ROK_ZA_IZJASNJENJE_RE = re.compile(r"\bizjasnjenj\w*")
 _SUD_OSTAVLJA_ROK_RE = re.compile(
     r"\bsud\s+(?:je\s+)?"
-    r"(?:(?:strank\w*|u\s+dopuni\s+nalaza)(?:\s+\(dok-\d+\))?\s+){0,2}"
+    r"(?:(?:strank\w*|u\s+dopuni\s+nalaza(?:\s+vestak\w*)?)(?:\s+\(dok-\d+\))?\s+){0,2}"
     r"(?:ostav\w*|odred\w*|nalaz\w*)[^.!?\n]*\brok\w*"
 )
 _NAVOD_O_ROKU_RE = re.compile(
