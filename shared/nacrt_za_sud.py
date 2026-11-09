@@ -312,6 +312,7 @@ Odgovori ISKLJUČIVO JSON objektom: {"tekst_za_sud": "<ceo tekst podneska koji i
 - Datum na nalazu, podnesku ili zapisniku je datum dokumenta. Dostavu ili podnošenje navedi samo uz poseban izvor koji dokazuje taj događaj, kao što je dostavnica ili potvrda prijema. Ako toga nema, u napomenama navedi da je datum neutvrđen. Ako datum izrade nacrta nije izričito zadat, ostavi [DATUM — POPUNITI]. Ne koristi tekući datum.
 - Vrstu dokumenta u rečenici uskladi sa naslovom uz oznaku izvoda. Naknadni podnesak ne nazivaj tužbom. Ako vrsta nije prepoznata, navedi samo autora i oznaku.
 - Ako se stranke spore o datumu ili uzroku, svaki navod pripiši njegovom autoru uz oznaku dokumenta. Nalaz veštaka koji opisuje uzrok ne potvrđuje datum događaja koji nalaz nije utvrdio. Stranački podnesak koji navodi ili prilaže ispravu ne potvrđuje autentičnost, sadržaj ili prijem nepročitane isprave.
+- Jednu pripisanu tvrdnju i njenu oznaku izvora napiši u istoj rečenici. Prenesi sadržaj konkretne rečenice izvora i sačuvaj negacije i ograničenja. Svoj pravni predlog odvoji od prenetih navoda. Ako izvor ne potvrđuje ko je izneo navod, zabeleži to u napomenama.
 - Predlog čeka pregled i usvajanje advokata. Ne očekuj da će sistem automatski ukloniti nepotvrđenu procesnu tvrdnju."""
 
 

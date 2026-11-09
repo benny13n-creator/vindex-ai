@@ -1110,7 +1110,8 @@ async def _potvrde_vrste(supa, uid: str, dok_ids: list) -> dict:
     return out
 
 
-async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: str = "", procesno: bool = False) -> tuple:
+async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: str = "",
+                            procesno: bool = False, *, dokazi_nacrta: bool = False) -> tuple:
     """Kontekst predmeta za savetnika: `(tekst, predmet_verifikovan, izvori_predmeta)`. JEDAN izvor za /run,
     /run-parallel i /pipeline (VCR002 T05): vlasništvo (`predmeti.user_id`), dokumenti u granici poverenja (T3),
     Genome sažetak. Nedostupan ili tuđ predmet daje `("", False, None)` — pozivalac to izričito vraća, nikad tiho kao
@@ -1294,6 +1295,7 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                     # potvrda vrste samo iz audit traga. Nepročitan, izostavljen ili bez teksta → NEPOTPUNO. Greška
                     # čitanja ili utvrđivanja → `greska` (i napomena u internom delu predloga).
                     from shared import procesno_stanje as _PS
+                    potvrde = {}
                     try:
                         dok_za_stanje = []
                         for u in ukljuceni:
@@ -1321,6 +1323,16 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                         x["oznaka"]: {"dokument_id": x["id"], "sha256_teksta": _sha_teksta(x["tekst"])}
                         for x in dok_za_stanje if x.get("id") and x.get("tekst")
                     }
+                    if dokazi_nacrta and not stanje.get("greska"):
+                        potpuni = {u["oznaka"] for u in ukljuceni if u["potpun"]}
+                        izvori["_izvodi_nacrta"] = {}
+                        for x in dok_za_stanje:
+                            if x["oznaka"] in potpuni and x["predmet_id"] == predmet_id and x["user_id"] == uid:
+                                tekst_izvora = _bez_lazne_evidencije(x["tekst"].strip())
+                                izvori["_izvodi_nacrta"][x["oznaka"]] = {
+                                    "tekst": tekst_izvora,
+                                    "vrsta": _PS.vrsta_dokumenta(tekst_izvora, potvrde.get(x["id"])),
+                                }
                 _evidencija = (_evidencija_za_model({**izvori, "trazeni_nisu_dostavljeni": trazeni_nisu}, izostavljeni)
                                if meta or greska_citanja or nepostojeci else "")
                 # Dodaj Case Genome sazetak ako postoji (kao i ranije: samo uz predmet koji ima dokumente)
@@ -1454,7 +1466,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     # ── Dohvati kontekst predmeta (VCR002 T05: zajednički sa /run-parallel) ──
     predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(
         supa, uid, req.predmet_id, zahtev=(req.task or "") + " " + (req.kontekst or ""),
-        procesno=(agent_id in ("drafting", "litigation") and bool(req.predmet_id)))
+        procesno=(agent_id in ("drafting", "litigation") and bool(req.predmet_id)), dokazi_nacrta=agent_id == "drafting")
     if req.predmet_id and not predmet_verifikovan:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
     # MIR001 C3b: nacrt iz spisa = zaštićen tok (procesno stanje servera → JSON predlog + napomene → AI RADNI PREDLOG na
@@ -1606,8 +1618,9 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                 "Nacrt nije izrađen: odgovor savetnika nije mogao bezbedno da se razdvoji na predlog teksta i napomene. "
                 "Ništa nije naplaćeno ni sačuvano. Pokušajte ponovo."))
         odgovor = tekst_za_sud.strip()
+        tekst_i_napomene = "\n\n".join([odgovor, *napomene_modela])
         izvori_dostave, sudski_izvori = _proveri_dostavu_nalaza_u_nacrtu(
-            "\n".join([odgovor, *napomene_modela]), stanje
+            tekst_i_napomene, stanje
         )
         if izvori_dostave:
             from routers.drafting import _proveri_izvore_za_sud
@@ -1619,6 +1632,29 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                     raise HTTPException(status_code=409, detail="Sudsko poreklo dokaza o dostavi više nije potvrđeno.")
 
             await potvrdi_izvore_dostave()
+        from shared import mir03_source_fidelity as _MF
+        ip = izvori_predmeta or {}
+        snimci = ip.get("_snimci_dokumenata") or {}
+        izvodi_nacrta = ip.get("_izvodi_nacrta") or {}
+
+        def proverena_dostava(deo: str) -> bool:
+            # Posebna kapija je već proverila datum, primaoca, aktera i izvor ove tvrdnje.
+            return bool(izvori_dostave and not re.search(r"[,;]|\bi\b", _NALAZ_VESTAKA_RE.sub("", deo, count=1))
+                        and any(_tvrdnje_o_dostavi_nalaza(deo)))
+
+        try:
+            potkrepljeni = _MF.proveri(
+                tekst_i_napomene, izvodi_nacrta, stanje, proverena_dostava=proverena_dostava,
+            )
+        except _MF.NepouzdanIzvor:
+            from shared.http_errors import NamerniHTTPException
+            raise NamerniHTTPException(status_code=502, detail=(
+                "Nacrt nije izrađen: pripisani navod nije potkrepljen pročitanim izvorom. "
+                "Ništa nije naplaćeno ni sačuvano."))
+        zavisni_izvori = dict(izvori_dostave)
+        for oznaka in potkrepljeni:
+            snimak_izvora = snimci[oznaka]
+            zavisni_izvori[snimak_izvora["dokument_id"]] = snimak_izvora["sha256_teksta"]
         try:
             # C3b FINAL CLOSURE: tekst modela je AI RADNI PREDLOG, ceo (leksička kapija `zastiti` povučena posle GATE-03
             # C3B_FAIL). Pre naplate (GATE-02 N1): pad obrade ne sme da naplati nacrt koji ne postoji.
@@ -1626,8 +1662,6 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             # C3b FINAL CLOSURE TASK-01: snimak predloga (stavke, dokumenti, procesne tačke sa doslovnim izvodima) — osnov
             # za izričito usvajanje u dokument za sud (`shared/usvajanje_nacrta`). Ništa u snimku nije „potvrđeno“.
             from shared import usvajanje_nacrta as _UN
-            ip = izvori_predmeta or {}
-            snimci = ip.get("_snimci_dokumenata") or {}
             dokumenti = ([{"oznaka": u["oznaka"], "naziv": u.get("naziv") or "",
                            **snimci.get(u["oznaka"], {"dokument_id": None}),
                            "stanje": "PROCITAN" if u.get("potpun") else "DELIMICNO_PROCITAN"} for u in ip.get("ukljuceni") or []]
@@ -1636,6 +1670,10 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                          + [{"oznaka": x["oznaka"], "naziv": x.get("naziv") or "", "dokument_id": None, "stanje": "NIJE_PROCITAN"}
                             for x in ip.get("izostavljeni") or []])
             snimak = _UN.snimak_predloga(predlog_ai["tekst"], stanje, dokumenti, predlog_ai["tekst_za_dokument"])
+            if potkrepljeni:
+                for sirova, sacuvana in zip(_UN.stavke(odgovor), snimak["stavke"], strict=True):
+                    oznake = _MF.proveri(sirova["tekst"], izvodi_nacrta, stanje, proverena_dostava=proverena_dostava)
+                    sacuvana["izvori"] = sorted(set(sacuvana["izvori"]) | oznake)
         except Exception as exc:
             from shared.http_errors import NamerniHTTPException
             _sentry_capture(exc)
@@ -1674,7 +1712,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             return await _stage_draft_for_review(
                 user, req.predmet_id, _TIP_NACRTA_IZ_SPISA, "AI radni predlog (savetnik)",
                 odgovor, dodatni_detalj={"predlog": snimak}, krediti=krediti,
-                izvori_dostave=izvori_dostave, sudski_izvori=sorted(sudski_izvori),
+                izvori_dostave=zavisni_izvori, sudski_izvori=sorted(sudski_izvori),
             )
 
         await UsageService.consume(uid, email, "multi_agent", atomic_charge=upisi_predlog)

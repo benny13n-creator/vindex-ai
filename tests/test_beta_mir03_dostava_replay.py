@@ -70,7 +70,7 @@ def test_arhivirani_raw_odbijen_pre_naplate_i_pregleda(lit, monkeypatch):
     SENTENCE,
     "Nalaz veštaka nije dostavljen strankama 15.06.2026. (DOK-05).",
     "Ako je nalaz veštaka dostavljen 15.06.2026, proveriti dostavnicu (DOK-05).",
-    "Veštak navodi da je prokišnjavanje posledica izvođačke greške (DOK-05).",
+    "Veštak navodi da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija (DOK-05).",
     "Nakon što bude dostavljen građevinski dnevnik iz naloga suda (DOK-07), razmotriti nalaz veštaka (DOK-05).",
 ])
 def test_datum_nalaza_negacija_i_uslov_ne_postaju_tvrdnja_o_dostavi(lit, monkeypatch, sentence):
@@ -84,7 +84,8 @@ def test_datum_nalaza_negacija_i_uslov_ne_postaju_tvrdnja_o_dostavi(lit, monkeyp
 
 @pytest.mark.parametrize("izmena,status", [("povucen", 409), ("promenjen", 409),
                                           ("primalac", 502), ("citiran", 502), ("tokom_kvaliteta", 409),
-                                          ("jsonb_string", 200), ("neispravna_potvrda", 502)])
+                                          ("jsonb_string", 200), ("neispravna_potvrda", 502),
+                                          ("pun_naslov", 200), ("dodati_navod", 502)])
 def test_potvrdjeni_izvor_mora_podrzati_tvrdnju_posle_modela(lit, monkeypatch, izmena, status):
     from tests import mir001_golden_case as gc
     from tests.test_mir002_litigation_procesno_stanje import _dodaj_dokument, _dok_predmeta
@@ -106,8 +107,11 @@ def test_potvrdjeni_izvor_mora_podrzati_tvrdnju_posle_modela(lit, monkeypatch, i
         b.tabele["audit_immutable"].append({**b.tabele["audit_immutable"][-1], "seq": 2, "metadata": "{"})
     from routers import multi_agent
     primalac = "tuženom" if izmena == "primalac" else "tužiocu"
-    raw = json.dumps({"tekst_za_sud": f"Nalaz veštaka dostavljen je {primalac} 15.06.2026. (DOK-08).",
-                      "napomene_za_advokata": []})
+    naslov = "Nalaz i mišljenje veštaka" if izmena == "pun_naslov" else "Nalaz veštaka"
+    tekst = f"{naslov} dostavljen je {primalac} 15.06.2026. (DOK-08)"
+    if izmena == "dodati_navod":
+        tekst += " i hidroizolacija je zamenjena u maju (DOK-03)"
+    raw = json.dumps({"tekst_za_sud": tekst + ".", "napomene_za_advokata": []})
     _model(monkeypatch, raw)
     odgovor = multi_agent._pozovi_nacrt_api
 
