@@ -260,7 +260,7 @@ async def _sacuvaj_naplaceni_predlog(supa, zapis: dict, izvori: dict, sudski_izv
             return r.data
     except APIError as exc:
         if exc.code == "PT409":
-            raise NamerniHTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR) from exc
+            raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR) from exc
         if str(exc.code or "").startswith(("22", "23", "40", "42")) or exc.code == "P0001":
             raise NamerniHTTPException(status_code=503, detail="Nacrt nije sačuvan. Nije naplaćen.") from exc
         _sentry_capture(exc)

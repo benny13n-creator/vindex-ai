@@ -130,6 +130,10 @@ def test_potvrdjeni_izvor_mora_podrzati_tvrdnju_posle_modela(lit, monkeypatch, i
     response = _draft(k, pid)
     assert response.status_code == status, response.text
     assert len(b.naplate) == len(b.tabele["staging_memory"]) == (1 if status == 200 else 0)
+    if izmena == "tokom_kvaliteta":
+        assert response.json()["detail"] == (
+            "Izvor na koji se dokument oslanja nije potvrđen u aktuelnom spisu. Pregledajte i izradite novi predlog."
+        )
 
 
 def test_odbicen_upis_predloga_nema_uspeh_neto_debit_ni_duplo_izvrsenje(lit, monkeypatch):
