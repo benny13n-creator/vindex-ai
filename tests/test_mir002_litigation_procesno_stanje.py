@@ -635,3 +635,15 @@ def test_mir03_datum_nalaza_nije_dokaz_dostave(lit, monkeypatch, izvor, datum, o
     else:
         assert "datum dostave nalaza veštaka nije potkrepljen" in r.json()["detail"]
         stage.assert_not_called()
+
+
+def test_mir03_broj_predmeta_izmedju_dostave_i_datuma_ne_zaobilazi_proveru():
+    from fastapi import HTTPException
+    from routers.multi_agent import _proveri_dostavu_nalaza_u_nacrtu
+
+    with pytest.raises(HTTPException) as exc:
+        _proveri_dostavu_nalaza_u_nacrtu(
+            "U vezi sa nalazom i mišljenjem veštaka, dostavljenim u predmetu broj P 9901/2026 dana 15.06.2026. (DOK-05), "
+            "tužilac iznosi izjašnjenje.", None,
+        )
+    assert exc.value.status_code == 502

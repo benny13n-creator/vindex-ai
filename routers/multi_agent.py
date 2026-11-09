@@ -802,8 +802,10 @@ def _proveri_procesni_odgovor(odgovor: str, izvori: Optional[dict]) -> None:
 
 _NALAZ_VESTAKA_RE = re.compile(r"\bnalaz\w*(?:\s+i\s+misljenj\w*)?\s+vestak\w*")
 _DOSTAVA_NALAZA_RE = re.compile(
-    rf"\b(?:dostavljen|urucen|primljen)\w*\s+"
-    rf"(?:(?:strank\w*|tuzio\w*|tuzen\w*|punomocnik\w*)\s+)?(?:dana\s+)?(?P<datum>{_DATUM_ROKA_RE.pattern})"
+    r"\b(?:dostavljen|urucen|primljen)\w*\s+"
+    r"(?:(?:strank\w*|tuzio\w*|tuzen\w*|punomocnik\w*)\s+)?"
+    r"(?:u\s+predmetu\s+(?:broj|br\.?)\s+(?:[a-z]+\d*\s*)?\d+/\d{4}\s+)?"
+    rf"(?:dana\s+)?(?P<datum>{_DATUM_ROKA_RE.pattern})"
 )
 
 

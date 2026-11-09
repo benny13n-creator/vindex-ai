@@ -403,6 +403,7 @@ _N8_TEST_NATURAL = (
     (_N8_TEST_COMPANY, "Rokovi zastarelosti nisu predmet pitanja. Za ugovorna potraživanja mogu važiti posebni rokovi.", True),
     (_N8_TEST_NATURAL, "Oba suda su mesno nadležna prema prebivalištu i boravištu tuženog.", False),
     (_N8_TEST_NATURAL, "Oba suda su mesno nadležna ako okolnosti upućuju na duži boravak.", True),
+    (_N8_TEST_NATURAL, "Sud boravišta može biti nadležan kod dužeg boravka, ali to nije slučaj ovde jer nema informacija o dužem boravku u Beogradu.", False),
     (_N8_TEST_NATURAL, "Sud boravišta može biti nadležan kod dužeg boravka, ali to nije slučaj ovde jer prebivalište ima prednost.", False),
     (_N8_TEST_NATURAL + " Poznato je da će tuženi u Beogradu boraviti duže vreme.",
      "Oba suda su mesno nadležna.", True),

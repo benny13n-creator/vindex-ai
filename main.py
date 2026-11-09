@@ -1247,7 +1247,8 @@ def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
         )
         if not duzi_boravak:
             if re.search(
-                r"\b(?:nije|ne vazi)\b[^.!?\n]{0,50}\bjer prebivalist\w* ima prednost\b"
+                r"\b(?:nije|ne vazi)\b[^.!?\n]{0,50}\bjer (?:prebivalist\w* ima prednost"
+                r"|nema (?:informacij\w*|podatak\w*) o duz\w* borav\w*)\b"
                 r"|\bprebivalist\w* iskljucuje (?:nadleznost )?sud\w* boravist\w*\b", odg,
             ):
                 return "Nedostaje podatak o dužem boravku, pa dodatna nadležnost nije ni potvrđena ni isključena."
