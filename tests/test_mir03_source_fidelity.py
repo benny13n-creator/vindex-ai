@@ -73,6 +73,9 @@ def test_n1_exact_archived_provider_response_is_rejected(spis):
     pytest.param("Veštak u nalazu DOK-05 navodi da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija. "
                  "Hidroizolacija je zamenjena 20.04.2026. godine.",
                  id="N7-separate-sentence-in-same-paragraph"),
+    pytest.param("Veštak u nalazu DOK-05 navodi da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija. "
+                 "Poštovani sude. Hidroizolacija je zamenjena 20.04.2026. godine.",
+                 id="N7-neutral-sentence-does-not-reset-paragraph-evidence"),
     pytest.param("Tuženi u DOK-02 tvrdi da je ugradnja solarnih panela posledica prokišnjavanja.",
                  id="reversed-cause-and-effect"),
     pytest.param("Veštak u DOK-05 navodi da su nosači solarnih panela oštetili hidroizolaciju krova.",
@@ -155,6 +158,26 @@ def test_source_fidelity_does_not_depend_on_golden_case_words_or_labels():
     ) == {"DOK-81"}
     with pytest.raises(NepouzdanIzvor):
         proveri("U DOK-81 sud je utvrdio da je merenje izvršeno u laboratoriji 17.02.2026. godine.", izvori)
+
+
+def test_party_record_cannot_support_a_court_decision(spis):
+    izvori, stanje = spis
+    izvod = "Sud prihvata predlog za dopunu vestacenja."
+    izjava = "Sud je već prihvatio predlog za dopunu veštačenja"
+    tekst = f"PODNESAK TUZIOCA\n{izvod}"
+    izvori["DOK-83"] = {"tekst": tekst, "vrsta": ps.vrsta_dokumenta(tekst)}
+    assert proveri(f"{izjava} (DOK-07).", izvori, stanje) == {"DOK-07"}
+    with pytest.raises(NepouzdanIzvor):
+        proveri(f"{izjava} (DOK-83).", izvori, stanje)
+
+
+@pytest.mark.parametrize("uvod", ["Tužilac citira željeni ishod:", "Mogući ishod ako sud usvoji predlog:"])
+def test_quoted_or_hypothetical_decision_is_not_a_court_act(spis, uvod):
+    izvori, stanje = spis
+    tekst = f"ZAPISNIK SA ROČIŠTA\n{uvod}\nSud prihvata predlog za dopunu vestacenja."
+    izvori["DOK-83"] = {"tekst": tekst, "vrsta": ps.vrsta_dokumenta(tekst)}
+    with pytest.raises(NepouzdanIzvor):
+        proveri("Sud je već prihvatio predlog za dopunu veštačenja (DOK-83).", izvori, stanje)
 
 
 def test_court_record_preserves_partys_attribution_in_body():

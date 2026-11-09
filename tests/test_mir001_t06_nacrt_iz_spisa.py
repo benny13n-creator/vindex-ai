@@ -166,7 +166,7 @@ def test_bez_predmeta_ili_drugi_savetnik_nema_nacrta_i_nema_spoljnog_slanja(nacr
 
 
 @treba_ocr
-def test_obrisan_dokument_se_ne_koristi_kao_aktuelan(nacrt):
+def test_obrisan_dokument_se_ne_koristi_kao_aktuelan(nacrt, monkeypatch):
     k, b, pid, doks, snimljeno = nacrt
     did = doks["DOK-06"]["id"]
     from shared.vector_deletion import Ishod, Rezultat
@@ -176,6 +176,18 @@ def test_obrisan_dokument_se_ne_koristi_kao_aktuelan(nacrt):
             patch("uploaded_doc.ingest._get_pinecone_index", lambda: MagicMock()):
         assert k.delete(f"/api/predmeti/{pid}/dokumenti/{did}", headers=A).status_code == 200
     _do_kraja_dogadjaja(b, najvise=20)
+    telo = {"agent": "drafting", "task": ZADATAK, "predmet_id": pid}
+    assert k.post("/api/agents/run", json=telo, headers=A).status_code == 502
+    assert not _nacrti(b, pid)
+
+    import routers.multi_agent as MA
+
+    def _model_bez_obrisanog_izvora(client, system, user_msg):
+        snimljeno.append({"system": MA._sa_granicom(system), "user": user_msg})
+        tekst = NACRT.replace(" Tuzeni osporava nalaz (DOK-06).", "")
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=tekst))])
+
+    monkeypatch.setattr(MA, "_pozovi_nacrt_api", kao_json(_model_bez_obrisanog_izvora))
     o = _pisi(k, pid)
     tekst = snimljeno[-1]["user"].rsplit("Zahtev:", 1)[0]
     assert gc.NAVODI["N-11"]["tekst"] not in tekst                  # obrisan izvor nije u kontekstu nacrta

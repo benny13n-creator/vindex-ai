@@ -36,6 +36,11 @@ _USLOV = re.compile(r"^(?:ako|ukoliko|kada)\s+(?:bi\s+)?$")
 _ISKAZ = re.compile(r"\b(?:je|su|nije|nisu|bio|bila|utvrdjeno|utvrdeno)\b")
 _HIPOTETICKI = re.compile(r"^(?:ako|ukoliko|nakon sto bude)\b[^,]*,\s*(?:proveriti|razmotriti)\b")
 _NEGIRANA_DOSTAVA = re.compile(r"^\s*(?:vestakov nalaz|nalaz vestaka) nije (?:dostavljen|urucen)\b[^,;]*$")
+_OSPORAVANI_NAVOD = re.compile(rf"navod\w*\s+({_GENITIV})")
+_SUD_PRIHVATA = re.compile(r"^sud (?:je (?:vec )?prihvatio|prihvata)\b")
+_NAPOMENA_AI = re.compile(
+    r"^\W*ovaj nacrt generisala je ai i mora ga pregledati i potpisati ovlasceni advokat pre podnosenja sudu$"
+)
 
 
 def _bez_oznaka(tekst: str) -> str:
@@ -75,23 +80,30 @@ def _navodi(tekst: str) -> list[tuple[str, str, str]]:
 
 def _sadrzaj(tekst: str) -> str:
     tekst = re.sub(r"\b(?:nakon sto je|nakon|posle)\b", "posle", tekst)
+    tekst = re.sub(r"^sud je (?:vec )?prihvatio\b", "sud prihvata", tekst)
     return _bez_oznaka(tekst).strip(" \"„“«»")
 
 
-def _podudaranje(navod: str, izvod: str, radnja: str) -> bool:
+def _podudaranje(navod: str, izvod: str, radnja: str, akter: str) -> bool:
     """Doslovan iskaz ili ograničena promena oblika koja čuva aktera i smer odnosa."""
     navod, izvod = _sadrzaj(navod), _sadrzaj(izvod)
     if navod == izvod:
         return bool(navod)
     if radnja == "spor":
-        return bool(re.fullmatch(re.escape(navod) + r" od \d{1,2}\.\d{1,2}\.\d{4}\.?(?: godine)?", izvod))
+        if navod == "nalaz":
+            navod = "nalaz vestaka"
+        return bool(re.fullmatch(re.escape(navod) + r"(?: od \d{1,2}\.\d{1,2}\.\d{4}\.?(?: godine)?)?", izvod))
     # Dopuna mesta u iskazu o uzroku može biti izostavljena; druge kvalifikacije ostaju.
     uzrok = re.fullmatch(r"je uzrok (\w+) (.+)", navod)
     if uzrok:
         posledica, razlog = uzrok.groups()
-        return bool(re.fullmatch(
+        if re.fullmatch(
             rf"uzrok {re.escape(posledica)} je {re.escape(razlog)}(?: na spoju \w+)?", izvod,
-        ))
+        ):
+            return True
+        return akter == "vestak" and bool(
+            re.fullmatch(rf"uzrok \w+ je {re.escape(navod.removeprefix('je uzrok '))}", izvod)
+        )
     # Aktivni iskaz o uzroku i ista relacija sa izričito navedenom ugradnjom.
     uzrok = re.fullmatch(r"su (\w+) (\w+) uzrok (\w+)", navod)
     if uzrok:
@@ -126,6 +138,8 @@ def _dokazne_jedinice(izvor: dict) -> list[tuple[str, str, str]]:
             autor = "tuzilac"
     rezultat = []
     for a, b in PS._jedinice(tekst, vrsta["kraj_naslova"]):
+        if tekst[a:b].lstrip().startswith(("„", '"', "«", "“")) or tekst[:a].rstrip().endswith(":"):
+            continue
         recenica = NZ._n(tekst[a:b]).strip()
         navodi = _navodi(recenica)
         if navodi:
@@ -136,8 +150,10 @@ def _dokazne_jedinice(izvor: dict) -> list[tuple[str, str, str]]:
                 potvrdjen_sud = autor == "sud" and vrsta["osnov"] == "ADVOKAT"
                 if (akter == autor and akter != "sud") or potvrdjen_sud:
                     rezultat.append((akter, radnja, sadrzaj))
-        elif autor == "vestak" and not tekst[a:b].lstrip().startswith(("„", '"', "«", "“")) and not tekst[:a].rstrip().endswith(":"):
+        elif autor == "vestak":
             rezultat.append((autor, "navod", recenica))
+        if autor == "sud" and _SUD_PRIHVATA.match(recenica):
+            rezultat.append((autor, "prihvata", recenica))
         rezultat.append(("", "navod", recenica))
     return rezultat
 
@@ -178,23 +194,31 @@ def proveri(tekst: str, izvori: dict, stanje: dict | None = None, *, proverena_d
                 prethodno_citiran and not delovi[i - 1].startswith(", jer")
             )
             prethodno_citiran = prethodno_citiran or bool(oznake or ps_oznake)
+            if not navodi and (oznake or ps_oznake) and _SUD_PRIHVATA.match(cisto):
+                navodi = [("sud", "prihvata", cisto)]
             if not navodi and (oznake or zasebna_tvrdnja) and _ISKAZ.search(cisto) and not (
                 _HIPOTETICKI.match(cisto) or _NEGIRANA_DOSTAVA.match(cisto)
+                or (not oznake and _NAPOMENA_AI.fullmatch(cisto))
                 or (proverena_dostava and proverena_dostava(deo))
             ):
                 navodi = [("", "navod", cisto)]
             for akter, radnja, sadrzaj in navodi:
                 kandidati = vezani or oznake
-                if not kandidati and not ps_izvodi and akter == "vestak":
-                    # Doslovan nalaz bez oznake ostaje radni tekst, ali se
-                    # na upisu vezuje za stvarni pročitani izvor.
+                if not kandidati and not ps_izvodi and akter in ("tuzilac", "tuzeni", "vestak"):
+                    # Doslovan navod bez oznake vezuje se za pročitani izvor.
                     kandidati = izvori.keys()
+                osporavani = _OSPORAVANI_NAVOD.fullmatch(sadrzaj) if radnja == "spor" else None
                 podrska = set()
                 for oznaka in sorted(kandidati):
                     if oznaka not in jedinice:
                         jedinice[oznaka] = _dokazne_jedinice(izvori[oznaka])
-                    if any(
-                        (govornik, vrsta) == (akter, radnja) and _podudaranje(sadrzaj, izvod, radnja)
+                    if osporavani and _IMENA[osporavani[1]] != akter:
+                        # U ovom podnesku stranka osporava konkretan tuđi navod.
+                        # Citat identifikuje osporavani iskaz, a ne dokaz ranijeg prigovora.
+                        if any(govornik == _IMENA[osporavani[1]] for govornik, _, _ in jedinice[oznaka]):
+                            podrska.add(oznaka)
+                    elif any(
+                        (govornik, vrsta) == (akter, radnja) and _podudaranje(sadrzaj, izvod, radnja, akter)
                         for govornik, vrsta, izvod in jedinice[oznaka]
                     ):
                         podrska.add(oznaka)
@@ -203,13 +227,17 @@ def proveri(tekst: str, izvori: dict, stanje: dict | None = None, *, proverena_d
                         oznaka = dogadjaj["oznaka"]
                         izvor = izvori[oznaka]
                         jedinica = {"tekst": dogadjaj["izvod"], "vrsta": {**izvor["vrsta"], "kraj_naslova": 0}}
+                        if oznaka not in jedinice:
+                            jedinice[oznaka] = _dokazne_jedinice(izvor)
                         if any(
-                            (govornik, vrsta) == (akter, radnja) and _podudaranje(sadrzaj, izvod, radnja)
+                            (govornik, vrsta) == (akter, radnja) and _podudaranje(sadrzaj, izvod, radnja, akter)
                             for govornik, vrsta, izvod in _dokazne_jedinice(jedinica)
+                            if (govornik, vrsta, izvod) in jedinice[oznaka]
                         ):
                             podrska.add(oznaka)
                 if not podrska or not vezani <= podrska:
                     raise NepouzdanIzvor
                 upotrebljeni.update(podrska)
-                prethodno_potkrepljen = True
+                if not osporavani:
+                    prethodno_potkrepljen = True
     return upotrebljeni
