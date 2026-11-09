@@ -3852,10 +3852,17 @@ def _n8_ogranici_dokaznu_potpunost(pitanje: str, data: dict) -> None:
     if not pitanje:
         return
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
-    if not je_pitanje_gradjanske_nadleznosti(pitanje):
-        return
     q = _normalizuj(_cirilica_u_latinicu(pitanje))
     if "prebivalist" not in q or "boravist" not in q:
+        return
+    # The general N8 router recognizes "koji sud" but not every natural
+    # question ("da li je sud boravišta nadležan?"). Keep the fallback
+    # strictly limited to venue of residence and extended stay. Do not
+    # broaden routing of unrelated legal questions.
+    konkretan_sud_boravista = bool(re.search(
+        r"\bsud\w*\s+boravist\w*(?:\s+\w+){0,2}\s+nadlez\w*", q
+    ))
+    if not (je_pitanje_gradjanske_nadleznosti(pitanje) or konkretan_sud_boravista):
         return
     ima_duzeg_boravka = any(
         _N8_DUZI_BORAVAK_RE.search(rec)
