@@ -275,7 +275,7 @@ class _Q:
 
 class _Storage:
     def from_(self, *a, **k): return self
-    def upload(self, *a, **k): raise RuntimeError("storage isključen u testu")
+    def upload(self, *a, **k): return {"Key": k.get("path")}
     def remove(self, *a, **k): return None
 
 
