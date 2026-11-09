@@ -56,31 +56,18 @@ _BRIFING = {
 
 
 def _make_supa(predmet_data=None, empty_rest=True):
-    """Returns a chainable Supabase mock for all 8 gather queries."""
+    """Return the case row only from its table, regardless of query order."""
     supa = MagicMock()
-    call_n = [0]
 
-    def _make_result(data):
-        r = MagicMock()
-        r.data = data
-        return r
+    def table(name):
+        chain = MagicMock()
+        for attr in ("select", "eq", "is_", "limit", "order", "insert", "update", "delete", "maybe_single"):
+            getattr(chain, attr).return_value = chain
+        data = [predmet_data] if name == "predmeti" and predmet_data else []
+        chain.execute.return_value = MagicMock(data=data)
+        return chain
 
-    pred_result = _make_result([predmet_data] if predmet_data else [])
-    empty_result = _make_result([])
-
-    chain = MagicMock()
-    for attr in ['table','select','eq','is_','limit','order','execute',
-                 'insert','update','delete','maybe_single']:
-        setattr(chain, attr, MagicMock(return_value=chain))
-
-    def execute_side():
-        call_n[0] += 1
-        if call_n[0] == 1:
-            return pred_result
-        return empty_result
-
-    chain.execute.side_effect = execute_side
-    supa.table = MagicMock(return_value=chain)
+    supa.table.side_effect = table
     return supa
 
 
