@@ -229,7 +229,7 @@ def _cache_kljuc(pitanje: str) -> str:
 
     n8 = (je_pitanje_gradjanske_nadleznosti(pitanje)
           or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA)
-    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-4" if n8 else "")
+    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-5" if n8 else "")
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
