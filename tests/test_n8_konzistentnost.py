@@ -14,6 +14,7 @@ _FIXTURES = Path(__file__).with_name("fixtures")
 _ARHIVA = json.loads((_FIXTURES / "beta_n8_natural_9f16_live.json").read_text("utf-8"))
 _USLOVNA_ARHIVA = json.loads((_FIXTURES / "beta_n8_conditional_fb4e_live.json").read_text("utf-8"))
 _KORACI_ARHIVA = json.loads((_FIXTURES / "beta_n8_conditional_2af9_live.json").read_text("utf-8"))
+_BORAVAK_ARHIVA = json.loads((_FIXTURES / "beta_n8_supported_7c7b_live.json").read_text("utf-8"))
 PITANJE = _ARHIVA["pitanje"]
 USLOVNI_ODGOVOR = {
     "brza_procena_pravna_utemeljenost": "visoka",
@@ -64,8 +65,9 @@ def test_n8_exact_archived_model_response_is_withheld_without_caching(tok):
 @pytest.mark.parametrize(("arhiva", "sha256"), [
     (_USLOVNA_ARHIVA, "bfe06f29f5f433a17bb88db765a6a5038300c15bc85079dcfe790cc270cfac91"),
     (_KORACI_ARHIVA, "c9df94c3e443a399badd8af28c8af608b8b094f21f664e27f9fdb6b23cb60642"),
+    (_BORAVAK_ARHIVA, "6e8da5ff495ce6463df495d027a74f144dc18c95016bb3e64e420666f9302eaa"),
 ])
-def test_n8_exact_conditional_live_response_is_withheld_without_caching(tok, arhiva, sha256):
+def test_n8_each_exact_live_response_is_withheld_without_caching(tok, arhiva, sha256):
     model, _, l2 = tok
     raw = arhiva["raw"]
     assert hashlib.sha256(raw.encode()).hexdigest() == sha256
@@ -230,20 +232,26 @@ def test_n8_prompt_overrides_generic_parnica_steps_only_within_residence_venue(t
         assert "proveru okolnosti očekivanog dužeg boravka pre izbora suda" in prompt
 
 
-@pytest.mark.parametrize("pitanje", [PITANJE, _KORACI_ARHIVA["pitanje"]])
-def test_n8_uses_strict_venue_fields_for_single_venue_question(tok, pitanje):
+@pytest.mark.parametrize(("pitanje", "utvrdjen"), [
+    (PITANJE, False),
+    (_KORACI_ARHIVA["pitanje"], False),
+    (_BORAVAK_ARHIVA["pitanje"], True),
+])
+def test_n8_uses_strict_venue_fields_for_single_venue_question(tok, pitanje, utvrdjen):
     model, _, _ = tok
     model.return_value = json.dumps(USLOVNI_ODGOVOR)
     assert not M.ask_agent(pitanje).get("blocked")
     zahtev = model.call_args.kwargs["response_format"]["json_schema"]
-    assert zahtev["strict"] and zahtev["name"] == "vindex_parnica_n8_neutvrdjen_boravak"
+    assert zahtev["strict"] and zahtev["name"] == (
+        "vindex_parnica_n8_utvrdjen_boravak" if utvrdjen else "vindex_parnica_n8_neutvrdjen_boravak"
+    )
     schema = zahtev["schema"]
     assert schema["additionalProperties"] is False
     assert set(schema["required"]) == set(schema["properties"])
     fields = schema["properties"]
     assert "39 st. 1" in fields["pravni_zakljucak"]["enum"][0]
     assert "39 st. 3" in fields["pravni_zakljucak"]["enum"][0]
-    assert fields["brza_procena_dokazna_potpunost"]["enum"] == ["delimicna"]
+    assert fields["brza_procena_dokazna_potpunost"]["enum"] == ["potpuna" if utvrdjen else "delimicna"]
     assert "pre izbora suda" in fields["procesni_koraci"]["enum"][0]
     assert fields["citat_zakona"] == M._JSON_SCHEMA_PARNICA["json_schema"]["schema"]["properties"]["citat_zakona"]
     for polje in ("sudska_praksa", "brza_procena_koraci"):
@@ -252,7 +260,7 @@ def test_n8_uses_strict_venue_fields_for_single_venue_question(tok, pitanje):
 
 
 @pytest.mark.parametrize("dodatak", [
-    " Tuženi već duže boravi u Beogradu, gde radi i živi sa porodicom.",
+    " Tuženi duže boravi u Beogradu i to nije sporno.",
     " Da li je potraživanje zastarelo?",
     " KONTEKST PREDMETA: Sintetički privatni predmet.",
 ])
@@ -283,7 +291,8 @@ def test_n8_article_label_alone_cannot_activate_strict_venue_format(tok, monkeyp
     assert model.call_args.kwargs["response_format"] is M._JSON_SCHEMA_PARNICA
 
 
-def test_n8_structured_venue_format_delivers_cited_rule_and_safe_step(tok):
+@pytest.mark.parametrize(("pitanje", "ocena"), [(PITANJE, "DELIMIČNA"), (_BORAVAK_ARHIVA["pitanje"], "POTPUNA")])
+def test_n8_structured_venue_format_delivers_cited_rule_and_safe_step(tok, pitanje, ocena):
     model, _, l2 = tok
 
     def generisi(*_, response_format, **kwargs):
@@ -299,12 +308,28 @@ def test_n8_structured_venue_format_delivers_cited_rule_and_safe_step(tok):
         return json.dumps(data)
 
     model.side_effect = generisi
-    rezultat = M.ask_agent(PITANJE)
+    rezultat = M.ask_agent(pitanje)
     assert not rezultat.get("blocked") and l2
     assert "opšta mesna nadležnost pripada sudu prebivališta tuženog" in rezultat["data"]
-    assert "Sud boravišta može biti dodatno mesno nadležan" in rezultat["data"]
-    assert "Dokazna potpunost: DELIMIČNA" in rezultat["data"]
+    assert "dodatno mesno nadležan" in rezultat["data"]
+    assert f"Dokazna potpunost: {ocena}" in rezultat["data"]
     assert "pre izbora suda" in rezultat["data"]
+
+
+@pytest.mark.parametrize(("rizik", "blokiraj"), [
+    ("Mogućnost promene boravišta tuženog tokom postupka može uticati na nadležnost.", True),
+    ("Tokom postupka promena prebivališta tuženog menja mesnu nadležnost.", True),
+    ("Ako tuženi promeni boravište tokom postupka, nadležnost prelazi na sud novog mesta boravišta.", True),
+    ("Promena boravišta tokom postupka sama po sebi ne utiče na mesnu nadležnost suda koji je bio nadležan pri podnošenju.", False),
+    ("Ako tuženi promeni boravište tokom postupka, nadležnost ne prelazi na sud novog mesta boravišta.", False),
+    ("Proveriti da li je boravište promenjeno pre podnošenja tužbe jer to može uticati na nadležnost.", False),
+])
+def test_n8_later_change_does_not_displace_court_competent_when_filed(tok, rizik, blokiraj):
+    model, _, l2 = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "rizici_i_izuzeci": rizik})
+    rezultat = M.ask_agent(_BORAVAK_ARHIVA["pitanje"])
+    assert bool(rezultat.get("blocked")) == blokiraj
+    assert bool(l2) != blokiraj
 
 
 def test_n8_retrieved_wrong_law_cannot_be_a_basis_for_article_39_venue(tok, monkeypatch):
@@ -330,7 +355,7 @@ def test_n8_alternative_conditional_wording_is_delivered(tok, zakljucak):
 
 
 @pytest.mark.parametrize(("pitanje", "suffix"), [
-    (PITANJE, "|n8-nadleznost-9"),
+    (PITANJE, "|n8-nadleznost-10"),
     ("Dva privredna društva su u sporu. Koji je sud nadležan?", "|n8-nadleznost-6"),
     ("Koji je rok zastarelosti po ZOO?", ""),
 ])

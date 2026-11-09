@@ -233,7 +233,7 @@ def _cache_kljuc(pitanje: str) -> str:
           or _n8_izricito_pitanje_o_sudu_boravista(q))
     verzija = _CACHE_VERZIJA
     if n8:
-        verzija += "|n8-nadleznost-9" if _n8_pitanje_o_duzem_boravku(pitanje, q) else "|n8-nadleznost-6"
+        verzija += "|n8-nadleznost-10" if _n8_pitanje_o_duzem_boravku(pitanje, q) else "|n8-nadleznost-6"
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -1269,6 +1269,12 @@ _N8_NEGACIJA_ZAHTEVA_RE = re.compile(
 _N8_DODATNA_TUZBA_RE = re.compile(
     r"(?:^|,\s+)(?:podneti|podnesite|predati|predajte)\s+tuzb\w*\s+i\s+(?:pred|kod|u)\b"
 )
+_N8_POSLE_TUZBE_RE = re.compile(r"\b(?:(?:tokom|u toku) postupka|(?:nakon|posle) podnosenja tuzbe)\b")
+_N8_PROMENA_MESTA_RE = re.compile(r"\bpromen\w*\s+(?:boravist|prebivalist)\w*\b")
+_N8_PROMENA_NADLEZNOSTI_RE = re.compile(
+    r"\b(?:moze\s+)?(?:utic\w*\s+na|menj\w*|promen\w*)\s+(?:mesn\w*\s+)?nadleznost\w*\b"
+    r"|\bnadleznost\w*\s+(?P<negacija>ne\s+)?prelaz\w*\s+na\b"
+)
 _N8_USLOV_RE = re.compile(r"\b(?:ako|ukoliko|kada?|pod uslovom|(?:samo|tek) uz|tek po utvrdjivanju|tek nakon sto)\b")
 _N8_POTKREPLJEN_USLOV_RE = re.compile(
     r"\b(?:okolnosti\s+(?:ukazuj\w*|upucuj\w*)|prema okolnostima|(?:se\s+)?(?:utvrdi|dokaze|potvrdi)\b"
@@ -1366,6 +1372,15 @@ def _n8_greska_o_duzem_boravku(q: str, odgovor: str, *, utvrdjen: bool) -> str |
         boraviste += rf"|\b{re.escape(naziv)}\w*\b"
     for red in re.split(r"\n|;\s*|,\s+(?:ali|medjutim|ipak|pa|stoga|zato)\s+", odgovor):
         for recenica in _recenice_sa_razmacima(red)[::2]:
+            if _N8_POSLE_TUZBE_RE.search(recenica) and _N8_PROMENA_MESTA_RE.search(recenica):
+                promena = _N8_PROMENA_NADLEZNOSTI_RE.search(recenica)
+                if promena and not (
+                    promena["negacija"] or re.search(r"\b(?:ne|nece|ne moze)\s*$", recenica[:promena.start()])
+                ):
+                    return (
+                        "Čl. 15 st. 2 ZPP čuva nadležnost suda koji je bio nadležan pri podnošenju tužbe "
+                        "kad bi usled kasnije promene bio nadležan drugi sud iste vrste."
+                    )
             zahtev = _N8_ZAHTEV_ZA_NADLEZNOST_RE.search(recenica)
             if zahtev and not _N8_NEGACIJA_ZAHTEVA_RE.search(recenica[:zahtev.start()]):
                 return (
@@ -3431,13 +3446,21 @@ _N8_OSNOVNE_CINJENICE_RE = re.compile(
     r"|(?:ne znam|ne zna se|nije poznato) koliko dugo ce (?:tuzeni )?(?:ostati|boraviti)"
     r" (?:u|na) [a-z-]+(?: [a-z-]+){0,2})"
 )
+_N8_POTVRDJENE_CINJENICE_RE = re.compile(
+    r"tuzeni (?:vec )?duze boravi (?:u|na) [a-z-]+(?: [a-z-]+){0,2},?"
+    r" gde (?:radi(?: i zivi sa porodicom)?|zivi sa porodicom)"
+)
 
 
-def _n8_samostalno_pitanje(q: str) -> bool:
-    *cinjenice, pitanje = re.split(r"[.!]\s+", q.strip())
+def _n8_samostalno_pitanje(q: str, *, utvrdjen: bool) -> bool:
+    recenice = re.split(r"(?<=[.!?])\s+", q.strip())
+    pitanja = [tekst for tekst in recenice if tekst.endswith("?")]
+    cinjenice = [tekst.rstrip(".") for tekst in recenice if not tekst.endswith("?")]
+    potvrdjene = [tekst for tekst in cinjenice if _N8_POTVRDJENE_CINJENICE_RE.fullmatch(tekst)]
     return bool(
-        cinjenice and q.count("?") == 1 and _N8_SAMO_OPSTA_MESNA_RE.fullmatch(pitanje)
-        and all(_N8_OSNOVNE_CINJENICE_RE.fullmatch(tekst) for tekst in cinjenice)
+        cinjenice and q.count("?") == 1 and len(pitanja) == 1 and _N8_SAMO_OPSTA_MESNA_RE.fullmatch(pitanja[0])
+        and bool(potvrdjene) == utvrdjen
+        and all(_N8_OSNOVNE_CINJENICE_RE.fullmatch(tekst) or tekst in potvrdjene for tekst in cinjenice)
     )
 
 
@@ -3450,10 +3473,15 @@ def _n8_ima_tekst_clana_39(docs: list[str]) -> bool:
     )
 
 
-def _n8_format_neutvrdjenog_boravka() -> dict:
+def _n8_format_boravka(*, utvrdjen: bool) -> dict:
     """Uži format za samostalno pitanje o čl. 39 st. 3 uz pronađen izvor."""
-    korak = "Proveriti okolnosti očekivanog dužeg boravka pre izbora suda."
-    rizik = "Dodatna nadležnost suda boravišta ostaje neutvrđena dok se ne provere okolnosti dužeg boravka."
+    opsta_nadleznost = "Po čl. 39 st. 1 ZPP opšta mesna nadležnost pripada sudu prebivališta tuženog."
+    if utvrdjen:
+        korak = "Proveriti posebna ili isključiva pravila i zabeležiti navedene okolnosti boravka pre izbora suda."
+        rizik = "Na izbor suda mogu uticati primenljiva posebna ili isključiva pravila mesne nadležnosti."
+    else:
+        korak = "Proveriti okolnosti očekivanog dužeg boravka pre izbora suda."
+        rizik = "Dodatna nadležnost suda boravišta ostaje neutvrđena dok se ne provere okolnosti dužeg boravka."
     polja = {
         "brza_procena_osnov": "postoji",
         "brza_procena_dokazna_potpunost": "delimicna",
@@ -3461,8 +3489,8 @@ def _n8_format_neutvrdjenog_boravka() -> dict:
         "brza_procena_rizik": rizik,
         "brza_procena_nedostatak": _N8_NEDOSTAJUCE_OKOLNOSTI,
         "pravni_zakljucak": (
-            "Po čl. 39 st. 1 ZPP opšta mesna nadležnost pripada sudu prebivališta tuženog. "
-            "Sud boravišta može biti dodatno mesno nadležan po čl. 39 st. 3 ZPP ako okolnosti upućuju na duži boravak. "
+            f"{opsta_nadleznost} Sud boravišta može biti dodatno mesno nadležan po čl. 39 st. 3 ZPP "
+            "ako okolnosti upućuju na duži boravak. "
             "U ovom slučaju te okolnosti još nisu utvrđene."
         ),
         "rizici_i_izuzeci": rizik,
@@ -3471,6 +3499,18 @@ def _n8_format_neutvrdjenog_boravka() -> dict:
         "kljucno_pitanje": "Da li okolnosti upućuju na duži boravak tuženog u mestu boravišta?",
         "potrebne_informacije": "Okolnosti koje ukazuju na očekivani duži boravak tuženog u mestu boravišta.",
     }
+    if utvrdjen:
+        polja.update(
+            brza_procena_dokazna_potpunost="potpuna",
+            brza_procena_obrazlozenje="Navedeni su prebivalište tuženog i okolnosti koje upućuju na duži boravak u mestu boravišta.",
+            brza_procena_nedostatak="",
+            pravni_zakljucak=(
+                f"{opsta_nadleznost} Navedene okolnosti ukazuju na duži boravak tuženog. "
+                "Prema čl. 39 st. 3 ZPP, sud boravišta je po tim činjenicama dodatno mesno nadležan."
+            ),
+            kljucno_pitanje="Da li za ovaj spor važi posebno ili isključivo pravilo mesne nadležnosti?",
+            potrebne_informacije="Ako se bira sud boravišta, zabeležiti navedene okolnosti dužeg boravka i njihove izvore.",
+        )
     osobine = {
         **_JSON_SCHEMA_PARNICA["json_schema"]["schema"]["properties"],
         **{ime: {"type": "string", "enum": [vrednost]} for ime, vrednost in polja.items()},
@@ -3492,7 +3532,7 @@ def _n8_format_neutvrdjenog_boravka() -> dict:
     return {
         "type": "json_schema",
         "json_schema": {
-            "name": "vindex_parnica_n8_neutvrdjen_boravak",
+            "name": "vindex_parnica_n8_utvrdjen_boravak" if utvrdjen else "vindex_parnica_n8_neutvrdjen_boravak",
             "strict": True,
             "schema": {"type": "object", "properties": osobine, "required": list(osobine), "additionalProperties": False},
         },
@@ -4992,20 +5032,23 @@ def ask_agent(
                 system_prompt = system_prompt + "\n\n" + NADLEZNOST_ZPP_PRAVILA   # N8: proveren okvir iz ZPP-a
             q_n8 = _normalizuj(_cirilica_u_latinicu(pitanje_api))
             if _n8_pitanje_o_duzem_boravku(pitanje_api, q_n8):
+                utvrdjen_boravak = _n8_utvrdjen_duzi_boravak(q_n8)
+                if (
+                    tip == "PARNICA" and _kanon_zakona(top_law or "") == "zpp" and top_article == "Član 39"
+                    and not (history or extra_namespaces or memory_context or retrieval_meta.get("doc_passages"))
+                    and not _sadrzi_privatni_kontekst(pitanje)
+                    and _n8_samostalno_pitanje(q_n8, utvrdjen=utvrdjen_boravak)
+                    and _n8_ima_tekst_clana_39(filtrirani)
+                ):
+                    response_format = _n8_format_boravka(utvrdjen=utvrdjen_boravak)
                 system_prompt += (
                     "\n\nN8 — KORACI ZA IZBOR SUDA: Ovaj okvir ima prednost nad opštim šablonom za parnicu. "
                     "Čl. 39 ZPP ne propisuje zaseban zahtev za utvrđivanje mesne nadležnosti. "
                     "Ne predlaži takav zahtev ni drugi neproveren procesni korak. "
-                    "Ne propisuj fiksno trajanje boravka niti jednu isključivu vrstu dokaza."
+                    "Ne propisuj fiksno trajanje boravka niti jednu isključivu vrstu dokaza. "
+                    "Nemoj iz kasnije promene boravišta izvoditi gubitak nadležnosti suda koji je bio nadležan pri podnošenju."
                 )
-                if not _n8_utvrdjen_duzi_boravak(q_n8):
-                    if (
-                        tip == "PARNICA" and _kanon_zakona(top_law or "") == "zpp" and top_article == "Član 39"
-                        and not (history or extra_namespaces or memory_context or retrieval_meta.get("doc_passages"))
-                        and not _sadrzi_privatni_kontekst(pitanje) and _n8_samostalno_pitanje(q_n8)
-                        and _n8_ima_tekst_clana_39(filtrirani)
-                    ):
-                        response_format = _n8_format_neutvrdjenog_boravka()
+                if not utvrdjen_boravak:
                     system_prompt += (
                         "\nN8 — NEUTVRĐENE OKOLNOSTI: Upotrebi isti otvoreni zaključak u svim poljima. "
                         "U pravni_zakljucak navedi prebivalište kao opšti osnov po čl. 39 st. 1 ZPP i mogući "
