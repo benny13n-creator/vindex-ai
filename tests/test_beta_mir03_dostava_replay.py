@@ -171,7 +171,9 @@ def test_izgubljen_odgovor_upisa_ne_pravi_duplikat_ni_nepotvrdjen_povracaj(lit, 
         return execute(self)
 
     refund = AsyncMock()
+    stanje = AsyncMock(side_effect=RuntimeError("Synthetic independent balance-read failure"))
     monkeypatch.setattr(UsageService, "refund", refund)
+    monkeypatch.setattr(UsageService, "balance", stanje)
     monkeypatch.setattr(query, "execute", izgubi_odgovor)
     headers = {**A, "Idempotency-Key": str(uuid4())}
     status = 200 if upisan else 503
@@ -181,3 +183,4 @@ def test_izgubljen_odgovor_upisa_ne_pravi_duplikat_ni_nepotvrdjen_povracaj(lit, 
     assert len(calls) == 1 and len(b.naplate) == int(upisan)
     assert len(b.tabele["staging_memory"]) == int(upisan)
     refund.assert_not_awaited()
+    stanje.assert_not_awaited()

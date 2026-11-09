@@ -244,7 +244,7 @@ def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 # automatskim Quality Gate skorom (services/quality_gate.py) i čeka
 # eksplicitnu advokatsku potvrdu (v. POST /api/staging/{id}/approve) PRE
 # nego što ijedan vektor uđe u Pinecone.
-async def _sacuvaj_naplaceni_predlog(supa, zapis: dict, izvori: dict, sudski_izvori: list, krediti: int) -> int:
+async def _sacuvaj_naplaceni_predlog(supa, zapis: dict, izvori: dict, sudski_izvori: list, krediti: int) -> int | None:
     from postgrest.exceptions import APIError
     from shared.deps import _get_current_month
     from shared.http_errors import NamerniHTTPException
@@ -267,13 +267,13 @@ async def _sacuvaj_naplaceni_predlog(supa, zapis: dict, izvori: dict, sudski_izv
     except Exception as exc:
         _sentry_capture(exc)
 
-    # Ako se odgovor izgubio, red sa ovim ID-jem dokazuje da je transakcija izvršena.
+    # Ako se odgovor izgubio, red sa ovim ID-jem potvrđuje upis i debit. Saldo nije deo tog dokaza.
     try:
         red = await _red_staging(supa, zapis["id"], zapis["user_id"])
     except Exception:
         red = None
     if red and all(red.get(k) == zapis[k] for k in ("predmet_id", "tip", "tekst")):
-        return await UsageService.balance(zapis["user_id"], "") if krediti else 0
+        return None
     raise NamerniHTTPException(
         status_code=503,
         detail="Ishod čuvanja nacrta nije potvrđen. Proverite karticu Nacrt pre ponavljanja.",
@@ -282,7 +282,7 @@ async def _sacuvaj_naplaceni_predlog(supa, zapis: dict, izvori: dict, sudski_izv
 
 async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str,
                                   dodatni_detalj: dict | None = None, *, krediti: int | None = None,
-                                  izvori_dostave: dict | None = None, sudski_izvori: list | None = None) -> bool | int:
+                                  izvori_dostave: dict | None = None, sudski_izvori: list | None = None) -> bool | int | None:
     """Upis za pregled. Nacrt iz spisa čeka potvrdu upisa pre odgovora."""
     obavezan = krediti is not None
     stanje_kredita = 0
@@ -346,7 +346,7 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
             stanje_kredita = await _sacuvaj_naplaceni_predlog(
                 supa, zapis, izvori_dostave or {}, sudski_izvori or [], krediti
             )
-            if stanje_kredita < 0:
+            if stanje_kredita is not None and stanje_kredita < 0:
                 return stanje_kredita
         else:
             await asyncio.to_thread(lambda: supa.table("staging_memory").insert(zapis).execute())

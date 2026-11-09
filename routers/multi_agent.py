@@ -1670,7 +1670,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
         dodatno = {"predlog_teksta": predlog_ai["tekst"], "status_teksta": "AI_RADNI_PREDLOG"}
         from routers.drafting import _stage_draft_for_review
 
-        async def upisi_predlog(krediti: int) -> int:
+        async def upisi_predlog(krediti: int) -> int | None:
             return await _stage_draft_for_review(
                 user, req.predmet_id, _TIP_NACRTA_IZ_SPISA, "AI radni predlog (savetnik)",
                 odgovor, dodatni_detalj={"predlog": snimak}, krediti=krediti,
