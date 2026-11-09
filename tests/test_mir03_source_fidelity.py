@@ -137,6 +137,10 @@ def test_review_request_does_not_cite_unread_documents_as_evidence(spis):
     assert proveri("Pogledaj DOK-82 i DOK-83.", *spis) == set()
     with pytest.raises(NepouzdanIzvor):
         proveri("Pogledaj DOK-82 i DOK-83 jer DOK-82 potvrđuje da je nalaz dostavljen.", *spis)
+    with pytest.raises(NepouzdanIzvor):
+        proveri("Pogledaj DOK-82 i DOK-83, jer je hidroizolacija zamenjena 20.04.2026. godine.", *spis)
+    with pytest.raises(NepouzdanIzvor):
+        proveri("Pogledaj DOK-82 i DOK-83. Hidroizolacija je zamenjena 20.04.2026. godine.", *spis)
 
 
 def test_ps_reference_cannot_borrow_another_utterance_from_the_same_document(spis):

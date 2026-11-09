@@ -171,18 +171,20 @@ def proveri(tekst: str, izvori: dict, stanje: dict | None = None, *, proverena_d
     jedinice = {}
     upotrebljeni = set()
     tekst = UN._RE_OZNAKA.sub(lambda m: f"DOK-{int(m[1]):02d}", tekst)
-    prethodno_potkrepljen = False
+    prethodno_upucivanje = False
     for segment in NZ._segmenti(tekst):
         if not segment.strip():
-            prethodno_potkrepljen = False
+            prethodno_upucivanje = False
             continue
-        delovi = _RAZDVOJ.split(NZ._n(segment))
+        normalizovan = NZ._n(segment)
+        if _UPUT_ZA_PREGLED.fullmatch(normalizovan):
+            # Upućivanje na pregled ne tvrdi šta dokument sadrži.
+            prethodno_upucivanje = True
+            continue
+        delovi = _RAZDVOJ.split(normalizovan)
         prethodno_citiran = False
         for i in range(0, len(delovi), 2):
             deo = delovi[i]
-            if _UPUT_ZA_PREGLED.fullmatch(deo.strip()):
-                # Upućivanje na pregled ne tvrdi šta dokument sadrži.
-                continue
             oznake = {f"DOK-{int(broj):02d}" for broj in _DOK.findall(deo)}
             ps_izvodi = [procesni_izvodi[p] for p in _PS.findall(deo) if p in procesni_izvodi]
             ps_oznake = {d["oznaka"] for d in ps_izvodi}
@@ -196,7 +198,7 @@ def proveri(tekst: str, izvori: dict, stanje: dict | None = None, *, proverena_d
                 # Osporavanje može biti sadašnja pravna radnja u samom nacrtu.
                 navodi = [navod for navod in navodi if navod[1] != "spor"]
             # Oznaka iz prethodne suprotstavljene tvrdnje ne potkrepljuje novu činjenicu.
-            zasebna_tvrdnja = prethodno_potkrepljen if i == 0 else (
+            zasebna_tvrdnja = prethodno_upucivanje if i == 0 else (
                 prethodno_citiran and not delovi[i - 1].startswith(", jer")
             )
             prethodno_citiran = prethodno_citiran or bool(oznake or ps_oznake)
@@ -245,5 +247,5 @@ def proveri(tekst: str, izvori: dict, stanje: dict | None = None, *, proverena_d
                     raise NepouzdanIzvor
                 upotrebljeni.update(podrska)
                 if not osporavani:
-                    prethodno_potkrepljen = True
+                    prethodno_upucivanje = True
     return upotrebljeni
