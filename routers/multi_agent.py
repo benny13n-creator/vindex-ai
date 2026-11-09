@@ -733,7 +733,8 @@ _SUD_OSTAVLJA_ROK_RE = re.compile(
 )
 _NAVOD_O_ROKU_RE = re.compile(
     r"\b(?:vestak\w*\s+(?:navod\w*|pominj\w*)|u\s+dopuni\s+(?:se\s+)?(?:navod\w*|pominj\w*)"
-    r"|prema\s+navodu\s+vestak\w*|u\s+nalazu\s+(?:se\s+)?navod\w*|navod\s+vestak\w*)\b"
+    r"|prema\s+navodu\s+vestak\w*|u\s+nalazu\s+(?:se\s+)?navod\w*|navod\s+vestak\w*"
+    r"|izvor\s+(?:dok-\d+\s+)?navodi\s+da)\b"
 )
 _ISTEK_ROKA_RE = re.compile(r"\b(?:istic\w*|istek\w*|pocin\w*|tec\w*|zavrsav\w*|najkasnije)\b")
 _DATUM_ROKA_RE = re.compile(r"\b(?:\d{1,2}\.\s*\d{1,2}\.\s*\d{4}|\d{4}-\d{2}-\d{2})\b")

@@ -570,13 +570,18 @@ def test_p06_nepouzdan_rok_ne_dospeva_u_odgovor_i_ne_naplacuje_se(lit, monkeypat
     assert len(b.naplate) == pre
 
 
-def test_p06_pripisani_navod_i_odvojeni_rok_prolaze(lit, monkeypatch):
+@pytest.mark.parametrize("uvod", [
+    "U dopuni se navodi",
+    "Izvor navodi",
+    "Izvor DOK-08 navodi",
+])
+def test_p06_pripisani_navod_i_odvojeni_rok_prolaze(lit, monkeypatch, uvod):
     from routers import multi_agent as MA
 
     k, b, pid, _, _ = lit
     _dodaj_dokument(k, b, pid, gc.KASNIJI)
     odgovor = (
-        "U dopuni se navodi da sud ostavlja rok od 8 dana za izjašnjenje (DOK-08). "
+        f"{uvod} da sud ostavlja rok od 8 dana za izjašnjenje (DOK-08). "
         "To je navod veštaka. Sudski izvor i početak roka za izjašnjenje nisu potvrđeni. "
         "Sud nije u dopuni nalaza (DOK-08) odredio rok. "
         "Sud nalaže dostavu dnevnika u roku od 15 dana (DOK-07). Početak tog roka nije utvrđen."
