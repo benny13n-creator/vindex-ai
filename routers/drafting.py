@@ -1924,8 +1924,16 @@ async def _odobri_dokument_za_sud(supa, dok: dict, request: Request, user: dict)
     sad = now_iso()
     odobreno = {"sha256": trazeni, "by": uid, "at": sad, "sha256_izvori": izvori}
     qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "odobreno": odobreno}}
-    await _uslovno_azuriraj_dokument(supa, dok, uid, {"status": "approved", "is_lawyer_approved": True, "approved_by": uid,
-                                                      "approved_at": sad, "quality_detail": qd})
+    from postgrest.exceptions import APIError
+
+    try:
+        await _uslovno_azuriraj_dokument(supa, dok, uid, {"status": "approved", "is_lawyer_approved": True, "approved_by": uid,
+                                                          "approved_at": sad, "quality_detail": qd})
+    except APIError as exc:
+        if exc.code == "PT409":
+            raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR) from exc
+        logger.warning("[USVAJANJE] upis odobrenja nije uspeo: %s", exc.code)
+        raise HTTPException(status_code=503, detail="Odobrenje trenutno nije moguće proveriti. Osvežite dokument.") from exc
     # Migration 150 appends the immutable approval event in the same transaction.
     return {"status": "approved", "indexed": False, "razlog": "DOKUMENT_ZA_SUD", "sha256": trazeni,
             "poruka": "Dokument za sud je odobren. Ne dodaje se u bazu znanja kancelarije ni u dokumente predmeta."}
