@@ -41,6 +41,8 @@ def connect():
                 IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
                     CREATE ROLE service_role BYPASSRLS;
                 END IF;
+                -- Other test modules can create this cluster-wide role without BYPASSRLS.
+                ALTER ROLE service_role BYPASSRLS;
             END;
             $$;
         """)
