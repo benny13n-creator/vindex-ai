@@ -48,8 +48,10 @@ def test_strategija_dobija_ceo_spis_sporne_tacke_i_promenu(savetnik):
     # pravila rada sa spisom (TASK-05): izvor uz svaku činjenicu, navod ≠ činjenica, procesno stanje prvo, šta menja novo
     for pravilo in ("veži za oznaku dokumenta", "nije utvrđena činjenica", "nikad „veštak je utvrdio/potvrdio“",
                     "## 0. PROCESNO STANJE", "**Šta menja <oznaka najnovijeg dokumenta>:**", "navedi kao nedostajući",
-                    "proveri da li je već u spisu", "istekao rok navedi kao istekao"):
+                    "proveri da li je već u spisu", "Sudski rok računaj od dokazanog merodavnog događaja",
+                    "Datum dokumenta sam ne dokazuje početak", "Ako početak nije dokazan, navedi da istek nije utvrđen"):
         assert pravilo in pre["system"], pravilo
+    assert "Rokove računaj od datuma iz dokumenata" not in pre["system"]
     from datetime import date
     assert f"Današnji datum: {date.today().isoformat()}" in tekst                # rokovi se mogu računati
     assert "Snaga predmeta" not in tekst and "%" not in tekst.split("EVIDENCIJA IZVORA")[0].split("[KRAJ DOKUMENATA]")[-1]
