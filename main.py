@@ -17,6 +17,7 @@ from app.services.retrieve import (
     retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
     ekstrakcija_clana, _direktan_fetch_clana, _formatiraj_match,
     _ZAKON_O_UREDJENJU_SUDOVA, je_pitanje_gradjanske_nadleznosti,
+    _calculate_confidence, _clan_nadleznosti_zpp,
     retrieve_sudska_praksa, process_praksa_chunks,
     retrieve_misljenja, process_misljenja_chunks, query_triggers_misljenja,
 )
@@ -228,7 +229,7 @@ def _cache_kljuc(pitanje: str) -> str:
 
     n8 = (je_pitanje_gradjanske_nadleznosti(pitanje)
           or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA)
-    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-2" if n8 else "")
+    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-3" if n8 else "")
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -1236,6 +1237,15 @@ _N8_TUZENI_PRAVNO_LICE_RE = re.compile(r"\b(?:tuzen\w*|protiv)\s+(?:je\s+)?(?:d\
 def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
     q = _normalizuj(_cirilica_u_latinicu(pitanje))
     odg = _normalizuj(_cirilica_u_latinicu(tekst))
+    label, zakon = ekstrakcija_clana(pitanje)
+    if label and zakon and _clan_ne_uredjuje_nadleznost(label, zakon):
+        citirani = (label.removeprefix("Član ").lower(), _kanon_zakona(zakon))
+        for recenica in re.split(r"(?<=[.!?])\s+|\n+", odg):
+            if "nadlez" not in recenica or re.search(r"\b(?:ne|nije|nisu)\b", recenica):
+                continue
+            if any((c["clan"], c["zakon"]) == citirani for c in _klasifikuj_citate(recenica, [])):
+                return "Citirani član ne uređuje nadležnost suda. Proverite merodavno pravilo u ZPP-u."
+
     if _N8_ZASTARELOST_RE.search(odg):
         return "Nadležnost i zastarelost su odvojena pitanja. Potraživanje može zastareti i u ugovornom sporu."
 
@@ -4535,8 +4545,18 @@ def ask_agent(
             if pogresna_premisa:
                 # Član ostaje u kontekstu za ispravku premise. Vodeći izvor
                 # i status pretrage i dalje određuju izvori nadležnosti.
-                docs = docs + [d for d in _ref_docs if d not in docs]
+                docs = [d for d in docs if d not in _ref_docs] + _ref_docs
                 _ref_docs = []
+                if _kanon_zakona(top_law) == _kanon_zakona(_ref_zakon):
+                    merodavni = [
+                        i for i in _izvori
+                        if _clan_nadleznosti_zpp({"law": i.get("zakon", ""), "article": i.get("clan", "")})
+                    ]
+                    prvi = next(iter(merodavni), {})
+                    top_article, top_law = prvi.get("clan", ""), prvi.get("zakon", "")
+                    top_score = prvi.get("score", 0.0)
+                    confidence = get_confidence_level(top_score)
+                    _conf_detail = _calculate_confidence(top_score, len(merodavni), pitanje_api)
             else:
                 docs = _ref_docs + [d for d in docs if d not in set(_ref_docs)]
                 # Statički izvod pokriva deo člana. On ne potvrđuje ceo član u

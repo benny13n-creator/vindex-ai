@@ -513,7 +513,8 @@ def test_n8_izricit_naziv_sudskog_zakona_sa_interpunkcijom_i_cirilicom(pitanje):
     assert ekstrakcija_clana(pitanje) == ("Član 27", "zakon o uredjenju sudova")
 
 
-def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch):
+@pytest.mark.parametrize("prvi_zoo,pogresan_model", [(False, False), (True, False), (False, True)])
+def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch, prvi_zoo, pogresan_model):
     import json
     from unittest.mock import Mock
 
@@ -528,17 +529,27 @@ def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch):
         "top_law": "Zakon o parničnom postupku",
         "izvori": [{"zakon": "Zakon o parničnom postupku", "clan": "Član 39"}],
     }
-    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([zpp], metadata))
+    docs = [zpp]
+    if prvi_zoo:
+        metadata["top_law"] = "Zakon o obligacionim odnosima"
+        metadata["izvori"].insert(0, {"zakon": metadata["top_law"], "clan": "Član 39", "score": 0.8})
+        docs = [zoo, zpp]
+    metadata["izvori"][-1]["score"] = 0.7
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: (docs, metadata))
     monkeypatch.setattr(M, "retrieve_sudska_praksa", lambda *a, **k: [])
     monkeypatch.setattr(M, "retrieve_misljenja", lambda *a, **k: [])
     monkeypatch.setattr(M, "_cache_get", lambda *a: None)
-    monkeypatch.setattr(M, "_cache_set", Mock())
+    cache_set = Mock()
+    monkeypatch.setattr(M, "_cache_set", cache_set)
     monkeypatch.setattr(M, "klasifikuj_pitanje", lambda *a: "PARNICA")
     exact = Mock(return_value=[zoo])
     monkeypatch.setattr(M, "_direktan_fetch_clana", exact)
     monkeypatch.setattr(M, "_formatiraj_match", lambda hit: hit)
     model = Mock(return_value=json.dumps({
-        "pravni_zakljucak": "Prema članu 39 ZPP opšte je nadležan sud prebivališta tuženog.",
+        "pravni_zakljucak": (
+            "Prema članu 39 ZOO, opšta mesna nadležnost se određuje po prebivalištu tuženog."
+            if pogresan_model else "Član 39 ZOO ne uređuje nadležnost. Prema članu 39 ZPP opšte je nadležan sud prebivališta tuženog."
+        ),
     }))
     monkeypatch.setattr(M, "_pozovi_openai", model)
 
@@ -547,7 +558,12 @@ def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch):
         "u parnici protiv fizičkog lica sa prebivalištem u Nišu?"
     )
 
-    assert result["status"] == "success" and not result.get("blocked")
+    assert result["status"] == "success"
+    if pogresan_model:
+        assert result.get("blocked") is True
+        cache_set.assert_not_called()
+        return
+    assert not result.get("blocked")
     assert "ISPRAVKA PREMISE" in result["data"]
     assert result["top_law"] == "Zakon o parničnom postupku"
     assert result["top_article"] == "Član 39"

@@ -531,6 +531,9 @@ def test_savetnik_za_rokove_salje_proverene_osnove_bez_izmisljanja_datuma(lit):
 ])
 @pytest.mark.parametrize("odgovor", [
     "**DOK-08**: Sud ostavlja strankama rok od 8 dana od dana dopune nalaza za izjašnjenje.",
+    "Sud je strankama ostavio rok od 8 dana za izjašnjenje (DOK-08).",
+    "Sud je u dopuni nalaza (DOK-08) ostavio strankama rok od 8 dana od dana dopune nalaza za izjašnjenje.",
+    "Sud je u dopuni nalaza odredio rok od osam dana za izjašnjenje (DOK-08).",
     "Rok za izjašnjenje strankama ističe 28.10.2026. godine, ali nije utvrđeno da li je stranka postupila po nalogu suda iz DOK-07.",
     "Рок за изјашњење истиче 2026-10-28.",
     "Rok iz DOK-08 počinje 20.10.2026.",
@@ -574,6 +577,7 @@ def test_p06_pripisani_navod_i_odvojeni_rok_prolaze(lit, monkeypatch):
     odgovor = (
         "U dopuni se navodi da sud ostavlja rok od 8 dana za izjašnjenje (DOK-08). "
         "To je navod veštaka. Sudski izvor i početak roka za izjašnjenje nisu potvrđeni. "
+        "Sud nije u dopuni nalaza (DOK-08) odredio rok. "
         "Sud nalaže dostavu dnevnika u roku od 15 dana (DOK-07). Početak tog roka nije utvrđen."
     )
     monkeypatch.setattr(MA, "_pozovi_agent_api", lambda *a: types.SimpleNamespace(
