@@ -580,3 +580,70 @@ def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch, prvi_zoo, tvrdnja, b
     model.assert_called_once()
     prompt = model.call_args.args[1]
     assert prompt.index(zpp) < prompt.index(zoo)
+
+
+# Beta gate 2026-11-09: tested real-model failure in the quick assessment
+# (missing duration/extended-stay fact but "Dokazna potpunost: POTPUNA").
+# All checks are deterministic, use no network or external credentials.
+def test_beta_n8_missing_extended_stay_downgrades_only_evidence_completeness():
+    import main as M
+    pitanje = (
+        "Tuženi ima prebivalište u Nišu i boravište u Kragujevcu. "
+        "Da li su sud prebivališta i sud boravišta oba mesno nadležna?"
+    )
+    data = {"brza_procena_dokazna_potpunost": "potpuna", "brza_procena_pravna_utemeljenost": "visoka"}
+    M._n8_ogranici_dokaznu_potpunost(pitanje, data)
+    assert data["brza_procena_dokazna_potpunost"] == "delimicna"
+    assert "duži boravak" in data["brza_procena_nedostatak"]
+    assert data["brza_procena_pravna_utemeljenost"] == "visoka"
+
+
+def test_beta_n8_expressly_established_extended_stay_is_not_overruled():
+    import main as M
+    pitanje = (
+        "Tuženi ima prebivalište u Nišu. Tuženi već duže boravi u Kragujevcu. "
+        "Da li je uz sud prebivališta nadležan i sud boravišta?"
+    )
+    data = {"brza_procena_dokazna_potpunost": "potpuna"}
+    M._n8_ogranici_dokaznu_potpunost(pitanje, data)
+    assert data["brza_procena_dokazna_potpunost"] == "potpuna"
+
+
+def test_beta_n8_negated_or_unknown_extended_stay_cannot_prove_completeness():
+    import main as M
+    for pitanje in (
+        "Tuženi ima prebivalište u Nišu i boravište u Kragujevcu. Nije poznato da li tu duže boravi. Koji sud je nadležan?",
+        "Tuženi ima prebivalište u Nišu i boravište u Kragujevcu. Duži boravak nije dokazan. Da li su oba suda nadležna?",
+        "Tuženi ima prebivalište i boravište u različitim mestima. Da li duže boravi u drugom mestu, i da li je sud boravišta nadležan?",
+    ):
+        data = {"brza_procena_dokazna_potpunost": "potpuna"}
+        M._n8_ogranici_dokaznu_potpunost(pitanje, data)
+        assert data["brza_procena_dokazna_potpunost"] == "delimicna", pitanje
+
+
+def test_beta_n8_never_upgrades_low_evidence_or_unrelated_questions():
+    import main as M
+    q = "Tuženi ima prebivalište u Nišu i boravište u Kragujevcu. Koji sud je nadležan?"
+    data = {"brza_procena_dokazna_potpunost": "nedovoljna"}
+    M._n8_ogranici_dokaznu_potpunost(q, data)
+    assert data["brza_procena_dokazna_potpunost"] == "nedovoljna"
+    data = {"brza_procena_dokazna_potpunost": "potpuna"}
+    M._n8_ogranici_dokaznu_potpunost("Koji je rok zastarelosti ugovorne obaveze?", data)
+    assert data["brza_procena_dokazna_potpunost"] == "potpuna"
+
+
+def test_beta_n8_backend_downgrade_is_visible_in_serialized_answer():
+    import json
+    import main as M
+    q = "Tuženi ima prebivalište u Nišu i boravište u Kragujevcu. Da li su oba suda mesno nadležna?"
+    data = {
+        "brza_procena_pravna_utemeljenost": "visoka",
+        "brza_procena_dokazna_potpunost": "potpuna",
+        "pravni_zakljucak": "Za dodatnu mesnu nadležnost potrebne su utvrđene okolnosti dužeg boravka.",
+    }
+    ok, answer = M._parsiraj_strukturni_odgovor(
+        json.dumps(data, ensure_ascii=False), "PARNICA", [], pitanje=q
+    )
+    assert ok, answer
+    assert "Dokazna potpunost: DELIMIČNA" in answer
+    assert "Dokazna potpunost: POTPUNA" not in answer
