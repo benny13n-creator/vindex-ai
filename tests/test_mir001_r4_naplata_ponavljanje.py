@@ -23,6 +23,8 @@ def _brojac(monkeypatch):
     naplate = []
 
     async def _naplata(*a, **kw):
+        if "atomic_charge" in kw:
+            await kw["atomic_charge"](1)
         naplate.append(a[2] if len(a) > 2 else kw.get("feature"))
     monkeypatch.setattr(UsageService, "consume", staticmethod(_naplata))
     return naplate

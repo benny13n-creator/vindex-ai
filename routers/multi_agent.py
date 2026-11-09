@@ -734,6 +734,7 @@ _SUD_OSTAVLJA_ROK_RE = re.compile(
 _NAVOD_O_ROKU_RE = re.compile(
     r"\b(?:vestak\w*\s+(?:navod\w*|pominj\w*)|u\s+dopuni\s+(?:se\s+)?(?:navod\w*|pominj\w*)"
     r"|prema\s+navodu\s+vestak\w*|u\s+nalazu\s+(?:se\s+)?navod\w*|navod\s+vestak\w*"
+    r"|vestak\w*\s+je\s+u\s+dopuni\s+(?:naveo|navela)\s+da(?=\s*$)"
     r"|izvor\s+(?:dok-\d+\s+)?navodi\s+da)\b"
 )
 _ISTEK_ROKA_RE = re.compile(r"\b(?:istic\w*|istek\w*|pocin\w*|tec\w*|zavrsav\w*|najkasnije)\b")
@@ -805,53 +806,122 @@ def _proveri_procesni_odgovor(odgovor: str, izvori: Optional[dict]) -> None:
             )
 
 
-_NALAZ_VESTAKA_RE = re.compile(r"\bnalaz\w*(?:\s+i\s+misljenj\w*)?\s+vestak\w*")
-_DOSTAVA_NALAZA_RE = re.compile(
-    r"\b(?:dostavljen|urucen|primljen)\w*\s+"
-    r"(?:(?:strank\w*|tuzio\w*|tuzen\w*|punomocnik\w*)\s+)?"
-    r"(?:u\s+predmetu\s+(?:broj|br\.?)\s+(?:[a-z]+\d*\s*)?\d+/\d{4}\s+)?"
+_NALAZ_VESTAKA_RE = re.compile(
+    r"\b(?:nalaz\w*(?:\s+i\s+misljenj\w*)?\s+vestak\w*|vestakov\w*\s+nalaz\w*)"
+)
+_DOSTAVA_NALAZA_RE = re.compile(r"\b(?:dostavljen\w*|urucen\w*|primljen\w*|primio|primila|primili|primile)\b")
+_PRIMALAC_DOSTAVE_RE = re.compile(
+    r"\s+(?:(?:je|su)\s+)?(?P<primalac>strank\w*|tuzio\w*|tuzen\w*|punomocnik\w*)\b"
+)
+_NALAZ_OD_RE = re.compile(rf"\s+od\s+(?P<datum>{_DATUM_ROKA_RE.pattern})")
+_DATUM_DOSTAVE_NALAZA_RE = re.compile(
+    r"\s+(?:(?:je|su)\s+)?"
+    r"(?:u\s+(?:(?:ovom|tom)\s+)?predmetu(?:\s+(?:broj|br\.?)\s+(?:[a-z]+\d*\s*)?\d+/\d{4})?\s+)?"
     rf"(?:dana\s+)?(?P<datum>{_DATUM_ROKA_RE.pattern})"
+)
+_USLOV_DOSTAVE_RE = re.compile(
+    r"\b(?:ako|ukoliko|pretpostav\w*|hipotetick\w*|da li je|da li su)\b"
+)
+_NEGACIJA_DOSTAVE_RE = re.compile(r"\b(?:nije|nisu|ne)\s+(?:jos\s+|nikada\s+)?$")
+_NAVOD_DOSTAVE_RE = re.compile(
+    r"\b(?:(tuzilac|tuzeni|vestak|punomocnik\s+(?:tuzioca|tuzenog))\s+)?"
+    r"(?:navod\w*|tvrd\w*|izjav\w*)\s+da\b"
 )
 
 
-def _datum_dostave_nalaza(recenica: str) -> Optional[date]:
-    if not _NALAZ_VESTAKA_RE.search(recenica):
+def _datum_iz_dostave(datum):
+    if datum is None:
         return None
-    dostava = _DOSTAVA_NALAZA_RE.search(recenica)
-    if not dostava or _NEUTVRDJEN_ROK_RE.search(recenica[:dostava.start()]):
-        return None
-    if re.search(r"\b(?:nije|nisu)\s*$", recenica[:dostava.start()]):
-        return None
-    sirovi_datum = dostava["datum"]
-    delovi = [int(x) for x in re.findall(r"\d+", sirovi_datum)]
+    sirovi = datum["datum"]
+    delovi = [int(x) for x in re.findall(r"\d+", sirovi)]
     try:
-        return date(*(delovi if "-" in sirovi_datum else reversed(delovi)))
+        return date(*(delovi if "-" in sirovi else reversed(delovi))).isoformat()
     except ValueError:
-        return None
+        return ""  # neispravan datum nikad nije dokaz
 
 
-def _proveri_dostavu_nalaza_u_nacrtu(tekst: str, stanje: Optional[dict]) -> None:
-    """Datum nalaza nije dokaz uručenja. Sudski izvod mora izričito potvrditi događaj."""
+def _primalac_dostave(tekst: str) -> str:
+    if tekst.startswith(("tuzil", "tuzio")):
+        return "TUZILAC"
+    if tekst.startswith("tuzen"):
+        return "TUZENI"
+    return "STRANKE" if tekst.startswith("strank") else "PUNOMOCNIK"
+
+
+def _tvrdnje_o_dostavi_nalaza(recenica: str):
+    """Izdvaja tvrdnju o dostavi čak i kad njen datum nije naveden."""
+    for celina in re.split(r";|,\s*(?:ali|medjutim)\b", recenica):
+        nalaz = _NALAZ_VESTAKA_RE.search(celina)
+        if not nalaz:
+            continue
+        datum_nalaza = _NALAZ_OD_RE.match(celina, nalaz.end())
+        for dostava in _DOSTAVA_NALAZA_RE.finditer(celina):
+            uvod = celina[:dostava.start()]
+            if (_NEUTVRDJEN_ROK_RE.search(uvod) or _USLOV_DOSTAVE_RE.search(uvod)
+                    or _NEGACIJA_DOSTAVE_RE.search(uvod) or re.search(r"\b(?:bude|budu)\s+$", uvod)):
+                continue
+            posle = dostava.end()
+            primalac = None
+            if dostava[0] in ("primio", "primila", "primili", "primile"):
+                aktivni = re.search(r"\b(tuzilac|tuzeni|stranke|punomocnik)\s+(?:je\s+|su\s+)?$", uvod)
+                if not aktivni or not re.fullmatch(r"\s+", celina[posle:nalaz.start()]):
+                    continue
+                primalac = _primalac_dostave(aktivni[1])
+                posle = datum_nalaza.end() if datum_nalaza else nalaz.end()
+            else:
+                if nalaz.start() > dostava.end() and re.search(r"[,;]", celina[dostava.end():nalaz.start()]):
+                    continue
+                if nalaz.end() < dostava.start() and re.search(
+                    r"\b(?:dnevnik|podnesak|reklamacij|zapisnik)\w*\s+(?:je\s+|su\s+)?$",
+                    celina[nalaz.end():dostava.start()],
+                ):
+                    continue
+                primaoc = _PRIMALAC_DOSTAVE_RE.match(celina, posle)
+                if primaoc:
+                    primalac = _primalac_dostave(primaoc["primalac"])
+                    posle = primaoc.end()
+            datum = _DATUM_DOSTAVE_NALAZA_RE.match(celina, posle)
+            navod = _NAVOD_DOSTAVE_RE.search(uvod)
+            yield (_datum_iz_dostave(datum), (navod[1] or "NEPOZNAT").upper() if navod else None,
+                   primalac, _datum_iz_dostave(datum_nalaza), celina)
+
+
+def _proveri_dostavu_nalaza_u_nacrtu(tekst: str, stanje: Optional[dict]) -> tuple[dict, set]:
+    """Dokaz dostave i pripisani navod su različite tvrdnje o istom izvodu."""
     from shared.http_errors import NamerniHTTPException
     from shared.procesno_stanje import HUMAN
     from shared.rociste_iz_teksta import preslovi
 
-    potvrde = {
-        (oznaka.lower(), _datum_dostave_nalaza(preslovi(d["izvod"]).translate(_LAT).lower()))
-        for d in (stanje or {}).get("dogadjaji") or []
-        if d.get("akter") == "SUD" and d.get("vrsta") == "SUD_KONSTATUJE"
-        and d.get("vrsta_dokumenta", {}).get("klasa") == HUMAN
-        for oznaka in (d["oznaka"], d["id"])
-    }
+    izvori = {}
+    sudski_ids = set()
+    dokazi = None
     for _, _, recenica in _recenice(tekst):
-        recenica = preslovi(recenica).translate(_LAT).lower()
-        datum = _datum_dostave_nalaza(recenica)
-        if datum and not any((oznaka, datum) in potvrde for oznaka in re.findall(r"\b(?:dok|ps)-\d+\b", recenica)):
-            raise NamerniHTTPException(
-                status_code=502,
-                detail="Predlog nije izrađen jer datum dostave nalaza veštaka nije potkrepljen sudskim izvorom. "
-                       "Ništa nije naplaćeno ni sačuvano.",
-            )
+        for datum, akter, primalac, nalaz_od, celina in _tvrdnje_o_dostavi_nalaza(preslovi(recenica).translate(_LAT).lower()):
+            if dokazi is None:
+                dokazi = []
+                for d in (stanje or {}).get("dogadjaji") or []:
+                    if not d.get("dokument_id") or not d.get("tekst_sha256"):
+                        continue
+                    sudski = (d.get("akter") == "SUD" and d.get("vrsta") == "SUD_KONSTATUJE"
+                              and d.get("vrsta_dokumenta", {}).get("klasa") == HUMAN)
+                    for dan, navod, kome, od, _ in _tvrdnje_o_dostavi_nalaza(preslovi(d["izvod"]).translate(_LAT).lower()):
+                        if dan != "" and od != "" and (sudski or navod or d.get("akter") in ("TUZILAC", "TUZENI", "VESTAK")):
+                            dokazi.append((dan, navod or (None if sudski else d["akter"]), kome, od, d))
+            oznake = set(re.findall(r"\b(?:dok|ps)-\d+\b", celina))
+            dokaz = next((d for dan, govornik, kome, od, d in dokazi
+                          if datum != "" and (datum is None or datum == dan) and akter == govornik
+                          and (primalac is None or primalac == kome) and (nalaz_od is None or nalaz_od == od)
+                          and oznake.intersection((d["oznaka"].lower(), d["id"].lower()))), None)
+            if dokaz is None:
+                raise NamerniHTTPException(
+                    status_code=502,
+                    detail="Predlog nije izrađen jer datum dostave nalaza veštaka nije potkrepljen sudskim izvorom. "
+                           "Ništa nije naplaćeno ni sačuvano.",
+                )
+            izvori[dokaz["dokument_id"]] = dokaz["tekst_sha256"]
+            if akter is None:
+                sudski_ids.add(dokaz["dokument_id"])
+    return izvori, sudski_ids
 
 
 def _osnove(tekst: str) -> set:
@@ -1024,9 +1094,19 @@ async def _potvrde_vrste(supa, uid: str, dok_ids: list) -> dict:
         return {}
     out: dict = {}
     for red in redovi:                                         # rastuće po seq → poslednja odluka pobeđuje
-        md = red.get("metadata") if isinstance(red.get("metadata"), dict) else {}
-        if red.get("resource_id") and isinstance(md.get("novo"), str):
-            out[str(red["resource_id"])] = md["novo"]
+        if not red.get("resource_id"):
+            continue
+        did = str(red["resource_id"])
+        md = red.get("metadata")
+        if isinstance(md, str):
+            try:
+                md = json.loads(md)                            # audit writer stores a JSONB string
+            except ValueError:
+                md = None
+        if isinstance(md, dict) and isinstance(md.get("novo"), str):
+            out[did] = md["novo"]
+        else:
+            out.pop(did, None)                                 # nepoznata novija odluka poništava prethodnu potvrdu
     return out
 
 
@@ -1526,7 +1606,19 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                 "Nacrt nije izrađen: odgovor savetnika nije mogao bezbedno da se razdvoji na predlog teksta i napomene. "
                 "Ništa nije naplaćeno ni sačuvano. Pokušajte ponovo."))
         odgovor = tekst_za_sud.strip()
-        _proveri_dostavu_nalaza_u_nacrtu(odgovor, stanje)
+        izvori_dostave, sudski_izvori = _proveri_dostavu_nalaza_u_nacrtu(
+            "\n".join([odgovor, *napomene_modela]), stanje
+        )
+        if izvori_dostave:
+            from routers.drafting import _proveri_izvore_za_sud
+
+            async def potvrdi_izvore_dostave():
+                await _proveri_izvore_za_sud(supa, req.predmet_id, uid, izvori_dostave)
+                potvrde = await _potvrde_vrste(supa, uid, list(sudski_izvori))
+                if any(potvrde.get(did) not in ("court_decision", "judgment") for did in sudski_izvori):
+                    raise HTTPException(status_code=409, detail="Sudsko poreklo dokaza o dostavi više nije potvrđeno.")
+
+            await potvrdi_izvore_dostave()
         try:
             # C3b FINAL CLOSURE: tekst modela je AI RADNI PREDLOG, ceo (leksička kapija `zastiti` povučena posle GATE-03
             # C3B_FAIL). Pre naplate (GATE-02 N1): pad obrade ne sme da naplati nacrt koji ne postoji.
@@ -1553,9 +1645,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
 
     # ── Credit deduction ──────────────────────────────────────────────────────
     email = user.get("email", "")
-    await UsageService.consume(uid, email, "multi_agent")
-
-    logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
+    if not nacrt_iz_spisa:
+        await UsageService.consume(uid, email, "multi_agent")
 
     _NEXT_AGENT = {
         "intake":    "research",
@@ -1577,11 +1668,18 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                                        _napomena_za_pregled(provera_citata, javni_izvori, None))
         odgovor = _NZ.sastavi(predlog_ai["tekst"], interno)
         dodatno = {"predlog_teksta": predlog_ai["tekst"], "status_teksta": "AI_RADNI_PREDLOG"}
-        # snimak predloga je napravljen PRE naplate (GATE-R1 N5) — v. gore
         from routers.drafting import _stage_draft_for_review
-        asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, _TIP_NACRTA_IZ_SPISA, "AI radni predlog (savetnik)",
-                                                    odgovor, dodatni_detalj={"predlog": snimak}))
 
+        async def upisi_predlog(krediti: int) -> int:
+            return await _stage_draft_for_review(
+                user, req.predmet_id, _TIP_NACRTA_IZ_SPISA, "AI radni predlog (savetnik)",
+                odgovor, dodatni_detalj={"predlog": snimak}, krediti=krediti,
+                izvori_dostave=izvori_dostave, sudski_izvori=sorted(sudski_izvori),
+            )
+
+        await UsageService.consume(uid, email, "multi_agent", atomic_charge=upisi_predlog)
+
+    logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
     return {
         **dodatno,
         "agent":          agent_id,

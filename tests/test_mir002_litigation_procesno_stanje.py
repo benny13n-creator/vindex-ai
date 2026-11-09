@@ -534,6 +534,8 @@ def test_savetnik_za_rokove_salje_proverene_osnove_bez_izmisljanja_datuma(lit):
     "Sud je strankama ostavio rok od 8 dana za izjašnjenje (DOK-08).",
     "Sud je u dopuni nalaza (DOK-08) ostavio strankama rok od 8 dana od dana dopune nalaza za izjašnjenje.",
     "Sud je u dopuni nalaza veštaka (DOK-08) ostavio strankama rok od 8 dana za izjašnjenje.",
+    "Veštak je u dopuni naveo da nema upisa, ali sud je ostavio strankama rok od 8 dana "
+    "za izjašnjenje (DOK-08).",
     "Sud je u dopuni nalaza odredio rok od osam dana za izjašnjenje (DOK-08).",
     "Rok za izjašnjenje strankama ističe 28.10.2026. godine, ali nije utvrđeno da li je stranka postupila po nalogu suda iz DOK-07.",
     "Рок за изјашњење истиче 2026-10-28.",
@@ -574,6 +576,7 @@ def test_p06_nepouzdan_rok_ne_dospeva_u_odgovor_i_ne_naplacuje_se(lit, monkeypat
     "U dopuni se navodi",
     "Izvor navodi",
     "Izvor DOK-08 navodi",
+    "Veštak je u dopuni naveo",
 ])
 def test_p06_pripisani_navod_i_odvojeni_rok_prolaze(lit, monkeypatch, uvod):
     from routers import multi_agent as MA

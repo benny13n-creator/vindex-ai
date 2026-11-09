@@ -228,8 +228,9 @@ def _cache_kljuc(pitanje: str) -> str:
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
 
     n8 = (je_pitanje_gradjanske_nadleznosti(pitanje)
-          or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA)
-    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-5" if n8 else "")
+          or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA
+          or _n8_izricito_pitanje_o_sudu_boravista(_normalizuj(_cirilica_u_latinicu(pitanje))))
+    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-6" if n8 else "")
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -1230,8 +1231,22 @@ _N8_ZASTARELOST_RE = re.compile(
 )
 _N8_OBA_SUDA_RE = re.compile(r"\boba\s+suda\s+su\s+(?:opste\s+)?(?:mesno\s+)?nadlezn\w*\b")
 _N8_DUZI_BORAVAK_RE = re.compile(r"\b(?:duz\w*\s+(?:borav\w*|vrem\w*)|trajn\w*\s+borav\w*)\b")
-_N8_BORAVAK_OGRADA_RE = re.compile(r"\b(?:nije|ne zna se|nepoznat\w*|da li|ako|ukoliko|mozda|sporn\w*)\b")
+_N8_BORAVAK_OGRADA_RE = re.compile(
+    r"\b(?:nije|ne zna se|nepoznat\w*|da li|ako|ukoliko|mozda|sporn\w*|pretpostavimo)\b"
+    r"|\b(?:nema|bez)\s+(?:ni\s+)?(?:(?:pouzdan\w*|dovoljn\w*|ikakv\w*|bilo\s+kakv\w*)\s+)?"
+    r"(?:podat\w*|dokaz\w*|potvrd\w*|informacij\w*|okolnost\w*|duz\w*\s+borav\w*|trajn\w*\s+borav\w*)\b"
+)
 _N8_TUZENI_PRAVNO_LICE_RE = re.compile(r"\b(?:tuzen\w*|protiv)\s+(?:je\s+)?(?:d\.?o\.?o|pravn\w*\s+lic\w*)\b")
+
+
+def _n8_utvrdjen_duzi_boravak(q: str) -> bool:
+    # A semicolon can continue a hypothetical or evidentiary caveat.
+    return any(
+        _N8_DUZI_BORAVAK_RE.search(recenica)
+        and not _N8_BORAVAK_OGRADA_RE.search(recenica)
+        and not recenica.rstrip().endswith("?")
+        for recenica in _recenice_sa_razmacima(q)[::2]
+    )
 
 
 def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
@@ -1259,12 +1274,7 @@ def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
         return "Nadležnost i zastarelost su odvojena pitanja. Potraživanje može zastareti i u ugovornom sporu."
 
     if "prebivalist" in q and "boravist" in q:
-        duzi_boravak = any(
-            _N8_DUZI_BORAVAK_RE.search(rec) and not _N8_BORAVAK_OGRADA_RE.search(rec)
-            and not rec.endswith("?")
-            for rec in re.split(r"(?<=[.!?;])\s+", q)
-        )
-        if not duzi_boravak:
+        if not _n8_utvrdjen_duzi_boravak(q):
             if re.search(
                 r"\b(?:nije|ne vazi)\b[^.!?\n]{0,50}\bjer prebivalist\w* ima prednost\b"
                 r"|\bnije slucaj(?: ovde)? jer nema (?:informacij\w*|podatak\w*) o duz\w* borav\w*\b"
@@ -3841,6 +3851,12 @@ def _lokalni_clan(zakon: str, broj: str):
     return m.group(1) if m else None
 
 
+def _n8_izricito_pitanje_o_sudu_boravista(q: str) -> bool:
+    return "prebivalist" in q and bool(re.search(
+        r"\bsud\w*\s+boravist\w*(?:\s+\w+){0,2}\s+nadlez\w*", q
+    ))
+
+
 def _n8_ogranici_dokaznu_potpunost(pitanje: str, data: dict) -> None:
     """N8: model cannot award POTPUNA when the decisive long-stay fact is missing.
 
@@ -3859,18 +3875,9 @@ def _n8_ogranici_dokaznu_potpunost(pitanje: str, data: dict) -> None:
     # question ("da li je sud boravišta nadležan?"). Keep the fallback
     # strictly limited to venue of residence and extended stay. Do not
     # broaden routing of unrelated legal questions.
-    konkretan_sud_boravista = bool(re.search(
-        r"\bsud\w*\s+boravist\w*(?:\s+\w+){0,2}\s+nadlez\w*", q
-    ))
-    if not (je_pitanje_gradjanske_nadleznosti(pitanje) or konkretan_sud_boravista):
+    if not (je_pitanje_gradjanske_nadleznosti(pitanje) or _n8_izricito_pitanje_o_sudu_boravista(q)):
         return
-    ima_duzeg_boravka = any(
-        _N8_DUZI_BORAVAK_RE.search(rec)
-        and not _N8_BORAVAK_OGRADA_RE.search(rec)
-        and not rec.rstrip().endswith("?")
-        for rec in re.split(r"(?<=[.!?;])\s+", q)
-    )
-    if ima_duzeg_boravka:
+    if _n8_utvrdjen_duzi_boravak(q):
         return
     data["brza_procena_dokazna_potpunost"] = "delimicna"
     if not str(data.get("brza_procena_nedostatak") or "").strip():
@@ -3887,6 +3894,8 @@ def _parsiraj_strukturni_odgovor(
     praksa_context: str = "",
     potvrda: dict | None = None,
     pitanje: str = "",
+    *,
+    dodaj_napomene: bool = True,
 ) -> tuple[bool, str]:
     """
     Parse JSON response from LLM (Commit 3/3 structured output).
@@ -3896,6 +3905,9 @@ def _parsiraj_strukturni_odgovor(
     Returns (success, text):
       success=True  → text is serialized ---marker format
       success=False → text is hallucination block message
+
+    The agent adds deterministic venue notes after legal validation.
+    Passing the question here still applies the evidence-rating safeguard.
     """
     import json as _json
     try:
@@ -3969,7 +3981,8 @@ def _parsiraj_strukturni_odgovor(
         data = _proveri_stavove_prakse(data, praksa_context)
 
     _n8_ogranici_dokaznu_potpunost(pitanje, data)
-    return True, _napomene_nadleznosti(pitanje, _json_ka_tekst(data, tip, potvrda=potvrda))
+    tekst = _json_ka_tekst(data, tip, potvrda=potvrda)
+    return True, _napomene_nadleznosti(pitanje, tekst) if dodaj_napomene else tekst
 
 
 # ─── NACRT RAG context hints (Commit 2/3) ────────────────────────────────────
@@ -4874,7 +4887,8 @@ def ask_agent(
                 _korak_15_authoritative, confidence, _izvori, top_article
             )
             _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(
-                _raw_med, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+                _raw_med, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda,
+                pitanje=pitanje_api, dodaj_napomene=False,
             )
             if not _json_ok_med:
                 logger.warning("[MEDIUM→BLOCK] Commit3 guard [q=%s]", log_id)
@@ -4977,7 +4991,8 @@ def ask_agent(
             _korak_15_authoritative, confidence, _izvori, top_article
         )
         _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(
-            _raw_high, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+            _raw_high, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda,
+            pitanje=pitanje_api, dodaj_napomene=False,
         )
 
         # Soft section check — log only, do not discard
@@ -5046,7 +5061,8 @@ def ask_agent(
                 _korak_15_authoritative, confidence, _izvori, top_article
             )
             _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(
-                _raw_dg, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+                _raw_dg, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda,
+                pitanje=pitanje_api, dodaj_napomene=False,
             )
             if not _json_ok_dg:
                 logger.warning("[DOWNGRADE→BLOCK] Commit3 guard posle downgrade [q=%s]", log_id)

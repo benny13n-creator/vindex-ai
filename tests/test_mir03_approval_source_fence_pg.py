@@ -203,3 +203,209 @@ def test_rejection_wins_while_approval_waits_on_proposal(fence):
         assert exc.value.sqlstate == "PT409"
         approver.rollback()
     assert status(fence, draft) == "pending"
+
+
+DRAFT_MONTH = "2026-11"
+
+
+@pytest.fixture
+def drafting_db(db):
+    with connect(db) as c:
+        c.execute("""
+            CREATE TABLE public.audit_log (id integer);
+            CREATE TABLE public.user_credits (
+                user_id uuid PRIMARY KEY,
+                credits_remaining integer NOT NULL,
+                mesecno_korisceno integer DEFAULT 0,
+                mesec text,
+                updated_at timestamptz DEFAULT now()
+            );
+            ALTER TABLE public.user_credits ENABLE ROW LEVEL SECURITY;
+        """)
+        c.execute("INSERT INTO predmeti (id,user_id) VALUES (%s,%s),(%s,%s)", (CASE_A, A, CASE_OTHER, B))
+        c.execute("INSERT INTO user_credits (user_id,credits_remaining) VALUES (%s,5),(%s,5)", (A, B))
+    for migration in (
+        "043_security_bulletproof.sql", "064_feature_registry.sql",
+        "107_beta_gate_credit_race_closure.sql", "108_atomic_usage_counters.sql", MIGRATION,
+    ):
+        P.primeni(db, migration)
+    return db
+
+
+def proposal(*, case=CASE_A, court_sources=()):
+    red = {
+        "id": str(uuid4()), "user_id": str(A), "predmet_id": str(case),
+        "naziv": "Sintetički predlog", "tekst": TEXT, "confidence_score": 0.75,
+        "quality_detail": {"predlog": {"sha256": FINGERPRINT}}, "mesec": DRAFT_MONTH,
+    }
+    if court_sources:
+        red["sudski_izvori"] = [str(doc) for doc in court_sources]
+    return red
+
+
+def save_proposal(conn, red, *, sources=None, credits=1, role="service_role"):
+    from psycopg.types.json import Jsonb
+
+    P.kao(conn, role, red["user_id"])
+    conn.execute("SET LOCAL statement_timeout = '5s'")
+    return conn.execute(
+        "SELECT public.mir03_sacuvaj_nacrt(%s,%s,%s)",
+        (Jsonb(red), Jsonb(sources or {}), credits),
+    ).fetchone()[0]
+
+
+def drafting_state(dsn):
+    with connect(dsn) as c:
+        balance = c.execute(
+            "SELECT credits_remaining,mesecno_korisceno,mesec FROM user_credits WHERE user_id=%s", (A,),
+        ).fetchone()
+        rows = c.execute(
+            "SELECT id::text,user_id,predmet_id,tip,status,is_lawyer_approved,tekst FROM staging_memory",
+        ).fetchall()
+    return balance, rows
+
+
+def expected_proposal(red):
+    return (red["id"], str(A), str(CASE_A), "nacrt_iz_spisa", "pending", False, TEXT)
+
+
+def add_draft_source(dsn, *, owner=A, kind=None):
+    with connect(dsn) as c:
+        return c.execute(
+            """INSERT INTO predmet_dokumenti (predmet_id,user_id,tekst_sadrzaj,tip_dokaza)
+               VALUES (%s,%s,%s,%s) RETURNING id""", (CASE_A, owner, TEXT, kind),
+        ).fetchone()[0]
+
+
+def test_save_draft_rpc_acl_and_duplicate_id_cannot_charge_again(drafting_db):
+    from psycopg import errors
+
+    red = proposal()
+    signature = "public.mir03_sacuvaj_nacrt(jsonb,jsonb,integer)"
+    with connect(drafting_db) as c:
+        assert c.execute(
+            "SELECT r, has_function_privilege(r,%s,'EXECUTE') "
+            "FROM unnest(ARRAY['anon','authenticated','service_role']) AS roles(r)", (signature,),
+        ).fetchall() == [("anon", False), ("authenticated", False), ("service_role", True)]
+        assert c.execute(
+            """SELECT p.prosecdef,p.proconfig,EXISTS (
+                 SELECT 1 FROM aclexplode(p.proacl) acl WHERE acl.grantee=0 AND acl.privilege_type='EXECUTE'
+               ) FROM pg_proc p WHERE p.oid=%s::regprocedure""", (signature,),
+        ).fetchone() == (False, ['search_path=""'], False)
+    for role in ("anon", "authenticated"):
+        with pytest.raises(errors.InsufficientPrivilege), connect(drafting_db) as c:
+            save_proposal(c, red, role=role)
+    assert drafting_state(drafting_db) == ((5, 0, None), [])
+
+    with connect(drafting_db) as c:
+        assert save_proposal(c, red, credits=2) == 3
+    with pytest.raises(errors.UniqueViolation), connect(drafting_db) as c:
+        save_proposal(c, red, credits=2)
+    assert drafting_state(drafting_db) == ((3, 1, DRAFT_MONTH), [expected_proposal(red)])
+
+
+def test_refused_proposal_rolls_back_debit_month_and_insert(drafting_db):
+    from psycopg import errors
+
+    with connect(drafting_db) as c:
+        c.execute("""
+            CREATE FUNCTION public.synthetic_reject_proposal() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM public.user_credits
+                    WHERE user_id=NEW.user_id::uuid AND credits_remaining=3
+                      AND mesecno_korisceno=1 AND mesec='2026-11'
+                ) THEN
+                    RAISE EXCEPTION 'Synthetic test expected debit and monthly count before INSERT';
+                END IF;
+                RAISE EXCEPTION USING ERRCODE='23514', MESSAGE='Synthetic stage refusal after debit';
+            END;
+            $$;
+            CREATE TRIGGER synthetic_reject_proposal AFTER INSERT ON public.staging_memory
+                FOR EACH ROW EXECUTE FUNCTION public.synthetic_reject_proposal();
+        """)
+    with pytest.raises(errors.CheckViolation, match="Synthetic stage refusal after debit"), connect(drafting_db) as c:
+        save_proposal(c, proposal(), credits=2)
+    assert drafting_state(drafting_db) == ((5, 0, None), [])
+
+
+@pytest.mark.parametrize("first_commits", [True, False])
+def test_separate_proposals_serialize_the_credit_gate(drafting_db, first_commits):
+    with connect(drafting_db) as c:
+        c.execute("UPDATE user_credits SET credits_remaining=1 WHERE user_id=%s", (A,))
+    red1, red2 = proposal(), proposal()
+    with connect(drafting_db) as first, connect(drafting_db) as second, ThreadPoolExecutor(1) as work:
+        assert save_proposal(first, red1) == 0
+        future = work.submit(save_proposal, second, red2)
+        try:
+            wait_for_real_lock(drafting_db, second.info.backend_pid, first.info.backend_pid)
+        finally:
+            if first_commits:
+                first.commit()
+            else:
+                first.rollback()
+        assert future.result(timeout=6) == (-1 if first_commits else 0)
+    winner = red1 if first_commits else red2
+    assert drafting_state(drafting_db) == ((0, 1, DRAFT_MONTH), [expected_proposal(winner)])
+
+
+def test_withdrawal_wins_while_proposal_waits_on_source(drafting_db):
+    from psycopg import Error
+
+    doc = add_draft_source(drafting_db)
+    with connect(drafting_db) as author, connect(drafting_db) as drafter, ThreadPoolExecutor(1) as work:
+        P.kao(author, "service_role", str(A))
+        author.execute("DELETE FROM predmet_dokumenti WHERE id=%s", (doc,))
+        future = work.submit(save_proposal, drafter, proposal(), sources={str(doc): FINGERPRINT})
+        try:
+            wait_for_real_lock(drafting_db, drafter.info.backend_pid, author.info.backend_pid)
+        finally:
+            author.commit()
+        with pytest.raises(Error) as exc:
+            future.result(timeout=6)
+        assert exc.value.sqlstate == "PT409"
+        drafter.rollback()
+    assert drafting_state(drafting_db) == ((5, 0, None), [])
+
+
+def test_proposal_requires_owned_sources_and_latest_audited_court_kind(drafting_db):
+    from json import dumps
+
+    from psycopg import Error
+    from psycopg.types.json import Jsonb
+
+    doc = add_draft_source(drafting_db, kind="court_decision")
+    foreign_doc = add_draft_source(drafting_db, owner=B)
+    red = proposal(court_sources=(doc,))
+    sources = {str(doc): FINGERPRINT}
+    for invalid_red, invalid_sources in (
+        (proposal(case=CASE_OTHER), {}), (proposal(), {str(foreign_doc): FINGERPRINT}), (red, sources),
+    ):
+        with pytest.raises(Error) as exc, connect(drafting_db) as c:
+            save_proposal(c, invalid_red, sources=invalid_sources)
+        assert exc.value.sqlstate == "PT409"
+    assert drafting_state(drafting_db) == ((5, 0, None), [])
+
+    audit_sql = """INSERT INTO audit_immutable
+        (prev_hash,entry_hash,user_id,action,resource_type,resource_id,metadata)
+        VALUES (%s,%s,%s,'dokument_vrsta_ispravljena','predmet_dokumenti',%s,%s)"""
+    with connect(drafting_db) as c:
+        # The real audit writer serializes metadata before inserting it into JSONB.
+        c.execute(audit_sql, ("0" * 64, "1" * 64, A, str(doc), Jsonb(dumps({
+            "novo": "court_decision", "predmet_id": str(CASE_A),
+        }))))
+    with connect(drafting_db) as c:
+        assert save_proposal(c, red, sources=sources) == 4
+    with connect(drafting_db) as c:
+        c.execute("UPDATE predmet_dokumenti SET tip_dokaza='other' WHERE id=%s", (doc,))
+    with pytest.raises(Error) as exc, connect(drafting_db) as c:
+        save_proposal(c, proposal(court_sources=(doc,)), sources=sources)
+    assert exc.value.sqlstate == "PT409"
+
+    with connect(drafting_db) as c:
+        c.execute("UPDATE predmet_dokumenti SET tip_dokaza='court_decision' WHERE id=%s", (doc,))
+        c.execute(audit_sql, ("1" * 64, "2" * 64, A, str(doc), Jsonb({"novo": "other", "predmet_id": str(CASE_A)})))
+    with pytest.raises(Error) as exc, connect(drafting_db) as c:
+        save_proposal(c, proposal(court_sources=(doc,)), sources=sources)
+    assert exc.value.sqlstate == "PT409"
+    assert drafting_state(drafting_db) == ((4, 1, DRAFT_MONTH), [expected_proposal(red)])

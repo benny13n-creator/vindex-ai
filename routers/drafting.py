@@ -244,18 +244,58 @@ def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 # automatskim Quality Gate skorom (services/quality_gate.py) i čeka
 # eksplicitnu advokatsku potvrdu (v. POST /api/staging/{id}/approve) PRE
 # nego što ijedan vektor uđe u Pinecone.
+async def _sacuvaj_naplaceni_predlog(supa, zapis: dict, izvori: dict, sudski_izvori: list, krediti: int) -> int:
+    from postgrest.exceptions import APIError
+    from shared.deps import _get_current_month
+    from shared.http_errors import NamerniHTTPException
+
+    red_za_rpc = {**zapis, "sudski_izvori": sudski_izvori}
+    if krediti:
+        red_za_rpc["mesec"] = _get_current_month()
+    try:
+        r = await asyncio.to_thread(lambda: supa.rpc("mir03_sacuvaj_nacrt", {
+            "p_red": red_za_rpc, "p_izvori": izvori, "p_krediti": krediti,
+        }).execute())
+        if type(r.data) is int:
+            return r.data
+    except APIError as exc:
+        if exc.code == "PT409":
+            raise NamerniHTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR) from exc
+        if str(exc.code or "").startswith(("22", "23", "40", "42")) or exc.code == "P0001":
+            raise NamerniHTTPException(status_code=503, detail="Nacrt nije sačuvan. Nije naplaćen.") from exc
+        _sentry_capture(exc)
+    except Exception as exc:
+        _sentry_capture(exc)
+
+    # Ako se odgovor izgubio, red sa ovim ID-jem dokazuje da je transakcija izvršena.
+    try:
+        red = await _red_staging(supa, zapis["id"], zapis["user_id"])
+    except Exception:
+        red = None
+    if red and all(red.get(k) == zapis[k] for k in ("predmet_id", "tip", "tekst")):
+        return await UsageService.balance(zapis["user_id"], "") if krediti else 0
+    raise NamerniHTTPException(
+        status_code=503,
+        detail="Ishod čuvanja nacrta nije potvrđen. Proverite karticu Nacrt pre ponavljanja.",
+    )
+
+
 async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str,
-                                  dodatni_detalj: dict | None = None) -> None:
-    """Fire-and-forget (asyncio.create_task) -- ne sme da uspori odgovor
-    korisniku niti da greška ovde ikad utiče na već generisan i vraćen nacrt."""
+                                  dodatni_detalj: dict | None = None, *, krediti: int | None = None,
+                                  izvori_dostave: dict | None = None, sudski_izvori: list | None = None) -> bool | int:
+    """Upis za pregled. Nacrt iz spisa čeka potvrdu upisa pre odgovora."""
+    obavezan = krediti is not None
+    stanje_kredita = 0
     try:
         supa = _get_supa()
         pred_row = await asyncio.to_thread(
             lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user["user_id"]).maybe_single().execute()
         )
         if not pred_row.data:
+            if obavezan:
+                raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
             logger.warning("[STAGING] predmet_id=%s ne pripada korisniku — preskočeno", predmet_id)
-            return
+            return False
 
         # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-031): a user-triggered retry
         # (double-click, or a genuine "Generiši" retry after a network hiccup) fires
@@ -275,15 +315,14 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
                 .gte("created_at", _recent_cutoff)
                 .limit(1).execute()
         )
-        # MIR001 R4: AI radni predlog iz spisa je NAPLAĆEN pre ovog upisa — tiho odbacivanje bi značilo naplatu bez
-        # predloga na pregledu. Mrežno ponavljanje istog zahteva već zaustavlja `Idempotency-Key`, a drugi klik u prozoru
-        # `run_agent` odbija PRE modela i naplate; ako ipak stigne (trka pre ovog upisa), svaka naplata ima svoj predlog.
+        # MIR001 R4: isti ključ i kasniji klik se odbijaju pre modela. Paralelni nezavisni zahtevi
+        # koji su već prošli tu proveru mogu biti naplaćeni samo uz sopstveni predlog.
         if _dup_r.data and tip != "nacrt_iz_spisa":
             logger.info(
                 "[STAGING] predmet=%s tip=%s -- duplikat unutar %ds prozora, preskočeno (id=%s)",
                 predmet_id, tip, _STAGING_RETRY_WINDOW_SECONDS, _dup_r.data[0]["id"],
             )
-            return
+            return False
 
         from services.quality_gate import evaluate_draft_quality
         from shared.kancelarija_utils import get_kancelarija_id
@@ -291,19 +330,37 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
         quality = await evaluate_draft_quality(tekst, tip)
         kancelarija_id = await get_kancelarija_id(supa, user["user_id"])
 
-        await asyncio.to_thread(
-            lambda: supa.table("staging_memory").insert({
-                "user_id": user["user_id"],
-                "kancelarija_id": kancelarija_id,
-                "predmet_id": predmet_id,
-                "tip": tip,
-                "naziv": naziv,
-                "tekst": tekst,
-                "confidence_score": quality["confidence_score"],
-                # C3b FINAL CLOSURE: AI radni predlog nosi i svoj snimak (`predlog`) — v. shared/usvajanje_nacrta
-                "quality_detail": {**(quality["detail"] or {}), **(dodatni_detalj or {})},
-            }).execute()
-        )
+        zapis = {
+            "user_id": user["user_id"],
+            "kancelarija_id": kancelarija_id,
+            "predmet_id": predmet_id,
+            "tip": tip,
+            "naziv": naziv,
+            "tekst": tekst,
+            "confidence_score": quality["confidence_score"],
+            # C3b FINAL CLOSURE: AI radni predlog nosi i svoj snimak (`predlog`) — v. shared/usvajanje_nacrta
+            "quality_detail": {**(quality["detail"] or {}), **(dodatni_detalj or {})},
+        }
+        if obavezan:
+            zapis["id"] = str(uuid.uuid4())
+            stanje_kredita = await _sacuvaj_naplaceni_predlog(
+                supa, zapis, izvori_dostave or {}, sudski_izvori or [], krediti
+            )
+            if stanje_kredita < 0:
+                return stanje_kredita
+        else:
+            await asyncio.to_thread(lambda: supa.table("staging_memory").insert(zapis).execute())
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[STAGING] neuspešno predmet=%s: %s", predmet_id, type(exc).__name__)
+        if obavezan:
+            if isinstance(exc, HTTPException):
+                raise
+            from shared.http_errors import NamerniHTTPException
+            raise NamerniHTTPException(status_code=503, detail="Nacrt nije sačuvan. Nije naplaćen.") from exc
+        return False
+
+    try:
         logger.info(
             "[STAGING] predmet=%s tip=%s confidence=%.2f -- čeka advokatsku potvrdu",
             predmet_id, tip, quality["confidence_score"],
@@ -321,7 +378,8 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
         ))
     except Exception as exc:
         _sentry_capture(exc)
-        logger.warning("[STAGING] neuspešno (non-fatal) predmet=%s: %s", predmet_id, exc)
+        logger.warning("[STAGING] audit nije zakazan predmet=%s: %s", predmet_id, type(exc).__name__)
+    return stanje_kredita if obavezan else True
 
 
 _APPROVAL_CONFIDENCE_THRESHOLD = 0.85

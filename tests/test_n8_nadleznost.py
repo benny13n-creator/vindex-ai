@@ -427,12 +427,18 @@ def test_n8_cache_samo_za_pitanja_o_nadleznosti_menja_verziju():
     import main as M
 
     pitanje_drugo = "Koliki je opšti rok zastarelosti po ZOO?"
-    def prethodni_kljuc(q):
+    pitanje_boravista = (
+        "Tuženi ima prebivalište u Nišu i boravište u Kragujevcu. Da li je sud boravišta nadležan?"
+    )
+
+    def prethodni_kljuc(q, dodatak=""):
         return hashlib.md5(
-            f"{M._CACHE_VERZIJA}|{M._normalizuj_za_cache(q)}".encode(), usedforsecurity=False,
+            f"{M._CACHE_VERZIJA}{dodatak}|{M._normalizuj_za_cache(q)}".encode(), usedforsecurity=False,
         ).hexdigest()
 
-    assert M._cache_kljuc(_N8_TEST_COMPANY) != prethodni_kljuc(_N8_TEST_COMPANY)
+    assert not M.je_pitanje_gradjanske_nadleznosti(pitanje_boravista)
+    assert M._cache_kljuc(_N8_TEST_COMPANY) != prethodni_kljuc(_N8_TEST_COMPANY, "|n8-nadleznost-5")
+    assert M._cache_kljuc(pitanje_boravista) != prethodni_kljuc(pitanje_boravista)
     assert M._cache_kljuc(pitanje_drugo) == prethodni_kljuc(pitanje_drugo)
 
 
@@ -647,3 +653,75 @@ def test_beta_n8_backend_downgrade_is_visible_in_serialized_answer():
     assert ok, answer
     assert "Dokazna potpunost: DELIMIČNA" in answer
     assert "Dokazna potpunost: POTPUNA" not in answer
+
+
+@pytest.mark.parametrize("confidence,first_bad", [("HIGH", False), ("MEDIUM", False), ("HIGH", True)])
+def test_beta_n8_missing_stay_reaches_agent_response_and_cache(monkeypatch, confidence, first_bad):
+    import json
+    from unittest.mock import Mock
+
+    import main as M
+
+    pitanje = (
+        "U običnoj građanskoj parnici za dug tuženi je fizičko lice sa prebivalištem u Novom Sadu "
+        "i boravištem u Beogradu. Nema posebnog ugovora. Koja je opšta mesna nadležnost po ZPP i koji je član?"
+    )
+    zpp = "ZAKON: Zakon o parničnom postupku\nČLAN: Član 39\n" + _clan(39)
+    score = 0.8 if confidence == "HIGH" else 0.6
+    metadata = {
+        "confidence": confidence, "top_score": score, "top_article": "Član 39",
+        "top_law": "Zakon o parničnom postupku",
+        "izvori": [{"zakon": "Zakon o parničnom postupku", "clan": "Član 39", "score": score}],
+    }
+    raw = json.dumps({
+        "brza_procena_pravna_utemeljenost": "visoka",
+        "brza_procena_dokazna_potpunost": "potpuna",
+        "pravni_zakljucak": "Prema članu 39 ZPP, nadležan je sud prebivališta tuženog. "
+                            "Ako okolnosti upućuju na duži boravak, nadležan je i sud boravišta.",
+    })
+    model = Mock(side_effect=["nevažeći JSON", raw] if first_bad else [raw])
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([zpp], metadata))
+    monkeypatch.setattr(M, "retrieve_sudska_praksa", lambda *a, **k: [])
+    monkeypatch.setattr(M, "retrieve_misljenja", lambda *a, **k: [])
+    monkeypatch.setattr(M, "_pozovi_openai", model)
+    monkeypatch.setattr(M, "_CACHE", {})
+    monkeypatch.delenv("VINDEX_CACHE_BYPASS", raising=False)
+    monkeypatch.setattr(M, "_supa_cache_get", lambda _key: None)
+    monkeypatch.setattr(M, "_supa_cache_set", Mock())
+
+    first = M.ask_agent(pitanje)
+    second = M.ask_agent(pitanje)
+
+    assert first["status"] == "success" and not first.get("blocked")
+    assert first["confidence"] == ("MEDIUM" if first_bad else confidence)
+    assert first["top_law"] == "Zakon o parničnom postupku"
+    assert first["top_article"] == "Član 39"
+    assert "Dokazna potpunost: DELIMIČNA" in first["data"]
+    assert "Dokazna potpunost: POTPUNA" not in first["data"]
+    assert "Pravna utemeljenost: VISOKA" in first["data"]
+    assert "Nije utvrđeno da okolnosti upućuju na duži boravak" in first["data"]
+    assert second.get("from_cache") and second["data"] == first["data"]
+    assert model.call_count == (2 if first_bad else 1)
+
+
+@pytest.mark.parametrize("dodatak,utvrdjen", [
+    ("Nema dokaza o dužem boravku u Kragujevcu.", False),
+    ("Bez podataka o dužem boravku u Kragujevcu.", False),
+    ("Pretpostavimo da će tuženi duže boraviti u Kragujevcu.", False),
+    ("Pretpostavimo sledeće; tuženi će duže boraviti u Kragujevcu.", False),
+    ("Nema pouzdanih podataka; tuženi će duže boraviti u Kragujevcu.", False),
+    ("Nema sporazuma o nadležnosti; tuženi već duže boravi u Kragujevcu.", True),
+    ("Tuženi već duže boravi u Kragujevcu; nema sporazuma o nadležnosti.", True),
+])
+def test_beta_n8_neutvrdjen_boravak_ne_potvrdjuje_dokaze_ili_nadleznost(dodatak, utvrdjen):
+    import main as M
+
+    pitanje = (
+        "Tuženi ima prebivalište u Nišu i boravište u Kragujevcu. "
+        + dodatak + " Da li su oba suda mesno nadležna?"
+    )
+    data = {"brza_procena_dokazna_potpunost": "potpuna"}
+    M._n8_ogranici_dokaznu_potpunost(pitanje, data)
+
+    assert data["brza_procena_dokazna_potpunost"] == ("potpuna" if utvrdjen else "delimicna")
+    assert M._verifikuj_pravne_greske("Oba suda su mesno nadležna.", pitanje=pitanje)[0] is utvrdjen

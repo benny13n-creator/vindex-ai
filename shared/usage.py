@@ -37,7 +37,7 @@ import asyncio
 import logging
 import uuid as _uuid
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from fastapi import HTTPException, status
 
@@ -439,6 +439,7 @@ class UsageService:
         tokens_completion: Optional[int] = None,
         latency_ms: Optional[int] = None,
         predmet_id: Optional[str] = None,
+        atomic_charge: Optional[Callable[[int], Awaitable[int]]] = None,
     ) -> int:
         """
         multiplier: za operacije koje su N puta skuplje od registrovane bazne
@@ -474,6 +475,8 @@ class UsageService:
         spajanjem. Prosleđuje ga onaj pozivalac koji predmet zna; ostali ga
         izostavljaju i kolona ostaje NULL, tačno kao pre ove izmene.
 
+        atomic_charge može zameniti samo završni debit transakcijom koja zajedno upisuje plaćeni rezultat.
+
         Vraća preostali broj kredita. Baca HTTPException(402/429) ako nema
         budžeta ili je cooldown aktivan.
         """
@@ -487,6 +490,8 @@ class UsageService:
         est_cost = policy.get("estimated_cost_usd")
 
         if _is_founder(email):
+            if atomic_charge is not None:
+                await atomic_charge(0)
             return FOUNDER_BALANCE
 
         if cooldown:
@@ -615,7 +620,10 @@ class UsageService:
             # contains two CONTRADICTORY deduct_credit definitions
             # (supabase_migration.sql:74 returns -1, supabase_setup.sql:139
             # returns 0) -- exactly the drift this removes reliance on.
-            preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
+            if atomic_charge is not None:
+                preostalo = await atomic_charge(n_credits)
+            else:
+                preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
             if preostalo < 0:
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -627,6 +635,8 @@ class UsageService:
                     },
                 )
         else:
+            if atomic_charge is not None:
+                await atomic_charge(0)
             preostalo = await asyncio.to_thread(_get_credits, user_id)
 
         # NIGHT-001 (2026-08-09): the pre-charge _increment_usage above at the
