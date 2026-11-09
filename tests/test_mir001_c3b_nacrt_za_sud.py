@@ -390,6 +390,8 @@ def _naplate(monkeypatch):
     naplate = []
 
     async def _consume(*a, **kw):
+        if "atomic_charge" in kw:
+            await kw["atomic_charge"](1)
         naplate.append(a)
     monkeypatch.setattr(UsageService, "consume", staticmethod(_consume))
     return naplate
