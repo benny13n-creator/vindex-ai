@@ -721,3 +721,28 @@ def test_izvor_procesne_tacke_se_proverava_i_posle_uklanjanja_usvojene_stavke(li
     assert U.odobri(k, A, doc["id"]).status_code == 409
     assert U.tacke(k, A, doc["id"]).status_code == 200
     assert U.odobri(k, A, doc["id"]).status_code == 200
+
+
+def test_docx_belezi_audit_i_ne_izlazi_kad_audit_nije_upisan(lit, monkeypatch):
+    from unittest.mock import AsyncMock
+    from shared import audit_immutable as audit
+
+    k, b, pid, _, snimljeno = _pripremi_nacrt(lit, monkeypatch)
+    _model(monkeypatch, snimljeno)
+    assert k.post("/api/agents/run", json={"agent": "drafting", "task": "Sastavi podnesak.", "predmet_id": pid},
+                  headers=A).status_code == 200
+    [st] = _nacrti(b, pid)
+    doc = U.dokument(k, A, st["id"])
+    assert U.stavka(k, A, doc["id"], "S-01").status_code == 200
+    assert U.tacke(k, A, doc["id"]).status_code == 200
+    assert U.odobri(k, A, doc["id"]).status_code == 200
+
+    url = f"/api/staging/{doc['id']}/docx"
+    assert k.post(url, headers=A).status_code == 200
+    [red] = [r for r in b.tabele["audit_immutable"] if r.get("action") == "dokument_za_sud_izvezen"]
+    assert red["resource_id"] == doc["id"] and red["user_id"] == "uid-A"
+
+    monkeypatch.setattr(audit, "log_action", AsyncMock(return_value=None))
+    greska = k.post(url, headers=A)
+    assert greska.status_code == 503
+    assert "attachment" not in greska.headers.get("content-disposition", "")

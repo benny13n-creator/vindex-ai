@@ -1468,7 +1468,11 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
         except Exception as e:
             logger.error("DOCX export (dokument za sud) greška: %s", type(e).__name__)
             raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
-        _audit_usvajanja("dokument_za_sud_izvezen", user, staging_id, {"sha256": odobreno["sha256"]})
+        from shared.audit_immutable import log_action
+
+        if not await log_action(action="dokument_za_sud_izvezen", user_id=uid, resource_type="staging",
+                                resource_id=staging_id, metadata={"sha256": odobreno["sha256"]}):
+            raise HTTPException(status_code=503, detail="Izvoz trenutno nije moguće evidentirati. Pokušajte ponovo.")
         return Response(
             content=docx_bytes,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

@@ -445,7 +445,11 @@ def pripremi(monkeypatch, tabele=None):
     try:
         import shared.audit_immutable as audit
 
-        async def _audit(*a, **k):
+        pravi_audit = audit.log_action
+
+        async def _audit(action, *a, **k):
+            if action == "dokument_za_sud_izvezen":
+                return await pravi_audit(action, *a, **k)
             return None
         monkeypatch.setattr(audit, "log_action", _audit)
     except Exception:
