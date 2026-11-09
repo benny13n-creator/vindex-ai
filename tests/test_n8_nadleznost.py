@@ -210,6 +210,65 @@ def test_imenovan_drugi_zakon_ostaje_taj_zakon():
     assert _prepoznaj_zakon("Koji sud je nadležan po čl. 154 ZOO?") != "zakon o parnicnom postupku"
 
 
+@pytest.mark.parametrize("pitanje,clan,zakon", [
+    ("Šta propisuje član 27 Zakona o uređenju sudova?", "27", "zakon o uredjenju sudova"),
+    ("Koji sud je stvarno nadležan za spor dva privredna društva prema članu 27 Zakona o uređenju sudova?",
+     "27", "zakon o uredjenju sudova"),
+    ("Prema članu 27. st. 1. tač. 1) Zakona o uređenju sudova, koji sud sudi?", "27", "zakon o uredjenju sudova"),
+    ("Prema Zakonu o uređenju sudova, čl. 24, koji sud sudi?", "24", "zakon o uredjenju sudova"),
+    ("Šta propisuje član 27 ZUS u upravnom sporu?", "27", "zakon o upravnim sporovima"),
+    ("Da li je član 27 ZPP usklađen sa Zakonom o uređenju sudova, član 27?", "27", "zakon o parnicnom postupku"),
+])
+def test_tacan_clan_zakona_o_uredjenju_sudova(pitanje, clan, zakon):
+    from app.services.retrieve import ekstrakcija_clana
+    assert ekstrakcija_clana(pitanje) == (f"Član {clan}", zakon)
+
+
+def test_tacan_statiski_izvod_zus_ulazi_u_prompt_bez_pripisivanja_bazi(monkeypatch):
+    import json
+    from unittest.mock import Mock
+    import main as M
+
+    def ne_sme():
+        raise AssertionError("Static court-law excerpt must not use corpus exact lookup")
+
+    monkeypatch.setattr(M, "_cache_get", Mock(return_value=None))
+    monkeypatch.setattr(M, "_cache_set", Mock())
+    monkeypatch.setattr(M, "retrieve_sudska_praksa", Mock(return_value=[]))
+    monkeypatch.setattr(M, "retrieve_misljenja", Mock(return_value=[]))
+    monkeypatch.setattr(M, "retrieve_documents", Mock(return_value=([], {
+        "confidence": "LOW", "top_score": 0.0, "top_article": "", "top_law": "",
+    })))
+    exact = Mock(side_effect=lambda *args, **kwargs: ne_sme())
+    monkeypatch.setattr(M, "_direktan_fetch_clana", exact)
+    model = Mock(return_value=json.dumps({
+        "pravni_zakljucak": "Za spor dva privredna društva nadležan je privredni sud.",
+        "obrazlozenje": "Merodavan je član 27 Zakona o uređenju sudova.",
+    }, ensure_ascii=False))
+    monkeypatch.setattr(M, "_pozovi_openai", model)
+
+    result = M.ask_agent(
+        "Koji sud je stvarno nadležan za spor dva privredna društva prema članu 27 Zakona o uređenju sudova?"
+    )
+
+    exact.assert_not_called()
+    model.assert_called_once()
+    prompt = model.call_args.args[1]
+    assert prompt.count("ČLAN: Član 27") == 1
+    assert "ČLAN: Član 24" not in prompt and "ČLAN: Član 25" not in prompt
+    assert "statički izvod proveren" in prompt and "https://ob.pk.sud.rs/" in prompt
+    assert result["status"] == "success" and not result.get("blocked")
+    assert result["top_law"] == "zakon o uredjenju sudova" and result["top_article"] == "Član 27"
+    assert "direktno pronadjen u bazi" not in result["data"]
+
+    model.reset_mock()
+    missing = M.ask_agent("Šta propisuje član 26 Zakona o uređenju sudova?")
+    assert missing["status"] == "error" and missing["retrieval_unavailable"]
+    assert not missing["blocked"] and "ne postoji" in missing["data"]
+    exact.assert_not_called()
+    model.assert_not_called()
+
+
 def test_ispravka_premise_samo_kad_clan_ne_uredjuje_nadleznost():
     import main as M
     assert "ISPRAVKA PREMISE" in M._napomene_nadleznosti("Da li je po članu 39 ZOO nadležan sud prebivališta tuženog?", "")

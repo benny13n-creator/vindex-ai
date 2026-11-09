@@ -950,12 +950,35 @@ def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
                  r"(?=\s+(?:ZPP|Zakona? o parni[čc]nom postupku)\b)",
                  r"\1", lat, flags=re.IGNORECASE)
     prethodni_rok = False
-    dostava = (r"je tuzba(?: sa prilozima)? (?:uredno )?(?:dostavljena|urucena|primljena)"
-               r"(?: sa prilozima)?(?: tuzenom)?")
+    predaja_tuzenom = r"predat[aoe]? (?:sa prilozima )?tuzen(?:om|oj|ima)"
+    dostava = (
+        r"je tuzba(?: sa prilozima)? (?:uredno )?"
+        rf"(?:(?:dostavljena|urucena|primljena)(?: sa prilozima)?(?: tuzenom)?|{predaja_tuzenom})"
+    )
+    neutvrdjenost = r"(?:nije (?:utvrdjeno|poznato) (?:da li|kada)|(?:u spisu )?nema dokaza da)"
+    zavodjenje = r"zaveden[ao]? u sudski upisnik"
+    oznaka_clana = r"\b(?:clan\w*|cl\.?|zpp)\s*"
+    clan_297 = rf"{oznaka_clana}297\b"
+    clan_298 = rf"{oznaka_clana}298\b"
+    propis = r"(?:\s+(?:zpp|zakona? o parnicnom postupku))?"
+    odredba_o_sadrzaju = (
+        rf"{clan_298}{propis} (?:uredjuje|propisuje) sadrz(?:aj|inu) odgovora(?: na tuzbu)?"
+    )
+    rok_30 = r"rok od (?:30|trideset) dana"
+    od_dostave = r"od (?:dostave|dostavljanja|urucenja) tuzbe sa prilozima"
+    odredba_o_roku = (
+        rf"(?:{clan_297}{propis} (?:uredjuje|propisuje|odredjuje) {rok_30} {od_dostave}"
+        rf"|(?:je )?{rok_30} (?:je )?(?:propisan|uredjen|odredjen) {clan_297}{propis}"
+        rf" i tece {od_dostave})"
+    )
+    veznik = r"[,;]\s+(?:a|dok)\s+"
+    odvojene_odredbe = (
+        rf"(?:{odredba_o_sadrzaju}{veznik}{odredba_o_roku}"
+        rf"|{odredba_o_roku}{veznik}{odredba_o_sadrzaju})[.!]?"
+    )
     for rec in re.split(r"(?<=[.!?;])\s+(?=[A-ZČĆŽŠĐ])|\n+", lat):
         rec = _normalizuj(rec)
         rok = re.search(r"\b(?:rok\w*|(?:30|trideset)\s+dana)\b", rec)
-        clan_298 = re.search(r"\b(?:clan\w*|cl\.?|zpp)\s*298\b", rec)
         datum = re.search(
             r"\b(?:\d{1,2}[./-]\s*\d{1,2}[./-]\s*\d{4}|\d{4}-\d{2}-\d{2}|"
             r"\d{1,2}\.?\s+(?:januar|februar|mart|april|maj|jun|jul|avgust|septembar|"
@@ -974,21 +997,33 @@ def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
         )
         fiksni_istek = relativni_datum and re.search(r"\b(?:istic\w*|istek\w*|zavrsava\s+se)\b", rec)
         dostava_neutvrdjena = re.fullmatch(
-            rf"(?:(?:nije (?:utvrdjeno|poznato) (?:da li|kada)|(?:u spisu )?nema dokaza da) {dostava}"
+            rf"(?:{neutvrdjenost} {dostava}"
             rf"|ako {dostava},? rok (?:od (?:30|trideset) dana )?(?:tece|racuna se) od tada)[.!]?",
             rec.strip(),
         )
         tvrdi_dostavu = re.search(r"\btuzb\w*\b", rec) and not dostava_neutvrdjena and re.search(
             r"\b(?:dostavljen|urucen|primljen|zaprimljen)(?:a|o|e|i)?\b|\b(?:za)?primi(?:o|la|lo|li|le)\b"
-            r"|\b(?:dostav[aeu]|dostavljanj[aeu])\b.*\b(?:izvrsen|obavljen)(?:a|o|e|i)?\b",
+            r"|\b(?:dostav[aeu]|dostavljanj[aeu])\b.*\b(?:izvrsen|obavljen)(?:a|o|e|i)?\b"
+            rf"|\b{predaja_tuzenom}\b",
             rec,
         )
-        tvrdi_podnosenje = re.search(r"\bodgovor\w*\b", rec) and re.search(
-            r"\b(?:podneo|podnela|podnelo|podneli|podnet(?:a|o)?|preda(?:o|la|lo|li|le)|predat(?:a|o)?|blagovremen\w*)\b"
-            r"|\btuzen\w*\s+podnosi\b.*\bu\s+(?:(?:zakonskom|propisanom)\s+)?roku\b",
-            rec,
+        zavodjenje_neutvrdjeno = re.fullmatch(
+            rf"(?:{neutvrdjenost} je odgovor(?: na tuzbu)? {zavodjenje}"
+            rf"|odgovor(?: na tuzbu)? nije {zavodjenje})[.!]?",
+            rec.strip(),
         )
-        pogresan_osnov = clan_298 and (rok or (prethodni_rok and re.search(r"\bpravni osnov\b", rec)))
+        tvrdi_podnosenje = re.search(r"\bodgovor\w*\b", rec) and (
+            re.search(
+                r"\b(?:podneo|podnela|podnelo|podneli|podnet(?:a|o)?|preda(?:o|la|lo|li|le)|predat(?:a|o)?|blagovremen\w*)\b"
+                r"|\btuzen\w*\s+podnosi\b.*\bu\s+(?:(?:zakonskom|propisanom)\s+)?roku\b",
+                rec,
+            )
+            or (not zavodjenje_neutvrdjeno and re.search(rf"\b{zavodjenje}\b", rec))
+        )
+        pogresan_osnov = re.search(clan_298, rec) and (
+            (rok and not re.fullmatch(odvojene_odredbe, rec.strip()))
+            or (prethodni_rok and re.search(r"\bpravni osnov\b", rec))
+        )
         if (pogresan_osnov or (rok and (datum or fiksni_istek)) or (konkretan_rok and (datum or relativni_datum))
                 or tvrdi_dostavu or tvrdi_podnosenje):
             raise HTTPException(status_code=422, detail=(

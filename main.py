@@ -16,6 +16,7 @@ from openai import OpenAI
 from app.services.retrieve import (
     retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
     ekstrakcija_clana, _direktan_fetch_clana, _formatiraj_match,
+    _ZAKON_O_UREDJENJU_SUDOVA,
     retrieve_sudska_praksa, process_praksa_chunks,
     retrieve_misljenja, process_misljenja_chunks, query_triggers_misljenja,
 )
@@ -4373,7 +4374,15 @@ def ask_agent(
             # not the same answer, and only one of them is ours to assert.
             try:
                 from app.services.retrieve import RetrievalUnavailable as _RetrUnavail
-                _ref_matches = _direktan_fetch_clana(_ref_label, _ref_zakon, raise_on_error=True)
+                if _ref_zakon == _ZAKON_O_UREDJENJU_SUDOVA:
+                    _ref_docs = [d for d in _ZUS_KONTEKST if d.splitlines()[1] == f"ČLAN: {_ref_label}"]
+                    if not _ref_docs:
+                        raise _RetrUnavail("Traženi član nije pokriven statičkim izvodom Zakona o uređenju sudova.")
+                else:
+                    _ref_docs = [
+                        _formatiraj_match(m)
+                        for m in _direktan_fetch_clana(_ref_label, _ref_zakon, raise_on_error=True)
+                    ]
             except _RetrUnavail as _ru:
                 logger.error(
                     "[HALUCINATION_GUARD] Pretraga korpusa nedostupna za clan %s (%s) — "
@@ -4393,7 +4402,7 @@ def ask_agent(
                     "retrieval_unavailable": True,
                     "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
                 }
-            if not _ref_matches:
+            if not _ref_docs:
                 logger.warning(
                     "[HALUCINATION_GUARD] Clan %s (%s) nije u korpusu — hard refusal [q=%s]",
                     _ref_label, _ref_zakon, log_id,
@@ -4409,16 +4418,17 @@ def ask_agent(
             # Fix 1: article found — update metadata unconditionally (old guard
             # `if confidence != "HIGH"` caused footer to show semantic top hit instead
             # of the directly-fetched article when retrieval already returned HIGH).
-            _ref_docs = [_formatiraj_match(m) for m in _ref_matches]
             docs = _ref_docs + [d for d in docs if d not in set(_ref_docs)]
+            # Statički izvod pokriva deo člana. On ne potvrđuje ceo član u
+            # korpusu i ne zaobilazi proveru modelskog odgovora.
+            _korak_15_authoritative = _ref_zakon != _ZAKON_O_UREDJENJU_SUDOVA
+            confidence = "HIGH" if _korak_15_authoritative else "MEDIUM"
             logger.info(
-                "[HALUCINATION_GUARD] Clan %s nadjeno — inject %d chunks, %s→HIGH [q=%s]",
-                _ref_label, len(_ref_matches), confidence, log_id,
+                "[HALUCINATION_GUARD] Clan %s — inject %d chunks, confidence=%s [q=%s]",
+                _ref_label, len(_ref_docs), confidence, log_id,
             )
-            confidence = "HIGH"
             top_article = _ref_label
             top_law = _ref_zakon or top_law
-            _korak_15_authoritative = True
 
         # KORAK 2: LOW — instant refusal, no LLM needed
         if confidence == "LOW":
@@ -4469,7 +4479,7 @@ def ask_agent(
 
         # KORAK 3: Filter docs
         filtrirani = _filtriraj_kontekst(docs)
-        if _korak_15_authoritative and _ref_docs:
+        if _ref_docs:
             # Fix 2: pin injected chunks at position [0] so LLM sees ground-truth
             # article first regardless of how _filtriraj_kontekst orders results.
             _ref_set = set(_ref_docs)
@@ -4478,7 +4488,7 @@ def ask_agent(
             ]
         try:
             from app.services.retrieve import je_pitanje_gradjanske_nadleznosti as _je_nadl_ctx
-            if filtrirani and _je_nadl_ctx(pitanje_api):
+            if filtrirani and _ref_zakon != _ZAKON_O_UREDJENJU_SUDOVA and _je_nadl_ctx(pitanje_api):
                 filtrirani = filtrirani + _ZUS_KONTEKST   # Bojan beta: stvarna nadležnost iz ZUS-a, ne iz ZPP-a
         except Exception as _ze:
             logger.debug("[N8] ZUS nije dodat u kontekst: %s", _ze)

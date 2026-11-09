@@ -711,7 +711,7 @@ def _prepoznaj_zakon(query: str) -> Optional[str]:
     return None
 
 
-def _izvuci_broj_clana(query: str) -> Optional[str]:
+def _pronadji_clan(query: str) -> Optional[re.Match]:
     q = query.lower()
     for obrazac in [
         # N8: i padeži („prema članu 999“, „člana 39“, „članom 5“) — ranije je izmišljen član u padežu prolazio
@@ -722,8 +722,18 @@ def _izvuci_broj_clana(query: str) -> Optional[str]:
     ]:
         m = re.search(obrazac, q)
         if m:
-            return m.group(1)
+            return m
     return None
+
+
+def _izvuci_broj_clana(query: str) -> Optional[str]:
+    m = _pronadji_clan(query)
+    return m.group(1) if m else None
+
+
+_ZAKON_O_UREDJENJU_SUDOVA = "zakon o uredjenju sudova"
+_NAZIV_ZAKONA_O_SUDOVIMA = r"\bzakon(?:a|u|om)?\s+o\s+uredjenju\s+sudova\b"
+_ODREDBA_CLANA = r"(?:\s+(?:stav(?:a|u|om)?|st\.|tack(?:a|e|i|u|om)|tac\.)\s*\d+[.)]?)*"
 
 
 # Short-code → Pinecone law value (mirrors corpus_coverage.py LAWS registry)
@@ -760,12 +770,21 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
     Returns (label_clana, zakon) e.g. ("Član 175", "zakon o obligacionim odnosima"),
     or (None, None) if no article reference found.
     """
-    broj = _izvuci_broj_clana(query)
-    if not broj:
+    clan = _pronadji_clan(query)
+    if not clan:
         return None, None
 
-    label_clana = f"Član {broj}"
+    label_clana = f"Član {clan.group(1)}"
     normalized = _normalizuj(query)
+
+    # Pun naziv uz izabrani član ima prednost nad semantičkim hintom.
+    # Skraćenica ZUS ostaje šifra Zakona o upravnim sporovima u korpusu.
+    ispred = _normalizuj(query[:clan.start()])
+    iza = _normalizuj(query[clan.end():])
+    if re.search(rf"{_NAZIV_ZAKONA_O_SUDOVIMA}\s*[:,]?\s*$", ispred) or re.match(
+        rf"\.?{_ODREDBA_CLANA}\s+{_NAZIV_ZAKONA_O_SUDOVIMA}", iza,
+    ):
+        return label_clana, _ZAKON_O_UREDJENJU_SUDOVA
 
     for code, zakon_val in _ZAKON_KODOVI.items():
         if re.search(rf"\b{re.escape(code)}\b", normalized):

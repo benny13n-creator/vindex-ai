@@ -125,7 +125,7 @@ def izracunaj(*, novo_delo_umisljaj: Optional[bool], propisan_min_dana: Optional
     if novo_delo_umisljaj is True:
         uslovi.append(Uslov("novo delo učinjeno sa umišljajem", DA, "navedeno u pitanju"))
     elif novo_delo_umisljaj is False:
-        uslovi.append(Uslov("novo delo učinjeno sa umišljajem", NE, "navedeno je da je delo učinjeno iz nehata"))
+        uslovi.append(Uslov("novo delo učinjeno sa umišljajem", NE, "navedeno je da delo nije učinjeno sa umišljajem"))
     else:
         uslovi.append(Uslov("novo delo učinjeno sa umišljajem", NEPOZNATO, "nije navedeno ili nije prepoznato iz pitanja"))
         nedostaje.append("da li je novo delo učinjeno sa umišljajem")
@@ -315,7 +315,12 @@ def _dur_dana(s: str) -> Optional[int]:
 
 def _krivica(seg: str) -> Optional[bool]:
     """True = umišljaj, False = nehat/negiran umišljaj, None = nije navedeno ili je mešovito."""
-    negacija = r"\bbez\s+umisljaj\w*|\bneumisljaj\w*|\bnije\s+(?:bilo\s+)?(?:\w+\s+)?umisljaj\w*|\bnisu\s+(?:bila\s+)?(?:\w+\s+)?umisljaj\w*|\bne\s+umisljaj\w*|\bnehat\w*"
+    negacija = (
+        r"\bbez\s+umisljaj\w*|\bneumisljaj\w*|\bne\s+umisljaj\w*|\bnehat\w*"
+        r"|\bnije\s+(?:bilo\s+)?(?:\w+\s+)?umisljaj\w*"
+        r"|\bnisu\s+(?:bila\s+)?(?:\w+\s+)?umisljaj\w*"
+        r"|\b(?:nije|nisu)\s+(?:ucin|izvrs)\w*\s+sa?\s+umisljaj\w*"
+    )
     neg = bool(re.search(negacija, seg))
     poz = bool(re.search(r"umisljaj", re.sub(negacija, " ", seg)))
     if neg and poz:
@@ -381,6 +386,7 @@ _GLAGOL_DELA = r"(?:izvrs|ucin)\w*"
 _GODINA = r"(?<![/\d.])\b(?:19|20)\d{2}\b(?!\s*/)"        # godina, ali ne „94/2016“ (broj Službenog glasnika) ni deo datuma
 
 
+_NOVO_DELO_U_INTERVALU = r"do\s+nov\w*\s+(?P<krivica>(?:umisljajn|nehatn)\w*\s+)?(?:krivicn\w*\s+)?del\w*"
 _SAMOSTALAN_PROCESNI_DATUM = re.compile(
     r"(?<=[.!?])\s+(?:presuda je doneta|zalba je izjavljena)\s+" + _DATUM + r"(?:\.\s+godine)?(?=\.(?:\s|$)|$)"
 )
@@ -418,6 +424,8 @@ def _novo_delo_ima_svoje_vreme(novo: str) -> bool:
 def analiza(pitanje: str) -> tuple[dict, list[str]]:
     """(činjenice za `izracunaj`, napomene o prepoznavanju). Šta nije jednoznačno ostaje None (NEPOZNATO)."""
     q = _norm(pitanje)
+    # Izričito označen hipotetički primer nije navod o okrivljenom.
+    q = re.sub(r"\bhipotetick\w*\s+primer\s*:\s*(?:" + _NAVOD_RE.pattern + ")", " ", q)
     out: dict = {"novo_delo_umisljaj": None, "propisan_min_dana": None, "propisan_max_dana": None, "ranije_osude": None,
                  "broj_ranijih_osuda": None, "proteklo_od_otpusta_meseci": None, "otpust": None, "novo_delo": None,
                  "min_iz_opsteg_minimuma": False, "istovrsna": None}
@@ -470,9 +478,11 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         _poc = max(max(q.rfind(x, 0, _p) for x in (". ", "; ", "? ", "! ")) + 2, 0)
         _kraj = min([i for i in (q.find(x, _p) for x in (". ", "; ", "? ", "! ")) if i >= 0]
                     + ([granica] if granica is not None and granica > _p else []) or [len(q)])
-        kriv = _krivica(re.sub(_RASPON + "|" + _SAMO_DO, " ", q[_poc:_kraj]))
-        _ostalo = q[:_poc] + " " + (q[_kraj:granica] if granica is not None and granica > _kraj else
-                                    ("" if granica is not None else q[_kraj:]))
+        ranija_krivica = re.sub(
+            rf"\b{_NOVO_DELO_U_INTERVALU}\b", lambda m: " " * len(m[0]), ranije
+        )
+        kriv = _krivica(re.sub(_RASPON + "|" + _SAMO_DO, " ", ranija_krivica[_poc:_kraj]))
+        _ostalo = ranija_krivica[:_poc] + " " + ranija_krivica[_kraj:]
         _sa_krivicom = [s for s in re.split(r"[.;?!](?:\s|$)", _ostalo) if re.search(r"umisljaj\w*|nehat\w*", s)]
         _o_ranijim = [s for s in _sa_krivicom if re.search(r"\b(?:oba|obe|ranij\w*|te\s+osud\w*|osudj\w*)\b", s)]
         _drugo = [s for s in _sa_krivicom if s not in _o_ranijim]
@@ -520,12 +530,14 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
     if len(pomeni) == 1 and not uslovno and not vise_vremena:
         mo = re.search(r"otpust\w*[^.]{0,60}?" + _DATUM, q)
         mn_ = _datum_novog_dela(novo)
+        datum_dela = None
         try:
-            if mo and mn_:
+            if mn_:
+                datum_dela = date(int(mn_.group(3)), int(mn_.group(2)), int(mn_.group(1)))
+            if mo and datum_dela:
                 o = date(int(mo.group(3)), int(mo.group(2)), int(mo.group(1)))
-                n = date(int(mn_.group(3)), int(mn_.group(2)), int(mn_.group(1)))
-                if n > o:
-                    out["otpust"], out["novo_delo"] = o, n
+                if datum_dela > o:
+                    out["otpust"], out["novo_delo"] = o, datum_dela
         except ValueError:
             pass
         if not out["otpust"] and not mo:
@@ -536,7 +548,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
             interval = re.fullmatch(
                 r"od\s+(?:dana\s+)?(?:poslednj\w*\s+)?otpust\w*"
                 r"(?:\s+iz\s+(?:zavoda|zatvora)|\s+sa\s+izdrzavanja\s+kazne)?"
-                r"\s+do\s+nov\w*\s+(?P<umisljaj>umisljajn\w*\s+)?(?:krivicn\w*\s+)?del\w*"
+                rf"\s+{_NOVO_DELO_U_INTERVALU}"
                 r"\s+(?:prosl\w*\s+su|protek\w*\s+je)\s+(?P<trajanje>" + _DUR + r")",
                 recenica_otpusta.strip().removesuffix("."),
             )
@@ -544,8 +556,15 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
                 dani = _dur_dana(interval["trajanje"])
                 if dani is not None:
                     out["proteklo_od_otpusta_meseci"] = dani / _DANA_U_MESECU
-                    if interval["umisljaj"] and not re.search(r"umisljaj|nehat", novo):
-                        out["novo_delo_umisljaj"] = True
+                    krivica_intervala = _krivica(interval["krivica"] or "")
+                    if krivica_intervala is not None:
+                        if not re.search(r"umisljaj|nehat", novo):
+                            out["novo_delo_umisljaj"] = krivica_intervala
+                        elif out["novo_delo_umisljaj"] != krivica_intervala:
+                            out["novo_delo_umisljaj"] = None
+                    # Poznat datum izvršenja određuje verziju zakona i kada je otpust dat samo intervalom.
+                    if datum_dela and re.search(rf"\bnovo delo (?:je )?{_GLAGOL_DELA} (?:je )?{_DATUM}\b", novo):
+                        out["novo_delo"] = datum_dela
             # bez sidra novog dela — tekst posle rečenice o otpustu („Prošle godine je izvršio …“)
             _posle = q[mo_poz.start():] if mo_poz else ""          # 4. krug: i ostatak rečenice o otpustu („…, a krađu je izvršio 2022.“)
             # 3. krug revizije: ceo tekst posle rečenice o otpustu („Otpušten je pre 6 g. Krađu je izvršio pre 4 g. Sada …“)
@@ -557,7 +576,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
                     out["proteklo_od_otpusta_meseci"] = 67.0
     elif len(pomeni) > 1:
         napomene.append("Otpust se pominje više puta — za uslov od pet godina potreban je jedan datum otpusta sa izdržavanja kazne.")
-    pravnosnaznost = _pravnosnaznost_iz_navoda(pitanje, broj)
+    pravnosnaznost = _pravnosnaznost_iz_navoda(q, broj)
     if pravnosnaznost is None and any(v is not None and v is not False for v in out.values()):
         if strana_osuda or out["novo_delo"] is None or out["novo_delo"] >= POCETAK_PRIMENE_63_2026:
             pravnosnaznost = NEPOZNATO
@@ -669,7 +688,7 @@ def _prepoznato(c: dict) -> str:
     if c["ranije_osude"]:
         opis = []
         for o in c["ranije_osude"]:
-            k = {True: "umišljaj", False: "nehat", None: "krivica nepoznata"}[o.umisljaj]
+            k = {True: "umišljaj", False: "bez umišljaja", None: "krivica nepoznata"}[o.umisljaj]
             z = format_trajanje(o.zatvor_meseci * _DANA_U_MESECU) if o.zatvor_meseci is not None else "kazna nepoznata"
             opis.append(f"{z} ({k})")
         delovi.append("ranije osude: " + "; ".join(opis))
@@ -681,7 +700,7 @@ def _prepoznato(c: dict) -> str:
         od = "30 dana (opšti minimum)" if c["min_iz_opsteg_minimuma"] else _kazna_txt(c["propisan_min_dana"])
         delovi.append(f"propisano za novo delo: {od} do {format_trajanje(c['propisan_max_dana'])}")
     if c["novo_delo_umisljaj"] is not None:
-        delovi.append("novo delo: " + ("umišljaj" if c["novo_delo_umisljaj"] else "nehat"))
+        delovi.append("novo delo: " + ("umišljaj" if c["novo_delo_umisljaj"] else "bez umišljaja"))
     return "Prepoznato iz pitanja: " + ("; ".join(delovi) if delovi else "—") + ". Ako je nešto pogrešno prepoznato, proračun ne važi."
 
 
