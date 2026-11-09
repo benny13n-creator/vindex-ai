@@ -233,7 +233,7 @@ def _cache_kljuc(pitanje: str) -> str:
           or _n8_izricito_pitanje_o_sudu_boravista(q))
     verzija = _CACHE_VERZIJA
     if n8:
-        verzija += "|n8-nadleznost-8" if _n8_pitanje_o_duzem_boravku(pitanje, q) else "|n8-nadleznost-6"
+        verzija += "|n8-nadleznost-9" if _n8_pitanje_o_duzem_boravku(pitanje, q) else "|n8-nadleznost-6"
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -1235,7 +1235,7 @@ _N8_ZASTARELOST_RE = re.compile(
 _N8_OBA_SUDA_RE = re.compile(r"\boba\s+suda\s+su\s+(?:opste\s+)?(?:mesno\s+)?nadlezn\w*\b")
 _N8_DUZI_BORAVAK_RE = re.compile(
     r"\b(?:duz\w*\s+(?:borav\w*|vrem\w*)|trajn\w*\s+borav\w*|godinama\s+(?:borav\w*|zivi\w*)"
-    r"|borav\w*\s+duz\w*|(?:borav\w*|zivi\w*)\s+(?:i\s+)?(?:naredn\w*|poslednj\w*)\s+\w+\s+godin\w*)\b"
+    r"|borav\w*\s+(?:(?:biti|bude)\s+)?duz\w*|(?:borav\w*|zivi\w*)\s+(?:i\s+)?(?:naredn\w*|poslednj\w*)\s+\w+\s+godin\w*)\b"
 )
 _N8_MESTO_BORAVISTA_RE = re.compile(r"\bboravist\w*\s+(?:je\s+)?(?:u|na)\s+([a-z]{4,})(?=[\s,.!?;]|$)")
 _N8_BORAVAK_OGRADA_RE = re.compile(
@@ -1265,6 +1265,9 @@ _N8_ZAHTEV_ZA_NADLEZNOST_RE = re.compile(
 )
 _N8_NEGACIJA_ZAHTEVA_RE = re.compile(
     r"\b(?:ne(?:\s+treba)?|nije\s+(?:potrebno|neophodno)|nemoj\w*)\s+(?:da\s+)?$"
+)
+_N8_DODATNA_TUZBA_RE = re.compile(
+    r"(?:^|,\s+)(?:podneti|podnesite|predati|predajte)\s+tuzb\w*\s+i\s+(?:pred|kod|u)\b"
 )
 _N8_USLOV_RE = re.compile(r"\b(?:ako|ukoliko|kada?|pod uslovom|(?:samo|tek) uz|tek po utvrdjivanju|tek nakon sto)\b")
 _N8_POTKREPLJEN_USLOV_RE = re.compile(
@@ -1349,6 +1352,12 @@ def _n8_greska_o_duzem_boravku(q: str, odgovor: str, *, utvrdjen: bool) -> str |
     ):
         return razlog
 
+    # A line wrap in the statutory quotation does not end a conditional sentence.
+    odgovor = re.sub(
+        r"(?ms)(^--- citat zakona[^\n]*\n)(.+?)(?=\n--- |\Z)",
+        lambda citat: citat[1] + " ".join(citat[2].split()) + "\n",
+        odgovor,
+    )
     # Use the stated residence only to recognize references in the answer, never to select a court.
     mesto = _N8_MESTO_BORAVISTA_RE.search(q)
     boraviste = r"\bboravist\w*"
@@ -1366,6 +1375,8 @@ def _n8_greska_o_duzem_boravku(q: str, odgovor: str, *, utvrdjen: bool) -> str |
             uslov = _n8_odluka_uslovna(recenica)
             if not utvrdjen and _N8_PRETERANA_SIGURNOST_RE.search(recenica) and not uslov:
                 return razlog
+            if re.search(r"\bnadleznost\s+ostaje\s+iskljucivo\b", recenica):
+                return razlog_pravila
             if re.search(
                 r"\b(?:jedin\w*|iskljucivo)\b[^.!?]{0,70}\bnadlez\w*\b[^.!?]{0,55}\bprebivalist\w*\b",
                 recenica,
@@ -1373,6 +1384,8 @@ def _n8_greska_o_duzem_boravku(q: str, odgovor: str, *, utvrdjen: bool) -> str |
                 return razlog_pravila
             if not re.search(boraviste, recenica) or not _N8_ODLUKA_O_FORUMU_RE.search(recenica):
                 continue
+            if _N8_DODATNA_TUZBA_RE.search(recenica):
+                return "Dodatna mesna nadležnost iz čl. 39 st. 3 ZPP daje mogućnost izbora suda prema okolnostima boravka."
             if recenica.rstrip().endswith("?") and re.match(r"\s*(?:da li|koji|koje|koliko|kada|kako|postoje li|ima li)\b", recenica):
                 continue
             if re.search(r"\b(?:cak i ako|bez obzira (?:na|da li))\b", recenica):
@@ -3406,6 +3419,86 @@ _JSON_SCHEMA_MAP: dict[str, dict] = {
     "DEFINICIJA": _JSON_SCHEMA_DEFINICIJA,
 }
 
+_N8_SAMO_OPSTA_MESNA_RE = re.compile(
+    r"(?:koja je opsta mesna nadleznost(?: po zpp)?(?: i koji je clan)?"
+    r"|da li je (?:i )?sud boravist\w*(?: u [a-z -]+?)? (?:opste )?mesno nadlez\w*(?: po zpp)?)\?"
+)
+_N8_OSNOVNE_CINJENICE_RE = re.compile(
+    r"(?:(?:u (?:obicnoj )?(?:gradjanskoj )?parnici(?: za \w+)? )?"
+    r"tuzeni (?:je fizicko lice sa|ima) prebivalist\w* (?:u|na) [a-z-]+(?: [a-z-]+){0,2},?"
+    r" (?:i|a) boravist\w* (?:u|na) [a-z-]+(?: [a-z-]+){0,2}"
+    r"|nema posebnog (?:ugovora|sporazuma)(?: o nadleznosti)?"
+    r"|(?:ne znam|ne zna se|nije poznato) koliko dugo ce (?:tuzeni )?(?:ostati|boraviti)"
+    r" (?:u|na) [a-z-]+(?: [a-z-]+){0,2})"
+)
+
+
+def _n8_samostalno_pitanje(q: str) -> bool:
+    *cinjenice, pitanje = re.split(r"[.!]\s+", q.strip())
+    return bool(
+        cinjenice and q.count("?") == 1 and _N8_SAMO_OPSTA_MESNA_RE.fullmatch(pitanje)
+        and all(_N8_OSNOVNE_CINJENICE_RE.fullmatch(tekst) for tekst in cinjenice)
+    )
+
+
+def _n8_ima_tekst_clana_39(docs: list[str]) -> bool:
+    clan = " ".join((_lokalni_clan("Zakon o parničnom postupku", "39") or "").split())
+    return bool(clan) and any(
+        _izvori_iz_konteksta([doc]).get("zpp", {}).get("39") is False
+        and clan in " ".join(doc.split())
+        for doc in docs
+    )
+
+
+def _n8_format_neutvrdjenog_boravka() -> dict:
+    """Uži format za samostalno pitanje o čl. 39 st. 3 uz pronađen izvor."""
+    korak = "Proveriti okolnosti očekivanog dužeg boravka pre izbora suda."
+    rizik = "Dodatna nadležnost suda boravišta ostaje neutvrđena dok se ne provere okolnosti dužeg boravka."
+    polja = {
+        "brza_procena_osnov": "postoji",
+        "brza_procena_dokazna_potpunost": "delimicna",
+        "brza_procena_obrazlozenje": "ZPP uređuje opštu mesnu nadležnost. Okolnosti očekivanog dužeg boravka nisu utvrđene.",
+        "brza_procena_rizik": rizik,
+        "brza_procena_nedostatak": _N8_NEDOSTAJUCE_OKOLNOSTI,
+        "pravni_zakljucak": (
+            "Po čl. 39 st. 1 ZPP opšta mesna nadležnost pripada sudu prebivališta tuženog. "
+            "Sud boravišta može biti dodatno mesno nadležan po čl. 39 st. 3 ZPP ako okolnosti upućuju na duži boravak. "
+            "U ovom slučaju te okolnosti još nisu utvrđene."
+        ),
+        "rizici_i_izuzeci": rizik,
+        "kada_ne_vazi": "Ako okolnosti ne upućuju na duži boravak, čl. 39 st. 3 ZPP ne daje dodatni osnov po boravištu.",
+        "procesni_koraci": korak,
+        "kljucno_pitanje": "Da li okolnosti upućuju na duži boravak tuženog u mestu boravišta?",
+        "potrebne_informacije": "Okolnosti koje ukazuju na očekivani duži boravak tuženog u mestu boravišta.",
+    }
+    osobine = {
+        **_JSON_SCHEMA_PARNICA["json_schema"]["schema"]["properties"],
+        **{ime: {"type": "string", "enum": [vrednost]} for ime, vrednost in polja.items()},
+    }
+    koraci = {
+        "akcija": {"type": "string", "enum": [korak]},
+        "zasto": {"type": "string", "enum": [rizik]},
+        "prioritet": {"type": "string", "enum": ["vazno"]},
+    }
+    praksa = _SUDSKA_PRAKSA_SCHEMA_FIELD["items"]
+    osobine["sudska_praksa"] = {
+        **_SUDSKA_PRAKSA_SCHEMA_FIELD,
+        "items": {**praksa, "required": list(praksa["properties"]), "additionalProperties": False},
+    }
+    osobine["brza_procena_koraci"] = {
+        "type": "array", "minItems": 1, "maxItems": 1,
+        "items": {"type": "object", "properties": koraci, "required": list(koraci), "additionalProperties": False},
+    }
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "vindex_parnica_n8_neutvrdjen_boravak",
+            "strict": True,
+            "schema": {"type": "object", "properties": osobine, "required": list(osobine), "additionalProperties": False},
+        },
+    }
+
+
 _STATUS_SYMBOL_MAP: dict[str, str] = {"ok": "[✓]", "warn": "[~]", "err": "[!]"}
 
 # ---------------------------------------------------------------------------
@@ -4892,6 +4985,7 @@ def ask_agent(
             "DEFINICIJA": (SYSTEM_PROMPT_DEFINICIJA, SEKCIJE_DEFINICIJA, "gpt-4o", 2500),
         }
         system_prompt, aktivan_sekcije, _model, _max_tokens = _prompt_map.get(tip, _prompt_map["DEFINICIJA"])
+        response_format = _JSON_SCHEMA_MAP.get(tip)
         try:
             from app.services.retrieve import je_pitanje_gradjanske_nadleznosti as _je_nadl_sp
             if _je_nadl_sp(pitanje_api):
@@ -4905,6 +4999,13 @@ def ask_agent(
                     "Ne propisuj fiksno trajanje boravka niti jednu isključivu vrstu dokaza."
                 )
                 if not _n8_utvrdjen_duzi_boravak(q_n8):
+                    if (
+                        tip == "PARNICA" and _kanon_zakona(top_law or "") == "zpp" and top_article == "Član 39"
+                        and not (history or extra_namespaces or memory_context or retrieval_meta.get("doc_passages"))
+                        and not _sadrzi_privatni_kontekst(pitanje) and _n8_samostalno_pitanje(q_n8)
+                        and _n8_ima_tekst_clana_39(filtrirani)
+                    ):
+                        response_format = _n8_format_neutvrdjenog_boravka()
                     system_prompt += (
                         "\nN8 — NEUTVRĐENE OKOLNOSTI: Upotrebi isti otvoreni zaključak u svim poljima. "
                         "U pravni_zakljucak navedi prebivalište kao opšti osnov po čl. 39 st. 1 ZPP i mogući "
@@ -5068,7 +5169,7 @@ def ask_agent(
             try:
                 _raw_med = _pozovi_openai(
                     system_prompt, user_content, model=_model, max_tokens=_max_tokens,
-                    response_format=_JSON_SCHEMA_MAP.get(tip),
+                    response_format=response_format,
                 )
             # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
             # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
@@ -5172,7 +5273,7 @@ def ask_agent(
         try:
             _raw_high = _pozovi_openai(
                 system_prompt, user_content, model=_model, max_tokens=_max_tokens,
-                response_format=_JSON_SCHEMA_MAP.get(tip),
+                response_format=response_format,
             )
         # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
         # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
@@ -5241,7 +5342,7 @@ def ask_agent(
             try:
                 _raw_dg = _pozovi_openai(
                     system_prompt, user_content_medium, model=_model, max_tokens=_max_tokens,
-                    response_format=_JSON_SCHEMA_MAP.get(tip),
+                    response_format=response_format,
                 )
             # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
             # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je

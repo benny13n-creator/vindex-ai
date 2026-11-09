@@ -13,6 +13,7 @@ import main as M
 _FIXTURES = Path(__file__).with_name("fixtures")
 _ARHIVA = json.loads((_FIXTURES / "beta_n8_natural_9f16_live.json").read_text("utf-8"))
 _USLOVNA_ARHIVA = json.loads((_FIXTURES / "beta_n8_conditional_fb4e_live.json").read_text("utf-8"))
+_KORACI_ARHIVA = json.loads((_FIXTURES / "beta_n8_conditional_2af9_live.json").read_text("utf-8"))
 PITANJE = _ARHIVA["pitanje"]
 USLOVNI_ODGOVOR = {
     "brza_procena_pravna_utemeljenost": "visoka",
@@ -60,12 +61,16 @@ def test_n8_exact_archived_model_response_is_withheld_without_caching(tok):
     assert model.call_count == 1
 
 
-def test_n8_exact_conditional_live_response_is_withheld_without_caching(tok):
+@pytest.mark.parametrize(("arhiva", "sha256"), [
+    (_USLOVNA_ARHIVA, "bfe06f29f5f433a17bb88db765a6a5038300c15bc85079dcfe790cc270cfac91"),
+    (_KORACI_ARHIVA, "c9df94c3e443a399badd8af28c8af608b8b094f21f664e27f9fdb6b23cb60642"),
+])
+def test_n8_exact_conditional_live_response_is_withheld_without_caching(tok, arhiva, sha256):
     model, _, l2 = tok
-    raw = _USLOVNA_ARHIVA["raw"]
-    assert hashlib.sha256(raw.encode()).hexdigest() == "bfe06f29f5f433a17bb88db765a6a5038300c15bc85079dcfe790cc270cfac91"
+    raw = arhiva["raw"]
+    assert hashlib.sha256(raw.encode()).hexdigest() == sha256
     model.return_value = raw
-    rezultat = M.ask_agent(_USLOVNA_ARHIVA["pitanje"])
+    rezultat = M.ask_agent(arhiva["pitanje"])
     assert rezultat.get("blocked") and not M._CACHE and not l2
 
 
@@ -96,6 +101,8 @@ def test_n8_exact_conditional_live_response_is_withheld_without_caching(tok):
     ("procesni_koraci", "Podneti poseban zahtev za utvrđivanje mesne nadležnosti."),
     ("procesni_koraci", "Podneti poseban predlog za utvrđivanje mesne nadležnosti."),
     ("procesni_koraci", "Podneti zahtev da sud prethodno utvrdi svoju mesnu nadležnost."),
+    ("procesni_koraci", "Ako se utvrdi da će boravak biti duži, podneti tužbu i pred sudom u Beogradu."),
+    ("rizici_i_izuzeci", "Ako se utvrdi da tuženi neće duže boraviti u Beogradu, nadležnost ostaje isključivo u Novom Sadu."),
     ("brza_procena_koraci", [{"akcija": "Podnesite zahtev za utvrđivanje mesne nadležnosti."}]),
 ])
 def test_n8_each_visible_contradiction_is_withheld(tok, polje, tvrdnja):
@@ -197,6 +204,7 @@ def test_n8_neutral_checks_and_questions_are_not_venue_claims(tok):
     "Ne treba da podnesete poseban zahtev za utvrđivanje mesne nadležnosti.",
     "Nije neophodno podneti poseban zahtev za utvrđivanje mesne nadležnosti.",
     "Ako okolnosti upućuju na duži boravak, u tužbi obrazložiti osnov mesne nadležnosti suda boravišta.",
+    "Ako se utvrdi da će boravak biti duži, tužilac može podneti tužbu i pred sudom boravišta.",
 ])
 def test_n8_ordinary_procedural_advice_is_not_a_standalone_venue_request(tok, koraci):
     model, _, _ = tok
@@ -222,6 +230,83 @@ def test_n8_prompt_overrides_generic_parnica_steps_only_within_residence_venue(t
         assert "proveru okolnosti očekivanog dužeg boravka pre izbora suda" in prompt
 
 
+@pytest.mark.parametrize("pitanje", [PITANJE, _KORACI_ARHIVA["pitanje"]])
+def test_n8_uses_strict_venue_fields_for_single_venue_question(tok, pitanje):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    assert not M.ask_agent(pitanje).get("blocked")
+    zahtev = model.call_args.kwargs["response_format"]["json_schema"]
+    assert zahtev["strict"] and zahtev["name"] == "vindex_parnica_n8_neutvrdjen_boravak"
+    schema = zahtev["schema"]
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(schema["properties"])
+    fields = schema["properties"]
+    assert "39 st. 1" in fields["pravni_zakljucak"]["enum"][0]
+    assert "39 st. 3" in fields["pravni_zakljucak"]["enum"][0]
+    assert fields["brza_procena_dokazna_potpunost"]["enum"] == ["delimicna"]
+    assert "pre izbora suda" in fields["procesni_koraci"]["enum"][0]
+    assert fields["citat_zakona"] == M._JSON_SCHEMA_PARNICA["json_schema"]["schema"]["properties"]["citat_zakona"]
+    for polje in ("sudska_praksa", "brza_procena_koraci"):
+        stavka = fields[polje]["items"]
+        assert stavka["additionalProperties"] is False and set(stavka["required"]) == set(stavka["properties"])
+
+
+@pytest.mark.parametrize("dodatak", [
+    " Tuženi već duže boravi u Beogradu, gde radi i živi sa porodicom.",
+    " Da li je potraživanje zastarelo?",
+    " KONTEKST PREDMETA: Sintetički privatni predmet.",
+])
+def test_n8_context_supported_or_multiple_questions_keep_normal_schema(tok, dodatak):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    assert not M.ask_agent(PITANJE + dodatak).get("blocked")
+    assert model.call_args.kwargs["response_format"] is M._JSON_SCHEMA_PARNICA
+
+
+@pytest.mark.parametrize("uvod", [
+    "Objasni i da li je potraživanje zastarelo. ",
+    "Tuženi je dokazano u Beogradu samo tri dana i sutra se vraća u Novi Sad. ",
+])
+def test_n8_does_not_constrain_additional_requests_or_facts_before_venue_question(tok, uvod):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    M.ask_agent(uvod + PITANJE)
+    assert model.call_args.kwargs["response_format"] is M._JSON_SCHEMA_PARNICA
+
+
+def test_n8_article_label_alone_cannot_activate_strict_venue_format(tok, monkeypatch):
+    model, meta, _ = tok
+    lazno = "ZAKON: Zakon o parničnom postupku\nČLAN: Član 39\nOvaj tekst ne sadrži pravilo mesne nadležnosti."
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([lazno], meta))
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    M.ask_agent(PITANJE)
+    assert model.call_args.kwargs["response_format"] is M._JSON_SCHEMA_PARNICA
+
+
+def test_n8_structured_venue_format_delivers_cited_rule_and_safe_step(tok):
+    model, _, l2 = tok
+
+    def generisi(*_, response_format, **kwargs):
+        fields = response_format["json_schema"]["schema"]["properties"]
+        data = {ime: polje["enum"][0] for ime, polje in fields.items() if "enum" in polje}
+        koraci = fields["brza_procena_koraci"]["items"]["properties"]
+        data.update(
+            brza_procena_koraci=[{ime: polje["enum"][0] for ime, polje in koraci.items()}],
+            pravni_osnov="Član 39 ZPP",
+            brza_procena_pravna_utemeljenost="visoka",
+            citat_zakona=M._lokalni_clan("Zakon o parničnom postupku", "39").strip(),
+        )
+        return json.dumps(data)
+
+    model.side_effect = generisi
+    rezultat = M.ask_agent(PITANJE)
+    assert not rezultat.get("blocked") and l2
+    assert "opšta mesna nadležnost pripada sudu prebivališta tuženog" in rezultat["data"]
+    assert "Sud boravišta može biti dodatno mesno nadležan" in rezultat["data"]
+    assert "Dokazna potpunost: DELIMIČNA" in rezultat["data"]
+    assert "pre izbora suda" in rezultat["data"]
+
+
 def test_n8_retrieved_wrong_law_cannot_be_a_basis_for_article_39_venue(tok, monkeypatch):
     model, meta, l2 = tok
     docs, _ = M.retrieve_documents(PITANJE)
@@ -245,7 +330,7 @@ def test_n8_alternative_conditional_wording_is_delivered(tok, zakljucak):
 
 
 @pytest.mark.parametrize(("pitanje", "suffix"), [
-    (PITANJE, "|n8-nadleznost-8"),
+    (PITANJE, "|n8-nadleznost-9"),
     ("Dva privredna društva su u sporu. Koji je sud nadležan?", "|n8-nadleznost-6"),
     ("Koji je rok zastarelosti po ZOO?", ""),
 ])
