@@ -306,6 +306,7 @@ Odgovori ISKLJUČIVO JSON objektom: {"tekst_za_sud": "<ceo tekst podneska koji i
 - U "tekst_za_sud" NE tvrdi: da je naložena radnja nepotrebna, suvišna, rešena, ukinuta ili bez dejstva; da je uplata izvršena; da je obaveza ispunjena ili da nije; da rok teče, ističe, da je istekao ili da je radnja blagovremena; da je veštak ili sud nešto „utvrdio“; ne prikazuj već donetu odluku kao buduću ili uslovnu („ukoliko sud smatra…“).
 - Ono što je u bloku pod „NIJE UTVRĐENO“ ne tvrdi ni u jednom smeru; zapiši to u "napomene_za_advokata". Ako ishod ročišta nije poznat, predlog o tom pitanju piši uslovno („ukoliko sud o tome nije odlučio na ročištu …“).
 - Datum na nalazu, podnesku ili zapisniku je datum dokumenta. Dostavu ili podnošenje navedi samo uz poseban izvor koji dokazuje taj događaj, kao što je dostavnica ili potvrda prijema. Ako toga nema, u napomenama navedi da je datum neutvrđen. Ako datum izrade nacrta nije izričito zadat, ostavi [DATUM — POPUNITI]. Ne koristi tekući datum.
+- Ako se stranke spore o datumu ili uzroku, svaki navod pripiši njegovom autoru uz oznaku dokumenta. Nalaz veštaka koji opisuje uzrok ne potvrđuje datum događaja koji nalaz nije utvrdio. Stranački podnesak koji navodi ili prilaže ispravu ne potvrđuje autentičnost, sadržaj ili prijem nepročitane isprave.
 - Predlog čeka pregled i usvajanje advokata. Ne očekuj da će sistem automatski ukloniti nepotvrđenu procesnu tvrdnju."""
 
 

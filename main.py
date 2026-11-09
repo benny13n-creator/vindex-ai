@@ -1090,7 +1090,9 @@ NADLEZNOST_ZPP_PRAVILA = (
     "- Za pitanje samo o nadležnosti ovaj okvir ima prednost nad opštim instrukcijama za PARNICU. Ograniči svako "
     "polje, uključujući brzu procenu, strategiju, rizike i korake, na nadležnost i činjenice potrebne za izbor suda. "
     "Za obavezna nepovezana polja napiši 'Nije predmet pitanja'. Ne analiziraj osnovanost zahteva, štetu, osiguranje, "
-    "medicinske dokaze, naplatu ili zastarelost ako nisu traženi. Nadležnost suda ne odlučuje o postojanju "
+    "medicinske dokaze, naplatu ili zastarelost ako nisu izričito traženi. Opis da se tužba odnosi na štetu "
+    "služi izboru suda po čl. 44 ZPP. Sam opis nije pitanje o naknadi, osiguranju ili zastarelosti. "
+    "Nadležnost suda ne odlučuje o postojanju "
     "potraživanja niti o zastarelosti. Ugovorna potraživanja mogu zastareti. Ako se pita i o meritumu, taj deo "
     "odvoji i obrazloži samo prema dostupnim merodavnim izvorima. Navedi neproverene činjenice i ograničenje izvora. "
     "Bez konkretnog dostavljenog izvora ne tvrdi da sudska praksa potvrđuje zaključak. U brzoj proceni razlikuj "
@@ -1244,7 +1246,10 @@ def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
             for rec in re.split(r"(?<=[.!?;])\s+", q)
         )
         if not duzi_boravak:
-            if re.search(r"\b(?:nije|ne vazi)\b[^.!?\n]{0,50}\bjer prebivalist\w* ima prednost\b", odg):
+            if re.search(
+                r"\b(?:nije|ne vazi)\b[^.!?\n]{0,50}\bjer prebivalist\w* ima prednost\b"
+                r"|\bprebivalist\w* iskljucuje (?:nadleznost )?sud\w* boravist\w*\b", odg,
+            ):
                 return "Nedostaje podatak o dužem boravku, pa dodatna nadležnost nije ni potvrđena ni isključena."
             for rec in re.split(r"[.!?;\n]+", odg):
                 if _N8_OBA_SUDA_RE.search(rec) and not (
@@ -4228,7 +4233,11 @@ def _okvir_povrata_za_model(pitanje: str) -> str:
         "okrivljenom. Brisana osuda po osnovu rehabilitacije ne proizvodi pravne posledice (čl. 97 st. 1 KZ). "
         "Ne izmišljaj praksu ni kaznu koju će sud izreći. Raniji tekst iz pretrage ne predstavljaj kao "
         f"važeći tekst. Važeći čl. 55a ({IZVOR_55A}): {CITAT_55A}. "
-        "Razlikuj zakon na dan izvršenja i kasniji blaži zakon prema čl. 5 KZ."
+        "Za delo izvršeno od 01.12.2019. do 17.07.2026. čl. 55a je već postojao. "
+        "Stari tekst NIJE zahtevao ista ili istovrsna dela. Ne odbacuj primenu starog teksta samo "
+        "zbog različitosti dela. Prema čl. 5 KZ uporedi zakon na dan dela sa kasnijim zakonom. "
+        "Ako su ostali uslovi ispunjeni a dela nisu ista ni istovrsna, kasniji tekst je blaži "
+        "jer uklanja obavezno pooštravanje. Konačni ishod iz proračuna ne znači da ranija odredba nije postojala."
     )
 
 

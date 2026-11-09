@@ -579,3 +579,59 @@ def test_p06_pripisani_navod_i_odvojeni_rok_prolaze(lit, monkeypatch):
     pre = len(b.naplate)
     assert _pitaj(k, pid)["odgovor"] == odgovor
     assert len(b.naplate) == pre + 1
+
+
+@pytest.mark.parametrize("izvor,datum,oznaka,status", [
+    (None, "15.06.2026.", "DOK-05", 502),
+    ("nepotvrdjen", "15.06.2026.", "DOK-08", 502),
+    ("navod_stranke", "15.06.2026.", "DOK-08", 502),
+    ("potvrdjen", "14.06.2026.", "DOK-08", 502),
+    ("potvrdjen", "15.06.2026.", "DOK-05", 502),
+    ("potvrdjen", "2026-06-15", "DOK-08", 200),
+    (None, None, "DOK-05", 200),
+])
+def test_mir03_datum_nalaza_nije_dokaz_dostave(lit, monkeypatch, izvor, datum, oznaka, status):
+    import json
+    from unittest.mock import AsyncMock
+
+    from routers import drafting as DR
+    from routers import multi_agent as MA
+
+    k, b, pid, _, _ = lit
+    if izvor:
+        naslov = "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+        konstatacija = "Sud konstatuje da je nalaz vestaka dostavljen tuziocu dana 15.06.2026. godine."
+        if izvor == "navod_stranke":
+            konstatacija = "Tuzilac navodi da je nalaz vestaka dostavljen tuziocu dana 15.06.2026. godine."
+        novi = {
+            **gc.KASNIJI, "ime": "08 Zapisnik o navodu.pdf", "strana": "sud",
+            "vrsta": "zapisnik", "redovi": [gc.SUD, naslov, konstatacija],
+        }
+        _dodaj_dokument(k, b, pid, novi)
+        if izvor != "nepotvrdjen":
+            did = next(d["id"] for d in _dok_predmeta(b, pid) if d["naziv_fajla"] == novi["ime"])
+            b.tabele.setdefault("audit_immutable", []).append({
+                "seq": 1, "user_id": "uid-A", "resource_id": did, "resource_type": "predmet_dokumenti",
+                "action": "dokument_vrsta_ispravljena", "metadata": {"novo": "court_decision"},
+            })
+    tekst = (
+        f"U vezi sa nalazom i mišljenjem veštaka Petra Izmišljenog, dostavljenim dana {datum} ({oznaka}), "
+        "tužilac iznosi izjašnjenje."
+        if datum else "Izjašnjenje na nalaz veštaka od 15.06.2026. (DOK-05). Datum dostave nije utvrđen."
+    )
+    odgovor = json.dumps({"tekst_za_sud": tekst, "napomene_za_advokata": []})
+    monkeypatch.setattr(MA, "_pozovi_nacrt_api", lambda *a: types.SimpleNamespace(
+        choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=odgovor), finish_reason="stop")]))
+    stage = AsyncMock()
+    monkeypatch.setattr(DR, "_stage_draft_for_review", stage)
+    pre = len(b.naplate)
+    r = k.post("/api/agents/run", json={"agent": "drafting", "task": ZADATAK, "predmet_id": pid}, headers=A)
+    assert r.status_code == status, r.text
+    assert len(b.naplate) == pre + (status == 200)
+    if status == 200:
+        assert r.json()["status_teksta"] == "AI_RADNI_PREDLOG"
+        assert r.json()["predlog_teksta"] == tekst
+        stage.assert_called_once()
+    else:
+        assert "datum dostave nalaza veštaka nije potkrepljen" in r.json()["detail"]
+        stage.assert_not_called()

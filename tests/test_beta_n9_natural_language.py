@@ -313,7 +313,64 @@ def test_neutvrdjen_ili_protivurecan_navod_ne_utvrdjuje_osude_okrivljenog(navod)
     assert blok(pitanje)[1].primenjuje_se == NEPOZNATO
 
 
-def test_izricit_clan_kz_na_cirilici_trazi_tacnu_odredbu():
+@pytest.mark.parametrize("pitanje", [
+    "Да ли се примењује члан 55а КЗ?",
+    "КЗ члан 55а",
+    "члан 55а Кривичног законика",
+    "čl. 55а КЗ",
+])
+def test_izricit_clan_kz_na_cirilici_trazi_tacnu_odredbu(pitanje):
     from app.services.retrieve import ekstrakcija_clana
 
-    assert ekstrakcija_clana("Да ли се примењује члан 55а КЗ?") == ("Član 55a", "KZ")
+    assert ekstrakcija_clana(pitanje) == ("Član 55a", "KZ")
+
+
+_DATUMI_OTPUSTA = (
+    "Za prvo izvršenje otpust je bio 2018, za poslednje izvršenje otpust je bio 01.08.2023, "
+    "a novo istovrsno delo je učinjeno 01.08.2026."
+)
+
+
+@pytest.mark.parametrize("trajanje,godina,stanje", [("3 godine", 2026, DA), ("5 godina", 2028, NE)])
+def test_izricito_oznacen_poslednji_otpust_i_potvrdjen_interval(trajanje, godina, stanje):
+    pitanje = SCENARIO.replace("3 godine", trajanje) + " " + _DATUMI_OTPUSTA.replace("2026", str(godina)) + " Član 55a KZ?"
+    cinjenice, _ = analiza(pitanje)
+    assert cinjenice["otpust"] == date(2023, 8, 1)
+    assert cinjenice["novo_delo"] == date(godina, 8, 1)
+    assert cinjenice["novo_delo_umisljaj"] is True
+    assert cinjenice["proteklo_od_otpusta_meseci"] == (godina - 2023) * 12
+    rezultat = blok(pitanje)[1]
+    assert rezultat.primenjuje_se == stanje
+    if stanje == DA:
+        assert rezultat.raspon["polovina_raspona_dana"] == 54 * 30
+
+
+@pytest.mark.parametrize("navod", [
+    _DATUMI_OTPUSTA.replace("poslednje izvršenje", "drugo izvršenje"),
+    "Pretpostavimo: " + _DATUMI_OTPUSTA,
+    _DATUMI_OTPUSTA.replace("bio 01.08.2023", "navodno bio 01.08.2023"),
+    _DATUMI_OTPUSTA.replace("2018", "2024"),
+    _DATUMI_OTPUSTA.replace("01.08.2023", "01.08.2022"),
+    _DATUMI_OTPUSTA.replace("01.08.2023", "31.02.2023"),
+    _DATUMI_OTPUSTA.replace("je učinjeno", "nije učinjeno"),
+    "U optužnici navode: \"" + _DATUMI_OTPUSTA + "\"",
+    _DATUMI_OTPUSTA + " Datum izvršenja nije utvrđen.",
+    _DATUMI_OTPUSTA + " Postoji i otpust iz 2021.",
+    _DATUMI_OTPUSTA + " Novo delo učinjeno je 02.08.2026.",
+    _DATUMI_OTPUSTA + " Reč je o uslovnom otpustu.",
+    _DATUMI_OTPUSTA + " Pominje se i saučesnik.",
+])
+def test_oznacen_poslednji_otpust_ne_resava_sporne_ili_protivrecne_navode(navod):
+    pitanje = SCENARIO + " " + navod + " Član 55a KZ?"
+    cinjenice, _ = analiza(pitanje)
+    assert cinjenice["otpust"] is None
+    assert cinjenice["novo_delo"] is None
+    assert blok(pitanje)[1].primenjuje_se != DA
+
+
+def test_oznacen_poslednji_otpust_ne_preuzima_potvrdu_intervala_iz_citata():
+    uvod = SCENARIO.replace("; od dana", '. U spisu se navodi: "Navod odbrane. Od dana')
+    uvod = uvod.replace("3 godine. Za novo", '3 godine. Navod nije potvrđen." Za novo')
+    cinjenice, _ = analiza(uvod + " " + _DATUMI_OTPUSTA + " Član 55a KZ?")
+    assert cinjenice["otpust"] is None
+    assert cinjenice["novo_delo"] is None

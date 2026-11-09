@@ -387,6 +387,17 @@ _GODINA = r"(?<![/\d.])\b(?:19|20)\d{2}\b(?!\s*/)"        # godina, ali ne „94
 
 
 _NOVO_DELO_U_INTERVALU = r"do\s+nov\w*\s+(?P<krivica>(?:umisljajn|nehatn)\w*\s+)?(?:krivicn\w*\s+)?del\w*"
+_INTERVAL_OD_OTPUSTA = re.compile(
+    r"od\s+(?:dana\s+)?(?:poslednj\w*\s+)?otpust\w*"
+    r"(?:\s+iz\s+(?:zavoda|zatvora)|\s+sa\s+izdrzavanja\s+kazne)?"
+    rf"\s+{_NOVO_DELO_U_INTERVALU}"
+    r"\s+(?:prosl\w*\s+su|protek\w*\s+je)\s+(?P<trajanje>" + _DUR + r")"
+)
+_OZNACENI_DATUMI_OTPUSTA = re.compile(
+    r"(?:^|(?<=[.!?])\s+)za prvo izvrsenje otpust je bio (?P<prvi>(?:19|20)\d{2}),\s+"
+    rf"za poslednje izvrsenje otpust je bio (?P<poslednji>{_DATUM}),\s+"
+    rf"a novo (?:istovrsno )?delo je (?:ucinjeno|izvrseno) (?P<delo>{_DATUM})(?=\.(?:\s|$)|$)"
+)
 _SAMOSTALAN_PROCESNI_DATUM = re.compile(
     r"(?<=[.!?])\s+(?:presuda je doneta|zalba je izjavljena)\s+" + _DATUM + r"(?:\.\s+godine)?(?=\.(?:\s|$)|$)"
 )
@@ -433,6 +444,40 @@ def _datum_novog_dela(pitanje: str, pocetak_novog: Optional[int]):
             or _NEUTVRDJEN_DATUM_NOVOG_DELA.search(_NAVOD_RE.sub(" [citat] ", pitanje))):
         return None
     return d
+
+
+def _datumi_iz_oznacenog_otpusnog_intervala(pitanje: str, pocetak_novog: int, dani: int) -> Optional[tuple[date, date]]:
+    oznake = _OZNACENI_DATUMI_OTPUSTA.search(pitanje)
+    if not oznake:
+        return None
+    # Samo označeni datumi otpusta smeju da se izuzmu iz provere
+    # jedinstvenog datuma dela. Razmaci čuvaju poziciju i granice citata.
+    od, do = oznake.start("prvi"), oznake.end("poslednji")
+    bez_otpusnih_datuma = pitanje[:od] + " " * (do - od) + pitanje[do:]
+    novo = _datum_novog_dela(bez_otpusnih_datuma, pocetak_novog)
+    if not novo or pocetak_novog + novo.start() != oznake.start("delo"):
+        return None
+    try:
+        dan, mesec, godina = map(int, oznake["poslednji"].split("."))
+        otpust = date(godina, mesec, dan)
+        datum_dela = date(int(novo[3]), int(novo[2]), int(novo[1]))
+    except ValueError:
+        return None
+    meseci = (datum_dela.year - otpust.year) * 12 + datum_dela.month - otpust.month
+    if (int(oznake["prvi"]) < otpust.year and otpust < datum_dela
+            and datum_dela.day == otpust.day and dani == meseci * _DANA_U_MESECU):
+        return otpust, datum_dela
+    return None
+
+
+def _krivica_uz_interval(novo: str, interval: re.Match) -> Optional[bool]:
+    krivica_novog = _krivica(novo)
+    krivica_intervala = _krivica(interval["krivica"] or "")
+    if krivica_intervala is None:
+        return krivica_novog
+    if not re.search(r"umisljaj|nehat", novo):
+        return krivica_intervala
+    return krivica_novog if krivica_novog == krivica_intervala else None
 
 
 def _novo_delo_ima_svoje_vreme(novo: str) -> bool:
@@ -559,9 +604,11 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         out["ranije_osude"] = [RanijaOsuda(kriv, (t // _DANA_U_MESECU) if t is not None else None)
                                for t in (trajanja or [None] * broj)]
 
-    # otpust: tačno jedan pomen; datumi (novo delo posle otpusta) ili „pre N“
+    # Otpust: jedan navod ili izričito razdvojeni datumi koji potvrđuju isti interval.
     pomeni = re.findall(r"otpust\w*", q)
     recenica_otpusta = next((x for x in re.split(r"(?<=[.;?!])\s+", q) if "otpust" in x), "")
+    # Cela izjavna klauza mora dati jedan interval od otpusta do novog dela.
+    interval = _INTERVAL_OD_OTPUSTA.fullmatch(recenica_otpusta.strip().removesuffix("."))
     mo_poz = re.search(r"otpust\w*", q)
     # datumi od pomena otpusta do kraja te rečenice (datum presude ispred otpusta se ne broji)
     kraj_rec = re.search(r"[.;?!](?:\s|$)", q[mo_poz.start():]) if mo_poz else None
@@ -588,25 +635,11 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         if not out["otpust"] and not mo:
             mp = (re.search(r"otpust\w*[^.,;]{0,40}?\bpre\s+(vise\s+od\s+)?(" + _DUR + ")", q)
                   or re.search(r"\bpre\s+(vise\s+od\s+)?(" + _DUR + r")\s+(?:je\s+)?(?:bio\s+)?otpust", q))
-            # Cela izjavna klauza mora dati jedan interval od otpusta do novog dela.
-            # Negacije, hipoteze i alternative nisu činjenični navodi.
-            interval = re.fullmatch(
-                r"od\s+(?:dana\s+)?(?:poslednj\w*\s+)?otpust\w*"
-                r"(?:\s+iz\s+(?:zavoda|zatvora)|\s+sa\s+izdrzavanja\s+kazne)?"
-                rf"\s+{_NOVO_DELO_U_INTERVALU}"
-                r"\s+(?:prosl\w*\s+su|protek\w*\s+je)\s+(?P<trajanje>" + _DUR + r")",
-                recenica_otpusta.strip().removesuffix("."),
-            )
             if not mp and interval and not druga_osoba:
                 dani = _dur_dana(interval["trajanje"])
                 if dani is not None:
                     out["proteklo_od_otpusta_meseci"] = dani / _DANA_U_MESECU
-                    krivica_intervala = _krivica(interval["krivica"] or "")
-                    if krivica_intervala is not None:
-                        if not re.search(r"umisljaj|nehat", novo):
-                            out["novo_delo_umisljaj"] = krivica_intervala
-                        elif out["novo_delo_umisljaj"] != krivica_intervala:
-                            out["novo_delo_umisljaj"] = None
+                    out["novo_delo_umisljaj"] = _krivica_uz_interval(novo, interval)
                     # Poznat datum izvršenja određuje verziju zakona i kada je otpust dat samo intervalom.
                     if datum_dela and _SAMOSTALAN_DATUM_NOVOG_DELA.search(q):
                         out["novo_delo"] = datum_dela
@@ -620,7 +653,18 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
                 elif meseci >= 60:                                            # „pre više od pet godina“
                     out["proteklo_od_otpusta_meseci"] = 67.0
     elif len(pomeni) > 1:
-        napomene.append("Otpust se pominje više puta — za uslov od pet godina potreban je jedan datum otpusta sa izdržavanja kazne.")
+        pocetak_intervala = q.find(recenica_otpusta)
+        interval_u_citatu = any(citat.start() <= pocetak_intervala < citat.end() for citat in _NAVOD_RE.finditer(q))
+        dani = _dur_dana(interval["trajanje"]) if (
+            len(pomeni) == 3 and interval and not (uslovno or druga_osoba or interval_u_citatu)
+        ) else None
+        datumi = _datumi_iz_oznacenog_otpusnog_intervala(q, granica, dani) if dani and granica is not None else None
+        if datumi:
+            out["otpust"], out["novo_delo"] = datumi
+            out["proteklo_od_otpusta_meseci"] = dani / _DANA_U_MESECU
+            out["novo_delo_umisljaj"] = _krivica_uz_interval(novo, interval)
+        else:
+            napomene.append("Otpust se pominje više puta — za uslov od pet godina potreban je jedan datum otpusta sa izdržavanja kazne.")
     pravnosnaznost = None if druga_osoba else _pravnosnaznost_iz_navoda(q, broj)
     if pravnosnaznost is None and any(v is not None and v is not False for v in out.values()):
         if strana_osuda or out["novo_delo"] is None or out["novo_delo"] >= POCETAK_PRIMENE_63_2026:

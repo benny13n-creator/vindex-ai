@@ -193,8 +193,8 @@ KADA SU DOSTAVLJENI DOKUMENTI PREDMETA (spis):
 - Svaku činjenicu, datum i iznos veži za oznaku dokumenta iz kog potiče (npr. „DOK-02“).
 - Navod stranke ili nalaz veštaka nije utvrđena činjenica: piši „tužilac tvrdi“, „tuženi tvrdi“, „veštak u nalazu navodi“ — nikad „veštak je utvrdio/potvrdio“ (činjenice utvrđuje sud; nalaz se može osporiti i dopuniti). Ono što je označeno kao SPORNO tretiraj kao sporno.
 - Pre nego što predložiš pribavljanje dokaza, proveri da li je već u spisu (npr. povratnica, potvrda, nalaz) i navedi ga sa oznakom dokumenta.
-- Datum dokumenta sam po sebi ne dokazuje početak roka. Početak i istek navedi samo ako sudski izvor potvrđuje pravilo i spis potvrđuje odlučni početni događaj.
-- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: navedi zakazano ročište, sudske naloge i potvrđene radnje samo na osnovu merodavnog sudskog izvora, uz oznaku dokumenta. Dopunu nalaza navedi odvojeno kao navod veštaka. Ako je zapisnik zabeležio radnju stranke, pripiši radnju stranci.
+- Rokove računaj od datuma iz dokumenata u odnosu na današnji datum iz konteksta; istekao rok navedi kao istekao.
+- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: iz najnovijih procesnih dokumenata (zapisnik, rešenje, dopuna nalaza) navedi sledeće zakazano ročište sa datumom, naložene radnje sa rokovima i šta je pokrenuto, uz oznaku dokumenta.
 - Najnoviji dokument uporedi sa ranijima i u posebnoj stavci „**Šta menja <oznaka najnovijeg dokumenta>:**“ navedi kome ide u prilog i šta treba uraditi.
 - Dokaz koji je pomenut ili naložen, a nije dostavljen, navedi kao nedostajući — ne pretpostavljaj njegov sadržaj.
 ──────────────────────────────────────────────────────────
@@ -629,7 +629,9 @@ PROCESNO STANJE IZ SPISA (obavezno kad je blok dostavljen):
   merodavan sudski akt koji potvrđuje tu radnju i početni događaj. Datum dopune nalaza sam po sebi ne dokazuje početak
   roka. Ako nije utvrđen, ne računaj niti predlaži konkretan datum isteka, čak ni kao orijentaciju.
 - Kad stranka navodi da je priložila ispravu (npr. povratnicu), navedi šta stranka tvrdi da isprava dokazuje. Ne tvrdi da
-  si pročitao ispravu, niti da je sadržaj ili prijem potvrđen, ako je pročitan samo navod u podnesku."""
+  si pročitao ispravu, niti da je sadržaj ili prijem potvrđen, ako je pročitan samo navod u podnesku.
+- Odgovori na svaku traženu činjenicu pre opšte strategije. Protivrečne navode prikaži sa oba konkretna datuma i odvojenim
+  oznakama izvora. Ako datum ili isprava nedostaje, napiši šta nije utvrđeno. Zabeleženu radnju stranke pripiši stranci."""
 
 
 def _procesno_stanje_za_savetnika(stanje: Optional[dict]) -> str:
@@ -736,19 +738,40 @@ _NEUTVRDJEN_ROK_RE = re.compile(
 )
 
 
+def _sporni_izvori_roka(izvori: Optional[dict]) -> set[str]:
+    from shared.rociste_iz_teksta import preslovi
+
+    stanje = (izvori or {}).get("_procesno_stanje") or {}
+    akteri = {d["oznaka"].lower(): d["akter"] for d in stanje.get("dokumenti") or []}
+    return {
+        d["oznaka"].lower()
+        for d in (stanje.get("dogadjaji") or []) + ((izvori or {}).get("_odluke_suda") or [])
+        if re.fullmatch(r"DOK-\d+", d.get("oznaka") or "", re.IGNORECASE)
+        and akteri.get(d["oznaka"].lower()) != "SUD"
+        and _ROK_ZA_IZJASNJENJE_IZVOD_RE.search(preslovi(d.get("izvod") or d.get("tekst", "")).translate(_LAT).lower())
+    }
+
+
+def _pravila_litigation_iz_spisa(izvori: Optional[dict]) -> str:
+    oznake = sorted(_sporni_izvori_roka(izvori))
+    if not oznake:
+        return PRAVILA_PROCESNOG_STANJA_SAVETNIKA
+    return (
+        PRAVILA_PROCESNOG_STANJA_SAVETNIKA
+        + "\nSISTEMSKA PROVERA IZVORA: " + ", ".join(oznaka.upper() for oznaka in oznake)
+        + " sadrži navod o roku za izjašnjenje, bez potvrđenog sudskog autoriteta tog dokumenta. "
+        "Za svaki takav izvor napiši da je rok naveden u izvoru i da sudski nalog i početak roka nisu potvrđeni. "
+        "Ne pripisuj taj rok sudu, ne računaj datum isteka i nemoj taj navod spajati sa drugim sudskim rokom."
+    )
+
+
 def _proveri_procesni_odgovor(odgovor: str, izvori: Optional[dict]) -> None:
     """Odbija rok za izjašnjenje izveden iz nesudskog izvoda, pre prikaza i naplate."""
     from shared.http_errors import NamerniHTTPException
     from shared.rociste_iz_teksta import preslovi
 
     stanje = (izvori or {}).get("_procesno_stanje") or {}
-    akteri = {d["oznaka"].lower(): d["akter"] for d in stanje.get("dokumenti") or []}
-    sporne_oznake = {
-        d["oznaka"].lower()
-        for d in (stanje.get("dogadjaji") or []) + ((izvori or {}).get("_odluke_suda") or [])
-        if akteri.get(d["oznaka"].lower()) != "SUD"
-        and _ROK_ZA_IZJASNJENJE_IZVOD_RE.search(preslovi(d.get("izvod") or d.get("tekst", "")).translate(_LAT).lower())
-    }
+    sporne_oznake = _sporni_izvori_roka(izvori)
     if not sporne_oznake:
         return
 
@@ -774,6 +797,53 @@ def _proveri_procesni_odgovor(odgovor: str, izvori: Optional[dict]) -> None:
                 status_code=502,
                 detail="Strategija nije izrađena jer sudski izvor ili početak roka za izjašnjenje nisu potvrđeni. "
                        "Proverite sudski akt i početni događaj. Ovaj odgovor nije naplaćen.",
+            )
+
+
+_NALAZ_VESTAKA_RE = re.compile(r"\bnalaz\w*(?:\s+i\s+misljenj\w*)?\s+vestak\w*")
+_DOSTAVA_NALAZA_RE = re.compile(
+    rf"\b(?:dostavljen|urucen|primljen)\w*\s+"
+    rf"(?:(?:strank\w*|tuzio\w*|tuzen\w*|punomocnik\w*)\s+)?(?:dana\s+)?(?P<datum>{_DATUM_ROKA_RE.pattern})"
+)
+
+
+def _datum_dostave_nalaza(recenica: str) -> Optional[date]:
+    if not _NALAZ_VESTAKA_RE.search(recenica):
+        return None
+    dostava = _DOSTAVA_NALAZA_RE.search(recenica)
+    if not dostava or _NEUTVRDJEN_ROK_RE.search(recenica[:dostava.start()]):
+        return None
+    if re.search(r"\b(?:nije|nisu)\s*$", recenica[:dostava.start()]):
+        return None
+    sirovi_datum = dostava["datum"]
+    delovi = [int(x) for x in re.findall(r"\d+", sirovi_datum)]
+    try:
+        return date(*(delovi if "-" in sirovi_datum else reversed(delovi)))
+    except ValueError:
+        return None
+
+
+def _proveri_dostavu_nalaza_u_nacrtu(tekst: str, stanje: Optional[dict]) -> None:
+    """Datum nalaza nije dokaz uručenja. Sudski izvod mora izričito potvrditi događaj."""
+    from shared.http_errors import NamerniHTTPException
+    from shared.procesno_stanje import HUMAN
+    from shared.rociste_iz_teksta import preslovi
+
+    potvrde = {
+        (oznaka.lower(), _datum_dostave_nalaza(preslovi(d["izvod"]).translate(_LAT).lower()))
+        for d in (stanje or {}).get("dogadjaji") or []
+        if d.get("akter") == "SUD" and d.get("vrsta") == "SUD_KONSTATUJE"
+        and d.get("vrsta_dokumenta", {}).get("klasa") == HUMAN
+        for oznaka in (d["oznaka"], d["id"])
+    }
+    for _, _, recenica in _recenice(tekst):
+        recenica = preslovi(recenica).translate(_LAT).lower()
+        datum = _datum_dostave_nalaza(recenica)
+        if datum and not any((oznaka, datum) in potvrde for oznaka in re.findall(r"\b(?:dok|ps)-\d+\b", recenica)):
+            raise NamerniHTTPException(
+                status_code=502,
+                detail="Predlog nije izrađen jer datum dostave nalaza veštaka nije potkrepljen sudskim izvorom. "
+                       "Ništa nije naplaćeno ni sačuvano.",
             )
 
 
@@ -1421,7 +1491,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             resp = await asyncio.to_thread(_pozovi_nacrt_api, client, agent_cfg["system"] + "\n\n" + _NZ.PRAVILA_ZA_MODEL,
                                            user_msg)
         else:
-            sistem = agent_cfg["system"] + (f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}" if procesno_ctx else "")
+            sistem = agent_cfg["system"] + (f"\n\n{_pravila_litigation_iz_spisa(izvori_predmeta)}" if procesno_ctx else "")
             resp = await asyncio.to_thread(_pozovi_agent_api, client, sistem, user_msg)
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
@@ -1449,6 +1519,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                 "Nacrt nije izrađen: odgovor savetnika nije mogao bezbedno da se razdvoji na predlog teksta i napomene. "
                 "Ništa nije naplaćeno ni sačuvano. Pokušajte ponovo."))
         odgovor = tekst_za_sud.strip()
+        _proveri_dostavu_nalaza_u_nacrtu(odgovor, stanje)
         try:
             # C3b FINAL CLOSURE: tekst modela je AI RADNI PREDLOG, ceo (leksička kapija `zastiti` povučena posle GATE-03
             # C3B_FAIL). Pre naplate (GATE-02 N1): pad obrade ne sme da naplati nacrt koji ne postoji.
@@ -1622,7 +1693,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
         cfg = _AGENTS[agent_id]
         try:
             if agent_id == "litigation" and procesno_lit:
-                resp = await _pozovi_para_api(oai, cfg["system"] + f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}",
+                resp = await _pozovi_para_api(oai, cfg["system"] + f"\n\n{_pravila_litigation_iz_spisa(izvori_predmeta)}",
                                               f"{predmet_ctx}{rag_ctx}{procesno_lit}\n\nZahtev: {req.task}".strip())
             else:
                 resp = await _pozovi_para_api(oai, cfg["system"], base_msg)

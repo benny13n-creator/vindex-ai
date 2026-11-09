@@ -773,11 +773,14 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
     Returns (label_clana, zakon) e.g. ("Član 175", "zakon o obligacionim odnosima"),
     or (None, None) if no article reference found.
     """
+    from shared.rociste_iz_teksta import preslovi
+
+    query = preslovi(query)
     clan = _pronadji_clan(query)
     if not clan:
         return None, None
 
-    label_clana = f"Član {clan.group(1).replace('а', 'a')}"
+    label_clana = f"Član {clan.group(1)}"
     normalized = _normalizuj(query)
 
     # Pun naziv uz izabrani član ima prednost nad semantičkim hintom.
@@ -789,7 +792,8 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
     ):
         return label_clana, _ZAKON_O_UREDJENJU_SUDOVA
 
-    if re.match(r"\.?\s+кз\b", iza):
+    naziv_kz = r"\b(?:kz|krivicn(?:i|og|om|im)\s+zakonik(?:a|u|om)?)\b"
+    if re.search(rf"{naziv_kz}\s*[:,]?\s*$", ispred) or re.match(rf"\.?\s+{naziv_kz}", iza):
         return label_clana, _ZAKON_KODOVI["kz"]
 
     for code, zakon_val in _ZAKON_KODOVI.items():
