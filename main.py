@@ -16,7 +16,7 @@ from openai import OpenAI
 from app.services.retrieve import (
     retrieve_documents, proveri_zdi_indeksiranost, get_confidence_level,
     ekstrakcija_clana, _direktan_fetch_clana, _formatiraj_match,
-    _ZAKON_O_UREDJENJU_SUDOVA,
+    _ZAKON_O_UREDJENJU_SUDOVA, je_pitanje_gradjanske_nadleznosti,
     retrieve_sudska_praksa, process_praksa_chunks,
     retrieve_misljenja, process_misljenja_chunks, query_triggers_misljenja,
 )
@@ -228,7 +228,7 @@ def _cache_kljuc(pitanje: str) -> str:
 
     n8 = (je_pitanje_gradjanske_nadleznosti(pitanje)
           or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA)
-    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-1" if n8 else "")
+    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-2" if n8 else "")
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -3790,19 +3790,24 @@ def _napomene_nadleznosti(pitanje: str, tekst: str) -> str:
     _zakon = _naziv_zakona_u_pitanju(pitanje)
     # Revizija N8 F4: ispravka samo kad je CITIRAN član drugog zakona i kad lokalni tekst TOG člana ne sadrži pravilo o
     # nadležnosti (ZIO čl. 7 jeste pravilo o nadležnosti — ranije je i on „ispravljan“).
-    if _label and _zakon and _normalizuj(_zakon) != "zakon o parnicnom postupku":
-        _tekst_clana = _lokalni_clan(_zakon, _label.replace("Član ", ""))
-        if _tekst_clana is not None and not _PRAVILO_NADLEZNOSTI_RE.search(_normalizuj(_tekst_clana)):
-            from app.services.retrieve import _ZAKON_KRATKI_KOD
-            _oznaka = _ZAKON_KRATKI_KOD.get(_normalizuj(_zakon), _zakon)
-            tekst += ("\n\n--- ISPRAVKA PREMISE\nPitanje kao osnov nadležnosti navodi " + _label + " " + str(_oznaka)
-                      + ", a taj član (proveren lokalni tekst) ne uređuje nadležnost suda. Mesnu nadležnost u građanskim stvarima "
-                        "uređuje Zakon o parničnom postupku (čl. 38–65).")
+    if _clan_ne_uredjuje_nadleznost(_label, _zakon):
+        from app.services.retrieve import _ZAKON_KRATKI_KOD
+        _oznaka = _ZAKON_KRATKI_KOD.get(_normalizuj(_zakon), _zakon)
+        tekst += ("\n\n--- ISPRAVKA PREMISE\nPitanje kao osnov nadležnosti navodi " + _label + " " + str(_oznaka)
+                  + ", a taj član (proveren lokalni tekst) ne uređuje nadležnost suda. Mesnu nadležnost u građanskim stvarima "
+                    "uređuje Zakon o parničnom postupku (čl. 38–65).")
     return tekst
 
 
 # „nadležan sud“ / „mesno je nadležan“ — ne i „akt nadležnog organa“ (ZOO čl. 84)
 _PRAVILO_NADLEZNOSTI_RE = re.compile(r"(?:mesno|stvarno)\s+(?:je\s+)?nadlez|nadlez\w*\s+(?:je\s+)?(?:i\s+)?sud|sud\w*\s+(?:je\s+)?nadlez|nadleznost\w*\s+sud")
+
+
+def _clan_ne_uredjuje_nadleznost(label: str | None, zakon: str | None) -> bool:
+    if not label or not zakon or _normalizuj(zakon) == "zakon o parnicnom postupku":
+        return False
+    tekst = _lokalni_clan(zakon, label.removeprefix("Član "))
+    return tekst is not None and not _PRAVILO_NADLEZNOSTI_RE.search(_normalizuj(tekst))
 
 
 def _lokalni_clan(zakon: str, broj: str):
@@ -4226,7 +4231,8 @@ def _okvir_povrata_za_model(pitanje: str) -> str:
         "\n\nPOSEBAN ZADATAK — VIŠESTRUKI POVRAT (ima prednost nad opštim šablonom parnice). "
         "Ovo je krivičnopravno pitanje, bez analize građanske odgovornosti, štete ili zastarelosti. "
         f"Proračun sistema za navedene činjenice: {rezultat.primenjuje_se}. Uslovi: {uslovi}. "
-        "U pravnom zaključku ne protivreči nijednom ishodu. Za NE napiši da nema primene na navedene "
+        "U pravnom zaključku i brzoj proceni koristi isti ishod proračuna. Odvojeno navedi zakonsko pravilo "
+        "i da li su ispunjeni uslovi u ovom slučaju. Za NE napiši da nema primene na navedene "
         "činjenice. Neprimena čl. 55a znači da nema obaveze izreći kaznu iznad polovine po tom članu. "
         "Polovina time ne postaje gornja granica redovnog odmeravanja kazne. "
         "Za NEPOZNATO uskrati konačnu primenu i navedi nepoznate uslove. "
@@ -4468,6 +4474,9 @@ def ask_agent(
         _korak_15_authoritative = False
         _ref_docs: list[str] = []
         _ref_label, _ref_zakon = ekstrakcija_clana(pitanje_api)
+        pogresna_premisa = je_pitanje_gradjanske_nadleznosti(pitanje_api) and _clan_ne_uredjuje_nadleznost(
+            _ref_label, _ref_zakon
+        )
         if _ref_label is not None:
             # S4-3 (2026-08-09): this used to call _direktan_fetch_clana plainly,
             # so a Pinecone outage returned [] -- the same value as "the article
@@ -4523,17 +4532,23 @@ def ask_agent(
             # Fix 1: article found — update metadata unconditionally (old guard
             # `if confidence != "HIGH"` caused footer to show semantic top hit instead
             # of the directly-fetched article when retrieval already returned HIGH).
-            docs = _ref_docs + [d for d in docs if d not in set(_ref_docs)]
-            # Statički izvod pokriva deo člana. On ne potvrđuje ceo član u
-            # korpusu i ne zaobilazi proveru modelskog odgovora.
-            _korak_15_authoritative = _ref_zakon != _ZAKON_O_UREDJENJU_SUDOVA
-            confidence = "HIGH" if _korak_15_authoritative else "MEDIUM"
-            logger.info(
-                "[HALUCINATION_GUARD] Clan %s — inject %d chunks, confidence=%s [q=%s]",
-                _ref_label, len(_ref_docs), confidence, log_id,
-            )
-            top_article = _ref_label
-            top_law = _ref_zakon or top_law
+            if pogresna_premisa:
+                # Član ostaje u kontekstu za ispravku premise. Vodeći izvor
+                # i status pretrage i dalje određuju izvori nadležnosti.
+                docs = docs + [d for d in _ref_docs if d not in docs]
+                _ref_docs = []
+            else:
+                docs = _ref_docs + [d for d in docs if d not in set(_ref_docs)]
+                # Statički izvod pokriva deo člana. On ne potvrđuje ceo član u
+                # korpusu i ne zaobilazi proveru modelskog odgovora.
+                _korak_15_authoritative = _ref_zakon != _ZAKON_O_UREDJENJU_SUDOVA
+                confidence = "HIGH" if _korak_15_authoritative else "MEDIUM"
+                logger.info(
+                    "[HALUCINATION_GUARD] Clan %s — inject %d chunks, confidence=%s [q=%s]",
+                    _ref_label, len(_ref_docs), confidence, log_id,
+                )
+                top_article = _ref_label
+                top_law = _ref_zakon or top_law
 
         # KORAK 2: LOW — instant refusal, no LLM needed
         if confidence == "LOW":
@@ -4789,7 +4804,7 @@ def ask_agent(
                 _korak_15_authoritative, confidence, _izvori, top_article
             )
             _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(
-                _raw_med, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda, pitanje=pitanje_api
+                _raw_med, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
             )
             if not _json_ok_med:
                 logger.warning("[MEDIUM→BLOCK] Commit3 guard [q=%s]", log_id)
@@ -4828,7 +4843,7 @@ def ask_agent(
             odgovor = _injektuj_misljenja_blok(odgovor, _processed_misljenja)
             if "--- IZVOR" not in odgovor and "--- HIJERARHIJA IZVORA" not in odgovor:
                 odgovor = _dodaj_izvor(odgovor, filtrirani)
-            odgovor = _dodaj_disclaimer(odgovor)
+            odgovor = _dodaj_disclaimer(_napomene_nadleznosti(pitanje_api, odgovor))
 
             rezultat = {
                 "status": "success", "data": odgovor,
@@ -4892,7 +4907,7 @@ def ask_agent(
             _korak_15_authoritative, confidence, _izvori, top_article
         )
         _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(
-            _raw_high, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda, pitanje=pitanje_api
+            _raw_high, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
         )
 
         # Soft section check — log only, do not discard
@@ -4961,7 +4976,7 @@ def ask_agent(
                 _korak_15_authoritative, confidence, _izvori, top_article
             )
             _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(
-                _raw_dg, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda, pitanje=pitanje_api
+                _raw_dg, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
             )
             if not _json_ok_dg:
                 logger.warning("[DOWNGRADE→BLOCK] Commit3 guard posle downgrade [q=%s]", log_id)
@@ -4990,7 +5005,7 @@ def ask_agent(
         odgovor = _injektuj_misljenja_blok(odgovor, _processed_misljenja)
         if "--- IZVOR" not in odgovor and "--- HIJERARHIJA IZVORA" not in odgovor:
             odgovor = _dodaj_izvor(odgovor, filtrirani)
-        odgovor = _dodaj_disclaimer(odgovor)
+        odgovor = _dodaj_disclaimer(_napomene_nadleznosti(pitanje_api, odgovor))
 
         rezultat = {
             "status": "success", "data": odgovor,

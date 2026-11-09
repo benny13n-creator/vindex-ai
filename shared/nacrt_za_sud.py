@@ -288,8 +288,12 @@ def blok_za_model(stanje: Optional[dict]) -> tuple:
     redovi = []
     for d in (stanje.get("dogadjaji") or [])[:40]:
         kasn = "; ".join(f"{k['oznaka']} {k['vrsta'].lower()} ({k['odnos'].lower()}, dejstvo NEUTVRĐENO)" for k in d["kasniji"])
+        naslov = " ".join(((d.get("vrsta_dokumenta") or {}).get("naslov") or "").split())
+        podaci_izvora = f" | naslov dokumenta: {naslov}" if naslov else ""
+        if datum := d.get("datum_dokumenta"):
+            podaci_izvora += f" | datum dokumenta: {datum}"
         redovi.append(f"[[{d['id']}]] {d['oznaka']} | akter po tekstu: {d['akter']} | vrsta (kandidat): {d['vrsta']}"
-                      f" | izvod: {' '.join(d['izvod'].split())}" + (f" | kasnije: {kasn}" if kasn else ""))
+                      f" | izvod: {' '.join(d['izvod'].split())}" + podaci_izvora + (f" | povezano: {kasn}" if kasn else ""))
     for n in (stanje.get("nepoznato") or [])[:30]:
         redovi.append("NIJE UTVRĐENO: " + n)
     natpis = ("PROCESNO STANJE IZ SPISA — utvrdio SISTEM iz teksta dokumenata (izvodi su doslovni; vrsta i akter su "
@@ -306,6 +310,7 @@ Odgovori ISKLJUČIVO JSON objektom: {"tekst_za_sud": "<ceo tekst podneska koji i
 - U "tekst_za_sud" NE tvrdi: da je naložena radnja nepotrebna, suvišna, rešena, ukinuta ili bez dejstva; da je uplata izvršena; da je obaveza ispunjena ili da nije; da rok teče, ističe, da je istekao ili da je radnja blagovremena; da je veštak ili sud nešto „utvrdio“; ne prikazuj već donetu odluku kao buduću ili uslovnu („ukoliko sud smatra…“).
 - Ono što je u bloku pod „NIJE UTVRĐENO“ ne tvrdi ni u jednom smeru; zapiši to u "napomene_za_advokata". Ako ishod ročišta nije poznat, predlog o tom pitanju piši uslovno („ukoliko sud o tome nije odlučio na ročištu …“).
 - Datum na nalazu, podnesku ili zapisniku je datum dokumenta. Dostavu ili podnošenje navedi samo uz poseban izvor koji dokazuje taj događaj, kao što je dostavnica ili potvrda prijema. Ako toga nema, u napomenama navedi da je datum neutvrđen. Ako datum izrade nacrta nije izričito zadat, ostavi [DATUM — POPUNITI]. Ne koristi tekući datum.
+- Vrstu dokumenta u rečenici uskladi sa naslovom uz oznaku izvoda. Naknadni podnesak ne nazivaj tužbom. Ako vrsta nije prepoznata, navedi samo autora i oznaku.
 - Ako se stranke spore o datumu ili uzroku, svaki navod pripiši njegovom autoru uz oznaku dokumenta. Nalaz veštaka koji opisuje uzrok ne potvrđuje datum događaja koji nalaz nije utvrdio. Stranački podnesak koji navodi ili prilaže ispravu ne potvrđuje autentičnost, sadržaj ili prijem nepročitane isprave.
 - Predlog čeka pregled i usvajanje advokata. Ne očekuj da će sistem automatski ukloniti nepotvrđenu procesnu tvrdnju."""
 
@@ -568,7 +573,7 @@ def interne_napomene(stanje: Optional[dict], kapija: dict, napomene_modela: list
                   "važi NIJE utvrđeno):"]
     sud = [d for d in (stanje or {}).get("dogadjaji") or [] if d["akter"] == "SUD"]
     r += [f"- {d['id']} {prikaz_izvoda(d)} — kandidat: {d['vrsta']}" + (
-        "; kasnije: " + "; ".join(f"{k['oznaka']} {k['vrsta'].lower()} ({k['odnos'].lower()}, dejstvo NEUTVRĐENO)"
+        "; povezano: " + "; ".join(f"{k['oznaka']} {k['vrsta'].lower()} ({k['odnos'].lower()}, dejstvo NEUTVRĐENO)"
                                   for k in d["kasniji"]) if d["kasniji"] else "") for d in sud] or ["- nema"]
     r.append("NIJE UTVRĐENO IZ SPISA:")
     r += [f"- {n}" for n in (stanje or {}).get("nepoznato") or []] or ["- nema"]

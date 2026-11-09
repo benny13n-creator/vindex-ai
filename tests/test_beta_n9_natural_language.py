@@ -277,6 +277,7 @@ def test_model_okvir_ne_dozvoljava_potvrdan_zakljucak_za_kratke_osude():
     okvir = _okvir_povrata_za_model(SCENARIO.replace("po 2 godine", "po 6 meseci"))
     assert "Proračun sistema za navedene činjenice: NE." in okvir
     assert "Za NE napiši da nema primene" in okvir
+    assert "u pravnom zaključku i brzoj proceni" in okvir.lower()
 
 
 def _pitanje_sa_osudama_saucesnika(navod):

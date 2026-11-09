@@ -13,12 +13,13 @@ import hashlib
 # Drugi dozvoljeni izuzetak: samo red o žalbi, čl. 367 ZPP sa izuzecima.
 # Deadline: ciljana korekcija pogrešnih pravnih osnova i neuslovljenog datuma isteka (beta acceptance).
 # Legal AI acceptance 08.11.2026: Drafting i Litigation imaju samo proverene pravne korekcije.
+# Beta 09.11: Drafting/Litigation odvajaju nalaz veštaka od sudskog akta i datum dokumenta od početka roka.
 # Prethodni heševi intake: 4d9cc68a…94397f5 (ab63f913), d27da808…5ac635142 (342ae188, samo rok).
 OCEKIVANI_SHA256 = {
     "intake": "2e4756220d42674e1db82c76d5399e44674543bac30d6542f06f778e66c2cf6f",
     "research": "259b0da9e5fc3485244a9bb58ae3443db021783ca65fee1e29554742812ece16",
-    "drafting": "2aafe27ff7287339e9629ca8f4bf3e97ddeea5b23fe1a751f40633cc826aaf72",
-    "litigation": "6090f18d9e718716b3c955688b29be651ebbc7511190332ca82673d6236cc870",
+    "drafting": "6b10b7d4f72769193fbe7e77be51fbf2d5930a53b57fa5c4836d8c47a4e62995",
+    "litigation": "92f77635048164efe6c375e48e6aaba0265c13c6654b26402070e0c6b0bf8284",
     "billing": "9b92e42dc61282a780ebd1580cd8b334b402e7eb73795da790e7001f38eb2fd0",
     "deadline": "a02053cb8e2e00d81a7a227bc52ec3a4c02c03969e742b479a50abb0f7767db2",
 }

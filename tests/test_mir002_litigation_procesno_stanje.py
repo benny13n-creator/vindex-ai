@@ -70,7 +70,7 @@ def _dogadjaji(blok: str) -> list:
     """[{oznaka, akter, vrsta, izvod}] iz redova bloka."""
     out = []
     for r in _redovi(blok):
-        m = re.match(r"(DOK-\d\d) \| akter po tekstu: (\w+) \| vrsta \(kandidat\): (\w+) \| izvod: (.*?)(?: \| kasnije: .*)?$", r)
+        m = re.match(r"(DOK-\d\d) \| akter po tekstu: (\w+) \| vrsta \(kandidat\): (\w+) \| izvod: (.*?)(?: \| (?:naslov dokumenta|datum dokumenta|povezano): .*)?$", r)
         if m:
             out.append(dict(zip(("oznaka", "akter", "vrsta", "izvod"), m.groups())))
     return out
@@ -152,8 +152,7 @@ def test_p05_rok_bez_pocetka_ostaje_neutvrdjen_i_server_ne_racuna_datum(lit):
         assert izracunat not in u
     # svaka pojava isteka u bloku je u stavci „NIJE UTVRĐENO“, nikad tvrdnja
     assert all(r.startswith("NIJE UTVRĐENO: ") for r in _redovi(blok) if "istek" in r)
-    # sistemska poruka savetnika je zaključana (`test_mir001_c3b_pravila`); pravilo o početku roka dolazi samo uz blok
-    # i izričito ima prednost nad opštim pravilom „Rokove računaj od datuma iz dokumenata …“
+    # Posebna pravila uz procesni blok ostaju važeća i posle ispravke opšteg uputstva.
     pravila = sistem.split("PROCESNO STANJE IZ SPISA (obavezno", 1)[1]
     assert "datum dokumenta ili ročišta NIJE početak roka" in pravila
     assert "Ovo pravilo ima prednost nad opštim pravilom o računanju rokova." in pravila
@@ -172,6 +171,9 @@ def test_p06_p07_kasniji_dokument_odvojen_bez_racunanja_i_bez_pripisivanja_sudu(
     d08 = [d for d in dog if d["oznaka"] == "DOK-08"]
     rok8 = [d for d in d08 if d["izvod"] == "Sud ostavlja strankama rok od 8 dana od dana dopune nalaza za izjasnjenje."]
     assert rok8 and rok8[0]["akter"] != "SUD"        # dokument veštaka nepoznate vrste: glas suda nije utvrđen
+    assert "rok računaj od dokazanog merodavnog događaja" in sn[-1]["system"]
+    assert "zapisnik, rešenje, dopuna nalaza" not in sn[-1]["system"]
+    assert "Rokove računaj od datuma iz dokumenata" not in sn[-1]["system"]
     assert any(n.startswith("DOK-08: vrsta dokumenta nije utvrđena") for n in _nije_utvrdjeno(blok))
     for izracunat in ("28.10.2026", "2026-10-28"):
         assert izracunat not in u

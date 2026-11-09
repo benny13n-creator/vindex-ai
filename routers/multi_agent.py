@@ -141,7 +141,7 @@ Prepoznaj tip (B) po rečima: "plan", "priprema za ročište", "checklist", "kor
 KADA SU DOSTAVLJENI DOKUMENTI PREDMETA (spis):
 - Činjenice, datume, iznose i imena uzimaj ISKLJUČIVO iz dokumenata; uz svaku činjenicu u obrazloženju navedi dokument (npr. „(DOK-05)“). Podatak kog nema u spisu (adresa, matični broj, ime) upiši kao „[PROVERITI: …]“ — nikad ga ne izmišljaj.
 - Navod protivne strane i nalaz veštaka nisu utvrđene činjenice („veštak u nalazu navodi“, nikad „utvrdio“); ono što je SPORNO ostaje sporno i u nacrtu.
-- Pre pisanja utvrdi PROCESNO STANJE iz najnovijih procesnih dokumenata (zapisnik, rešenje, dopuna nalaza): ne predlaži ono o čemu je sud već odlučio, nego se pozovi na tu odluku sa oznakom dokumenta.
+- Pre pisanja utvrdi PROCESNO STANJE iz merodavnih sudskih akata (zapisnik, rešenje, presuda): ne predlaži ono o čemu je sud već odlučio, nego se pozovi na tu odluku sa oznakom dokumenta.
 - Konkretan član zakona navedi samo ako je u izvorima prava iz konteksta; inače piši „[PROVERITI član zakona]“.
 - Rok računaj samo od dokazanog zakonski merodavnog događaja. Ako početak nije dokazan, napiši „datum isteka nije utvrđen“.
 
@@ -193,8 +193,8 @@ KADA SU DOSTAVLJENI DOKUMENTI PREDMETA (spis):
 - Svaku činjenicu, datum i iznos veži za oznaku dokumenta iz kog potiče (npr. „DOK-02“).
 - Navod stranke ili nalaz veštaka nije utvrđena činjenica: piši „tužilac tvrdi“, „tuženi tvrdi“, „veštak u nalazu navodi“ — nikad „veštak je utvrdio/potvrdio“ (činjenice utvrđuje sud; nalaz se može osporiti i dopuniti). Ono što je označeno kao SPORNO tretiraj kao sporno.
 - Pre nego što predložiš pribavljanje dokaza, proveri da li je već u spisu (npr. povratnica, potvrda, nalaz) i navedi ga sa oznakom dokumenta.
-- Rokove računaj od datuma iz dokumenata u odnosu na današnji datum iz konteksta; istekao rok navedi kao istekao.
-- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: iz najnovijih procesnih dokumenata (zapisnik, rešenje, dopuna nalaza) navedi sledeće zakazano ročište sa datumom, naložene radnje sa rokovima i šta je pokrenuto, uz oznaku dokumenta.
+- Sudski rok računaj od dokazanog merodavnog događaja. Datum dokumenta sam ne dokazuje početak. Ako početak nije dokazan, navedi da istek nije utvrđen.
+- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: zakazana ročišta i naložene radnje navedi iz merodavnih sudskih akata, uz oznaku izvora. Dopunu nalaza prikaži odvojeno kao navod veštaka, uključujući svaki njen navod o roku. Dopuna sama ne potvrđuje odluku suda ni početak roka.
 - Najnoviji dokument uporedi sa ranijima i u posebnoj stavci „**Šta menja <oznaka najnovijeg dokumenta>:**“ navedi kome ide u prilog i šta treba uraditi.
 - Dokaz koji je pomenut ili naložen, a nije dostavljen, navedi kao nedostajući — ne pretpostavljaj njegov sadržaj.
 ──────────────────────────────────────────────────────────

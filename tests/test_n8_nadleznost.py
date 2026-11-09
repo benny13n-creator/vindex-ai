@@ -511,3 +511,48 @@ def test_n8_izricit_naziv_sudskog_zakona_sa_interpunkcijom_i_cirilicom(pitanje):
     from app.services.retrieve import ekstrakcija_clana
 
     assert ekstrakcija_clana(pitanje) == ("Član 27", "zakon o uredjenju sudova")
+
+
+def test_n8_odbijena_premisa_nije_vodeci_izvor(monkeypatch):
+    import json
+    from unittest.mock import Mock
+
+    import main as M
+
+    zpp = "ZAKON: Zakon o parničnom postupku\nČLAN: Član 39\n" + _clan(39)
+    zoo = "ZAKON: Zakon o obligacionim odnosima\nČLAN: Član 39\n" + M._lokalni_clan(
+        "zakon o obligacionim odnosima", "39"
+    )
+    metadata = {
+        "confidence": "HIGH", "top_score": 0.8, "top_article": "Član 39",
+        "top_law": "Zakon o parničnom postupku",
+        "izvori": [{"zakon": "Zakon o parničnom postupku", "clan": "Član 39"}],
+    }
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([zpp], metadata))
+    monkeypatch.setattr(M, "retrieve_sudska_praksa", lambda *a, **k: [])
+    monkeypatch.setattr(M, "retrieve_misljenja", lambda *a, **k: [])
+    monkeypatch.setattr(M, "_cache_get", lambda *a: None)
+    monkeypatch.setattr(M, "_cache_set", Mock())
+    monkeypatch.setattr(M, "klasifikuj_pitanje", lambda *a: "PARNICA")
+    exact = Mock(return_value=[zoo])
+    monkeypatch.setattr(M, "_direktan_fetch_clana", exact)
+    monkeypatch.setattr(M, "_formatiraj_match", lambda hit: hit)
+    model = Mock(return_value=json.dumps({
+        "pravni_zakljucak": "Prema članu 39 ZPP opšte je nadležan sud prebivališta tuženog.",
+    }))
+    monkeypatch.setattr(M, "_pozovi_openai", model)
+
+    result = M.ask_agent(
+        "Da li član 39 Zakona o obligacionim odnosima određuje opštu mesnu nadležnost "
+        "u parnici protiv fizičkog lica sa prebivalištem u Nišu?"
+    )
+
+    assert result["status"] == "success" and not result.get("blocked")
+    assert "ISPRAVKA PREMISE" in result["data"]
+    assert result["top_law"] == "Zakon o parničnom postupku"
+    assert result["top_article"] == "Član 39"
+    assert "Doslovno citiran" not in result["data"]
+    exact.assert_called_once_with("Član 39", "zakon o obligacionim odnosima", raise_on_error=True)
+    model.assert_called_once()
+    prompt = model.call_args.args[1]
+    assert prompt.index(zpp) < prompt.index(zoo)
