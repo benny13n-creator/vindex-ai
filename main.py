@@ -3841,6 +3841,38 @@ def _lokalni_clan(zakon: str, broj: str):
     return m.group(1) if m else None
 
 
+def _n8_ogranici_dokaznu_potpunost(pitanje: str, data: dict) -> None:
+    """N8: model cannot award POTPUNA when the decisive long-stay fact is missing.
+
+    Only the factual-evidence rating is constrained. A verified legal citation
+    does not establish the factual condition of ZPP čl. 39 st. 3.
+    """
+    if not isinstance(data, dict) or data.get("brza_procena_dokazna_potpunost") != "potpuna":
+        return
+    if not pitanje:
+        return
+    from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
+    if not je_pitanje_gradjanske_nadleznosti(pitanje):
+        return
+    q = _normalizuj(_cirilica_u_latinicu(pitanje))
+    if "prebivalist" not in q or "boravist" not in q:
+        return
+    ima_duzeg_boravka = any(
+        _N8_DUZI_BORAVAK_RE.search(rec)
+        and not _N8_BORAVAK_OGRADA_RE.search(rec)
+        and not rec.rstrip().endswith("?")
+        for rec in re.split(r"(?<=[.!?;])\s+", q)
+    )
+    if ima_duzeg_boravka:
+        return
+    data["brza_procena_dokazna_potpunost"] = "delimicna"
+    if not str(data.get("brza_procena_nedostatak") or "").strip():
+        data["brza_procena_nedostatak"] = (
+            "Nije utvrđeno da okolnosti upućuju na duži boravak tuženog na području boravišta "
+            "(ZPP čl. 39 st. 3)."
+        )
+
+
 def _parsiraj_strukturni_odgovor(
     raw_json: str,
     tip: str,
@@ -3929,6 +3961,7 @@ def _parsiraj_strukturni_odgovor(
         # proveru i prikazivale se kao „Pravni princip:“ suda; bez broja nema sažetka, pa se uklanjaju.
         data = _proveri_stavove_prakse(data, praksa_context)
 
+    _n8_ogranici_dokaznu_potpunost(pitanje, data)
     return True, _napomene_nadleznosti(pitanje, _json_ka_tekst(data, tip, potvrda=potvrda))
 
 
