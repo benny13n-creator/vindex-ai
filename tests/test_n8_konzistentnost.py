@@ -374,3 +374,16 @@ def test_n8_private_case_context_is_never_cached(tok):
     assert not M.ask_agent(pitanje).get("from_cache")
     assert not M._CACHE and not l2
     assert model.call_count == 2
+
+
+def test_legal_agent_logs_a_query_reference_without_case_content(tok, caplog):
+    model, _, _ = tok
+    marker = "QA-POVERLJIVO-TEST-1847"
+    pitanje = f"{marker}. {PITANJE}"
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    with caplog.at_level("INFO"):
+        assert M.ask_agent(pitanje).get("blocked") is not True
+        assert M.ask_agent(pitanje).get("from_cache") is True
+    assert model.call_count == 1
+    assert any("[ASK_AGENT]" in r.message and M._hash_za_log(pitanje) in r.message for r in caplog.records)
+    assert marker not in caplog.text

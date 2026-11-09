@@ -1916,17 +1916,18 @@ def klasifikuj_pitanje(query: str) -> str:
     Vraća uppercase string: "COMPLIANCE", "PORESKI", "PARNICA", "DEFINICIJA".
     """
     q = _normalizuj(query)
-    logging.info("Klasifikacija: '%s' → ...", query[:50])
+    log_id = _hash_za_log(query)
+    logging.info("Klasifikacija [q=%s] → ...", log_id)
 
     # KZ override — mora biti pre PORESKI/COMPLIANCE da bi "krivično delo X" uvek → PARNICA
     for term in _KZ_OVERRIDE_TRIGGERS:
         if _match_trigger(term, q):
-            logging.info("Klasifikacija: '%s' → PARNICA [KZ override: %s]", query[:50], term)
+            logging.info("Klasifikacija [q=%s] → PARNICA [KZ override: %s]", log_id, term)
             return "PARNICA"
 
     for term in _COMPLIANCE_TRIGGERS:
         if _match_trigger(term, q):
-            logging.info("Klasifikacija: '%s' → COMPLIANCE (trigger: %s)", query[:50], term)
+            logging.info("Klasifikacija [q=%s] → COMPLIANCE (trigger: %s)", log_id, term)
             return "COMPLIANCE"
 
     for term in _PORESKI_TRIGGERS:
@@ -1935,20 +1936,20 @@ def klasifikuj_pitanje(query: str) -> str:
             # ako upit sadrži i parnični trigger, pusti PARNICA petlju da obradi
             if any(_match_trigger(pt, q) for pt in _PARNICA_TRIGGERS):
                 break
-            logging.info("Klasifikacija: '%s' → PORESKI (trigger: %s)", query[:50], term)
+            logging.info("Klasifikacija [q=%s] → PORESKI (trigger: %s)", log_id, term)
             return "PORESKI"
 
     for term in _PARNICA_TRIGGERS:
         if _match_trigger(term, q):
-            logging.info("Klasifikacija: '%s' → PARNICA (trigger: %s)", query[:50], term)
+            logging.info("Klasifikacija [q=%s] → PARNICA (trigger: %s)", log_id, term)
             return "PARNICA"
 
     for term in _DEFINICIJA_TRIGGERS:
         if _match_trigger(term, q):
-            logging.info("Klasifikacija: '%s' → DEFINICIJA (trigger: %s)", query[:50], term)
+            logging.info("Klasifikacija [q=%s] → DEFINICIJA (trigger: %s)", log_id, term)
             return "DEFINICIJA"
 
-    logging.info("Klasifikacija: '%s' → DEFINICIJA (default)", query[:50])
+    logging.info("Klasifikacija [q=%s] → DEFINICIJA (default)", log_id)
     return "DEFINICIJA"
 
 
@@ -4816,8 +4817,8 @@ def ask_agent(
         _izvori           = retrieval_meta.get("izvori", [])
 
         logger.info(
-            "[ASK_AGENT] confidence=%s score=%.4f article=%s law=%s query=%s [q=%s]",
-            confidence, top_score, top_article, top_law, pitanje_api[:60], log_id,
+            "[ASK_AGENT] confidence=%s score=%.4f article=%s law=%s [q=%s]",
+            confidence, top_score, top_article, top_law, log_id,
         )
 
         # KORAK 1.6: Sudska praksa retrieval (T3) — separate pipeline, never affects zakon band
@@ -5535,7 +5536,6 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
         pitanje_api = _skini_pii(pitanje)
         logger.debug("[ANALIZA] tekst_input_len=%d tekst_api_len=%d pitanje_len=%d",
                      len(tekst), len(tekst_api), len(pitanje_api))
-        logger.debug("[ANALIZA] tekst_api preview: %r", tekst_api[:200])
 
         # T3: Extract all article citations from uploaded document (before LLM call)
         allowed_articles = _ekstrahuj_clanove_iz_dokumenta(tekst_api)
@@ -5550,7 +5550,7 @@ def ask_analiza(tekst: str, pitanje: str = "") -> dict:
             user_content += f"SPECIFIČNO PITANJE: {pitanje_api.strip()}\n\n"
         user_content += f"DOKUMENT ZA ANALIZU:\n{tekst_api}"
         odgovor = _pozovi_openai(SYSTEM_PROMPT_ANALIZA, user_content)
-        logger.debug("[ANALIZA] LLM odgovor len=%d preview: %r", len(odgovor), odgovor[:300])
+        logger.debug("[ANALIZA] LLM odgovor len=%d", len(odgovor))
 
         # T3: Guard — only allow articles that were in the uploaded document
         validan, razlog = _proveri_analiza_citate(odgovor, allowed_articles)

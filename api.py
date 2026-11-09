@@ -4222,7 +4222,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 
         resp = normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
         if not resp.get("odgovor"):
-            logger.error("[PITANJE] normalizuj_rezultat vratio prazan odgovor — rezultat=%s", rezultat)
+            logger.error("[PITANJE] normalizuj_rezultat vratio prazan odgovor [q=%s]", qh)
             resp["odgovor"] = "Sistem nije mogao da formuliše odgovor. Pokušajte ponovo."
         # Kontekst predmeta se ubacuje FAIL-CLOSED: na svaku sumnju (tuđi
         # predmet, predmet u brisanju, greška pri čitanju) grane iznad ga tiho
@@ -6183,7 +6183,7 @@ async def predmet_upload_auto_analyze(
 
         # Phase 2.1 — detect document type for routing to specialized prompt
         doc_type = _detect_doc_type(text)
-        logger.info("[P2.1] doc_type=%r for predmet=%s, filename=%s", doc_type, predmet_id, file.filename)
+        logger.info("[P2.1] doc_type=%r for predmet=%s", doc_type, predmet_id)
 
         # Chunk + ingest to Pinecone
         # BETA-DATA-ID-02: kanonski identitet sadrzaja je hes IZVUCENOG TEKSTA,
@@ -6509,8 +6509,8 @@ async def predmet_upload_auto_analyze(
                 if _d not in _seen:
                     _law_chunks.append(_d)
                     _seen.add(_d)
-            logger.info("[P2.1] RAG: %d chunks, top_law=%s, query='%.60s'",
-                        len(_rag_docs), _rag_meta.get("top_law", "?"), _rag_query)
+            logger.info("[P2.1] RAG: %d chunks, top_law=%s [q=%s]",
+                        len(_rag_docs), _rag_meta.get("top_law", "?"), _q_hash(_rag_query))
     except asyncio.TimeoutError:
         logger.warning("[P2.1] RAG timeout (>4s) — nastavljamo bez RAG")
     except Exception:
