@@ -1926,8 +1926,7 @@ async def _odobri_dokument_za_sud(supa, dok: dict, request: Request, user: dict)
     qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "odobreno": odobreno}}
     await _uslovno_azuriraj_dokument(supa, dok, uid, {"status": "approved", "is_lawyer_approved": True, "approved_by": uid,
                                                       "approved_at": sad, "quality_detail": qd})
-    _audit_usvajanja("dokument_za_sud_odobren", user, dok["id"], {"predmet_id": dok.get("predmet_id"), "sha256": trazeni,
-                                                                  "verzija": usv.get("verzija")})
+    # Migration 150 appends the immutable approval event in the same transaction.
     return {"status": "approved", "indexed": False, "razlog": "DOKUMENT_ZA_SUD", "sha256": trazeni,
             "poruka": "Dokument za sud je odobren. Ne dodaje se u bazu znanja kancelarije ni u dokumente predmeta."}
 
