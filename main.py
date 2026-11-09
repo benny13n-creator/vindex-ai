@@ -227,10 +227,13 @@ def _cache_kljuc(pitanje: str) -> str:
     # se posle izmene oblika ne vraća 7 dana; nov oblik = nova verzija.
     from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
 
+    q = _normalizuj(_cirilica_u_latinicu(pitanje))
     n8 = (je_pitanje_gradjanske_nadleznosti(pitanje)
           or ekstrakcija_clana(pitanje)[1] == _ZAKON_O_UREDJENJU_SUDOVA
-          or _n8_izricito_pitanje_o_sudu_boravista(_normalizuj(_cirilica_u_latinicu(pitanje))))
-    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-6" if n8 else "")
+          or _n8_izricito_pitanje_o_sudu_boravista(q))
+    verzija = _CACHE_VERZIJA
+    if n8:
+        verzija += "|n8-nadleznost-7" if _n8_pitanje_o_duzem_boravku(pitanje, q) else "|n8-nadleznost-6"
     return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
@@ -1230,23 +1233,172 @@ _N8_ZASTARELOST_RE = re.compile(
     r"(?:ugovorn\w*\s+(?:spor\w*|potrazivanj\w*)|spor\w*\s+iz\s+ugovor\w*)\b"
 )
 _N8_OBA_SUDA_RE = re.compile(r"\boba\s+suda\s+su\s+(?:opste\s+)?(?:mesno\s+)?nadlezn\w*\b")
-_N8_DUZI_BORAVAK_RE = re.compile(r"\b(?:duz\w*\s+(?:borav\w*|vrem\w*)|trajn\w*\s+borav\w*)\b")
+_N8_DUZI_BORAVAK_RE = re.compile(
+    r"\b(?:duz\w*\s+(?:borav\w*|vrem\w*)|trajn\w*\s+borav\w*|godinama\s+(?:borav\w*|zivi\w*)"
+    r"|borav\w*\s+duz\w*|(?:borav\w*|zivi\w*)\s+(?:i\s+)?(?:naredn\w*|poslednj\w*)\s+\w+\s+godin\w*)\b"
+)
+_N8_MESTO_BORAVISTA_RE = re.compile(r"\bboravist\w*\s+(?:je\s+)?(?:u|na)\s+([a-z]{4,})(?=[\s,.!?;]|$)")
 _N8_BORAVAK_OGRADA_RE = re.compile(
-    r"\b(?:nije|ne zna se|nepoznat\w*|da li|ako|ukoliko|mozda|sporn\w*|pretpostavimo)\b"
+    r"\b(?:nije|ne zna se|ne znam\w*|nepoznat\w*|da li|ako|ukoliko|mozda|sporn\w*|osporav\w*|pretpostav\w*)\b"
+    r"|\bne\s+(?:borav\w*|zivi\w*|ostaj\w*)\b"
+    r"|\bduz\w*\s+borav\w*\s+nema\b"
     r"|\b(?:nema|bez)\s+(?:ni\s+)?(?:(?:pouzdan\w*|dovoljn\w*|ikakv\w*|bilo\s+kakv\w*)\s+)?"
     r"(?:podat\w*|dokaz\w*|potvrd\w*|informacij\w*|okolnost\w*|duz\w*\s+borav\w*|trajn\w*\s+borav\w*)\b"
 )
 _N8_TUZENI_PRAVNO_LICE_RE = re.compile(r"\b(?:tuzen\w*|protiv)\s+(?:je\s+)?(?:d\.?o\.?o|pravn\w*\s+lic\w*)\b")
+_N8_PRETERANA_SIGURNOST_RE = re.compile(
+    r"\b(?:nema|ne postoje|bez)\s+(?:(?:dodatn|specificn|procesn|pravni|posebn|bitn|relevantn)\w*\s+){0,3}rizik\w*"
+    r"|\brizik\w*\b[^.!?]{0,70}\bne postoji\b"
+    r"|\b(?:sve|svi)\s+(?:(?:bitn|potrebn|relevantn|odlucn)\w*\s+)?(?:okolnost|cinjenic|uslov)\w*\s+"
+    r"(?:su\s+)?(?:utvrdj|utvrd|potvrd|dokazan|ispunjen|poznat|jasn)\w*"
+    r"|\b(?:ne treba|nije potrebno)\s+(?:prover\w*|utvrd\w*|pribav\w*)\b[^.!?]{0,60}\b"
+    r"(?:duz\w*\s+borav\w*|okolnost\w*|dodatn\w*\s+(?:podat\w*|informacij\w*))\b"
+)
+_N8_ODLUKA_O_FORUMU_RE = re.compile(
+    r"\b(?:nadlez(?:an|na|no|ni|ne|nih)|nenadlez\w*|podne\w*|podnos\w*|predaj\w*|predati|izaber\w*|izabrati|odaber\w*)\b"
+    r"|\bnadleznost\w*\s+(?:pripada|se zasniva)\b|\bima\s+(?:opstu\s+|mesnu\s+){0,2}nadleznost\b"
+)
+_N8_USLOV_RE = re.compile(r"\b(?:ako|ukoliko|kada?|pod uslovom|(?:samo|tek) uz|tek po utvrdjivanju|tek nakon sto)\b")
+_N8_POTKREPLJEN_USLOV_RE = re.compile(
+    r"\b(?:okolnosti\s+(?:ukazuj\w*|upucuj\w*)|prema okolnostima|(?:se\s+)?(?:utvrdi|dokaze|potvrdi)\b"
+    r"|(?:se\s+)?(?:utvrdjivanja|dokazivanja|potvrdjivanja)\b|tuzeni\s+(?:tamo\s+|tu\s+)?(?:bude|ce|duze)\b"
+    r"|moze\s+(?:(?:da\s+)?se\s+)?pretpostavi\w*|(?:utvrdjen|dokazan|potvrdjen)\w*\s+okolnost\w*)"
+)
+_N8_NEGACIJA_FORUMA_RE = re.compile(r"\b(?:(?:nije|ne moze biti|nece biti)\s+(?:mesno\s+)?nadlez\w*|nenadlez\w*)\b")
+_N8_NEGACIJA_USLOVA_RE = re.compile(
+    r"\b(?:okolnosti\s+ne\s+(?:ukazuj\w*|upucuj\w*)|tuzeni\s+(?:tamo\s+|tu\s+)?ne(?:ce)?\s+borav\w*)\b"
+)
+_N8_NEIZVESNOST_RE = re.compile(
+    r"\b(?:nije (?:moguce|utvrdjen\w*|poznat\w*|potvrdjen\w*)|ne moze se (?:utvrditi|zakljuciti|potvrditi|iskljuciti)"
+    r"|ostaje (?:neutvrdjen\w*|uslovn\w*)|moz[ea]\s+biti|potencijaln\w*|uslovn\w*)\b"
+)
+_N8_NEDOSTAJUCE_OKOLNOSTI = (
+    "Nije utvrđeno da okolnosti upućuju na duži boravak tuženog na području boravišta (ZPP čl. 39 st. 3)."
+)
+_N8_PRAG_BORAVKA_RE = re.compile(
+    r"\b(?:najmanje|minimum|bar|duze od|duz\w*\s+borav\w*\s+traj\w*)\s+"
+    r"(?:\d+|[a-z]+)\s*(?:dan|mesec|godin)\w*\b"
+)
 
 
 def _n8_utvrdjen_duzi_boravak(q: str) -> bool:
     # A semicolon can continue a hypothetical or evidentiary caveat.
-    return any(
-        _N8_DUZI_BORAVAK_RE.search(recenica)
-        and not _N8_BORAVAK_OGRADA_RE.search(recenica)
-        and not recenica.rstrip().endswith("?")
-        for recenica in _recenice_sa_razmacima(q)[::2]
+    mesto = _N8_MESTO_BORAVISTA_RE.search(q)
+    recenice = _recenice_sa_razmacima(q)[::2]
+    if any(_N8_DUZI_BORAVAK_RE.search(rec) and re.search(
+        r"\b(?:osporav\w*|sporno je|negira\w*|porice\w*)\b", rec
+    ) for rec in recenice):
+        return False
+    for recenica in recenice:
+        duzi = _N8_DUZI_BORAVAK_RE.search(recenica)
+        ograda = re.sub(r"\b(?:to\s+)?nije sporno\b", "", recenica)
+        if not duzi or _N8_BORAVAK_OGRADA_RE.search(ograda) or recenica.rstrip().endswith("?"):
+            continue
+        akteri = re.findall(r"\b(?:tuzeni|tuzilac|svedok|vestak)\b", recenica[:duzi.start()])
+        if not akteri:
+            akteri = re.findall(r"\b(?:tuzeni|tuzilac|svedok|vestak)\b", recenica[duzi.end():])[:1]
+        if akteri and akteri[-1] != "tuzeni":
+            continue
+        if mesto and re.search(r"\b(?:u|na)\s+[a-z]{4,}\b", recenica) and mesto[1] not in recenica:
+            continue
+        return True
+    return False
+
+
+def _n8_odluka_uslovna(recenica: str) -> bool | None:
+    uvod = _N8_USLOV_RE.search(recenica)
+    if not uvod:
+        return None
+    odluka, uslov = recenica[:uvod.start()], recenica[uvod.start():]
+    if not _N8_ODLUKA_O_FORUMU_RE.search(odluka):
+        uslov, _, odluka = uslov.rpartition(",")
+    if not _N8_DUZI_BORAVAK_RE.search(uslov):
+        return False
+    negativan_uslov = bool(_N8_NEGACIJA_USLOVA_RE.search(uslov))
+    return (
+        bool(_N8_NEGACIJA_FORUMA_RE.search(odluka)) == negativan_uslov
+        and (negativan_uslov or bool(_N8_POTKREPLJEN_USLOV_RE.search(uslov)))
+        and not re.search(r"\b(?:ne moze|nije moguce|ne dokaze|ne potvrdi)\b", uslov)
     )
+
+
+def _n8_greska_o_duzem_boravku(q: str, odgovor: str, *, utvrdjen: bool) -> str | None:
+    """Provera sukoba sa zakonskim pravilom i dokaznom osnovom pitanja."""
+    razlog_pravila = (
+        "Čl. 39 st. 3 ZPP predviđa dodatnu opštu mesnu nadležnost prema okolnostima dužeg boravka. "
+        "Zakon ne propisuje fiksno trajanje, a prebivalište samo po sebi ne isključuje dodatnu nadležnost."
+    )
+    razlog = (
+        "Odgovor sadrži neusaglašene tvrdnje o nadležnosti ili dokazima. "
+        + _N8_NEDOSTAJUCE_OKOLNOSTI
+        + " Prebivalište je osnov opšte mesne nadležnosti po čl. 39 st. 1 ZPP, "
+        "a dodatna nadležnost suda boravišta ostaje uslovna."
+    )
+    if not utvrdjen and re.search(
+        r"(?m)^--- potrebne informacije\s*\n\s*(?:nije predmet pitanja|nema|nisu potrebne)\b"
+        r"|\bdokazna sredstva\b[^\n.!?]{0,15}\bnije predmet pitanja\b",
+        odgovor,
+    ):
+        return razlog
+
+    # Use the stated residence only to recognize references in the answer, never to select a court.
+    mesto = _N8_MESTO_BORAVISTA_RE.search(q)
+    boraviste = r"\bboravist\w*"
+    if mesto:
+        naziv = mesto[1].removesuffix("u")
+        boraviste += rf"|\b{re.escape(naziv)}\w*\b"
+    for red in re.split(r"\n|;\s*|,\s+(?:ali|medjutim|ipak|pa|stoga|zato)\s+", odgovor):
+        for recenica in _recenice_sa_razmacima(red)[::2]:
+            uslov = _n8_odluka_uslovna(recenica)
+            if not utvrdjen and _N8_PRETERANA_SIGURNOST_RE.search(recenica) and not uslov:
+                return razlog
+            if re.search(
+                r"\b(?:jedin\w*|iskljucivo)\b[^.!?]{0,70}\bnadlez\w*\b[^.!?]{0,55}\bprebivalist\w*\b",
+                recenica,
+            ) and not uslov:
+                return razlog_pravila
+            if not re.search(boraviste, recenica) or not _N8_ODLUKA_O_FORUMU_RE.search(recenica):
+                continue
+            if recenica.rstrip().endswith("?") and re.match(r"\s*(?:da li|koji|koje|koliko|kada|kako|postoje li|ima li)\b", recenica):
+                continue
+            if re.search(r"\b(?:cak i ako|bez obzira (?:na|da li))\b", recenica):
+                return razlog_pravila
+            if _N8_PRAG_BORAVKA_RE.search(recenica) and not re.search(r"\bne (?:propisuje|zahteva)\b", recenica):
+                return razlog_pravila
+            iskljucuje = _N8_NEGACIJA_FORUMA_RE.search(recenica)
+            if iskljucuje and ((utvrdjen and not uslov) or re.search(
+                r"\b(?:jer|zbog|zato sto)\b[^.!?]{0,65}\bprebivalist\w*", recenica,
+            )):
+                return razlog_pravila
+            if re.search(
+                r"\b(?:sam[oa]|iskljucivo)\s+na osnovu\s+(?:samog\s+)?boravist\w*"
+                r"|\bdovoljn\w*\s+je\s+(?:samo\s+)?boravist\w*",
+                recenica,
+            ) and not re.search(r"\bnije dovoljn\w*\b", recenica):
+                return razlog_pravila
+            if utvrdjen:
+                continue
+            neizvesnost = _N8_NEIZVESNOST_RE.search(recenica)
+            if not (uslov or (uslov is None and neizvesnost and not iskljucuje)):
+                # The statutory sentence for a defendant without a domicile is not a finding about this case.
+                if re.search(r"\bako tuzeni nema prebivalist\w*\b.*\bniti u nekoj drugoj drzavi\b", recenica):
+                    continue
+                return razlog
+    return None
+
+
+def _n8_pogresan_izvor_clana_39(odgovor: str) -> bool:
+    odeljci = re.split(r"(?m)^--- ", odgovor)
+    for odeljak in odeljci:
+        pravni_osnov = odeljak.startswith("pravni osnov\n")
+        for recenica in _recenice_sa_razmacima(odeljak)[::2]:
+            if not (pravni_osnov or _N8_ODLUKA_O_FORUMU_RE.search(recenica)):
+                continue
+            if re.search(r"\b(?:ne uredj\w*|nije merodavan|ne propisuje)\b", recenica):
+                continue
+            if any(c["clan"] == "39" and c["zakon"] and c["zakon"] != "zpp" for c in _klasifikuj_citate(recenica, [])):
+                return True
+    return False
 
 
 def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
@@ -1273,6 +1425,10 @@ def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
     if _N8_ZASTARELOST_RE.search(odg):
         return "Nadležnost i zastarelost su odvojena pitanja. Potraživanje može zastareti i u ugovornom sporu."
 
+    uslov_boravka = _n8_pitanje_o_duzem_boravku(pitanje, q)
+    if uslov_boravka and _n8_pogresan_izvor_clana_39(odg):
+        return "Za ovu opštu mesnu nadležnost merodavan je čl. 39 ZPP, uz proveru okolnosti dužeg boravka."
+
     if "prebivalist" in q and "boravist" in q:
         if not _n8_utvrdjen_duzi_boravak(q):
             if re.search(
@@ -1286,6 +1442,10 @@ def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
                     re.search(r"\b(?:ako|ukoliko|uslov\w*)\b", rec) and _N8_DUZI_BORAVAK_RE.search(rec)
                 ):
                     return "Sud boravišta je dodatno nadležan samo ako okolnosti upućuju na duži boravak (ZPP čl. 39 st. 3)."
+    if uslov_boravka:
+        razlog = _n8_greska_o_duzem_boravku(q, odg, utvrdjen=_n8_utvrdjen_duzi_boravak(q))
+        if razlog:
+            return razlog
 
     if _N8_TUZENI_PRAVNO_LICE_RE.search(q):
         clanovi_zpp = {c["clan"] for c in _klasifikuj_citate(tekst, []) if c["zakon"] == "zpp"}
@@ -1303,7 +1463,8 @@ def _verifikuj_pravne_greske(odgovor: str, *, pitanje: str = "") -> tuple[bool, 
     if pitanje:
         from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
 
-        if je_pitanje_gradjanske_nadleznosti(pitanje):
+        q = _normalizuj(_cirilica_u_latinicu(pitanje))
+        if je_pitanje_gradjanske_nadleznosti(pitanje) or _n8_izricito_pitanje_o_sudu_boravista(q):
             razlog = _greska_nadleznosti(pitanje, odgovor)
             if razlog:
                 return False, razlog
@@ -3857,34 +4018,38 @@ def _n8_izricito_pitanje_o_sudu_boravista(q: str) -> bool:
     ))
 
 
+def _n8_pitanje_o_duzem_boravku(pitanje: str, q: str) -> bool:
+    from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
+
+    izricito = _n8_izricito_pitanje_o_sudu_boravista(q)
+    samo_posebna = re.search(r"\b(?:posebn|iskljuciv)\w*\s+(?:mesn\w*\s+)?nadlez\w*", q) and not (
+        re.search(r"\bopst\w*\s+(?:mesn\w*\s+)?nadlez\w*", q) or izricito
+    )
+    return (
+        "prebivalist" in q and "boravist" in q
+        and not samo_posebna
+        and not _N8_TUZENI_PRAVNO_LICE_RE.search(q) and not _VISE_TUZENIH_RE.search(q)
+        and (je_pitanje_gradjanske_nadleznosti(pitanje) or izricito)
+    )
+
+
 def _n8_ogranici_dokaznu_potpunost(pitanje: str, data: dict) -> None:
     """N8: model cannot award POTPUNA when the decisive long-stay fact is missing.
 
     Only the factual-evidence rating is constrained. A verified legal citation
     does not establish the factual condition of ZPP čl. 39 st. 3.
     """
-    if not isinstance(data, dict) or data.get("brza_procena_dokazna_potpunost") != "potpuna":
+    if not isinstance(data, dict):
         return
-    if not pitanje:
+    ocena = data.get("brza_procena_dokazna_potpunost")
+    if ocena not in ("potpuna", "delimicna"):
         return
-    from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
     q = _normalizuj(_cirilica_u_latinicu(pitanje))
-    if "prebivalist" not in q or "boravist" not in q:
-        return
-    # The general N8 router recognizes "koji sud" but not every natural
-    # question ("da li je sud boravišta nadležan?"). Keep the fallback
-    # strictly limited to venue of residence and extended stay. Do not
-    # broaden routing of unrelated legal questions.
-    if not (je_pitanje_gradjanske_nadleznosti(pitanje) or _n8_izricito_pitanje_o_sudu_boravista(q)):
-        return
-    if _n8_utvrdjen_duzi_boravak(q):
+    if not _n8_pitanje_o_duzem_boravku(pitanje, q) or _n8_utvrdjen_duzi_boravak(q):
         return
     data["brza_procena_dokazna_potpunost"] = "delimicna"
     if not str(data.get("brza_procena_nedostatak") or "").strip():
-        data["brza_procena_nedostatak"] = (
-            "Nije utvrđeno da okolnosti upućuju na duži boravak tuženog na području boravišta "
-            "(ZPP čl. 39 st. 3)."
-        )
+        data["brza_procena_nedostatak"] = _N8_NEDOSTAJUCE_OKOLNOSTI
 
 
 def _parsiraj_strukturni_odgovor(
@@ -4717,6 +4882,17 @@ def ask_agent(
             from app.services.retrieve import je_pitanje_gradjanske_nadleznosti as _je_nadl_sp
             if _je_nadl_sp(pitanje_api):
                 system_prompt = system_prompt + "\n\n" + NADLEZNOST_ZPP_PRAVILA   # N8: proveren okvir iz ZPP-a
+            q_n8 = _normalizuj(_cirilica_u_latinicu(pitanje_api))
+            if _n8_pitanje_o_duzem_boravku(pitanje_api, q_n8) and not _n8_utvrdjen_duzi_boravak(q_n8):
+                system_prompt += (
+                    "\n\nN8 — ČINJENIČNI USLOV: Iz pitanja nije utvrđeno da okolnosti upućuju na duži boravak "
+                    "tuženog u mestu boravišta. U svim odeljcima, uključujući brzu procenu, rizike i procesne "
+                    "korake, prikaži šta nedostaje i kako se to može proveriti. Navedi opštu nadležnost prema "
+                    "prebivalištu. Sud boravišta prikaži uslovno po čl. 39 st. 3 ZPP, bez definitivne preporuke "
+                    "za podnošenje tamo ili isključenja tog suda. Nemoj tvrditi da su svi podaci poznati, da nema "
+                    "procesnog rizika ili da okolnosti dužeg boravka nisu predmet pitanja. Zakon ne propisuje "
+                    "fiksno trajanje niti jednu isključivu vrstu dokaza."
+                )
         except Exception as _ne:
             logger.debug("[N8] pravila nadležnosti nisu dodata: %s", _ne)
 
