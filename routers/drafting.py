@@ -940,6 +940,33 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
     return {"status": "ok"}
 
 
+_POLJA_ODGOVORA_NA_TUZBU = (
+    ("navodi_tuzbe_raw", "izjasnenje_o_navodima", "[IZJAŠNJENJE — POPUNITI]"),
+    ("procesni_prigovori_raw", "procesni_prigovori", ""),
+    ("materijalni_razlozi_raw", "materijalnopravni_razlozi", "[RAZLOZI — POPUNITI]"),
+    ("dokazna_sredstva_raw", "dokazna_sredstva", "[DOKAZI — POPUNITI]"),
+)
+
+
+def _nepotkrepljena_polja_odgovora(opis: str, entiteti: dict) -> dict:
+    def normalizuj(vrednost):
+        return " ".join(vrednost.casefold().split())
+
+    izvor = normalizuj(opis)
+    prazna = {}
+    for sirovo, izlaz, zamena in _POLJA_ODGOVORA_NA_TUZBU:
+        navod = entiteti.get(sirovo)
+        if not isinstance(navod, str) or not navod.strip() or normalizuj(navod) not in izvor:
+            entiteti.pop(sirovo, None)
+            prazna[izlaz] = zamena
+    datum = entiteti.get("datum")
+    if not isinstance(datum, str) or not datum.strip() or not re.search(
+        r"\bdatum (?:izrade(?: nacrta)?|nacrta)\s*:\s*" + re.escape(normalizuj(datum)), izvor,
+    ):
+        entiteti.pop("datum", None)
+    return prazna
+
+
 def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
     """Formalni nacrt nema verifikovan događaj dostavljanja ni podnošenja."""
     if tip != "odgovor_na_tuzbu":
@@ -956,8 +983,8 @@ def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
         rf"(?:(?:dostavljena|urucena|primljena)(?: sa prilozima)?(?: tuzenom)?|{predaja_tuzenom})"
     )
     neutvrdjenost = r"(?:nije (?:utvrdjeno|poznato) (?:da li|kada)|(?:u spisu )?nema dokaza da)"
-    zavodjenje = r"zaveden[ao]? u sudski upisnik"
-    oznaka_clana = r"\b(?:clan\w*|cl\.?|zpp)\s*"
+    zavodjenje = r"(?:zaveden[ao]?|evidentiran[ao]?) u (?:sudski upisnik|sudskom upisniku)"
+    oznaka_clana = r"\b(?:clan\w*|cl\.?|odredb\w*|zpp)\s*"
     clan_297 = rf"{oznaka_clana}297\b"
     clan_298 = rf"{oznaka_clana}298\b"
     propis = r"(?:\s+(?:zpp|zakona? o parnicnom postupku))?"
@@ -1012,7 +1039,7 @@ def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
             rf"|odgovor(?: na tuzbu)? nije {zavodjenje})[.!]?",
             rec.strip(),
         )
-        tvrdi_podnosenje = re.search(r"\bodgovor\w*\b", rec) and (
+        tvrdi_podnosenje = re.search(r"\b(?:odgovor|podnesak)\w*\b", rec) and (
             re.search(
                 r"\b(?:podneo|podnela|podnelo|podneli|podnet(?:a|o)?|preda(?:o|la|lo|li|le)|predat(?:a|o)?|blagovremen\w*)\b"
                 r"|\btuzen\w*\s+podnosi\b.*\bu\s+(?:(?:zakonskom|propisanom)\s+)?roku\b",
@@ -1024,6 +1051,7 @@ def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
             (rok and not re.fullmatch(odvojene_odredbe, rec.strip()))
             or (prethodni_rok and re.search(r"\bpravni osnov\b", rec))
         )
+        tvrdi_dostavu = tvrdi_dostavu or re.match(r"^dostav[ae] je (?:izvrsena|obavljena)\b", rec)
         if (pogresan_osnov or (rok and (datum or fiksni_istek)) or (konkretan_rok and (datum or relativni_datum))
                 or tvrdi_dostavu or tvrdi_podnosenje):
             raise HTTPException(status_code=422, detail=(
@@ -1162,6 +1190,10 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
             logger.warning("Ekstrakcija entiteta neuspešna [q=%s]: %s", log_id, exc)
             entiteti = {}
 
+        prazna_polja = {}
+        if req.tip == "odgovor_na_tuzbu":
+            prazna_polja = _nepotkrepljena_polja_odgovora(opis_api, entiteti)
+
         rag_upit = f"{PODNESAK_TIPOVI[req.tip]}: {opis_api[:400]}"
         try:
             from app.services.retrieve import retrieve_documents
@@ -1216,9 +1248,18 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
             logger.warning("Obogaćivanje neuspešno [q=%s]: %s", log_id, exc)
             obogacivanje = {}
 
+        obogacivanje.update(prazna_polja)
         nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
-        nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
-        _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
+        pregledan, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
+        _proveri_rok_odgovora_na_tuzbu(req.tip, pregledan)
+        oznake = set(prazna_polja.values()) - {""}
+        if req.tip == "odgovor_na_tuzbu" and "datum" not in entiteti:
+            oznake.add("[DATUM]")
+        if any(oznaka not in pregledan for oznaka in oznake):
+            critique_applied = False
+            _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
+        else:
+            nacrt = pregledan
 
     # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-027): this charged unconditionally even
     # when entity extraction (the step whose failure makes the draft closest to worthless --

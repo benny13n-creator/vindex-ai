@@ -383,3 +383,97 @@ def test_n8_tema_nadleznosti_proverava_zakon_i_clan(odgovor, ok):
     ] + _ZUS_KONTEKST
     pitanje = "Koji je mesno i stvarno nadležan sud za spor dva privredna društva zbog isporuke po ugovoru?"
     assert _proveri_tematsku_relevantnost(pitanje, odgovor, docs)[0] is ok
+
+
+_N8_TEST_COMPANY = (
+    "Dva privredna društva se spore zbog isporuke opreme. Tuženi DOO ima sedište u Nišu. "
+    "Koja je stvarna i opšta mesna nadležnost?"
+)
+_N8_TEST_NATURAL = (
+    "Tuženi je fizičko lice sa prebivalištem u Novom Sadu i boravištem u Beogradu. "
+    "Koja je opšta mesna nadležnost?"
+)
+
+
+@pytest.mark.parametrize("pitanje,odgovor,dozvoljen", [
+    (_N8_TEST_COMPANY, "Zastarelost: Nije primenljivo jer se radi o ugovornom sporu.", False),
+    (_N8_TEST_COMPANY, "Рокови застарелости: не примењују се на уговорна потраживања.", False),
+    (_N8_TEST_COMPANY, "Član nije pronađen u bazi. Zastarelost nije primenljiva na ugovorna potraživanja.", False),
+    (_N8_TEST_COMPANY, "Zastarelost: nije primenljiva na pitanje nadležnosti u ugovornom sporu.", True),
+    (_N8_TEST_COMPANY, "Rokovi zastarelosti nisu predmet pitanja. Za ugovorna potraživanja mogu važiti posebni rokovi.", True),
+    (_N8_TEST_NATURAL, "Oba suda su mesno nadležna prema prebivalištu i boravištu tuženog.", False),
+    (_N8_TEST_NATURAL, "Oba suda su mesno nadležna ako okolnosti upućuju na duži boravak.", True),
+    (_N8_TEST_NATURAL + " Poznato je da će tuženi u Beogradu boraviti duže vreme.",
+     "Oba suda su mesno nadležna.", True),
+    (_N8_TEST_NATURAL + " Nije poznato da li će tu boraviti duže vreme.", "Oba suda su mesno nadležna.", False),
+    (_N8_TEST_NATURAL, "Ako tužilac to želi, oba suda su mesno nadležna.", False),
+    ("Gde podneti jednu tužbu protiv dva materijalna suparničara?", "Oba suda su mesno nadležna.", True),
+    ("Tuženi je DOO i ne znamo sedište. Koja je opšta mesna nadležnost?",
+     "Nadležnost se određuje prema ZPP čl. 39. Proveriti sedište iz APR-a.", False),
+    ("Tuženi je DOO i ne znamo sedište. Koja je opšta mesna nadležnost?",
+     "Za fizička lica važi čl. 39 ZPP. Za DOO je merodavan čl. 40 ZPP. Potreban je izveštaj APR-a.", True),
+])
+def test_n8_dokazana_pravna_greska_ne_dospeva_u_odgovor(pitanje, odgovor, dozvoljen):
+    import main as M
+    assert M._verifikuj_pravne_greske(odgovor, pitanje=pitanje)[0] is dozvoljen
+
+
+def test_n8_cache_samo_za_pitanja_o_nadleznosti_menja_verziju():
+    import hashlib
+    import main as M
+
+    pitanje_drugo = "Koliki je opšti rok zastarelosti po ZOO?"
+    def prethodni_kljuc(q):
+        return hashlib.md5(
+            f"{M._CACHE_VERZIJA}|{M._normalizuj_za_cache(q)}".encode(), usedforsecurity=False,
+        ).hexdigest()
+
+    assert M._cache_kljuc(_N8_TEST_COMPANY) != prethodni_kljuc(_N8_TEST_COMPANY)
+    assert M._cache_kljuc(pitanje_drugo) == prethodni_kljuc(pitanje_drugo)
+
+
+@pytest.mark.parametrize("confidence", ["HIGH", "MEDIUM"])
+def test_n8_stvarni_tok_blokira_izmereni_pogresan_zakljucak_pre_kesa(monkeypatch, confidence):
+    import json
+    from unittest.mock import Mock
+
+    import main as M
+
+    article = "ZAKON: Zakon o parničnom postupku\nČLAN: Član 40\n" + _clan(40)
+    metadata = {
+        "confidence": confidence, "top_score": 0.8, "top_article": "Član 40",
+        "top_law": "Zakon o parničnom postupku",
+    }
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([article], metadata))
+    monkeypatch.setattr(M, "retrieve_sudska_praksa", lambda *a, **k: [])
+    monkeypatch.setattr(M, "retrieve_misljenja", lambda *a, **k: [])
+    monkeypatch.setattr(M, "_cache_get", lambda *a: None)
+    monkeypatch.setattr(M, "klasifikuj_pitanje", lambda *a: "PARNICA")
+    cache = Mock()
+    monkeypatch.setattr(M, "_cache_set", cache)
+    provider = Mock(return_value=json.dumps({
+        "pravni_zakljucak": "Za tuženog je mesno merodavno sedište.",
+        "kada_ne_vazi": "Zastarelost: Nije primenljivo jer se radi o ugovornom sporu.",
+    }))
+    monkeypatch.setattr(M, "_pozovi_openai", provider)
+
+    rezultat = M.ask_agent(_N8_TEST_COMPANY)
+
+    assert rezultat["status"] == "success"
+    assert rezultat.get("blocked") is True
+    assert "potraživanje može zastareti" in rezultat["data"].lower()
+    assert "nije primenljivo jer" not in rezultat["data"].lower()
+    provider.assert_called_once()
+    assert "Nije predmet pitanja" in provider.call_args.args[0]
+    assert "čl. 39 st. 3" in provider.call_args.args[0]
+    cache.assert_not_called()
+
+
+@pytest.mark.parametrize("pitanje", [
+    "Šta propisuje čl. 27, st. 1, tač. 1 Zakona o uređenju sudova?",
+    "Шта прописује члан 27 Закона о уређењу судова?",
+])
+def test_n8_izricit_naziv_sudskog_zakona_sa_interpunkcijom_i_cirilicom(pitanje):
+    from app.services.retrieve import ekstrakcija_clana
+
+    assert ekstrakcija_clana(pitanje) == ("Član 27", "zakon o uredjenju sudova")

@@ -168,6 +168,55 @@ def test_nepouzdan_datum_dela_ostaje_nepoznat_uz_interval(dodatak):
 
 
 @pytest.mark.parametrize("navod", [
+    "Pretpostavimo da je novo delo učinjeno 01.08.2026.",
+    "Nije utvrđeno da li je novo delo učinjeno 01.08.2026.",
+    "Nije tačno da je novo delo učinjeno 01.08.2026.",
+    'U optužnici navod glasi: "Novo delo učinjeno je 01.08.2026." Datum u spisu nije utvrđen.',
+    'U optužnici navod glasi: "To je tvrdnja tužilaštva. Novo delo učinjeno je 01.08.2026. Postupak je u toku."',
+    "Da li je novo delo učinjeno 01.08.2026?",
+    "Novo delo učinjeno je 01.08.2026. Datum dela nije utvrđen.",
+])
+def test_neizjavna_ili_sporna_tvrdnja_ne_utvrdjuje_datum_dela(navod):
+    pitanje = SCENARIO + " Dela su istovrsna. " + navod + " Da li se primenjuje član 55a KZ?"
+    cinjenice, _ = analiza(pitanje)
+    tekst, rezultat = blok(pitanje)
+    assert cinjenice["novo_delo"] is None
+    assert cinjenice["proteklo_od_otpusta_meseci"] == 36
+    assert rezultat.primenjuje_se == NEPOZNATO
+    assert rezultat.raspon is None and "sud MORA" not in tekst
+
+
+def test_samostalni_datum_dela_sa_godinom_ostaje_potvrdjen():
+    pitanje = SCENARIO + " Dela su istovrsna. Novo delo je učinjeno 01.08.2026. godine. Da li se primenjuje član 55a KZ?"
+    cinjenice, _ = analiza(pitanje)
+    assert cinjenice["novo_delo"] == date(2026, 8, 1)
+    assert blok(pitanje)[1].primenjuje_se == DA
+
+
+@pytest.mark.parametrize("otpust_kao_datum", [True, False])
+@pytest.mark.parametrize("navod,datum_dela", [
+    ("Novo delo učinjeno je 01.08.2026.", date(2026, 8, 1)),
+    ("Pretpostavimo da je novo delo učinjeno 01.08.2026.", None),
+    ("Nije utvrđeno da li je novo delo učinjeno 01.08.2026.", None),
+    ("Tužilac tvrdi da je novo delo učinjeno 01.08.2026.", None),
+    ("Novo delo učinjeno je 01.08.2026. Datum dela nije utvrđen.", None),
+    ('U optužnici navod glasi: "Novo delo učinjeno je 01.08.2026. To se osporava."', None),
+])
+def test_datum_dela_proverava_celu_recenicu_pre_sidra(otpust_kao_datum, navod, datum_dela):
+    uvod, raspon = SCENARIO.split("Za novo delo")
+    if otpust_kao_datum:
+        uvod = uvod.split("; od dana poslednjeg otpuštanja")[0] + ". Poslednji put otpušten je 01.08.2023. "
+    pitanje = (
+        uvod + navod + " Učinjeno je s umišljajem. Dela su istovrsna. Za novo delo" + raspon
+        + " Da li se primenjuje član 55a KZ?"
+    )
+    cinjenice, _ = analiza(pitanje)
+    assert cinjenice["novo_delo"] == datum_dela
+    assert cinjenice["otpust"] == (date(2023, 8, 1) if otpust_kao_datum and datum_dela else None)
+    assert blok(pitanje)[1].primenjuje_se == (DA if datum_dela else NEPOZNATO)
+
+
+@pytest.mark.parametrize("navod", [
     "",
     " Novo delo nije učinjeno s umišljajem.",
     " Novo delo nije izvršeno sa umišljajem.",
@@ -209,3 +258,56 @@ def test_negacija_umisljaja_ne_iznosi_nehat_kao_utvrdjenu_cinjenicu():
     assert rezultat.primenjuje_se == NE
     assert "novo delo: bez umišljaja" in tekst
     assert "učinjeno iz nehata" not in tekst
+
+
+def test_model_okvir_zadrzava_neizvesnost_bez_korisnickog_teksta():
+    from main import _okvir_povrata_za_model
+
+    okvir = _okvir_povrata_za_model(SCENARIO + " Sintetički jedinstveni tekst XYZ.")
+    assert "Proračun sistema za navedene činjenice: NEPOZNATO" in okvir
+    assert "ista ili istovrsna" in okvir
+    assert "vremenski merodavan zakon = NEPOZNATO" in okvir
+    assert "XYZ" not in okvir
+    assert _okvir_povrata_za_model("Koji sud je mesno nadležan po ZPP?") == ""
+
+
+def test_model_okvir_ne_dozvoljava_potvrdan_zakljucak_za_kratke_osude():
+    from main import _okvir_povrata_za_model
+
+    okvir = _okvir_povrata_za_model(SCENARIO.replace("po 2 godine", "po 6 meseci"))
+    assert "Proračun sistema za navedene činjenice: NE." in okvir
+    assert "Za NE napiši da nema primene" in okvir
+
+
+def _pitanje_sa_osudama_saucesnika(navod):
+    return (
+        "Saučesnik je dva puta pravnosnažno osuđen za ranija umišljajna dela na po 2 godine zatvora. "
+        + navod + " Novo umišljajno delo je od 01.08.2026. Da li se za okrivljenog primenjuje čl. 55a KZ?"
+    )
+
+
+def test_izricito_neosudjivan_okrivljeni_ne_nasledjuje_osude_saucesnika():
+    pitanje = _pitanje_sa_osudama_saucesnika("Okrivljeni nije ranije osuđivan.")
+    cinjenice, _ = analiza(pitanje)
+    assert cinjenice["broj_ranijih_osuda"] == 0
+    assert cinjenice["ranije_osude"] is None
+    assert cinjenice["pravnosnaznost"] != DA
+    assert blok(pitanje)[1].primenjuje_se == NE
+
+
+@pytest.mark.parametrize("navod", [
+    "",
+    "Nije potvrđeno da okrivljeni nije ranije osuđivan.",
+    "Da li je tačno da okrivljeni nije ranije osuđivan?",
+    'U spisu se navodi: "Okrivljeni nije ranije osuđivan."',
+    "Okrivljeni nije ranije osuđivan. Okrivljeni je dva puta pravnosnažno osuđen.",
+    "Okrivljeni nije ranije osuđivan, ali ima dve pravnosnažne presude.",
+    "Okrivljeni nije ranije osuđivan. Prvi okrivljeni i drugi okrivljeni su različita lica.",
+])
+def test_neutvrdjen_ili_protivurecan_navod_ne_utvrdjuje_osude_okrivljenog(navod):
+    pitanje = _pitanje_sa_osudama_saucesnika(navod)
+    cinjenice, _ = analiza(pitanje)
+    assert cinjenice["broj_ranijih_osuda"] is None
+    assert cinjenice["ranije_osude"] is None
+    assert cinjenice["pravnosnaznost"] != DA
+    assert blok(pitanje)[1].primenjuje_se == NEPOZNATO

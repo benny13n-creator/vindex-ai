@@ -624,7 +624,12 @@ PROCESNO STANJE IZ SPISA (obavezno kad je blok dostavljen):
 - Ono što je u bloku pod „NIJE UTVRĐENO“ (tok i istek roka, postupanje po nalogu, uplata, dejstvo kasnijeg dokumenta) ne tvrdi ni u jednom smeru — navedi kao neutvrđeno.
 - Sudski rok računaj samo kad merodavan sudski izvor IZRIČITO određuje početni događaj i spis potvrđuje kada se on desio. Navod o roku u nalazu veštaka ne dokazuje sudski nalog ni početak roka. Kad početak nije izričito naveden (npr. samo „u roku od 15 dana“), datum dokumenta ili ročišta NIJE početak roka — napiši da tok i istek roka nisu utvrđeni iz spisa. Ovo pravilo ima prednost nad opštim pravilom o računanju rokova.
 - Dokument koji nije pročitan ili je pročitan delimično može sadržati odluku suda: odsustvo u bloku nije dokaz da odluke nema.
-- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda."""
+- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda.
+- Kada nalaz veštaka pominje sud ili rok za izjašnjenje, pripiši navod veštaku, ne sudu. Posebno reci da li u spisu postoji
+  merodavan sudski akt koji potvrđuje tu radnju i početni događaj. Datum dopune nalaza sam po sebi ne dokazuje početak
+  roka. Ako nije utvrđen, ne računaj niti predlaži konkretan datum isteka, čak ni kao orijentaciju.
+- Kad stranka navodi da je priložila ispravu (npr. povratnicu), navedi šta stranka tvrdi da isprava dokazuje. Ne tvrdi da
+  si pročitao ispravu, niti da je sadržaj ili prijem potvrđen, ako je pročitan samo navod u podnesku."""
 
 
 def _procesno_stanje_za_savetnika(stanje: Optional[dict]) -> str:
@@ -715,6 +720,61 @@ def _recenice(tekst: str) -> list:
     if tekst and tekst[od:].strip():
         out.append((od, len(tekst), tekst[od:].strip()))
     return out
+
+
+_ROK_ZA_IZJASNJENJE_IZVOD_RE = re.compile(r"\brok(?:u|a)?\s+od\s+\d+\s+dana\b[^.!?\n]*\bizjasnjenj\w*")
+_ROK_ZA_IZJASNJENJE_RE = re.compile(r"\bizjasnjenj\w*")
+_SUD_OSTAVLJA_ROK_RE = re.compile(r"\bsud\s+(?:je\s+)?(?:ostav\w*|odred\w*|nalaz\w*)[^.!?\n]*\brok\w*")
+_NAVOD_O_ROKU_RE = re.compile(
+    r"\b(?:vestak\w*\s+(?:navod\w*|pominj\w*)|u\s+dopuni\s+(?:se\s+)?(?:navod\w*|pominj\w*)"
+    r"|prema\s+navodu\s+vestak\w*|u\s+nalazu\s+(?:se\s+)?navod\w*|navod\s+vestak\w*)\b"
+)
+_ISTEK_ROKA_RE = re.compile(r"\b(?:istic\w*|istek\w*|pocin\w*|tec\w*|zavrsav\w*|najkasnije)\b")
+_DATUM_ROKA_RE = re.compile(r"\b(?:\d{1,2}\.\s*\d{1,2}\.\s*\d{4}|\d{4}-\d{2}-\d{2})\b")
+_NEUTVRDJEN_ROK_RE = re.compile(
+    r"\b(?:nije\s+(?:utvrdjen\w*|poznat\w*)|ne\s+moze\s+se\s+utvrditi|proveriti\s+da\s+li)\b"
+)
+
+
+def _proveri_procesni_odgovor(odgovor: str, izvori: Optional[dict]) -> None:
+    """Odbija rok za izjašnjenje izveden iz nesudskog izvoda, pre prikaza i naplate."""
+    from shared.http_errors import NamerniHTTPException
+    from shared.rociste_iz_teksta import preslovi
+
+    stanje = (izvori or {}).get("_procesno_stanje") or {}
+    akteri = {d["oznaka"].lower(): d["akter"] for d in stanje.get("dokumenti") or []}
+    sporne_oznake = {
+        d["oznaka"].lower()
+        for d in (stanje.get("dogadjaji") or []) + ((izvori or {}).get("_odluke_suda") or [])
+        if akteri.get(d["oznaka"].lower()) != "SUD"
+        and _ROK_ZA_IZJASNJENJE_IZVOD_RE.search(preslovi(d.get("izvod") or d.get("tekst", "")).translate(_LAT).lower())
+    }
+    if not sporne_oznake:
+        return
+
+    sudski_izvor = any(
+        d.get("akter") == "SUD" and d["vrsta"] in ("SUD_NALAZE", "SUD_ODREDJUJE", "SUD_VISESTRUKO")
+        and _ROK_ZA_IZJASNJENJE_IZVOD_RE.search(preslovi(d["izvod"]).translate(_LAT).lower())
+        for d in stanje.get("dogadjaji") or []
+    )
+    for _, _, recenica in _recenice(odgovor):
+        recenica = preslovi(recenica).translate(_LAT).lower()
+        sporni_izvor = any(oznaka in recenica for oznaka in sporne_oznake)
+        rok_za_izjasnjenje = "rok" in recenica and _ROK_ZA_IZJASNJENJE_RE.search(recenica)
+        if not (sporni_izvor or (rok_za_izjasnjenje and not sudski_izvor)):
+            continue
+        tvrdi_nalog = _SUD_OSTAVLJA_ROK_RE.search(recenica)
+        rok_iz_spornog_izvora = sporni_izvor and "rok" in recenica
+        tvrdi_tok = _ISTEK_ROKA_RE.search(recenica) if (
+            (rok_za_izjasnjenje or rok_iz_spornog_izvora) and _DATUM_ROKA_RE.search(recenica)
+        ) else None
+        if (tvrdi_nalog and not _NAVOD_O_ROKU_RE.search(recenica[:tvrdi_nalog.start()])
+                or tvrdi_tok and not _NEUTVRDJEN_ROK_RE.search(recenica[:tvrdi_tok.start()])):
+            raise NamerniHTTPException(
+                status_code=502,
+                detail="Strategija nije izrađena jer sudski izvor ili početak roka za izjašnjenje nisu potvrđeni. "
+                       "Proverite sudski akt i početni događaj. Ovaj odgovor nije naplaćen.",
+            )
 
 
 def _osnove(tekst: str) -> set:
@@ -1368,6 +1428,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
         _sentry_capture(exc)
         logger.error("[AGENT] GPT greška: %s", exc)
         raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan.")
+    if agent_id == "litigation" and procesno_ctx:
+        _proveri_procesni_odgovor(odgovor, izvori_predmeta)
     if nacrt_iz_spisa:
         # Razdvajanje teksta za sud od napomena je obavezno: bez ispravnog JSON-a (ili posle odsečenog odgovora) nacrt se
         # NE pravi, ništa se ne upisuje na pregled i ništa se ne naplaćuje — bez automatskog ponavljanja (trošak).
@@ -1567,6 +1629,8 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
             odgovor = (resp.choices[0].message.content or "").strip()
             if not odgovor:
                 raise ValueError("prazan odgovor modela")
+            if agent_id == "litigation" and procesno_lit:
+                _proveri_procesni_odgovor(odgovor, izvori_predmeta)
             return {
                 "agent_id": agent_id,
                 "naziv":    cfg["naziv"],

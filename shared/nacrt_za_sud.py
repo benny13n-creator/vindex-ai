@@ -305,7 +305,8 @@ Odgovori ISKLJUČIVO JSON objektom: {"tekst_za_sud": "<ceo tekst podneska koji i
 - Stanje naloga suda (da li važi, da li je izvršen, da li je plaćeno, da li rok teče) NIJE utvrđeno. O predmetu naloga (npr. dopuna veštačenja, dnevnik, predujam) u "tekst_za_sud" piši SAMO: oznakom [[PS-nn]], kao navod stranke uz oznaku dokumenta („tuženi u podnesku [[PS-07]] navodi …“) ili kao stav/predlog stranke uz oznaku odluke u ISTOJ rečenici („Iako je sud [[PS-04]], tužilac predlaže da sud tu odluku preispita, jer …“).
 - U "tekst_za_sud" NE tvrdi: da je naložena radnja nepotrebna, suvišna, rešena, ukinuta ili bez dejstva; da je uplata izvršena; da je obaveza ispunjena ili da nije; da rok teče, ističe, da je istekao ili da je radnja blagovremena; da je veštak ili sud nešto „utvrdio“; ne prikazuj već donetu odluku kao buduću ili uslovnu („ukoliko sud smatra…“).
 - Ono što je u bloku pod „NIJE UTVRĐENO“ ne tvrdi ni u jednom smeru; zapiši to u "napomene_za_advokata". Ako ishod ročišta nije poznat, predlog o tom pitanju piši uslovno („ukoliko sud o tome nije odlučio na ročištu …“).
-Sistem proverava "tekst_za_sud": rečenica sa nepotvrđenom procesnom tvrdnjom biće izostavljena iz teksta za sud i premeštena u napomene."""
+- Datum na nalazu, podnesku ili zapisniku je datum dokumenta. Dostavu ili podnošenje navedi samo uz poseban izvor koji dokazuje taj događaj, kao što je dostavnica ili potvrda prijema. Ako toga nema, u napomenama navedi da je datum neutvrđen. Ako datum izrade nacrta nije izričito zadat, ostavi [DATUM — POPUNITI]. Ne koristi tekući datum.
+- Predlog čeka pregled i usvajanje advokata. Ne očekuj da će sistem automatski ukloniti nepotvrđenu procesnu tvrdnju."""
 
 
 def neutralisi(tekst: str) -> str:

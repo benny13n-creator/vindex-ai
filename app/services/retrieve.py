@@ -718,7 +718,7 @@ def _pronadji_clan(query: str) -> Optional[re.Match]:
         # bez provere postojanja (KORAK 1.5) i odgovor je tiho citirao drugi član.
         r"(?:clan|član)(?:a|u|om)?\s*(\d+[a-zA-Z]?)",
         r"(?:čl\.|cl\.)\s*(\d+[a-zA-Z]?)",  # Latin (with/without diacritic)
-        r"(?:чл\.?)\s*(\d+[a-zA-Z]?)",                 # Cyrillic
+        r"(?:чл(?:ан(?:а|у|ом)?)?\.?)\s*(\d+[a-zA-Z]?)",                 # Cyrillic
     ]:
         m = re.search(obrazac, q)
         if m:
@@ -732,8 +732,11 @@ def _izvuci_broj_clana(query: str) -> Optional[str]:
 
 
 _ZAKON_O_UREDJENJU_SUDOVA = "zakon o uredjenju sudova"
-_NAZIV_ZAKONA_O_SUDOVIMA = r"\bzakon(?:a|u|om)?\s+o\s+uredjenju\s+sudova\b"
-_ODREDBA_CLANA = r"(?:\s+(?:stav(?:a|u|om)?|st\.|tack(?:a|e|i|u|om)|tac\.)\s*\d+[.)]?)*"
+_NAZIV_ZAKONA_O_SUDOVIMA = (
+    r"\b(?:zakon(?:a|u|om)?\s+o\s+uredjenju\s+sudova"
+    r"|закон(?:а|у|ом)?\s+о\s+уређењу\s+судова)\b"
+)
+_ODREDBA_CLANA = r"(?:(?:\s*,\s*|\s+)(?:stav(?:a|u|om)?|st\.|tack(?:a|e|i|u|om)|tac\.|став(?:а|у|ом)?|ст\.|тачк(?:а|е|и|у|ом)|тач\.)\s*\d+[.)]?)*"
 
 
 # Short-code → Pinecone law value (mirrors corpus_coverage.py LAWS registry)
@@ -782,7 +785,7 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
     ispred = _normalizuj(query[:clan.start()])
     iza = _normalizuj(query[clan.end():])
     if re.search(rf"{_NAZIV_ZAKONA_O_SUDOVIMA}\s*[:,]?\s*$", ispred) or re.match(
-        rf"\.?{_ODREDBA_CLANA}\s+{_NAZIV_ZAKONA_O_SUDOVIMA}", iza,
+        rf"\.?{_ODREDBA_CLANA}\s*,?\s+{_NAZIV_ZAKONA_O_SUDOVIMA}", iza,
     ):
         return label_clana, _ZAKON_O_UREDJENJU_SUDOVA
 

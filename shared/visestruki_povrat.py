@@ -390,21 +390,49 @@ _NOVO_DELO_U_INTERVALU = r"do\s+nov\w*\s+(?P<krivica>(?:umisljajn|nehatn)\w*\s+)
 _SAMOSTALAN_PROCESNI_DATUM = re.compile(
     r"(?<=[.!?])\s+(?:presuda je doneta|zalba je izjavljena)\s+" + _DATUM + r"(?:\.\s+godine)?(?=\.(?:\s|$)|$)"
 )
+_SAMOSTALAN_DATUM_NOVOG_DELA = re.compile(
+    rf"(?:^|(?<=[.!?])\s+)novo delo (?:je )?{_GLAGOL_DELA} (?:je )?{_DATUM}"
+    r"(?:\.\s+godine)?(?=\.(?:\s|$)|$)"
+)
+_NEUTVRDJEN_DATUM_NOVOG_DELA = re.compile(
+    r"\bdatum(?:\s+izvrsenja)?(?:\s+(?:novog\s+)?dela)?(?:\s+u\s+spisu)?"
+    r"\s+(?:nije\s+(?:utvrdjen|poznat|potvrdjen)|je\s+sporan)\b"
+)
+_OGRADA_DATUMA_NOVOG_DELA = re.compile(
+    r"\b(?:ako|ukoliko|da li|pretpostav\w*|hipotetic\w*|navodn\w*|tvrd\w*|navodi|sporn\w*|osporav\w*|"
+    r"(?:nije|nisu)\s+(?:utvrdj\w*|poznat\w*|potvrdj\w*|tacn\w*|ucin\w*|izvrs\w*))\b"
+)
+_GRANICA_RECENICE = re.compile(r"[.!?;](?=\s|$)")
 
 
-def _datum_novog_dela(novo: str):
+def _datum_novog_dela(pitanje: str, pocetak_novog: Optional[int]):
     """Datum novog dela mora biti jednoznačan i uz glagol izvršenja."""
-    if not novo:
+    if pocetak_novog is None:
         return None
     # Samostalne rečenice sa datumom presude ili žalbe ne menjaju datum izvršenja.
-    novo = _SAMOSTALAN_PROCESNI_DATUM.sub(lambda m: " " * len(m[0]), novo)
+    novo = _SAMOSTALAN_PROCESNI_DATUM.sub(lambda m: " " * len(m[0]), pitanje[pocetak_novog:])
     datumi = list(re.finditer(_DATUM, novo))
     godine = re.findall(_GODINA, re.sub(_DATUM, " ", novo))
     if len(datumi) != 1 or godine:
         return None
     d = datumi[0]
     blizu = novo[max(0, d.start() - 60):d.start()] + " " + novo[d.end():d.end() + 25]
-    return d if re.search(_GLAGOL_DELA, blizu) else None
+    if not re.search(_GLAGOL_DELA, blizu):
+        return None
+
+    # Klauzula ispred sidra može sadržati „pretpostavimo da je“ ili početak citata.
+    od, do = pocetak_novog + d.start(), pocetak_novog + d.end()
+    if any(citat.start() <= od < citat.end() for citat in _NAVOD_RE.finditer(pitanje)):
+        return None
+    prethodne_granice = list(_GRANICA_RECENICE.finditer(pitanje, 0, od))
+    pocetak = prethodne_granice[-1].end() if prethodne_granice else 0
+    godina = re.match(r"\.\s+godine\b", pitanje[do:])
+    kraj = _GRANICA_RECENICE.search(pitanje, do + (godina.end() if godina else 0))
+    if ((kraj and kraj.group() == "?")
+            or _OGRADA_DATUMA_NOVOG_DELA.search(pitanje[pocetak:kraj.start() if kraj else None])
+            or _NEUTVRDJEN_DATUM_NOVOG_DELA.search(_NAVOD_RE.sub(" [citat] ", pitanje))):
+        return None
+    return d
 
 
 def _novo_delo_ima_svoje_vreme(novo: str) -> bool:
@@ -419,6 +447,21 @@ def _novo_delo_ima_svoje_vreme(novo: str) -> bool:
                 or re.search(r"\bsud\w*\s+(?:mu|joj|im)\s+se\b|\b(?:mu|joj|im)\s+se\s+sudi|sudjenj\w*|optuz\w*|tereti\s+se|"
                              r"pre\s+otpust|prosl\w*\s+godin|ove\s+godine|\blane\b|tokom\s+izdrzavanj|na\s+izdrzavanju|"
                              r"dok\s+je\s+(?:jos\s+)?(?:bio|bila)\s+u\s+zatvor", n))
+
+
+def _izricito_bez_osuda_uz_saucesnika(q: str) -> bool:
+    q = _NAVOD_RE.sub(" [citat] ", q)
+    if re.search(r"\b(?:prv|drug|trec)\w*\s+okrivljen\w*\b", q):
+        return False
+    navodi = [rec.strip() for rec in re.split(r"(?<=[.!?;])\s+", q) if re.search(r"\b(?:osud|presud)\w*", rec)]
+    if len(navodi) != 2:
+        return False
+    neosudjivan = r"okrivljen[ia] nije ranije osudjivan[a]?\."
+    saucesnik = r"saucesni(?:k|ca) je (?:dva puta|dvaput|\d+ puta) pravnosnazno osudjen[a]?(?: za [^.!?;]+)?\."
+    return any(re.fullmatch(neosudjivan, rec) for rec in navodi) and any(
+        re.fullmatch(saucesnik, rec) and not re.search(r"\b(?:okrivljen|optuzen|ali\b|medjutim\b|dok\b)", rec)
+        for rec in navodi
+    )
 
 
 def analiza(pitanje: str) -> tuple[dict, list[str]]:
@@ -460,7 +503,9 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
 
     druga_osoba = bool(re.search(_DRUGA_OSOBA, q))
     uslovno = bool(re.search(r"uslovn\w*", q))
-    if druga_osoba:
+    if druga_osoba and _izricito_bez_osuda_uz_saucesnika(q):
+        out["broj_ranijih_osuda"] = 0
+    elif druga_osoba:
         napomene.append("Pitanje pominje i drugu osobu ili neosuđivanost — ranije osude se ne pripisuju; potrebno je navesti "
                         "osude okrivljenog posebno.")
     if uslovno:
@@ -529,7 +574,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
         napomene.append("Uz otpust je navedeno više vremena (npr. za više kazni) — za uslov od pet godina potreban je jedan datum.")
     if len(pomeni) == 1 and not uslovno and not vise_vremena:
         mo = re.search(r"otpust\w*[^.]{0,60}?" + _DATUM, q)
-        mn_ = _datum_novog_dela(novo)
+        mn_ = _datum_novog_dela(q, granica)
         datum_dela = None
         try:
             if mn_:
@@ -563,7 +608,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
                         elif out["novo_delo_umisljaj"] != krivica_intervala:
                             out["novo_delo_umisljaj"] = None
                     # Poznat datum izvršenja određuje verziju zakona i kada je otpust dat samo intervalom.
-                    if datum_dela and re.search(rf"\bnovo delo (?:je )?{_GLAGOL_DELA} (?:je )?{_DATUM}\b", novo):
+                    if datum_dela and _SAMOSTALAN_DATUM_NOVOG_DELA.search(q):
                         out["novo_delo"] = datum_dela
             # bez sidra novog dela — tekst posle rečenice o otpustu („Prošle godine je izvršio …“)
             _posle = q[mo_poz.start():] if mo_poz else ""          # 4. krug: i ostatak rečenice o otpustu („…, a krađu je izvršio 2022.“)
@@ -576,7 +621,7 @@ def analiza(pitanje: str) -> tuple[dict, list[str]]:
                     out["proteklo_od_otpusta_meseci"] = 67.0
     elif len(pomeni) > 1:
         napomene.append("Otpust se pominje više puta — za uslov od pet godina potreban je jedan datum otpusta sa izdržavanja kazne.")
-    pravnosnaznost = _pravnosnaznost_iz_navoda(q, broj)
+    pravnosnaznost = None if druga_osoba else _pravnosnaznost_iz_navoda(q, broj)
     if pravnosnaznost is None and any(v is not None and v is not False for v in out.values()):
         if strana_osuda or out["novo_delo"] is None or out["novo_delo"] >= POCETAK_PRIMENE_63_2026:
             pravnosnaznost = NEPOZNATO

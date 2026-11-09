@@ -520,3 +520,62 @@ def test_savetnik_za_rokove_salje_proverene_osnove_bez_izmisljanja_datuma(lit):
         assert pravilo in sistem
     for pogresno in ("čl. 368 ZPP", "čl. 410 ZPP", "max 6 mes.", "čl. 147 ZUP", "čl. 148 ZUP"):
         assert pogresno not in sistem
+
+
+@pytest.mark.parametrize("endpoint,body", [
+    ("run", {"agent": "litigation", "task": ZADATAK}),
+    ("run-parallel", {"agenti": ["litigation"], "task": ZADATAK}),
+    ("pipeline", {"pipeline": ["litigation"], "opis": ZADATAK}),
+])
+@pytest.mark.parametrize("odgovor", [
+    "**DOK-08**: Sud ostavlja strankama rok od 8 dana od dana dopune nalaza za izjašnjenje.",
+    "Rok za izjašnjenje strankama ističe 28.10.2026. godine, ali nije utvrđeno da li je stranka postupila po nalogu suda iz DOK-07.",
+    "Рок за изјашњење истиче 2026-10-28.",
+    "Rok iz DOK-08 počinje 20.10.2026.",
+])
+def test_p06_nepouzdan_rok_ne_dospeva_u_odgovor_i_ne_naplacuje_se(lit, monkeypatch, endpoint, body, odgovor):
+    from routers import multi_agent as MA
+
+    k, b, pid, _, _ = lit
+    _dodaj_dokument(k, b, pid, gc.KASNIJI)
+    pre = len(b.naplate)
+    pozivi = []
+
+    def response(*args):
+        pozivi.append(args)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=odgovor), finish_reason="stop")])
+
+    async def response_parallel(*args):
+        return response(*args)
+
+    monkeypatch.setattr(MA, "_pozovi_agent_api", response)
+    monkeypatch.setattr(MA, "_pozovi_para_api", response_parallel)
+    r = k.post(f"/api/agents/{endpoint}", json={**body, "predmet_id": pid}, headers=A)
+    assert len(pozivi) == 1
+    if endpoint == "run-parallel":
+        assert r.status_code == 200, r.text
+        assert r.json()["rezultati"][0]["stanje"] == "NEUSPEH"
+        assert r.json()["naplaceno_savetnika"] == 0
+    else:
+        assert r.status_code == 502, r.text
+        assert "nisu potvrđeni" in r.json()["detail"]
+    assert "28.10.2026" not in r.text and "2026-10-28" not in r.text
+    assert len(b.naplate) == pre
+
+
+def test_p06_pripisani_navod_i_odvojeni_rok_prolaze(lit, monkeypatch):
+    from routers import multi_agent as MA
+
+    k, b, pid, _, _ = lit
+    _dodaj_dokument(k, b, pid, gc.KASNIJI)
+    odgovor = (
+        "U dopuni se navodi da sud ostavlja rok od 8 dana za izjašnjenje (DOK-08). "
+        "To je navod veštaka. Sudski izvor i početak roka za izjašnjenje nisu potvrđeni. "
+        "Sud nalaže dostavu dnevnika u roku od 15 dana (DOK-07). Početak tog roka nije utvrđen."
+    )
+    monkeypatch.setattr(MA, "_pozovi_agent_api", lambda *a: types.SimpleNamespace(
+        choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=odgovor), finish_reason="stop")]))
+    pre = len(b.naplate)
+    assert _pitaj(k, pid)["odgovor"] == odgovor
+    assert len(b.naplate) == pre + 1

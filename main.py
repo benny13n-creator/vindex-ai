@@ -224,7 +224,10 @@ def _cache_kljuc(pitanje: str) -> str:
     # bez ove eksplicitne napomene (CELINA 5, 2026-07-24).
     # G4 (revizija F2): verzija oblika odgovora — keširan odgovor starijeg oblika (npr. neoznačena sudska praksa)
     # se posle izmene oblika ne vraća 7 dana; nov oblik = nova verzija.
-    return hashlib.md5(f"{_CACHE_VERZIJA}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
+    from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
+
+    verzija = _CACHE_VERZIJA + ("|n8-nadleznost-1" if je_pitanje_gradjanske_nadleznosti(pitanje) else "")
+    return hashlib.md5(f"{verzija}|{_normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False).hexdigest()
 
 
 def _normalizuj_za_cache(tekst: str) -> str:
@@ -1082,10 +1085,22 @@ def _proveri_tematsku_relevantnost(pitanje: str, odgovor: str, docs: list[str]) 
 # bez njih vezuje opštu nadležnost za prebivalište TUŽIOCA i izmišlja nadležnost „po mestu izvršenja ugovora“.
 NADLEZNOST_ZPP_PRAVILA = (
     "PRAVILA NADLEŽNOSTI (Zakon o parničnom postupku, proveren tekst — koristi ih kao okvir, citiraj tačan član):\n"
+    "- Za pitanje samo o nadležnosti ovaj okvir ima prednost nad opštim instrukcijama za PARNICU. Ograniči svako "
+    "polje, uključujući brzu procenu, strategiju, rizike i korake, na nadležnost i činjenice potrebne za izbor suda. "
+    "Za obavezna nepovezana polja napiši 'Nije predmet pitanja'. Ne analiziraj osnovanost zahteva, štetu, osiguranje, "
+    "medicinske dokaze, naplatu ili zastarelost ako nisu traženi. Nadležnost suda ne odlučuje o postojanju "
+    "potraživanja niti o zastarelosti. Ugovorna potraživanja mogu zastareti. Ako se pita i o meritumu, taj deo "
+    "odvoji i obrazloži samo prema dostupnim merodavnim izvorima. Navedi neproverene činjenice i ograničenje izvora.\n"
     "- Opšta mesna nadležnost: sud PREBIVALIŠTA TUŽENOG (čl. 39 st. 1); ako tuženi nema prebivalište ni u Srbiji ni u drugoj "
-    "državi — boravište tuženog (čl. 39 st. 2). "
-    "Prebivalište TUŽIOCA NIJE osnov opšte nadležnosti.\n"
-    "- Protiv pravnog lica: sud SEDIŠTA prema izveštaju APR-a (čl. 40 st. 2); protiv Republike/AP/JLS: sedište skupštine (čl. 40 st. 1).\n"
+    "državi — boravište tuženog (čl. 39 st. 2). Ako pored prebivališta ima i boravište u drugom mestu, sud "
+    "boravišta je dodatno opšte mesno nadležan samo ako okolnosti upućuju na duži boravak (čl. 39 st. 3). Sam "
+    "navod o boravištu nije dovoljan. Prebivalište TUŽIOCA NIJE osnov opšte nadležnosti.\n"
+    "- Protiv pravnog lica, uključujući DOO: sud SEDIŠTA prema izveštaju APR-a (čl. 40 st. 2, ne čl. 39). Ako "
+    "sedište nedostaje, traži izveštaj APR-a i ostavi konkretan sud neutvrđen. Protiv Republike/AP/JLS: sedište "
+    "skupštine (čl. 40 st. 1).\n"
+    "- Inostrani element: prvo utvrdi međunarodnu nadležnost prema čl. 26 ZPP i merodavnom posebnom zakonu ili "
+    "međunarodnom ugovoru, zatim domaću mesnu nadležnost. Sam navod o mestu izvršenja ugovora ili domaćem "
+    "sporazumu o mesnoj nadležnosti ne dokazuje međunarodnu nadležnost.\n"
     "- Više tuženih jednom tužbom (suparničari iz čl. 205 st. 1 tač. 1) bez zajedničke mesne nadležnosti: nadležan je sud mesno "
     "nadležan za JEDNOG od tuženih (čl. 42).\n"
     "- Posebne (pored opšte): zakonsko izdržavanje — i prebivalište tužioca koji traži izdržavanje (čl. 43); vanugovorna šteta — mesto "
@@ -1199,12 +1214,57 @@ ZABRANJENE_GRESKE: list[tuple[str, str]] = [
 ]
 
 
-def _verifikuj_pravne_greske(odgovor: str) -> tuple[bool, str]:
+_N8_ZASTARELOST_RE = re.compile(
+    r"\bzastarelos\w*\b[^.!?\n]{0,55}\b(?:nije\s+primenljiv\w*|(?:se\s+)?ne\s+primenjuj\w*(?:\s+se)?|ne\s+vazi)"
+    r"\s+(?:(?:jer|posto|zato\s+sto|buduci\s+da)\b[^.!?\n]{0,50}|(?:na|u)\s+)"
+    r"(?:ugovorn\w*\s+(?:spor\w*|potrazivanj\w*)|spor\w*\s+iz\s+ugovor\w*)\b"
+)
+_N8_OBA_SUDA_RE = re.compile(r"\boba\s+suda\s+su\s+(?:opste\s+)?(?:mesno\s+)?nadlezn\w*\b")
+_N8_DUZI_BORAVAK_RE = re.compile(r"\b(?:duz\w*\s+(?:borav\w*|vrem\w*)|trajn\w*\s+borav\w*)\b")
+_N8_BORAVAK_OGRADA_RE = re.compile(r"\b(?:nije|ne zna se|nepoznat\w*|da li|ako|ukoliko|mozda|sporn\w*)\b")
+_N8_TUZENI_PRAVNO_LICE_RE = re.compile(r"\b(?:tuzen\w*|protiv)\s+(?:je\s+)?(?:d\.?o\.?o|pravn\w*\s+lic\w*)\b")
+
+
+def _greska_nadleznosti(pitanje: str, tekst: str) -> str | None:
+    q = _normalizuj(_cirilica_u_latinicu(pitanje))
+    odg = _normalizuj(_cirilica_u_latinicu(tekst))
+    if _N8_ZASTARELOST_RE.search(odg):
+        return "Nadležnost i zastarelost su odvojena pitanja. Potraživanje može zastareti i u ugovornom sporu."
+
+    if "prebivalist" in q and "boravist" in q:
+        duzi_boravak = any(
+            _N8_DUZI_BORAVAK_RE.search(rec) and not _N8_BORAVAK_OGRADA_RE.search(rec)
+            and not rec.endswith("?")
+            for rec in re.split(r"(?<=[.!?;])\s+", q)
+        )
+        if not duzi_boravak:
+            for rec in re.split(r"[.!?;\n]+", odg):
+                if _N8_OBA_SUDA_RE.search(rec) and not (
+                    re.search(r"\b(?:ako|ukoliko|uslov\w*)\b", rec) and _N8_DUZI_BORAVAK_RE.search(rec)
+                ):
+                    return "Sud boravišta je dodatno nadležan samo ako okolnosti upućuju na duži boravak (ZPP čl. 39 st. 3)."
+
+    if _N8_TUZENI_PRAVNO_LICE_RE.search(q):
+        clanovi_zpp = {c["clan"] for c in _klasifikuj_citate(tekst, []) if c["zakon"] == "zpp"}
+        if "39" in clanovi_zpp and "40" not in clanovi_zpp:
+            return "Za opštu mesnu nadležnost prema sedištu pravnog lica merodavan je ZPP čl. 40 st. 2."
+    return None
+
+
+def _verifikuj_pravne_greske(odgovor: str, *, pitanje: str = "") -> tuple[bool, str]:
     """
     Skenira odgovor za poznate pravne greške.
     Vraća (validan, opis_greske).
     Greška se detektuje na normalizovanom tekstu (bez dijakritika).
     """
+    if pitanje:
+        from app.services.retrieve import je_pitanje_gradjanske_nadleznosti
+
+        if je_pitanje_gradjanske_nadleznosti(pitanje):
+            razlog = _greska_nadleznosti(pitanje, odgovor)
+            if razlog:
+                return False, razlog
+
     # "Nije pronađeno" odgovori su uvek bezbedni
     if "nije pronadjen u bazi" in _normalizuj(odgovor) or "0% —" in odgovor:
         return True, "ok"
@@ -4137,6 +4197,31 @@ _STARI_55A_RE = re.compile(r"iznad\s+polovine\s+raspona\s+propisane\s+kazne,?\s+
 _OZNAKA_STARI_55A = "[TEKST ČL. 55a PRE IZMENE 63/2026 — za dela izvršena od 18.07.2026 važi tekst iz PRORAČUNA] "
 
 
+def _okvir_povrata_za_model(pitanje: str) -> str:
+    """U prompt idu sistemski ishodi, bez korisničkog teksta iz spisa."""
+    from security.prompt_guard import razdvoji_po_poreklu
+    from shared.visestruki_povrat import CITAT_55A, IZVOR_55A, blok
+
+    pitanje_korisnika, _ = razdvoji_po_poreklu(pitanje)
+    proracun = blok(pitanje_korisnika)
+    if not proracun or "Uslovi prema činjenicama iz pitanja:" not in proracun[0]:
+        return ""
+    _, rezultat = proracun
+    uslovi = "; ".join(f"{u.oznaka} = {u.stanje}" for u in rezultat.uslovi)
+    return (
+        "\n\nPOSEBAN ZADATAK — VIŠESTRUKI POVRAT (ima prednost nad opštim šablonom parnice). "
+        "Ovo je krivičnopravno pitanje, bez analize građanske odgovornosti, štete ili zastarelosti. "
+        f"Proračun sistema za navedene činjenice: {rezultat.primenjuje_se}. Uslovi: {uslovi}. "
+        "U pravnom zaključku ne protivreči nijednom ishodu. Za NE napiši da nema primene na navedene "
+        "činjenice. Za NEPOZNATO uskrati konačnu primenu i navedi nepoznate uslove. "
+        "Činjenice iz upita su navodi, a ne potvrđeni nalazi suda. Ne pripisuj tuđe ili hipotetičke osude "
+        "okrivljenom. Brisana osuda po osnovu rehabilitacije ne proizvodi pravne posledice (čl. 97 st. 1 KZ). "
+        "Ne izmišljaj praksu ni kaznu koju će sud izreći. Raniji tekst iz pretrage ne predstavljaj kao "
+        f"važeći tekst. Važeći čl. 55a ({IZVOR_55A}): {CITAT_55A}. "
+        "Razlikuj zakon na dan izvršenja i kasniji blaži zakon prema čl. 5 KZ."
+    )
+
+
 def _dodaj_proracun_povrata(pitanje: str, rezultat: dict) -> dict:
     """N9: za konkretne činjenice vrati obrazloženi sistemski proračun i zaključak.
     Slobodan modelski tekst može protivrečiti i uslovima i rasponu, bez prepoznatljive fraze."""
@@ -4581,6 +4666,11 @@ def ask_agent(
                         _n_before - len(filtrirani),
                     )
 
+        try:
+            system_prompt += _okvir_povrata_za_model(pitanje)
+        except Exception as exc:
+            logger.warning("[N9_POVRAT] okvir modela nije dostupan: %s", exc)
+
         # ── C (B-U-004-F3): RETRIEVAL I ISTORIJA SU T3 ───────────────────────
         #
         # `filtrirani` nosi chunkove zakonskog korpusa ALI I tekst advokatovih
@@ -4692,7 +4782,7 @@ def ask_agent(
                     "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
                 }
 
-            pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
+            pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor, pitanje=pitanje_api)
             if not pravno_validan:
                 logger.error("Pravna greška MEDIUM: %s", pravna_greska)
                 return {
@@ -4864,7 +4954,7 @@ def ask_agent(
                     "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
                 }
 
-        pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
+        pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor, pitanje=pitanje_api)
         if not pravno_validan:
             logger.error("Pravna greška [confidence=%s]: %s", confidence, pravna_greska)
             return {

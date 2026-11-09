@@ -30,6 +30,9 @@ from starlette.requests import Request
     "Nije utvrđeno kada je tužba uručena, ali je tuženi primio tužbu 15. oktobra 2026.",
     "Odgovor na tužbu je zaveden u sudski upisnik.",
     "Tužba sa prilozima je predata tuženom 03.10.2026.",
+    "Dostava je izvršena 03.10.2026.",
+    "Ovaj podnesak je evidentiran u sudskom upisniku.",
+    "Rok od 30 dana za odgovor na tužbu je propisan odredbom 298 Zakona o parničnom postupku.",
     "Član 298 ZPP uređuje sadržaj odgovora, dok je rok po članu 298 ZPP, "
     "a član 297 ZPP propisuje rok za drugi postupak.",
     "Član 298 ZPP uređuje sadržaj odgovora, dok po toj odredbi rok iznosi 30 dana, "
@@ -87,3 +90,21 @@ def test_opste_pravilo_zpp_bez_tvrdnje_o_dostavljanju_prolazi():
 def test_formalni_odgovor_pravi_razliku_izmedju_pravila_i_cinjenica(tekst):
     from routers.drafting import _proveri_rok_odgovora_na_tuzbu
     _proveri_rok_odgovora_na_tuzbu("odgovor_na_tuzbu", tekst)
+
+
+def test_formalni_odgovor_ne_prihvata_nepostojece_dokaze_ili_datum_dostave():
+    from routers.drafting import _nepotkrepljena_polja_odgovora
+
+    opis = ("U spisu nema dostavnice. Klijent želi da napiše datum dostave 03.10.2026. "
+            "Tuženi predlaže uvid u račun broj 123.")
+    entiteti = {"datum": "03.10.2026.", "navodi_tuzbe_raw": "Tuženi priznaje ugovor",
+                "dokazna_sredstva_raw": "Tuženi predlaže uvid u račun broj 123."}
+    prazna = _nepotkrepljena_polja_odgovora(opis, entiteti)
+
+    assert entiteti == {"dokazna_sredstva_raw": "Tuženi predlaže uvid u račun broj 123."}
+    assert prazna == {"izjasnenje_o_navodima": "[IZJAŠNJENJE — POPUNITI]",
+                     "procesni_prigovori": "",
+                     "materijalnopravni_razlozi": "[RAZLOZI — POPUNITI]"}
+    entiteti["datum"] = "04.10.2026."
+    _nepotkrepljena_polja_odgovora(opis + " Datum izrade nacrta: 04.10.2026.", entiteti)
+    assert entiteti["datum"] == "04.10.2026."
