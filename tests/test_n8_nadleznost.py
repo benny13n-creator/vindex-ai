@@ -404,6 +404,8 @@ _N8_TEST_NATURAL = (
     (_N8_TEST_NATURAL, "Oba suda su mesno nadležna prema prebivalištu i boravištu tuženog.", False),
     (_N8_TEST_NATURAL, "Oba suda su mesno nadležna ako okolnosti upućuju na duži boravak.", True),
     (_N8_TEST_NATURAL, "Sud boravišta može biti nadležan kod dužeg boravka, ali to nije slučaj ovde jer nema informacija o dužem boravku u Beogradu.", False),
+    (_N8_TEST_NATURAL, "Nije moguće utvrditi nadležnost u Beogradu jer nema podataka o dužem boravku.", True),
+    (_N8_TEST_NATURAL, "Nije utvrđeno da li je nadležan i sud u Beogradu jer nema podataka o dužem boravku.", True),
     (_N8_TEST_NATURAL, "Sud boravišta može biti nadležan kod dužeg boravka, ali to nije slučaj ovde jer prebivalište ima prednost.", False),
     (_N8_TEST_NATURAL + " Poznato je da će tuženi u Beogradu boraviti duže vreme.",
      "Oba suda su mesno nadležna.", True),
