@@ -49,20 +49,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _git_blob_sha(filename: str, *, repo_root: Path = REPO_ROOT) -> str:
-    """Hash source after normalizing only Windows CRLF line endings.
+    """Return HEAD's blob ID only when working source matches its blob.
 
-    The harness pins Git blob IDs. A Windows checkout may contain CRLF even
-    when its checked-in blob contains LF; hashing the path directly then
-    reports a different ID. Normalize CRLF to LF, pass those exact bytes to
-    Git's blob hasher, and keep comparing the resulting ID with the fixed
-    approved blob SHA. No other content or filter transformation is applied.
+    `git hash-object <path>` may run path clean filters and therefore need not
+    identify the bytes Python reads. Compare those bytes directly with the
+    tracked blob, allowing only CRLF/LF checkout normalization, then return
+    the tracked object's ID for comparison with the fixed approved pin.
     """
-    source = (repo_root / filename).read_bytes().replace(b"\r\n", b"\n")
-    result = subprocess.run(
-        ["git", "hash-object", "--stdin"],
-        check=True, capture_output=True, cwd=repo_root, input=source,
-    )
-    return result.stdout.decode("ascii").strip()
+    object_name = f"HEAD:{filename}"
+    blob_id = subprocess.run(
+        ["git", "rev-parse", "--verify", object_name],
+        check=True, capture_output=True, text=True, cwd=repo_root,
+    ).stdout.strip()
+    tracked = subprocess.run(
+        ["git", "cat-file", "blob", object_name],
+        check=True, capture_output=True, cwd=repo_root,
+    ).stdout
+    working = (repo_root / filename).read_bytes()
+    if working.replace(b"\r\n", b"\n") != tracked.replace(b"\r\n", b"\n"):
+        return ""
+    return blob_id
 
 
 def _has_authenticated_cache_bypass(node: ast.FunctionDef | ast.AsyncFunctionDef | None) -> bool:
