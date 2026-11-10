@@ -15,6 +15,7 @@ import os
 import re
 import secrets
 import sys
+import subprocess
 import tempfile
 import uuid
 from datetime import datetime, timezone
@@ -45,6 +46,23 @@ VECTOR_DIM = 3072
 VECTOR_LIMIT = 6
 MAX_QUERIES = 16
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _git_blob_sha(filename: str, *, repo_root: Path = REPO_ROOT) -> str:
+    """Hash source after normalizing only Windows CRLF line endings.
+
+    The harness pins Git blob IDs. A Windows checkout may contain CRLF even
+    when its checked-in blob contains LF; hashing the path directly then
+    reports a different ID. Normalize CRLF to LF, pass those exact bytes to
+    Git's blob hasher, and keep comparing the resulting ID with the fixed
+    approved blob SHA. No other content or filter transformation is applied.
+    """
+    source = (repo_root / filename).read_bytes().replace(b"\r\n", b"\n")
+    result = subprocess.run(
+        ["git", "hash-object", "--stdin"],
+        check=True, capture_output=True, cwd=repo_root, input=source,
+    )
+    return result.stdout.decode("ascii").strip()
 
 
 def _has_authenticated_cache_bypass(node: ast.FunctionDef | ast.AsyncFunctionDef | None) -> bool:
@@ -97,11 +115,7 @@ def _require_source_pin(*, require_cache_source: bool = False) -> bool:
     import subprocess
 
     for filename, expected in EXPECTED_CODE_BLOBS.items():
-        result = subprocess.run(
-            ["git", "hash-object", "--", filename],
-            check=True, capture_output=True, text=True, cwd=REPO_ROOT,
-        )
-        if result.stdout.strip() != expected:
+        if _git_blob_sha(filename) != expected:
             raise RuntimeError(f"Candidate source differs from pinned contract: {filename}")
 
     # Both public variants must call the same ask_agent path with no legacy
@@ -124,10 +138,7 @@ def _require_source_pin(*, require_cache_source: bool = False) -> bool:
         raise RuntimeError("Standard question route is not the pinned ACL-safe call path")
     if "rezultat = await pokreni(ask_agent, req.pitanje, history_obj, None, _stream_mem_ctx)" not in streaming:
         raise RuntimeError("Streaming question route is not the pinned ACL-safe call path")
-    main_blob = subprocess.run(
-        ["git", "hash-object", "--", "main.py"], check=True,
-        capture_output=True, text=True, cwd=REPO_ROOT,
-    ).stdout.strip()
+    main_blob = _git_blob_sha("main.py")
     cache_source_matches = main_blob == EXPECTED_CACHE_MAIN_BLOB
     if require_cache_source and not cache_source_matches:
         raise RuntimeError("Candidate main.py differs from the pinned authenticated-cache contract")
