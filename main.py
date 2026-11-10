@@ -197,12 +197,16 @@ _CACHE_VERZIJA = "2026-10-28-s3"
 # case-derived content rather than a generic legal question.
 #
 # ai_cache is keyed on the normalized question text alone — it has no user_id,
-# no kancelarija_id, and no tenant column. ask_agent's cache guard covers three
-# private channels (history, extra_namespaces, memory_context) but not a fourth:
+# no kancelarija_id, and no tenant column. ask_agent's explicit cache gates
+# cover history, extra_namespaces, memory_context and case-marked questions,
+# but a fifth private channel was implicit in authenticated retrieval:
 # api.py:3041 builds `pitanje_za_agenta = "KONTEKST PREDMETA:\n<beleške +
 # istorija>\n\nPITANJE: ..."` and routers/copilot.py prepends "[Predmet: ...]".
-# For a lawyer with no firm namespace, extra_namespaces is None, so that
-# case-laden string went through the cache like any public question.
+# `retrieve_documents` also derives a user/office owner namespace from the
+# verified request identity. For a solo lawyer, api.py has no firm
+# `extra_namespaces`, and a generic question may still retrieve private owner
+# documents. Since that identity-derived channel is not visible to the
+# question-text cache gates, authenticated requests bypass this shared cache.
 #
 # Reading it back out requires reproducing the same case notes verbatim, so the
 # practical cross-tenant read is remote. The durable problem is the write: a
@@ -278,6 +282,12 @@ def _supa_cache_set(kljuc: str, rezultat: dict) -> None:
 def _cache_get(pitanje: str) -> dict | None:
     if os.getenv("VINDEX_CACHE_BYPASS") == "1":
         return None
+    if _autentifikovan_privatni_rag_kontekst():
+        # retrieve_documents auto-derives the owner's private namespace from
+        # the authenticated request context. That channel is not represented
+        # by ask_agent's explicit extra_namespaces argument, so the shared
+        # tenant-less cache must not be consulted for authenticated requests.
+        return None
     if _sadrzi_privatni_kontekst(pitanje):
         return None  # NIGHT-007 — see _PRIVATNI_KONTEKST_MARKERI
     kljuc = _cache_kljuc(pitanje)
@@ -302,6 +312,10 @@ def _cache_set(pitanje: str, rezultat: dict) -> None:
         # V1 (2026-10-27): bypass je ranije preskakao samo čitanje, pa je lokalni pokretač sa
         # VINDEX_CACHE_BYPASS=1 i dalje upisao red u produkcioni ai_cache (L2). Bypass = ni čitanje ni upis.
         return
+    if _autentifikovan_privatni_rag_kontekst():
+        # Private owner-scoped retrieval happens inside retrieve_documents;
+        # never persist a possibly document-shaped answer in the shared cache.
+        return
     if _sadrzi_privatni_kontekst(pitanje):
         # NIGHT-007: never persist a case-derived answer into the shared,
         # tenant-less ai_cache table. This is the half that matters — nothing
@@ -316,6 +330,22 @@ def _cache_set(pitanje: str, rezultat: dict) -> None:
         del _CACHE[najstariji]
     _CACHE[kljuc] = (rezultat, datetime.now())
     _supa_cache_set(kljuc, rezultat)  # L2 persist
+
+
+def _autentifikovan_privatni_rag_kontekst() -> bool:
+    """True when this request has a verified identity and may use private RAG.
+
+    The application cache has no tenant/ACL component. An authenticated
+    request can retrieve owner-scoped Pinecone documents even when
+    ``extra_namespaces`` and ``memory_context`` are empty, so cache use is
+    disabled for that request. If provenance context cannot be read, fail
+    closed by disabling this shared cache path.
+    """
+    try:
+        from shared.ai_provenance import current_context
+        return bool(current_context().get("user_id"))
+    except Exception:
+        return True
 
 
 # ─── Fallback system prompt kad Pinecone ne vrati rezultate ─────────────────
