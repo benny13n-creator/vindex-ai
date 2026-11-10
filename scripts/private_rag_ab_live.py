@@ -221,6 +221,8 @@ def _auth_client(url: str, anon_key: str, service_key: str):
 
 
 def _create_auth_users(service, anon, manifest: dict[str, Any]) -> dict[str, str]:
+    from shared.deps import _verify_token
+
     result: dict[str, str] = {}
     for role, record in manifest["users"].items():
         password = secrets.token_urlsafe(32)
@@ -244,7 +246,15 @@ def _create_auth_users(service, anon, manifest: dict[str, Any]) -> dict[str, str
         verified_user = getattr(verified, "user", None)
         if not verified_user or str(verified_user.id) != record["id"]:
             raise RuntimeError(f"Supabase did not verify test identity {role}")
-        result[role] = str(verified_user.id)
+        # Exercise the existing Vindex verifier with the real synthetic
+        # Supabase access token; no model completion is involved. This harness
+        # does not dispatch the HTTP route, so the verified subject is later
+        # installed into the request-scoped context directly.
+        with patch("shared.deps._get_supa", return_value=service):
+            payload = _verify_token(access_token)
+        if not payload or str(payload.get("sub") or "") != record["id"]:
+            raise RuntimeError(f"Vindex JWT verifier did not derive the expected identity for role {role}")
+        result[role] = str(payload["sub"])
         # Never persist or log the generated password or bearer token.
     return result
 
@@ -397,7 +407,8 @@ def _auth_not_found(exc: Exception) -> bool:
 
 
 def _retrieval(index, service, uid: str, *, extra: list[str] | None = None,
-               foreign_namespace: str | None = None, fail_acl: bool = False):
+               foreign_namespace: str | None = None, fail_acl: bool = False,
+               dozvoljeni_predmeti: list[str] | None = None):
     from shared.ai_provenance import scoped_request_context
     import app.services.retrieve as R
     from shared import deps
@@ -414,6 +425,7 @@ def _retrieval(index, service, uid: str, *, extra: list[str] | None = None,
         patch.object(R, "_get_index", return_value=index),
         patch.object(R, "_ugradi_query", return_value=query_vec),
         patch.object(R, "_dekomponuj_query", return_value=[]),
+        patch.object(R, "decompose_query", return_value=[]),
         patch.object(R, "_generiši_hyde", return_value=""),
         patch.object(R, "_pretraga_praksa", return_value=[]),
         patch.object(R, "_jedan_retrieval_krug", return_value=([], {})),
@@ -434,7 +446,9 @@ def _retrieval(index, service, uid: str, *, extra: list[str] | None = None,
                 "synthetic private RAG isolation marker", k=6,
                 extra_namespaces=extra,
                 kancelarija_namespace=foreign_namespace,
-                dozvoljeni_predmeti=["attacker-supplied-foreign-matter"],
+                # Normal runs use the server-derived ACL. The optional value
+                # is reserved for a distinct adversarial expansion attempt.
+                dozvoljeni_predmeti=dozvoljeni_predmeti,
             )
             return docs, meta, query_trace
     finally:
@@ -667,6 +681,26 @@ def _execute(path: Path) -> int:
             _write_manifest(path, manifest)
             if not passed:
                 raise RuntimeError(f"A/B assertion failed: {name}")
+
+        # Distinct adversarial attempt: C explicitly supplies A's matter as a
+        # requested ACL expansion. The real retrieval boundary intersects this
+        # request with C's server-derived ACL; the resulting empty set must skip
+        # the private namespace query entirely.
+        marker_a = markers["A"]
+        docs, meta, query_trace = _retrieval(
+            index, service, uids["C"],
+            dozvoljeni_predmeti=[manifest["matters"]["A"]],
+        )
+        acl_expansion_ok = not _contains(docs, meta, marker_a) and not query_trace
+        manifest["assertions"].append({
+            "name": "C_attacker_acl_expansion_denied", "role": "C",
+            "marker_hashes": [hashlib.sha256(marker_a.encode()).hexdigest()],
+            "marker_present": [_contains(docs, meta, marker_a)],
+            "passed": acl_expansion_ok, "pinecone_queries": query_trace,
+        })
+        _write_manifest(path, manifest)
+        if not acl_expansion_ok:
+            raise RuntimeError("Caller-supplied ACL expanded access to an undelegated matter")
         service.table("predmet_delegiranja").update({"status": "otkazano"}).eq("id", manifest["delegation"]).execute()
         docs, meta, query_trace = _retrieval(index, service, uids["D"])
         marker_a = markers["A"]
