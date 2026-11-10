@@ -2170,10 +2170,36 @@ def retrieve_documents(
 
     _extra_exec = None
     _extra_futures: dict = {}
-    if extra_namespaces:
-        _extra_exec = ThreadPoolExecutor(max_workers=len(extra_namespaces))
-        for _ns in extra_namespaces:
-            _extra_futures[_ns] = _extra_exec.submit(_pretraga_ns, vektor, _ns, 5)
+    # `extra_namespaces` is reserved for the existing ephemeral tmp_* upload
+    # flow. Persistent case_doc/draft_final vectors must use the owner namespace
+    # path below, which derives identity and applies rag_acl's predmet_id filter.
+    # A caller-supplied office/owner namespace used to bypass that filter.
+    try:
+        from shared.ai_provenance import _request_ctx as _rag_request_ctx
+        _extra_owner_uid = (_rag_request_ctx.get() or {}).get("user_id")
+    except Exception:
+        _extra_owner_uid = None
+    _authorized_tmp_namespaces = []
+    if extra_namespaces and _extra_owner_uid:
+        _authorized_tmp_namespaces = list(dict.fromkeys(
+            ns for ns in extra_namespaces
+            if isinstance(ns, str) and ns.startswith("tmp_") and len(ns) > 4
+        ))
+        rejected = [ns for ns in extra_namespaces if ns not in _authorized_tmp_namespaces]
+        if rejected:
+            logger.warning(
+                "[RAG_ACL] odbijeni dodatni namespace-ovi koji nisu autorizovane tmp sesije: %d",
+                len(rejected),
+            )
+    elif extra_namespaces:
+        logger.warning("[RAG_ACL] dodatni privatni namespace preskočen bez autentifikovanog identiteta")
+    if _authorized_tmp_namespaces:
+        _extra_exec = ThreadPoolExecutor(max_workers=len(_authorized_tmp_namespaces))
+        _tmp_owner_filter = {"owner_user_id": {"$eq": _extra_owner_uid}}
+        for _ns in _authorized_tmp_namespaces:
+            _extra_futures[_ns] = _extra_exec.submit(
+                _pretraga_ns, vektor, _ns, 5, _tmp_owner_filter,
+            )
 
     # Institutional Learning & RAG Audit (2026-07-26) #2 — cross-case kancelarija
     # pretraga. Zaseban executor od _extra_exec iznad: taj mehanizam je za
@@ -2226,6 +2252,12 @@ def retrieve_documents(
         else:
             _dozvoljeni_set = set(_izvedeni_acl or [])
             dozvoljeni_predmeti = [p for p in dozvoljeni_predmeti if p in _dozvoljeni_set]
+    else:
+        # A caller-provided namespace/ACL is never authority. If identity or
+        # ACL resolution failed, do not let explicit parameters reopen private
+        # retrieval (including background or internal callers).
+        kancelarija_namespace = None
+        dozvoljeni_predmeti = None
     if current_predmet_id is None:
         current_predmet_id = _trenutni_predmet_iz_konteksta()
 

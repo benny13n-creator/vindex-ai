@@ -4167,15 +4167,16 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 
         tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
         begin_cost_tracking()
-        _firma_ns = await _get_firma_namespace(user["user_id"])
-        _extra_ns = [_firma_ns] if _firma_ns else None
         _mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
         # VCR001 T04: pretraga dokumenata zna za TRENUTNI predmet (pojačanje istog predmeta, suženje posle _MAX_IN).
         # Samo potvrđen vlasnik i predmet koji nije u brisanju; ACL (`shared/rag_acl`) ostaje jedina kapija pristupa.
         from shared.ai_provenance import case_context as _pitanje_case_ctx
         with _pitanje_case_ctx(predmet_id=predmet_id if _vlasnik_potvrdjen else None,
                                module_name="pravno_pitanje", operation_name="ask_agent"):
-            rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
+            # Persistent firm documents are retrieved inside retrieve_documents
+            # through the authenticated owner namespace and matter ACL. Do not
+            # pass the legacy office namespace through the unfiltered tmp_* lane.
+            rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, None, _mem_ctx)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
         # UsageService.consume() already pre-deducted the credit above (same timing as the
         # old require_credits pre-deduction) — refund on cache-hit/blocked/genuine LLM
@@ -4359,9 +4360,6 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             content={"greska": "Zahtev je odbijen iz bezbednosnih razloga."},
         )
     asyncio.create_task(_audit(user["user_id"], "pitanje_stream", qh))
-    _stream_firma_ns = await _get_firma_namespace(user["user_id"])
-    _stream_extra_ns = [_stream_firma_ns] if _stream_firma_ns else None
-
     # Atomično oduzmi kredit PRE agent poziva (isti timing kao stari require_credits
     # pre-deduction) — refunduje se ispod ako je odgovor iz keša ili blokiran.
     _stream_preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
@@ -4400,7 +4398,9 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
             _stream_mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
-            rezultat = await pokreni(ask_agent, req.pitanje, history_obj, _stream_extra_ns, _stream_mem_ctx)
+            # Keep streaming retrieval on the same ACL-filtered owner path as
+            # /api/pitanje; no legacy office namespace through extra_namespaces.
+            rezultat = await pokreni(ask_agent, req.pitanje, history_obj, None, _stream_mem_ctx)
 
             if rezultat.get("status") == "success":
                 data_text = rezultat.get("data", "")

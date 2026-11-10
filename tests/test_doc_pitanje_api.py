@@ -219,6 +219,26 @@ def test_pitanje_happy_path():
     assert len(body["data"]) > 10
 
 
+def test_pitanje_foreign_tmp_owner_is_404_before_model_or_charge():
+    """An authenticated user cannot retrieve another owner's tmp session."""
+    mock_ask = MagicMock(return_value=_HAPPY_RESPONSE)
+    foreign_index = MagicMock()
+    foreign_index.query.return_value = MagicMock(
+        matches=[MagicMock(metadata={"owner_user_id": "different-synthetic-owner"})]
+    )
+    with patch("main.ask_agent", mock_ask), \
+         patch("uploaded_doc.session.validate_session", return_value=True), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=foreign_index), \
+         patch("shared.usage.UsageService.consume", new_callable=AsyncMock) as consume:
+        resp = client.post("/api/dokument/pitanje", json={
+            "session_id": _VALID_SESSION,
+            "pitanje": _VALID_PITANJE,
+        })
+    assert resp.status_code == 404
+    mock_ask.assert_not_called()
+    consume.assert_not_awaited()
+
+
 # ─── Test 4: invalid shape (missing fields) → 422 ────────────────────────────
 
 def test_pitanje_invalid_shape():
