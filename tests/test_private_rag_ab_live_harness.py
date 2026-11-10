@@ -76,6 +76,18 @@ def test_cleanup_implementation_never_uses_broad_delete_and_targets_exact_ids():
     assert "index.fetch(ids=ids, namespace=ns)" in source
 
 
+def test_cleanup_rejects_modified_manifest_before_touching_any_adapter():
+    manifest = harness._new_manifest()
+    manifest["vectors"][0]["id"] = "unrelated-client-vector"
+
+    class _MustNotBeCalled:
+        def __getattr__(self, name):
+            raise AssertionError(f"cleanup adapter touched before manifest validation: {name}")
+
+    with pytest.raises(RuntimeError, match="vector IDs/namespaces"):
+        harness._clean(_MustNotBeCalled(), _MustNotBeCalled(), Path("unused.json"), manifest)
+
+
 def test_source_pin_matches_pinned_candidate_and_both_question_variants():
     harness._require_source_pin()
 

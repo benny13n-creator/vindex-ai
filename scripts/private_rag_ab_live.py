@@ -283,6 +283,98 @@ def _fixture_vector(role: str, run_id: str) -> dict[str, Any]:
     }
 
 
+def _validate_manifest_for_cleanup(manifest: dict[str, Any]) -> None:
+    """Reject a modified recovery manifest before it can name deletion targets."""
+    run = manifest.get("run_id")
+    if manifest.get("schema") != 1 or manifest.get("source_sha") != PINNED_SOURCE_SHA:
+        raise RuntimeError("Manifest schema/source pin is not supported")
+    if not isinstance(run, str) or not re.fullmatch(r"[0-9a-f]{32}", run):
+        raise RuntimeError("Manifest run id is malformed")
+    users = manifest.get("users")
+    if not isinstance(users, dict) or set(users) != {"A", "B", "C", "D"}:
+        raise RuntimeError("Manifest identity set is malformed")
+    for role, record in users.items():
+        if record.get("email") != f"vindex-ab-{run}-{role.lower()}@example.invalid":
+            raise RuntimeError(f"Manifest synthetic email mismatch for role {role}")
+        user_id = record.get("id")
+        if user_id is not None:
+            try:
+                uuid.UUID(str(user_id))
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise RuntimeError(f"Manifest user id is malformed for role {role}") from exc
+    office_id = manifest.get("office", {}).get("id")
+    matters = manifest.get("matters")
+    memberships = manifest.get("memberships")
+    delegation = manifest.get("delegation")
+    try:
+        uuid.UUID(str(office_id))
+        uuid.UUID(str(delegation))
+        if not isinstance(matters, dict) or set(matters) != {"A", "B", "C"}:
+            raise ValueError("matter roles")
+        for value in matters.values():
+            uuid.UUID(str(value))
+        if not isinstance(memberships, dict) or set(memberships) != {"C", "D"}:
+            raise ValueError("membership roles")
+        for value in memberships.values():
+            uuid.UUID(str(value))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise RuntimeError("Manifest database ids are malformed") from exc
+
+    expected_vectors = {
+        f"vindex-ab-{run}-a": (f"kancelarija_{office_id}", "A", "A", False),
+        f"vindex-ab-{run}-c": (f"kancelarija_{office_id}", "C", "C", False),
+        f"vindex-ab-{run}-b": (
+            f"user_{users['B']['id']}" if users["B"]["id"] else "user__pending__B",
+            "B", "B", False,
+        ),
+        f"vindex-ab-{run}-tmp-a": (f"tmp_{run}", "A", "A", True),
+    }
+    vectors = manifest.get("vectors")
+    if not isinstance(vectors, list) or len(vectors) > VECTOR_LIMIT:
+        raise RuntimeError("Manifest vector set is malformed or exceeds the cap")
+    observed = {}
+    for vector in vectors:
+        if not isinstance(vector, dict):
+            raise RuntimeError("Manifest vector entry is malformed")
+        observed[vector.get("id")] = (
+            vector.get("namespace"), vector.get("matter"), vector.get("owner"),
+            bool(vector.get("temporary")),
+        )
+    if observed != expected_vectors:
+        raise RuntimeError("Manifest vector IDs/namespaces do not match this synthetic run")
+
+
+def _synthetic_row_expectation(manifest: dict[str, Any], table: str, row_id: str) -> dict[str, Any]:
+    run = manifest["run_id"]
+    users = {role: row["id"] for role, row in manifest["users"].items()}
+    if table == "kancelarije" and row_id == manifest["office"]["id"]:
+        return {"id": row_id, "naziv": f"Vindex synthetic A/B {run[:8]}", "admin_uid": users["A"]}
+    for role, matter_id in manifest["matters"].items():
+        if table == "predmeti" and row_id == matter_id:
+            return {
+                "id": row_id, "user_id": users[role],
+                "naziv": f"Vindex synthetic A/B {run[:8]} {role}",
+            }
+    for role, membership_id in manifest["memberships"].items():
+        if table == "kancelarija_clanovi" and row_id == membership_id:
+            return {
+                "id": row_id, "kancelarija_id": manifest["office"]["id"],
+                "email": manifest["users"][role]["email"], "user_id": users[role],
+                "status": "ACTIVE",
+            }
+    if table == "predmet_delegiranja" and row_id == manifest["delegation"]:
+        return {
+            "id": row_id, "predmet_id": manifest["matters"]["A"],
+            "od_user_id": users["A"], "na_user_id": users["D"],
+            "napomena": f"Synthetic private RAG A/B run {run}",
+        }
+    raise RuntimeError("Manifest requested a database deletion outside its synthetic fixture")
+
+
+def _auth_not_found(exc: Exception) -> bool:
+    return getattr(exc, "status", None) == 404 or getattr(exc, "status_code", None) == 404
+
+
 def _retrieval(index, service, uid: str, *, extra: list[str] | None = None,
                foreign_namespace: str | None = None, fail_acl: bool = False):
     from shared.ai_provenance import scoped_request_context
@@ -334,6 +426,7 @@ def _contains(docs: list[str], meta: dict[str, Any], marker: str) -> bool:
 
 
 def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
+    _validate_manifest_for_cleanup(manifest)
     manifest["cleanup"]["attempted"] = True
     _write_manifest(path, manifest)
     errors: list[str] = []
@@ -364,6 +457,11 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
     for table, ids in table_ids:
         for row_id in ids:
             try:
+                expected = _synthetic_row_expectation(manifest, table, row_id)
+                existing = (service.table(table).select("*").eq("id", row_id).execute().data or [])
+                if any(any(row.get(key) != value for key, value in expected.items()) for row in existing):
+                    errors.append(f"refusing non-synthetic row cleanup: table={table}, id={row_id}")
+                    continue
                 service.table(table).delete().eq("id", row_id).execute()
                 remaining = (service.table(table).select("id").eq("id", row_id).limit(1).execute().data or [])
                 if remaining:
@@ -393,13 +491,29 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
                 errors.append(f"exact synthetic auth lookup failed for {record['email']}: {type(exc).__name__}")
         if user_id:
             try:
+                try:
+                    auth_record = service.auth.admin.get_user_by_id(user_id)
+                except Exception as lookup_exc:
+                    if _auth_not_found(lookup_exc):
+                        continue
+                    raise
+                auth_user = getattr(auth_record, "user", None)
+                if auth_user and (
+                    getattr(auth_user, "email", None) != record["email"]
+                    or (getattr(auth_user, "user_metadata", {}) or {}).get("vindex_private_rag_ab_run") != manifest["run_id"]
+                ):
+                    errors.append(f"refusing non-synthetic auth cleanup for exact id {user_id}")
+                    continue
+                if not auth_user:
+                    continue
                 service.auth.admin.delete_user(user_id)
                 try:
                     still_there = service.auth.admin.get_user_by_id(user_id)
                     if getattr(still_there, "user", None):
                         errors.append(f"auth cleanup not verified for exact synthetic id {user_id}")
-                except Exception:
-                    pass  # Admin API's not-found response is the expected result.
+                except Exception as verify_exc:
+                    if not _auth_not_found(verify_exc):
+                        errors.append(f"auth cleanup verification failed for exact synthetic id {user_id}: {type(verify_exc).__name__}")
             except Exception as exc:
                 errors.append(f"auth cleanup failed for exact synthetic id {user_id}: {type(exc).__name__}")
     manifest["cleanup"]["errors"] = errors
@@ -562,8 +676,7 @@ def _execute(path: Path) -> int:
 def _cleanup_only(path: Path) -> int:
     target = _preflight(require_credentials=True)
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    if manifest.get("schema") != 1 or manifest.get("source_sha") != PINNED_SOURCE_SHA:
-        raise RuntimeError("Manifest schema/source pin is not supported")
+    _validate_manifest_for_cleanup(manifest)
     original = manifest.get("target", {})
     for key in ("supabase_project_ref", "pinecone_index_name", "pinecone_host_fingerprint"):
         if original.get(key) != target.get(key):
