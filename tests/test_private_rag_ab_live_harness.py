@@ -116,34 +116,36 @@ def test_source_pin_matches_pinned_candidate_and_both_question_variants():
 
 
 def test_git_blob_source_pin_normalizes_windows_crlf_without_weakening_pin(tmp_path):
-    """Normalize only CRLF; meaningful source changes still change the blob ID."""
+    """Allow CRLF checkout bytes only when they match the pinned Git blob."""
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
     subprocess.run(
         ["git", "config", "core.autocrlf", "true"], cwd=repo, check=True,
     )
+    subprocess.run(["git", "config", "user.name", "Pin Test"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "pin-test@example.invalid"], cwd=repo, check=True)
     source = repo / "main.py"
+    source.write_bytes(b"first line\nsecond line\n")
+    subprocess.run(["git", "add", "main.py"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "approved source"], cwd=repo, check=True)
+    canonical_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD:main.py"], cwd=repo,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
     source.write_bytes(b"first line\r\nsecond line\r\n")
 
     raw_sha = subprocess.run(
         ["git", "hash-object", "--no-filters", "--", "main.py"], cwd=repo,
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    canonical_sha = subprocess.run(
-        ["git", "hash-object", "--stdin"], cwd=repo,
-        input=b"first line\nsecond line\n", check=True,
-        capture_output=True,
-    ).stdout.decode("ascii").strip()
 
     assert raw_sha != canonical_sha
     assert harness._git_blob_sha("main.py", repo_root=repo) == canonical_sha
-    assert canonical_sha != "0" * 40, "the comparison must still be against a concrete blob hash"
+    assert canonical_sha != "0" * 40, "the comparison must still use a concrete tracked blob ID"
 
     source.write_bytes(b"first line changed\r\nsecond line\r\n")
-    assert harness._git_blob_sha("main.py", repo_root=repo) != canonical_sha
-
-
+    assert harness._git_blob_sha("main.py", repo_root=repo) == ""
 def test_retrieval_harness_uses_derived_acl_for_owner_and_same_office_denial():
     """Exercise the harness's real retrieve_documents path against a filter-aware adapter.
 
