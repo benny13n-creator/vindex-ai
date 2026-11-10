@@ -88,6 +88,29 @@ def test_cleanup_rejects_modified_manifest_before_touching_any_adapter():
         harness._clean(_MustNotBeCalled(), _MustNotBeCalled(), Path("unused.json"), manifest)
 
 
+def test_cache_source_guard_accepts_none_and_bare_early_returns_but_not_missing_guard():
+    tree = ast.parse("""
+def _cache_get():
+    if _autentifikovan_privatni_rag_kontekst():
+        return None
+    return cached
+
+def _cache_set():
+    if _autentifikovan_privatni_rag_kontekst():
+        return
+    persist()
+
+def _unsafe_cache_get():
+    if _autentifikovan_privatni_rag_kontekst():
+        audit_only()
+    return cached
+""")
+    functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    assert harness._has_authenticated_cache_bypass(functions["_cache_get"])
+    assert harness._has_authenticated_cache_bypass(functions["_cache_set"])
+    assert not harness._has_authenticated_cache_bypass(functions["_unsafe_cache_get"])
+
+
 def test_source_pin_matches_pinned_candidate_and_both_question_variants():
     harness._require_source_pin()
 

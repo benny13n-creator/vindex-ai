@@ -47,6 +47,28 @@ MAX_QUERIES = 16
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _has_authenticated_cache_bypass(node: ast.FunctionDef | ast.AsyncFunctionDef | None) -> bool:
+    if node is None:
+        return False
+    for branch in ast.walk(node):
+        if not isinstance(branch, ast.If):
+            continue
+        if not any(
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Name)
+            and call.func.id == "_autentifikovan_privatni_rag_kontekst"
+            for call in ast.walk(branch.test)
+        ):
+            continue
+        if any(
+            isinstance(stmt, ast.Return)
+            and (stmt.value is None or isinstance(stmt.value, ast.Constant) and stmt.value.value is None)
+            for stmt in ast.walk(branch)
+        ):
+            return True
+    return False
+
+
 def _manifest_home() -> Path:
     base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_STATE_HOME")
     if not base:
@@ -115,8 +137,7 @@ def _require_source_pin(*, require_cache_source: bool = False) -> bool:
         main_functions = {node.name: node for node in ast.walk(parsed_main) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
         for name in ("_cache_get", "_cache_set"):
             node = main_functions.get(name)
-            body = "\n".join(main_source.splitlines()[node.lineno - 1:node.end_lineno]) if node else ""
-            if "_autentifikovan_privatni_rag_kontekst()" not in body or "return None" not in body:
+            if not _has_authenticated_cache_bypass(node):
                 raise RuntimeError(f"Authenticated private-RAG cache bypass missing in {name}")
     return cache_source_matches
 
