@@ -114,3 +114,185 @@ def _unsafe_cache_get():
 def test_source_pin_matches_pinned_candidate_and_both_question_variants():
     harness._require_source_pin()
 
+
+def test_retrieval_harness_uses_derived_acl_for_owner_and_same_office_denial():
+    """Exercise the harness's real retrieve_documents path against a filter-aware adapter.
+
+    This is an offline harness proof, not live Pinecone evidence. It ensures the
+    positive owner query reaches its marker and the same-office non-owner query
+    is constrained by the ACL derived from request identity.
+    """
+    from types import SimpleNamespace
+
+    uid_a, uid_c = "synthetic-user-a", "synthetic-user-c"
+    matter_a, matter_c = "synthetic-matter-a", "synthetic-matter-c"
+    office = "synthetic-office"
+    marker_a = "SYNTHETIC_PRIVATE_RAG_AB_OWNER_A_MARKER_" + "A" * 64
+    marker_c = "SYNTHETIC_PRIVATE_RAG_AB_MEMBER_C_MARKER_" + "C" * 64
+
+    class _Query:
+        def __init__(self, table):
+            self.table_name = table
+            self.filters = []
+            self.single = False
+
+        def select(self, *args, **kwargs):
+            return self
+
+        def eq(self, key, value):
+            self.filters.append(("eq", key, value))
+            return self
+
+        def in_(self, key, values):
+            self.filters.append(("in", key, list(values)))
+            return self
+
+        def is_(self, key, value):
+            self.filters.append(("is", key, None if value == "null" else value))
+            return self
+
+        def maybe_single(self):
+            self.single = True
+            return self
+
+        def execute(self):
+            rows = {
+                "kancelarije": [{"id": office, "admin_uid": uid_a}],
+                "kancelarija_clanovi": [
+                    {"kancelarija_id": office, "user_id": uid_c, "status": "ACTIVE"},
+                ],
+                "predmeti": [
+                    {"id": matter_a, "user_id": uid_a, "brisanje_zapoceto": None},
+                    {"id": matter_c, "user_id": uid_c, "brisanje_zapoceto": None},
+                ],
+                "predmet_delegiranja": [],
+            }.get(self.table_name, [])
+
+            def matches(row):
+                for op, key, value in self.filters:
+                    found = row.get(key)
+                    if op == "eq" and found != value:
+                        return False
+                    if op == "in" and found not in value:
+                        return False
+                    if op == "is" and found is not value:
+                        return False
+                return True
+
+            selected = [row for row in rows if matches(row)]
+            if self.single:
+                data = selected[0] if selected else None
+            else:
+                data = selected
+            return SimpleNamespace(data=data)
+
+    class _Service:
+        def table(self, name):
+            return _Query(name)
+
+    class _FilterAwarePinecone:
+        def __init__(self):
+            self.vectors = {
+                (f"kancelarija_{office}", "a"): {
+                    "type": "case_doc", "predmet_id": matter_a, "text": marker_a,
+                    "source_filename": "synthetic-a.txt", "owner_user_id": uid_a,
+                },
+                (f"kancelarija_{office}", "c"): {
+                    "type": "case_doc", "predmet_id": matter_c, "text": marker_c,
+                    "source_filename": "synthetic-c.txt", "owner_user_id": uid_c,
+                },
+            }
+            self.queries = []
+
+        def query(self, *, vector, top_k, namespace, include_metadata, **kwargs):
+            filt = kwargs.get("filter") or {}
+            self.queries.append({"namespace": namespace, "filter": filt})
+            allowed_types = filt.get("type", {}).get("$in")
+            allowed_matters = filt.get("predmet_id", {}).get("$in")
+            matches = []
+            for (ns, vector_id), metadata in self.vectors.items():
+                if ns != namespace:
+                    continue
+                if allowed_types is not None and metadata["type"] not in allowed_types:
+                    continue
+                if allowed_matters is not None and metadata["predmet_id"] not in allowed_matters:
+                    continue
+                matches.append(SimpleNamespace(id=vector_id, metadata=metadata, score=0.99))
+            return SimpleNamespace(matches=matches[:top_k])
+
+    index = _FilterAwarePinecone()
+    service = _Service()
+    docs_a, meta_a, trace_a = harness._retrieval(index, service, uid_a)
+    docs_c, meta_c, trace_c = harness._retrieval(index, service, uid_c)
+
+    assert marker_a in "\n".join(docs_a)
+    assert marker_a not in json.dumps({"docs": docs_c, "meta": meta_c}, ensure_ascii=False)
+    assert marker_c in "\n".join(docs_c), "C positive control must retrieve its own marker"
+    assert trace_a and trace_c
+    assert all(q["filter"]["predmet_id"]["$in"] == [matter_a] for q in trace_a)
+    assert all(q["filter"]["predmet_id"]["$in"] == [matter_c] for q in trace_c)
+    assert len(index.queries) >= 2
+
+
+def test_retrieval_harness_explicit_acl_expansion_is_separate_and_intersected():
+    """A caller-supplied foreign matter cannot expand C's server-derived ACL."""
+    from types import SimpleNamespace
+
+    uid_c, matter_c, matter_a = "synthetic-user-c", "synthetic-matter-c", "synthetic-matter-a"
+    office = "synthetic-office"
+
+    class _Service:
+        def table(self, name):
+            class Q:
+                def __init__(self):
+                    self.filters = []
+                    self.single = False
+                def select(self, *a, **k): return self
+                def eq(self, k, v): self.filters.append(("eq", k, v)); return self
+                def in_(self, k, v): self.filters.append(("in", k, list(v))); return self
+                def is_(self, k, v): self.filters.append(("is", k, None if v == "null" else v)); return self
+                def maybe_single(self):
+                    self.single = True
+                    return self
+                def execute(self):
+                    rows = {
+                        "kancelarije": [],
+                        "kancelarija_clanovi": [{"kancelarija_id": office, "user_id": uid_c, "status": "ACTIVE"}],
+                        "predmeti": [{"id": matter_c, "user_id": uid_c, "brisanje_zapoceto": None}],
+                        "predmet_delegiranja": [],
+                    }.get(name, [])
+                    def ok(row):
+                        return all(
+                            (op == "eq" and row.get(k) == v) or
+                            (op == "in" and row.get(k) in v) or
+                            (op == "is" and row.get(k) is v)
+                            for op, k, v in self.filters
+                        )
+                    selected = [r for r in rows if ok(r)]
+                    return SimpleNamespace(data=(selected[0] if selected else None) if self.single else selected)
+            return Q()
+
+    marker_a = "SYNTHETIC_PRIVATE_RAG_AB_OWNER_A_MARKER_" + "A" * 64
+
+    class _Index:
+        def __init__(self): self.queries = []
+        def query(self, *, namespace, top_k, **kwargs):
+            filt = kwargs.get("filter") or {}
+            self.queries.append(filt)
+            metadata = {"type": "case_doc", "predmet_id": matter_a, "text": marker_a,
+                        "source_filename": "synthetic-a.txt", "owner_user_id": "synthetic-user-a"}
+            types = filt.get("type", {}).get("$in")
+            matters = filt.get("predmet_id", {}).get("$in")
+            allowed = namespace == f"kancelarija_{office}" and (types is None or metadata["type"] in types) and (matters is None or metadata["predmet_id"] in matters)
+            matches = [SimpleNamespace(id="a", metadata=metadata, score=0.99)] if allowed else []
+            return SimpleNamespace(matches=matches[:top_k])
+
+    index = _Index()
+    docs, meta, trace = harness._retrieval(index, _Service(), uid_c, dozvoljeni_predmeti=[matter_a])
+    assert marker_a not in json.dumps({"docs": docs, "meta": meta}, ensure_ascii=False)
+    # C's server-derived ACL contains only matter_c; intersecting it with the
+    # attacker-supplied [matter_a] is empty, so private retrieval is skipped.
+    assert trace == []
+    assert index.queries == []
+
+
