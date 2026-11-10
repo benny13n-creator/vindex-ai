@@ -23,6 +23,34 @@ def _connect(path: Path) -> sqlite3.Connection:
     return sqlite3.connect(path)
 
 
+def _synthetic_pdf(label: str) -> bytes:
+    """Build a minimal one-page PDF without adding a PDF-library dependency."""
+    content = f"BT /F1 12 Tf 30 150 Td ({label}) Tj ET\n".encode("ascii")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length " + str(len(content)).encode("ascii") + b" >>\nstream\n" + content + b"endstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    pdf = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(pdf))
+        pdf.extend(f"{number} 0 obj\n".encode("ascii"))
+        pdf.extend(body)
+        pdf.extend(b"\nendobj\n")
+    xref_offset = len(pdf)
+    pdf.extend(f"xref\n0 {len(offsets)}\n".encode("ascii"))
+    pdf.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        pdf.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    pdf.extend(
+        f"trailer\n<< /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode("ascii")
+    )
+    return bytes(pdf)
+
+
 def _create_synthetic_state(root: Path, key: bytes) -> tuple[Path, Path, dict]:
     snapshot_started = datetime.now(timezone.utc)
     db = root / "primary.sqlite"
@@ -40,8 +68,8 @@ def _create_synthetic_state(root: Path, key: bytes) -> tuple[Path, Path, dict]:
         """
     )
     originals = {
-        "tenant-a/matter-a/doc-a.pdf": b"%PDF-1.4 synthetic tenant A original",
-        "tenant-b/matter-b/doc-b.pdf": b"%PDF-1.4 synthetic tenant B original",
+        "tenant-a/matter-a/doc-a.pdf": _synthetic_pdf("Synthetic tenant A legal test document"),
+        "tenant-b/matter-b/doc-b.pdf": _synthetic_pdf("Synthetic tenant B legal test document"),
     }
     manifest_objects = []
     for object_key, raw in originals.items():
@@ -101,6 +129,7 @@ def _verify(db: Path, storage: Path, key: bytes, manifest: dict) -> dict:
         expected_encrypted = next(item["encrypted_sha256"] for item in manifest["objects"] if item["key"] == object_key)
         assert encrypted_hash == expected_encrypted
         raw = AESGCM(key).decrypt(encrypted[:12], encrypted[12:], object_key.encode())
+        assert raw.startswith(b"%PDF-1.4\n") and raw.endswith(b"%%EOF\n")
         assert hashlib.sha256(raw).hexdigest() == expected_hash
         tenant = object_key.split("/")[0]
         assert conn.execute("SELECT 1 FROM matters WHERE id=? AND tenant_id=?", (matter_id, tenant)).fetchone()
