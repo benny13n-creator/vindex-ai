@@ -9,6 +9,7 @@ import json
 import ast
 import sys
 from types import SimpleNamespace
+from types import SimpleNamespace
 from pathlib import Path
 import subprocess
 
@@ -151,11 +152,187 @@ def test_primary_failure_is_preserved_when_cleanup_also_fails(tmp_path, monkeypa
     assert saved["primary_error"]["stage"] == "auth.create_user.A"
 
 
+def test_primary_failure_is_reported_if_manifest_persistence_also_fails(tmp_path, monkeypatch):
+    manifest = harness._new_manifest()
+    manifest["_manifest_path"] = str(tmp_path / "manifest.json")
+    manifest["users"]["A"]["write_state"] = "ATTEMPTED_UNKNOWN"
+    path = Path(manifest["_manifest_path"])
+    monkeypatch.setattr(harness, "_write_manifest", lambda *args: (_ for _ in ()).throw(OSError("secret path")))
+    monkeypatch.setattr(harness, "_clean", lambda *args: (_ for _ in ()).throw(OSError("cleanup failure")))
+    error = harness._preserve_primary_failure(RuntimeError("provider timeout"), object(), object(), path,
+                                              manifest, "auth.create_user.A")
+    report = harness._safe_error(error, stage="ignored", mutation_attempted=False, manifest_path=path)
+    assert report["primary_error"]["exception_type"] == "RuntimeError"
+    assert report["cleanup_error"]["exception_type"] == "OSError"
+    assert report["journal_error"]["exception_type"] == "OSError"
+    assert "secret" not in json.dumps(report)
+
+
 def test_schema_two_manifest_rejects_unknown_write_state():
     manifest = harness._new_manifest()
     manifest["vectors"][0]["write_state"] = "maybe-written"
     with pytest.raises(RuntimeError, match="vector write state"):
         harness._validate_manifest_for_cleanup(manifest)
+
+
+def test_incomplete_db_or_auth_reads_never_mean_resource_absent():
+    class _Response:
+        data = None
+        users = None
+    class _Query:
+        def select(self, *args, **kwargs): return self
+        def eq(self, *args, **kwargs): return self
+        def limit(self, *args, **kwargs): return self
+        def execute(self): return _Response()
+    class _Service:
+        class auth:
+            class admin:
+                @staticmethod
+                def list_users(**kwargs): return _Response()
+        def table(self, name): return _Query()
+    with pytest.raises(RuntimeError, match="Incomplete exact-row response"):
+        harness._exact_db_rows(_Service(), "predmeti", "synthetic-id")
+    with pytest.raises(RuntimeError, match="Incomplete exact synthetic Auth listing"):
+        harness._auth_users_page(_Service(), page=1, per_page=100)
+
+
+def test_missing_founder_environment_import_failure_is_reproduced_offline():
+    import os
+    import sys
+    env = dict(os.environ)
+    env.pop("FOUNDER_EMAILS", None)
+    env["PYTHONPATH"] = str(harness.REPO_ROOT)
+    result = subprocess.run(
+        [sys.executable, "-c", "import shared.deps"],
+        cwd=harness.REPO_ROOT, env=env, capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "FOUNDER_EMAILS env var must be set" in result.stderr
+    assert "Traceback" in result.stderr
+
+
+def test_harness_founder_sentinel_is_process_local_and_nonprivileged(monkeypatch):
+    import os
+    monkeypatch.delenv("FOUNDER_EMAILS", raising=False)
+    imported = []
+    monkeypatch.setattr("importlib.import_module", lambda name: imported.append(name))
+    harness._load_runtime_dependencies()
+    assert os.environ["FOUNDER_EMAILS"] == harness.FOUNDER_SENTINEL
+    assert harness.FOUNDER_SENTINEL not in {r["email"] for r in harness._new_manifest()["users"].values()}
+    assert "shared.deps" in imported
+
+
+def test_create_auth_user_timeout_is_journaled_before_request(tmp_path, monkeypatch):
+    monkeypatch.setenv("FOUNDER_EMAILS", harness.FOUNDER_SENTINEL)
+    manifest = harness._new_manifest()
+    path = tmp_path / "auth-timeout.json"
+    manifest["_manifest_path"] = str(path)
+    harness._write_manifest(path, manifest)
+    class _Admin:
+        def create_user(self, payload): raise TimeoutError("ambiguous synthetic timeout")
+    service = SimpleNamespace(auth=SimpleNamespace(admin=_Admin()))
+    with pytest.raises(TimeoutError):
+        harness._create_auth_users(service, object(), manifest)
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["users"]["A"]["write_state"] == "ATTEMPTED_UNKNOWN"
+    assert saved["stage"] == "auth.create_user.A"
+
+
+def test_partial_database_fixture_journals_success_and_ambiguous_next_write(tmp_path):
+    manifest = harness._new_manifest()
+    path = tmp_path / "partial-db.json"
+    manifest["_manifest_path"] = str(path)
+    harness._write_manifest(path, manifest)
+    calls = []
+    class _Insert:
+        def __init__(self, table): self.table_name = table
+        def execute(self):
+            calls.append(self.table_name)
+            if self.table_name == "predmeti": raise TimeoutError("ambiguous row timeout")
+    class _Table:
+        def __init__(self, name): self.name = name
+        def insert(self, payload): return _Insert(self.name)
+    class _Service:
+        def table(self, name): return _Table(name)
+    for role in manifest["users"].values(): role["id"] = str(__import__("uuid").uuid4())
+    with pytest.raises(TimeoutError):
+        harness._seed_rows(_Service(), manifest, path)
+    assert calls == ["kancelarije", "predmeti"]
+    states = {(x["key"], x["write_state"]) for x in manifest["database_writes"]}
+    assert ("office", "CONFIRMED_CREATED") in states
+    assert ("matter_A", "ATTEMPTED_UNKNOWN") in states
+    assert len(manifest["database_writes"]) == 2
+
+
+def test_not_found_during_ambiguous_vector_cleanup_is_not_cleanup_proof(tmp_path):
+    manifest = harness._new_manifest()
+    manifest["_manifest_path"] = str(tmp_path / "not-found.json")
+    manifest["vectors"][0]["write_state"] = "ATTEMPTED_UNKNOWN"
+    manifest["vectors"][0]["text_sha256"] = harness._fixture_vector("A", manifest["run_id"])["text_sha256"]
+    class NotFoundException(Exception):
+        status = 404
+    class _Index:
+        def fetch(self, **kwargs): raise NotFoundException()
+        def delete(self, **kwargs): raise AssertionError("failed fetch cannot authorize delete")
+    class _Service: pass
+    path = Path(manifest["_manifest_path"])
+    harness._write_manifest(path, manifest)
+    with pytest.raises(RuntimeError, match="Cleanup could not be verified"):
+        harness._clean(_Service(), _Index(), path, manifest)
+    assert manifest["cleanup"]["verified"] is False
+    assert manifest["vectors"][0]["write_state"] == "CLEANUP_FAILED"
+
+
+def test_live_preflight_rejects_wrong_described_pinecone_host_without_supabase_call(monkeypatch):
+    host = "configured-test.svc.pinecone.io"
+    for name, value in {
+        "SUPABASE_URL": f"https://{harness.EXPECTED_PROJECT_REF}.supabase.co",
+        "SUPABASE_ANON_KEY": "placeholder", "SUPABASE_SERVICE_KEY": "placeholder",
+        "PINECONE_API_KEY": "placeholder", "PINECONE_HOST": host,
+        "PINECONE_INDEX_NAME": harness.EXPECTED_INDEX,
+    }.items(): monkeypatch.setenv(name, value)
+    monkeypatch.setattr(harness, "_preflight", lambda **kwargs: {
+        "candidate_sha": "candidate", "pinecone_index_name": harness.EXPECTED_INDEX,
+        "supabase_project_ref": harness.EXPECTED_PROJECT_REF,
+    })
+    monkeypatch.setattr(harness, "_require_source_pin", lambda **kwargs: True)
+    monkeypatch.setattr(harness, "_load_runtime_dependencies", lambda: None)
+    monkeypatch.setattr(harness, "_read_manifest_paths", lambda: [])
+    class _Pinecone:
+        def __init__(self, **kwargs): pass
+        def describe_index(self, name): return SimpleNamespace(host="different.svc.pinecone.io", dimension=harness.VECTOR_DIM)
+    monkeypatch.setitem(sys.modules, "pinecone", SimpleNamespace(Pinecone=_Pinecone))
+    monkeypatch.setattr(harness, "_auth_client", lambda *args: (_ for _ in ()).throw(AssertionError("Supabase should not be reached")))
+    with pytest.raises(RuntimeError, match="does not match the named index"):
+        harness._preflight_live(expected_sha="candidate")
+
+
+def test_live_preflight_invalid_supabase_admin_read_fails_closed(monkeypatch):
+    host = "configured-test.svc.pinecone.io"
+    for name, value in {
+        "SUPABASE_URL": f"https://{harness.EXPECTED_PROJECT_REF}.supabase.co",
+        "SUPABASE_ANON_KEY": "placeholder", "SUPABASE_SERVICE_KEY": "placeholder",
+        "PINECONE_API_KEY": "placeholder", "PINECONE_HOST": host,
+        "PINECONE_INDEX_NAME": harness.EXPECTED_INDEX,
+    }.items(): monkeypatch.setenv(name, value)
+    monkeypatch.setattr(harness, "_preflight", lambda **kwargs: {
+        "candidate_sha": "candidate", "pinecone_index_name": harness.EXPECTED_INDEX,
+        "pinecone_host_fingerprint": "fp", "supabase_project_ref": harness.EXPECTED_PROJECT_REF,
+    })
+    monkeypatch.setattr(harness, "_require_source_pin", lambda **kwargs: True)
+    monkeypatch.setattr(harness, "_load_runtime_dependencies", lambda: None)
+    class _Index:
+        def delete(self, **kwargs): raise AssertionError("read-only preflight")
+    class _Pinecone:
+        def __init__(self, **kwargs): pass
+        def describe_index(self, name): return SimpleNamespace(host=host, dimension=harness.VECTOR_DIM)
+        def Index(self, **kwargs): return _Index()
+    monkeypatch.setitem(sys.modules, "pinecone", SimpleNamespace(Pinecone=_Pinecone))
+    class Unauthorized(Exception): status_code=401
+    service = SimpleNamespace(auth=SimpleNamespace(admin=SimpleNamespace(list_users=lambda **kwargs: (_ for _ in ()).throw(Unauthorized()))))
+    monkeypatch.setattr(harness, "_auth_client", lambda *args: (service, object()))
+    with pytest.raises(Unauthorized):
+        harness._preflight_live(expected_sha="candidate")
 
 
 def test_safe_error_keeps_missing_module_and_never_serializes_exception_message():
@@ -194,6 +371,7 @@ def test_preflight_live_uses_provider_reads_only(monkeypatch):
     monkeypatch.setattr(harness, "_read_manifest_paths", lambda: [])
 
     class _Index:
+        def delete(self, **kwargs): raise AssertionError("preflight must not invoke Pinecone delete")
         def __getattr__(self, name):
             if name == "fetch":
                 calls.append("pinecone.fetch")
@@ -210,8 +388,11 @@ def test_preflight_live_uses_provider_reads_only(monkeypatch):
     monkeypatch.setitem(sys.modules, "pinecone", SimpleNamespace(Pinecone=_Pinecone))
 
     class _Admin:
+        def delete_user(self, *args, **kwargs): raise AssertionError("preflight must not delete users")
         def list_users(self, **kwargs): calls.append(("supabase.list_users", kwargs)); return SimpleNamespace(users=[])
-    service = SimpleNamespace(auth=SimpleNamespace(admin=_Admin()))
+    class _Table:
+        def delete(self): raise AssertionError("preflight must not delete table rows")
+    service = SimpleNamespace(auth=SimpleNamespace(admin=_Admin()), table=lambda name: _Table())
     monkeypatch.setattr(harness, "_auth_client", lambda *args: (service, object()))
 
     report = harness._preflight_live(expected_sha="candidate-sha")
@@ -219,6 +400,7 @@ def test_preflight_live_uses_provider_reads_only(monkeypatch):
     assert report["writes"] == 0
     assert report["provider_reads"]["pinecone_describe_index"] == 1
     assert report["provider_reads"]["supabase_admin_list_users"] == 1
+    assert all(report["cleanup_capabilities"].values())
     assert [c[0] for c in calls if isinstance(c, tuple)] == [
         "pinecone.describe_index", "pinecone.Index", "supabase.list_users",
     ]
