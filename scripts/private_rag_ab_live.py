@@ -362,6 +362,13 @@ def _preflight_live(*, expected_sha: str | None = None) -> dict[str, Any]:
     # An authenticated admin list call proves read access only; the result is
     # intentionally discarded to avoid logging account data.
     _auth_users_page(service, page=1, per_page=1)
+    cleanup_capabilities = {
+        "pinecone_exact_id_delete_method": callable(getattr(index, "delete", None)),
+        "supabase_table_delete_method": callable(getattr(service.table("predmeti"), "delete", None)),
+        "supabase_auth_delete_user_method": callable(getattr(service.auth.admin, "delete_user", None)),
+    }
+    if not all(cleanup_capabilities.values()):
+        raise RuntimeError("Required exact-scope cleanup methods are unavailable")
     old_runs = []
     for path in _read_manifest_paths():
         try:
@@ -373,7 +380,8 @@ def _preflight_live(*, expected_sha: str | None = None) -> dict[str, Any]:
     if unresolved:
         raise RuntimeError("Prior synthetic run requires exact reconciliation; no new writes permitted: " + json.dumps(unresolved, sort_keys=True))
     return {**target, "provider_reads": {"pinecone_describe_index": 1, "supabase_admin_list_users": 1,
-            "prior_manifest_exact_checks": len(old_runs)}, "prior_runs": old_runs, "writes": 0,
+            "prior_manifest_exact_checks": len(old_runs)}, "cleanup_capabilities": cleanup_capabilities,
+            "prior_runs": old_runs, "writes": 0,
             "preflight_live": True}
 
 
