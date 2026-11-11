@@ -861,7 +861,12 @@ def _preserve_primary_failure(primary: Exception, service, index, path: Path,
     manifest["primary_error"] = _safe_error(primary, stage=manifest.get("stage", stage),
                                               mutation_attempted=attempted, manifest_path=path)
     manifest["state"] = "primary_failed"
-    _write_manifest(path, manifest)
+    journal_error = None
+    try:
+        _write_manifest(path, manifest)
+    except Exception as exc:
+        journal_error = _safe_error(exc, stage="manifest.persist_primary_error",
+                                    mutation_attempted=False, manifest_path=path)
     cleanup_error = None
     try:
         _clean(service, index, path, manifest)
@@ -869,9 +874,14 @@ def _preserve_primary_failure(primary: Exception, service, index, path: Path,
         cleanup_error = _safe_error(exc, stage="cleanup", mutation_attempted=True, manifest_path=path)
         manifest["cleanup_error"] = cleanup_error
         manifest["state"] = "cleanup_required"
-        _write_manifest(path, manifest)
+        try:
+            _write_manifest(path, manifest)
+        except Exception as journal_exc:
+            journal_error = journal_error or _safe_error(journal_exc, stage="manifest.persist_cleanup_error",
+                                                          mutation_attempted=False, manifest_path=path)
     return HarnessExecutionError({"primary_error": manifest["primary_error"],
-                                  "cleanup_error": cleanup_error, "manifest_path": str(path)})
+                                  "cleanup_error": cleanup_error, "journal_error": journal_error,
+                                  "manifest_path": str(path)})
 
 
 def _execute(path: Path) -> int:
