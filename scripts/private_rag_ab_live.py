@@ -261,6 +261,22 @@ def _read_manifest_paths() -> list[Path]:
     return sorted(home.glob("run_*.json")) if home.exists() else []
 
 
+def _exact_db_rows(service, table: str, row_id: str, columns: str = "*") -> list[dict[str, Any]]:
+    response = service.table(table).select(columns).eq("id", row_id).limit(1).execute()
+    rows = getattr(response, "data", None)
+    if not isinstance(rows, list):
+        raise RuntimeError(f"Incomplete exact-row response for {table}:{row_id}")
+    return rows
+
+
+def _auth_users_page(service, *, page: int, per_page: int) -> list[Any]:
+    response = service.auth.admin.list_users(page=page, per_page=per_page)
+    users = getattr(response, "users", None)
+    if not isinstance(users, list):
+        raise RuntimeError("Incomplete exact synthetic Auth listing response")
+    return users
+
+
 def _inspect_legacy_manifest(service, index, path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     """Read-only exact-resource reconciliation for schema-1 manifests."""
     _validate_manifest_for_cleanup(manifest)
@@ -280,7 +296,7 @@ def _inspect_legacy_manifest(service, index, path: Path, manifest: dict[str, Any
                        ("kancelarije", [manifest["office"]["id"]])):
         for row_id in ids:
             try:
-                rows = service.table(table).select("id").eq("id", row_id).limit(1).execute().data or []
+                rows = _exact_db_rows(service, table, row_id, "id")
             except Exception as exc:
                 raise RuntimeError(f"Could not reconcile exact legacy database id {row_id}: {type(exc).__name__}") from None
             if rows:
@@ -298,12 +314,13 @@ def _inspect_legacy_manifest(service, index, path: Path, manifest: dict[str, Any
                     auth_present.append(str(user_id))
                 elif user:
                     unresolved_users.append("identity-mismatch:" + str(user_id))
+                else:
+                    unresolved_users.append("incomplete-user-response:" + str(user_id))
             else:
                 page = 1
                 found = None
                 while True:
-                    result = service.auth.admin.list_users(page=page, per_page=100)
-                    users = getattr(result, "users", None) or []
+                    users = _auth_users_page(service, page=page, per_page=100)
                     found = next((u for u in users if getattr(u, "email", None) == record["email"]), None)
                     if found or len(users) < 100:
                         break
@@ -344,7 +361,7 @@ def _preflight_live(*, expected_sha: str | None = None) -> dict[str, Any]:
     service, _ = _auth_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_ANON_KEY"], os.environ["SUPABASE_SERVICE_KEY"])
     # An authenticated admin list call proves read access only; the result is
     # intentionally discarded to avoid logging account data.
-    service.auth.admin.list_users(page=1, per_page=1)
+    _auth_users_page(service, page=1, per_page=1)
     old_runs = []
     for path in _read_manifest_paths():
         try:
@@ -751,7 +768,7 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
                 continue
             try:
                 expected = _synthetic_row_expectation(manifest, table, row_id)
-                existing = (service.table(table).select("*").eq("id", row_id).execute().data or [])
+                existing = _exact_db_rows(service, table, row_id)
                 if not existing:
                     item["write_state"] = "CONFIRMED_ABSENT"
                     _write_manifest(path, manifest)
@@ -764,7 +781,7 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
                 manifest["stage"] = f"database.delete.{table}.{row_id}"
                 _write_manifest(path, manifest)
                 service.table(table).delete().eq("id", row_id).execute()
-                remaining = (service.table(table).select("id").eq("id", row_id).limit(1).execute().data or [])
+                remaining = _exact_db_rows(service, table, row_id, "id")
                 if remaining:
                     errors.append(f"row cleanup not verified: table={table}, id={row_id}")
                     item["write_state"] = "CLEANUP_FAILED"
@@ -785,8 +802,7 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
             try:
                 page = 1
                 while True:
-                    response = service.auth.admin.list_users(page=page, per_page=100)
-                    candidates = getattr(response, "users", None) or []
+                    candidates = _auth_users_page(service, page=page, per_page=100)
                     match = next((u for u in candidates if getattr(u, "email", None) == record["email"]), None)
                     if match:
                         user_id = str(match.id)
@@ -812,6 +828,8 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
                         continue
                     raise
                 auth_user = getattr(auth_record, "user", None)
+                if auth_user is None:
+                    raise RuntimeError("Incomplete exact Auth user response")
                 if auth_user and (
                     getattr(auth_user, "email", None) != record["email"]
                     or (getattr(auth_user, "user_metadata", {}) or {}).get("vindex_private_rag_ab_run") != manifest["run_id"]
@@ -828,8 +846,7 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
                 service.auth.admin.delete_user(user_id)
                 try:
                     still_there = service.auth.admin.get_user_by_id(user_id)
-                    if getattr(still_there, "user", None):
-                        errors.append(f"auth cleanup not verified for exact synthetic id {user_id}")
+                    errors.append(f"auth cleanup not verified for exact synthetic id {user_id}")
                 except Exception as verify_exc:
                     if _auth_not_found(verify_exc):
                         record["write_state"] = "CONFIRMED_ABSENT"
