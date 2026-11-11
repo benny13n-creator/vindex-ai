@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 import ast
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 import subprocess
 
@@ -60,6 +62,7 @@ def test_live_execute_refuses_missing_credentials_before_any_manifest_or_provide
     assert harness.main(["--execute", "--expected-sha", current, "--manifest", str(manifest)]) == 2
     assert not manifest.exists()
     output = capsys.readouterr().err
+    assert '"missing_variables"' in output
     assert "SUPABASE_URL" in output
     assert "PINECONE_API_KEY" in output
     assert "Recovery manifest" not in output
@@ -72,8 +75,153 @@ def test_cleanup_implementation_never_uses_broad_delete_and_targets_exact_ids():
     parsed = ast.parse(source)
     assert not any(isinstance(n, ast.Attribute) and n.attr == "delete_all" for n in ast.walk(parsed))
     assert '.eq("id", row_id)' in source
-    assert "index.delete(ids=ids, namespace=ns)" in source
+    assert "index.delete(ids=[v[\"id\"] for v in present], namespace=ns)" in source
     assert "index.fetch(ids=ids, namespace=ns)" in source
+
+
+def test_cleanup_never_deletes_planned_but_unattempted_resources(tmp_path):
+    manifest = harness._new_manifest()
+    manifest["_manifest_path"] = str(tmp_path / "manifest.json")
+    manifest_path = Path(manifest["_manifest_path"])
+    harness._write_manifest(manifest_path, manifest)
+
+    class _NoRemoteMutation:
+        class auth:
+            class admin:
+                @staticmethod
+                def list_users(**kwargs):
+                    raise AssertionError("unattempted identity must not be looked up")
+        def __getattr__(self, name):
+            if name == "table":
+                raise AssertionError("unattempted DB write must not be touched")
+            raise AssertionError(f"remote operation unexpectedly called: {name}")
+
+    harness._clean(_NoRemoteMutation(), _NoRemoteMutation(), manifest_path, manifest)
+    assert manifest["cleanup"]["verified"] is True
+    assert all(v["write_state"] == "NOT_ATTEMPTED" for v in manifest["vectors"])
+    assert manifest["database_writes"] == []
+    assert all(u["write_state"] == "NOT_ATTEMPTED" for u in manifest["users"].values())
+
+
+def test_cleanup_reconciles_ambiguous_vector_write_before_exact_delete(tmp_path):
+    manifest = harness._new_manifest()
+    manifest["_manifest_path"] = str(tmp_path / "manifest.json")
+    manifest["users"]["A"].update({"id": "11111111-1111-4111-8111-111111111111"})
+    vector = manifest["vectors"][0]
+    vector["write_state"] = "ATTEMPTED_UNKNOWN"
+    vector["text_sha256"] = harness._fixture_vector("A", manifest["run_id"])["text_sha256"]
+    manifest_path = Path(manifest["_manifest_path"])
+    harness._write_manifest(manifest_path, manifest)
+
+    class _Index:
+        def __init__(self): self.deleted = []
+        def fetch(self, *, ids, namespace): return type("R", (), {"vectors": {}})()
+        def delete(self, *, ids, namespace): self.deleted.extend(ids)
+    class _NoDB:
+        def __getattr__(self, name): raise AssertionError("no DB writes were attempted")
+    index = _Index()
+    harness._clean(_NoDB(), index, manifest_path, manifest)
+    assert index.deleted == []
+    assert vector["write_state"] == "CONFIRMED_ABSENT"
+    assert manifest["cleanup"]["verified"] is True
+
+
+def test_primary_failure_is_preserved_when_cleanup_also_fails(tmp_path, monkeypatch):
+    manifest = harness._new_manifest()
+    manifest["_manifest_path"] = str(tmp_path / "manifest.json")
+    manifest["stage"] = "auth.create_user.A"
+    manifest["users"]["A"]["write_state"] = "ATTEMPTED_UNKNOWN"
+    path = Path(manifest["_manifest_path"])
+    harness._write_manifest(path, manifest)
+
+    def broken_cleanup(*args):
+        raise RuntimeError("cleanup secret must not be included")
+    monkeypatch.setattr(harness, "_clean", broken_cleanup)
+    error = harness._preserve_primary_failure(
+        RuntimeError("primary timeout must remain primary"), object(), object(), path, manifest, "fallback-stage",
+    )
+    report = harness._safe_error(error, stage="ignored", mutation_attempted=False, manifest_path=path)
+    assert report["primary_error"]["exception_type"] == "RuntimeError"
+    assert report["primary_error"]["stage"] == "auth.create_user.A"
+    assert report["primary_error"]["remote_mutation_attempted"] is True
+    assert report["cleanup_error"]["exception_type"] == "RuntimeError"
+    assert "secret" not in json.dumps(report)
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["state"] == "cleanup_required"
+    assert saved["primary_error"]["stage"] == "auth.create_user.A"
+
+
+def test_schema_two_manifest_rejects_unknown_write_state():
+    manifest = harness._new_manifest()
+    manifest["vectors"][0]["write_state"] = "maybe-written"
+    with pytest.raises(RuntimeError, match="vector write state"):
+        harness._validate_manifest_for_cleanup(manifest)
+
+
+def test_safe_error_keeps_missing_module_and_never_serializes_exception_message():
+    exc = ModuleNotFoundError("secret-bearing provider response", name="pinecone")
+    detail = harness._safe_error(exc, stage="import", mutation_attempted=False, manifest_path=None)
+    assert detail["missing_module"] == "pinecone"
+    assert "secret-bearing" not in json.dumps(detail)
+
+
+def test_preflight_live_requires_exact_candidate_sha_without_provider_access(monkeypatch):
+    called = []
+    monkeypatch.setattr(harness, "_preflight_live", lambda **kwargs: called.append(kwargs))
+    with pytest.raises(SystemExit):
+        harness.main(["--preflight-live"])
+    assert called == []
+
+
+def test_preflight_live_uses_provider_reads_only(monkeypatch):
+    calls = []
+    host = "approved-test-index.svc.pinecone.io"
+    for name, value in {
+        "SUPABASE_URL": f"https://{harness.EXPECTED_PROJECT_REF}.supabase.co",
+        "SUPABASE_ANON_KEY": "test-anon-placeholder",
+        "SUPABASE_SERVICE_KEY": "test-service-placeholder",
+        "PINECONE_API_KEY": "test-pinecone-placeholder",
+        "PINECONE_HOST": host,
+        "PINECONE_INDEX_NAME": harness.EXPECTED_INDEX,
+    }.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(harness, "_preflight", lambda **kwargs: {
+        "candidate_sha": "candidate-sha", "pinecone_index_name": harness.EXPECTED_INDEX,
+        "pinecone_host_fingerprint": "fingerprint", "supabase_project_ref": harness.EXPECTED_PROJECT_REF,
+    })
+    monkeypatch.setattr(harness, "_require_source_pin", lambda **kwargs: True)
+    monkeypatch.setattr(harness, "_load_runtime_dependencies", lambda: None)
+    monkeypatch.setattr(harness, "_read_manifest_paths", lambda: [])
+
+    class _Index:
+        def __getattr__(self, name):
+            if name == "fetch":
+                calls.append("pinecone.fetch")
+                return lambda **kwargs: SimpleNamespace(vectors={})
+            if name in {"upsert", "delete"}:
+                raise AssertionError("live preflight must never mutate Pinecone")
+            raise AttributeError(name)
+    class _Pinecone:
+        def __init__(self, **kwargs): calls.append("pinecone.client")
+        def describe_index(self, name):
+            calls.append(("pinecone.describe_index", name))
+            return SimpleNamespace(host=host, dimension=harness.VECTOR_DIM)
+        def Index(self, **kwargs): calls.append(("pinecone.Index", kwargs)); return _Index()
+    monkeypatch.setitem(sys.modules, "pinecone", SimpleNamespace(Pinecone=_Pinecone))
+
+    class _Admin:
+        def list_users(self, **kwargs): calls.append(("supabase.list_users", kwargs)); return SimpleNamespace(users=[])
+    service = SimpleNamespace(auth=SimpleNamespace(admin=_Admin()))
+    monkeypatch.setattr(harness, "_auth_client", lambda *args: (service, object()))
+
+    report = harness._preflight_live(expected_sha="candidate-sha")
+    assert report["preflight_live"] is True
+    assert report["writes"] == 0
+    assert report["provider_reads"]["pinecone_describe_index"] == 1
+    assert report["provider_reads"]["supabase_admin_list_users"] == 1
+    assert [c[0] for c in calls if isinstance(c, tuple)] == [
+        "pinecone.describe_index", "pinecone.Index", "supabase.list_users",
+    ]
 
 
 def test_cleanup_rejects_modified_manifest_before_touching_any_adapter():
@@ -116,7 +264,7 @@ def test_source_pin_matches_pinned_candidate_and_both_question_variants():
 
 
 def test_git_blob_source_pin_normalizes_windows_crlf_without_weakening_pin(tmp_path):
-    """Allow CRLF checkout bytes only when they match the pinned Git blob."""
+    """Normalize only CRLF; meaningful source changes still change the blob ID."""
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
@@ -142,10 +290,12 @@ def test_git_blob_source_pin_normalizes_windows_crlf_without_weakening_pin(tmp_p
 
     assert raw_sha != canonical_sha
     assert harness._git_blob_sha("main.py", repo_root=repo) == canonical_sha
-    assert canonical_sha != "0" * 40, "the comparison must still use a concrete tracked blob ID"
+    assert canonical_sha != "0" * 40, "the comparison must still be against a concrete blob hash"
 
     source.write_bytes(b"first line changed\r\nsecond line\r\n")
     assert harness._git_blob_sha("main.py", repo_root=repo) == ""
+
+
 def test_retrieval_harness_uses_derived_acl_for_owner_and_same_office_denial():
     """Exercise the harness's real retrieve_documents path against a filter-aware adapter.
 
