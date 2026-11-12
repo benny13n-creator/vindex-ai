@@ -11,6 +11,7 @@ import argparse
 import ast
 import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -26,6 +27,11 @@ from unittest.mock import patch
 PINNED_SOURCE_SHA = "984af6d817a1fcc12b0896106e72ce769fdc3947"
 EXPECTED_PROJECT_REF = "czsxymueizfqrbbgqqob"
 EXPECTED_INDEX = "vindex-ai"
+PINNED_PINECONE_SDK_VERSION = "8.1.1"
+SAFE_PROVIDER_ERROR_CODES = frozenset({
+    "INVALID_ARGUMENT", "BAD_REQUEST", "UNAUTHENTICATED", "PERMISSION_DENIED",
+    "NOT_FOUND", "ALREADY_EXISTS", "RESOURCE_EXHAUSTED", "INTERNAL", "UNAVAILABLE",
+})
 EXPECTED_CACHE_MAIN_BLOB = "397d8bd4954b822a91680bd01d5c841a4a1f9223"
 EXPECTED_CODE_BLOBS = {
     "api.py": "12bb1cd42f4a093f37215403c82c2823a562e06a",
@@ -236,9 +242,20 @@ def _safe_error(exc: Exception, *, stage: str, mutation_attempted: bool, manifes
         if isinstance(value, int) and 100 <= value <= 599:
             detail["http_status"] = value
             break
+    if stage.startswith("pinecone.") and "http_status" in detail:
+        detail["provider_reason_category"] = {
+            400: "request_validation_rejected",
+            401: "provider_authentication_rejected",
+            403: "provider_authorization_rejected",
+            404: "provider_resource_not_found",
+            409: "provider_conflict",
+            429: "provider_rate_limited",
+        }.get(detail["http_status"],
+              "provider_server_error" if detail["http_status"] >= 500 else "provider_request_rejected")
     code = getattr(exc, "code", None)
-    if isinstance(code, (str, int)) and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", str(code)):
-        detail["provider_code"] = str(code)
+    normalized_code = str(code).upper() if isinstance(code, (str, int)) else ""
+    if normalized_code in SAFE_PROVIDER_ERROR_CODES:
+        detail["provider_code"] = normalized_code
     return detail
 
 
@@ -530,15 +547,105 @@ def _seed_rows(service, manifest: dict[str, Any], path: Path) -> None:
         _write_manifest(path, manifest)
 
 
-def _fixture_vector(role: str, run_id: str) -> dict[str, Any]:
+def _fixture_vector(role: str, run_id: str, *, temporary: bool = False) -> dict[str, Any]:
     # Fixed synthetic vector; the real Pinecone index and Vindex filtering/query
     # are exercised. No OpenAI embedding or chat-completion request is made.
-    text = f"SYNTHETIC_PRIVATE_RAG_AB_{run_id}_{role}_CONTENT"
+    kind = "TMP" if temporary else "CASE"
+    text = f"SYNTHETIC_PRIVATE_RAG_AB_{run_id}_{kind}_{role}_CONTENT"
     return {
         "text": text,
         "text_sha256": hashlib.sha256(text.encode()).hexdigest(),
         "values": [1.0] + [0.0] * (VECTOR_DIM - 1),
     }
+
+
+def _validate_vector_payloads(vectors_by_namespace: dict[str, list[dict[str, Any]]]) -> None:
+    """Validate exact SDK 8.1.1 request objects before any fixture mutation."""
+    from importlib.metadata import version
+    from pinecone import Vector as PineconeVector
+
+    if version("pinecone") != PINNED_PINECONE_SDK_VERSION:
+        raise RuntimeError("Pinecone SDK version does not match the pinned wire contract")
+    count = 0
+    seen_ids: set[str] = set()
+    for namespace, vectors in vectors_by_namespace.items():
+        if not isinstance(namespace, str) or not namespace or not isinstance(vectors, list):
+            raise RuntimeError("Pinecone namespace/vector payload is malformed")
+        for vector in vectors:
+            count += 1
+            if not isinstance(vector, dict) or set(vector) != {"id", "values", "metadata"}:
+                raise RuntimeError("Pinecone vector payload fields are malformed")
+            vector_id, values, metadata = vector["id"], vector["values"], vector["metadata"]
+            if not isinstance(vector_id, str) or not vector_id or vector_id in seen_ids:
+                raise RuntimeError("Pinecone vector ID is malformed or duplicated")
+            seen_ids.add(vector_id)
+            if (not isinstance(values, list) or len(values) != VECTOR_DIM
+                    or any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x)
+                           for x in values)):
+                raise RuntimeError("Pinecone vector values must be finite numbers at the pinned dimension")
+            if not isinstance(metadata, dict) or not metadata:
+                raise RuntimeError("Pinecone vector metadata is malformed")
+            for key, value in metadata.items():
+                if not isinstance(key, str) or not key:
+                    raise RuntimeError("Pinecone metadata key is malformed")
+                if isinstance(value, str) or isinstance(value, bool) or isinstance(value, int):
+                    continue
+                if isinstance(value, float) and math.isfinite(value):
+                    continue
+                if isinstance(value, list) and all(isinstance(item, str) for item in value):
+                    continue
+                raise RuntimeError("Pinecone metadata contains an unsupported value type")
+            try:
+                wire_vector = PineconeVector(id=vector_id, values=values, metadata=metadata).to_dict()
+            except Exception as exc:
+                raise RuntimeError("Pinecone SDK rejected the synthetic vector payload") from exc
+            if wire_vector != vector:
+                raise RuntimeError("Pinecone SDK serialization changed the synthetic vector payload")
+    if count != 4 or count > VECTOR_LIMIT:
+        raise RuntimeError("Synthetic Pinecone fixture must contain exactly four bounded vectors")
+
+
+def _build_vector_payloads(
+    manifest: dict[str, Any], uids: dict[str, str] | None = None, *, preflight: bool = False,
+) -> dict[str, list[dict[str, Any]]]:
+    """Build and validate the single vector payload path used by preflight and execute."""
+    vectors_by_namespace: dict[str, list[dict[str, Any]]] = {}
+    seen_ids: set[str] = set()
+    for vector in manifest["vectors"]:
+        role = vector["owner"]
+        user_id = (uids or {}).get(role) or manifest["users"][role].get("id")
+        if not user_id and preflight:
+            user_id = f"preflight-{role}-{manifest['run_id']}"
+        if not isinstance(user_id, str) or not user_id:
+            raise RuntimeError(f"Verified fixture identity is missing for role {role}")
+        if role == "B":
+            namespace = f"user_{user_id}" if not preflight or manifest["users"]["B"].get("id") else "user__pending__B"
+            if not preflight:
+                vector["namespace"] = namespace
+        else:
+            namespace = vector["namespace"]
+        if vector["id"] in seen_ids:
+            raise RuntimeError("Synthetic vector ID is duplicated")
+        seen_ids.add(vector["id"])
+        temporary = bool(vector.get("temporary"))
+        fixture = _fixture_vector(role, manifest["run_id"], temporary=temporary)
+        vector["text_sha256"] = fixture["text_sha256"]
+        metadata = {
+            "type": "tmp_doc" if temporary else "case_doc",
+            "predmet_id": manifest["matters"][vector["matter"]],
+            "owner_user_id": user_id,
+            "text": fixture["text"],
+            "source_filename": "synthetic-fixture.txt",
+        }
+        # A private owner namespace is not an office-membership assertion.
+        # Omit the field for independent tenant B instead of serializing null.
+        if role in ("A", "C", "D"):
+            metadata["kancelarija_id"] = manifest["office"]["id"]
+        vectors_by_namespace.setdefault(namespace, []).append({
+            "id": vector["id"], "values": fixture["values"], "metadata": metadata,
+        })
+    _validate_vector_payloads(vectors_by_namespace)
+    return vectors_by_namespace
 
 
 def _validate_manifest_for_cleanup(manifest: dict[str, Any]) -> None:
@@ -721,6 +828,59 @@ def _contains(docs: list[str], meta: dict[str, Any], marker: str) -> bool:
     return marker in "\n".join(docs) or marker in json.dumps(meta, ensure_ascii=False, default=str)
 
 
+def _ab_query_scenarios(manifest: dict[str, Any], uids: dict[str, str]) -> list[dict[str, Any]]:
+    run = manifest["run_id"]
+    office_ns = f"kancelarija_{manifest['office']['id']}"
+    markers = {role: _fixture_vector(role, run)["text"] for role in "ABCD"}
+    markers["A_tmp"] = _fixture_vector("A", run, temporary=True)["text"]
+    return [
+        {"name": "A_owner_positive", "role": "A", "markers": [markers["A"]], "positive": True},
+        {"name": "B_owner_positive", "role": "B", "markers": [markers["B"]], "positive": True},
+        {"name": "C_owner_positive", "role": "C", "markers": [markers["C"]], "positive": True},
+        {"name": "B_cannot_read_A", "role": "B", "markers": [markers["A"]], "positive": False,
+         "extra": [office_ns, f"user_{uids['A']}", f"tmp_{run}"], "foreign": office_ns},
+        {"name": "C_same_office_denied", "role": "C", "markers": [markers["A"]], "positive": False,
+         "extra": [office_ns], "foreign": office_ns},
+        {"name": "D_delegated_A_positive", "role": "D", "markers": [markers["A"]], "positive": True},
+        {"name": "D_not_C", "role": "D", "markers": [markers["C"]], "positive": False},
+        {"name": "A_temp_positive", "role": "A", "markers": [markers["A_tmp"]], "positive": True,
+         "extra": [f"tmp_{run}"]},
+        {"name": "C_foreign_temp_denied", "role": "C", "markers": [markers["A_tmp"]], "positive": False,
+         "extra": [f"tmp_{run}"]},
+        {"name": "C_explicit_foreign_namespace_denied", "role": "C", "markers": [markers["A"]],
+         "positive": False, "foreign": f"user_{uids['A']}"},
+        {"name": "C_extra_private_namespaces_denied", "role": "C", "markers": [markers["A"]],
+         "positive": False, "extra": [office_ns, f"user_{uids['A']}"]},
+        {"name": "A_acl_failure_fail_closed", "role": "A", "markers": [markers["A"]],
+         "positive": False, "foreign": office_ns, "fail_acl": True},
+        {"name": "U_missing_identity_fail_closed", "role": None, "markers": [markers["A"]],
+         "positive": False, "extra": [f"tmp_{run}"], "foreign": office_ns},
+        {"name": "C_attacker_acl_expansion_denied", "role": "C", "markers": [markers["A"]],
+         "positive": False, "requested_acl": [manifest["matters"]["A"]], "expect_no_queries": True},
+    ]
+
+
+def _run_ab_query_scenario(index, service, scenario: dict[str, Any], uids: dict[str, str]) -> dict[str, Any]:
+    role = scenario["role"]
+    docs, meta, query_trace = _retrieval(
+        index, service, uids[role] if role else None,
+        extra=scenario.get("extra"), foreign_namespace=scenario.get("foreign"),
+        fail_acl=bool(scenario.get("fail_acl")),
+        dozvoljeni_predmeti=scenario.get("requested_acl"),
+    )
+    content = json.dumps({"docs": docs, "meta": meta}, ensure_ascii=False, default=str)
+    present = [marker in content for marker in scenario["markers"]]
+    passed = all(present) if scenario["positive"] else not any(present)
+    if scenario.get("expect_no_queries"):
+        passed = passed and not query_trace
+    return {
+        "name": scenario["name"], "role": role,
+        "expected_positive": bool(scenario["positive"]),
+        "marker_hashes": [hashlib.sha256(m.encode()).hexdigest() for m in scenario["markers"]],
+        "marker_present": present, "passed": passed, "pinecone_queries": query_trace,
+    }
+
+
 def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
     _validate_manifest_for_cleanup(manifest)
     if manifest.get("schema") != 2:
@@ -740,7 +900,9 @@ def _clean(service, index, path: Path, manifest: dict[str, Any]) -> None:
             for item in present:
                 record = before[item["id"]]
                 metadata = getattr(record, "metadata", None) or (record.get("metadata", {}) if isinstance(record, dict) else {})
-                expected_text = _fixture_vector(item["owner"], manifest["run_id"])["text"]
+                expected_text = _fixture_vector(
+                    item["owner"], manifest["run_id"], temporary=bool(item.get("temporary"))
+                )["text"]
                 expected_owner = manifest["users"][item["owner"]].get("id")
                 expected_matter = manifest["matters"][item["matter"]]
                 expected_type = "tmp_doc" if item.get("temporary") else "case_doc"
@@ -945,16 +1107,20 @@ def _execute(path: Path) -> int:
     dimension = getattr(description, "dimension", None)
     if dimension != VECTOR_DIM:
         raise RuntimeError(f"Index dimension {dimension!r} does not match pinned Vindex dimension {VECTOR_DIM}")
-    service, anon = _auth_client(
-        os.environ["SUPABASE_URL"], os.environ["SUPABASE_ANON_KEY"], os.environ["SUPABASE_SERVICE_KEY"],
-    )
     manifest = _new_manifest()
     manifest["target"] = target
     manifest["candidate_sha"] = target["candidate_sha"]
     manifest["_manifest_path"] = str(path)
+    # Validate every exact request object locally before creating Auth users or
+    # database fixtures. The B preflight identity/namespace are placeholders
+    # used only for schema validation and are never sent to Pinecone.
+    _build_vector_payloads(manifest, preflight=True)
     _write_manifest(path, manifest)  # durable recovery plan before the first remote write
     manifest["state"] = "creating_auth"
     _write_manifest(path, manifest)
+    service, anon = _auth_client(
+        os.environ["SUPABASE_URL"], os.environ["SUPABASE_ANON_KEY"], os.environ["SUPABASE_SERVICE_KEY"],
+    )
     stage = "auth.create_user"
     try:
         uids = _create_auth_users(service, anon, manifest)
@@ -964,24 +1130,7 @@ def _execute(path: Path) -> int:
         _seed_rows(service, manifest, path)
         manifest["state"] = "creating_vectors"
         _write_manifest(path, manifest)
-        vectors_by_namespace: dict[str, list[dict[str, Any]]] = {}
-        for vector in manifest["vectors"]:
-            if vector["owner"] == "B":
-                vector["namespace"] = f"user_{uids['B']}"
-            fixture = _fixture_vector(vector["owner"], manifest["run_id"])
-            vector["text_sha256"] = fixture["text_sha256"]
-            vectors_by_namespace.setdefault(vector["namespace"], []).append({
-                "id": vector["id"], "values": fixture["values"],
-                "metadata": {
-                    "type": "tmp_doc" if vector.get("temporary") else "case_doc",
-                    "predmet_id": manifest["matters"][vector["matter"]],
-                    "owner_user_id": uids[vector["owner"]],
-                    "kancelarija_id": manifest["office"]["id"] if vector["owner"] in ("A", "C", "D") else None,
-                    "text": fixture["text"], "source_filename": "synthetic-fixture.txt",
-                },
-            })
-        if sum(map(len, vectors_by_namespace.values())) > VECTOR_LIMIT:
-            raise RuntimeError("Fixture vector cap exceeded")
+        vectors_by_namespace = _build_vector_payloads(manifest, uids)
         _write_manifest(path, manifest)
         for namespace, vectors in vectors_by_namespace.items():
             stage = f"pinecone.upsert.{namespace}"
@@ -1024,64 +1173,14 @@ def _execute(path: Path) -> int:
             if acl is None:
                 raise RuntimeError(f"Role {role} ACL was not resolved")
 
-        markers = {r: _fixture_vector(r, manifest["run_id"])["text"] for r in "ABCD"}
-        cases = [
-            ("A_owner_positive", "A", [markers["A"]], [], None, False, True),
-            ("B_owner_positive", "B", [markers["B"]], [], None, False, True),
-            ("B_cannot_read_A", "B", [markers["A"]], [expected_office_ns, f"user_{uids['A']}", f"tmp_{manifest['run_id']}"], expected_office_ns, False, False),
-            ("C_same_office_denied", "C", [markers["A"]], [expected_office_ns], expected_office_ns, False, False),
-            ("D_delegated_A_positive", "D", [markers["A"]], [], None, False, True),
-            ("D_not_C", "D", [markers["C"]], [], None, False, False),
-            ("A_temp_positive", "A", [markers["A"]], [f"tmp_{manifest['run_id']}"], None, False, True),
-            ("C_foreign_temp_denied", "C", [markers["A"]], [f"tmp_{manifest['run_id']}"], None, False, False),
-            ("C_explicit_foreign_namespace_denied", "C", [markers["A"]], [], f"user_{uids['A']}", False, False),
-            ("C_extra_private_namespaces_denied", "C", [markers["A"]], [expected_office_ns, f"user_{uids['A']}"], None, False, False),
-            ("A_acl_failure_fail_closed", "A", [markers["A"]], [], expected_office_ns, True, False),
-            ("U_missing_identity_fail_closed", None, [markers["A"]], [f"tmp_{manifest['run_id']}"], expected_office_ns, False, False),
-        ]
-        if len(cases) > MAX_QUERIES:
-            raise RuntimeError("Query cap exceeded")
-        for name, role, forbidden, extras, foreign, acl_fail, expected_positive in cases:
-            docs, meta, query_trace = _retrieval(
-                index, service, uids[role] if role else None, extra=extras or None,
-                foreign_namespace=foreign, fail_acl=acl_fail,
-            )
-            blob = json.dumps({"docs": docs, "meta": meta}, ensure_ascii=False, default=str)
-            marker_presence = {m: m in blob for m in forbidden}
-            passed = all(marker_presence.values()) if expected_positive else not any(marker_presence.values())
-            if name == "A_acl_failure_fail_closed":
-                passed = not any(marker_presence.values())
-            manifest["assertions"].append({
-                "name": name, "role": role, "expected_positive": expected_positive,
-                "marker_hashes": [hashlib.sha256(m.encode()).hexdigest() for m in forbidden],
-                "marker_present": list(marker_presence.values()), "passed": passed,
-                "pinecone_queries": query_trace,
-            })
+        for scenario in _ab_query_scenarios(manifest, uids):
+            assertion = _run_ab_query_scenario(index, service, scenario, uids)
+            manifest["assertions"].append(assertion)
             if sum(len(a.get("pinecone_queries", [])) for a in manifest["assertions"]) > MAX_QUERIES:
                 raise RuntimeError(f"Actual Pinecone query count exceeds the cap of {MAX_QUERIES}")
             _write_manifest(path, manifest)
-            if not passed:
-                raise RuntimeError(f"A/B assertion failed: {name}")
-
-        # Distinct adversarial attempt: C explicitly supplies A's matter as a
-        # requested ACL expansion. The real retrieval boundary intersects this
-        # request with C's server-derived ACL; the resulting empty set must skip
-        # the private namespace query entirely.
-        marker_a = markers["A"]
-        docs, meta, query_trace = _retrieval(
-            index, service, uids["C"],
-            dozvoljeni_predmeti=[manifest["matters"]["A"]],
-        )
-        acl_expansion_ok = not _contains(docs, meta, marker_a) and not query_trace
-        manifest["assertions"].append({
-            "name": "C_attacker_acl_expansion_denied", "role": "C",
-            "marker_hashes": [hashlib.sha256(marker_a.encode()).hexdigest()],
-            "marker_present": [_contains(docs, meta, marker_a)],
-            "passed": acl_expansion_ok, "pinecone_queries": query_trace,
-        })
-        _write_manifest(path, manifest)
-        if not acl_expansion_ok:
-            raise RuntimeError("Caller-supplied ACL expanded access to an undelegated matter")
+            if not assertion["passed"]:
+                raise RuntimeError(f"A/B assertion failed: {assertion['name']}")
         stage = "database.revoke_delegation"
         manifest["delegation_update"]["write_state"] = "ATTEMPTED_UNKNOWN"
         manifest["stage"] = stage
@@ -1089,19 +1188,16 @@ def _execute(path: Path) -> int:
         service.table("predmet_delegiranja").update({"status": "otkazano"}).eq("id", manifest["delegation"]).execute()
         manifest["delegation_update"]["write_state"] = "CONFIRMED_CREATED"
         _write_manifest(path, manifest)
-        docs, meta, query_trace = _retrieval(index, service, uids["D"])
-        marker_a = markers["A"]
-        revoked_ok = not _contains(docs, meta, marker_a)
-        manifest["assertions"].append({
+        revoked_case = {
             "name": "D_revoked_delegation_denied", "role": "D",
-            "marker_hashes": [hashlib.sha256(marker_a.encode()).hexdigest()],
-            "marker_present": [_contains(docs, meta, marker_a)], "passed": revoked_ok,
-            "pinecone_queries": query_trace,
-        })
+            "markers": [_fixture_vector("A", manifest["run_id"])["text"]], "positive": False,
+        }
+        revoked_assertion = _run_ab_query_scenario(index, service, revoked_case, uids)
+        manifest["assertions"].append(revoked_assertion)
         if sum(len(a.get("pinecone_queries", [])) for a in manifest["assertions"]) > MAX_QUERIES:
             raise RuntimeError(f"Actual Pinecone query count exceeds the cap of {MAX_QUERIES}")
         _write_manifest(path, manifest)
-        if not revoked_ok:
+        if not revoked_assertion["passed"]:
             raise RuntimeError("Revoked delegation still returned the synthetic passage")
         manifest["state"] = "assertions_passed"
         _write_manifest(path, manifest)

@@ -854,3 +854,249 @@ def test_retrieval_harness_explicit_acl_expansion_is_separate_and_intersected():
     assert index.queries == []
 
 
+def test_all_four_upsert_payloads_match_pinned_sdk_contract_and_omit_nulls():
+    manifest = harness._new_manifest()
+    uids = {role: str(__import__("uuid").uuid4()) for role in "ABCD"}
+    payloads = harness._build_vector_payloads(manifest, uids)
+
+    assert len(payloads) == 3
+    assert sum(len(items) for items in payloads.values()) == 4
+    assert set(payloads[f"kancelarija_{manifest['office']['id']}"][0]["metadata"]) == {
+        "type", "predmet_id", "owner_user_id", "text", "source_filename", "kancelarija_id",
+    }
+    b_vector = payloads[f"user_{uids['B']}"][0]
+    assert "kancelarija_id" not in b_vector["metadata"]
+    assert b_vector["metadata"]["owner_user_id"] == uids["B"]
+    assert all(len(vector["values"]) == 3072 for group in payloads.values() for vector in group)
+    assert all(all(isinstance(value, float) for value in vector["values"])
+               for group in payloads.values() for vector in group)
+    assert all(value is not None for group in payloads.values() for vector in group
+               for value in vector["metadata"].values())
+    assert harness.PINNED_PINECONE_SDK_VERSION == "8.1.1"
+
+
+@pytest.mark.parametrize("bad_value", [None, {"nested": "no"}, float("nan"), ["text", None], [1]])
+def test_vector_payload_validator_rejects_null_nonfinite_and_nested_metadata(bad_value):
+    manifest = harness._new_manifest()
+    uids = {role: str(__import__("uuid").uuid4()) for role in "ABCD"}
+    payloads = harness._build_vector_payloads(manifest, uids)
+    first_group = next(iter(payloads.values()))
+    first_group[0]["metadata"]["invalid_test_field"] = bad_value
+    with pytest.raises(RuntimeError, match="unsupported value type"):
+        harness._validate_vector_payloads(payloads)
+
+
+def test_malformed_vector_fails_before_auth_or_database_fixture_writes(tmp_path, monkeypatch):
+    import pinecone
+    from types import SimpleNamespace
+
+    for name, value in {
+        "PINECONE_API_KEY": "offline-placeholder", "PINECONE_INDEX_NAME": harness.EXPECTED_INDEX,
+        "PINECONE_HOST": "offline.svc.pinecone.io", "SUPABASE_URL": "https://offline.supabase.co",
+        "SUPABASE_ANON_KEY": "offline-placeholder", "SUPABASE_SERVICE_KEY": "offline-placeholder",
+    }.items():
+        monkeypatch.setenv(name, value)
+    target = {"candidate_sha": "offline-candidate", "pinecone_index_name": harness.EXPECTED_INDEX}
+    monkeypatch.setattr(harness, "_preflight_live", lambda **_kwargs: target)
+    monkeypatch.setattr(harness, "_preflight", lambda **_kwargs: None)
+    writes = []
+
+    class _Index:
+        def upsert(self, **_kwargs): writes.append("pinecone")
+    class _Pinecone:
+        def __init__(self, **_kwargs): pass
+        def describe_index(self, _name):
+            return SimpleNamespace(host="offline.svc.pinecone.io", dimension=harness.VECTOR_DIM)
+        def Index(self, **_kwargs): return _Index()
+    monkeypatch.setitem(sys.modules, "pinecone", SimpleNamespace(Pinecone=_Pinecone, Vector=pinecone.Vector))
+    monkeypatch.setattr(harness, "_auth_client", lambda *_args: writes.append("auth_client"))
+    monkeypatch.setattr(harness, "_fixture_vector", lambda role, run_id, temporary=False: {
+        "text": "synthetic-malformed", "text_sha256": "fixture-hash",
+        "values": [float("nan")] + [0.0] * (harness.VECTOR_DIM - 1),
+    })
+    path = tmp_path / "must-not-be-created.json"
+    with pytest.raises(RuntimeError, match="finite numbers"):
+        harness._execute(path)
+    assert not path.exists()
+    assert writes == []
+
+
+def test_full_offline_ab_matrix_uses_real_retrieval_and_counts_namespace_queries():
+    from types import SimpleNamespace
+
+    manifest = harness._new_manifest()
+    uids = {role: f"synthetic-user-{role}" for role in "ABCD"}
+    office = manifest["office"]["id"]
+    matters = manifest["matters"]
+    payloads = harness._build_vector_payloads(manifest, uids)
+
+    class _Query:
+        def __init__(self, service, table):
+            self.service, self.table_name = service, table
+            self.filters, self.operation, self.update_payload, self.single = [], "select", None, False
+        def select(self, *_args, **_kwargs): self.operation = "select"; return self
+        def update(self, payload): self.operation, self.update_payload = "update", payload; return self
+        def eq(self, key, value): self.filters.append(("eq", key, value)); return self
+        def in_(self, key, values): self.filters.append(("in", key, list(values))); return self
+        def is_(self, key, value): self.filters.append(("is", key, None if value == "null" else value)); return self
+        def maybe_single(self): self.single = True; return self
+        def execute(self):
+            if self.operation == "update":
+                self.service.delegation_active = False
+                return SimpleNamespace(data=[])
+            rows = {
+                "kancelarije": [{"id": office, "admin_uid": uids["A"]}],
+                "kancelarija_clanovi": [
+                    {"kancelarija_id": office, "user_id": uids[role], "status": "ACTIVE"}
+                    for role in ("C", "D")
+                ],
+                "predmeti": [
+                    {"id": matters[role], "user_id": uids[role], "brisanje_zapoceto": None}
+                    for role in ("A", "B", "C")
+                ],
+                "predmet_delegiranja": ([{
+                    "predmet_id": matters["A"], "na_user_id": uids["D"], "status": "aktivno",
+                }] if self.service.delegation_active else []),
+            }.get(self.table_name, [])
+            def matches(row):
+                return all(
+                    (op == "eq" and row.get(key) == value)
+                    or (op == "in" and row.get(key) in value)
+                    or (op == "is" and row.get(key) is value)
+                    for op, key, value in self.filters
+                )
+            selected = [row for row in rows if matches(row)]
+            return SimpleNamespace(data=(selected[0] if selected else None) if self.single else selected)
+    class _Service:
+        delegation_active = True
+        def table(self, name): return _Query(self, name)
+    class _FilterAwarePinecone:
+        def __init__(self): self.vectors, self.queries, self.upsert_calls = {}, [], []
+        def upsert(self, *, vectors, namespace):
+            self.upsert_calls.append((namespace, [v["id"] for v in vectors]))
+            for vector in vectors:
+                self.vectors[(namespace, vector["id"])] = dict(vector["metadata"])
+        def query(self, *, namespace, top_k, **kwargs):
+            filters = kwargs.get("filter") or {}
+            self.queries.append({"namespace": namespace, "filter": filters})
+            def matches(metadata):
+                for key, condition in filters.items():
+                    if "$in" in condition and metadata.get(key) not in condition["$in"]: return False
+                    if "$eq" in condition and metadata.get(key) != condition["$eq"]: return False
+                return True
+            hits = [SimpleNamespace(id=vector_id, metadata=metadata, score=0.99)
+                    for (ns, vector_id), metadata in self.vectors.items()
+                    if ns == namespace and matches(metadata)]
+            return SimpleNamespace(matches=hits[:top_k])
+    service, index = _Service(), _FilterAwarePinecone()
+    # Exercise the same four validated payloads that live execution sends.
+    for namespace, vectors in payloads.items():
+        index.upsert(vectors=vectors, namespace=namespace)
+
+    scenarios = harness._ab_query_scenarios(manifest, uids)
+    assert len(scenarios) == 14
+    assertions = [harness._run_ab_query_scenario(index, service, scenario, uids) for scenario in scenarios]
+    assert all(item["passed"] for item in assertions)
+    assert next(a for a in assertions if a["name"] == "C_owner_positive")["marker_present"] == [True]
+    assert next(a for a in assertions if a["name"] == "A_temp_positive")["marker_present"] == [True]
+    assert next(a for a in assertions if a["name"] == "C_foreign_temp_denied")["marker_present"] == [False]
+    assert next(a for a in assertions if a["name"] == "C_attacker_acl_expansion_denied")["pinecone_queries"] == []
+
+    office_ns = f"kancelarija_{office}"
+    b_ns = f"user_{uids['B']}"
+    temp_ns = f"tmp_{manifest['run_id']}"
+    assert any(q["namespace"] == b_ns and q["filter"].get("predmet_id", {}).get("$in") == [matters["B"]]
+               for q in index.queries)
+    assert any(q["namespace"] == office_ns and q["filter"].get("predmet_id", {}).get("$in") == [matters["A"]]
+               for q in index.queries)
+    assert any(q["namespace"] == office_ns and q["filter"].get("predmet_id", {}).get("$in") == [matters["C"]]
+               for q in index.queries)
+    assert any(q["namespace"] == office_ns and q["filter"].get("predmet_id", {}).get("$in") == [matters["A"]]
+               for q in next(a for a in assertions if a["name"] == "D_delegated_A_positive")["pinecone_queries"])
+    assert any(q["namespace"] == temp_ns and q["filter"].get("owner_user_id", {}).get("$eq") == uids["A"]
+               for q in index.queries)
+    assert all(q["namespace"] != f"user_{uids['A']}" for q in index.queries)
+    assert len(index.queries) == 14
+    assert len(index.queries) == sum(len(a["pinecone_queries"]) for a in assertions)
+    assert len(index.queries) <= harness.MAX_QUERIES
+    assert len(index.upsert_calls) == 3 and sum(len(ids) for _, ids in index.upsert_calls) == 4
+
+    service.table("predmet_delegiranja").update({"status": "otkazano"}).eq("id", manifest["delegation"]).execute()
+    revoked = harness._run_ab_query_scenario(index, service, {
+        "name": "D_revoked_delegation_denied", "role": "D",
+        "markers": [harness._fixture_vector("A", manifest["run_id"])["text"]], "positive": False,
+    }, uids)
+    assert revoked["passed"] is True
+    assert revoked["pinecone_queries"] == []
+    assert len(index.queries) == sum(len(a["pinecone_queries"]) for a in assertions + [revoked])
+    assert len(index.queries) <= harness.MAX_QUERIES
+
+
+def test_http_400_upsert_failure_preserves_error_and_exact_cleanup(tmp_path):
+    from types import SimpleNamespace
+
+    manifest = harness._new_manifest()
+    path = tmp_path / "provider-400.json"
+    manifest["_manifest_path"] = str(path)
+    uids = {role: str(__import__("uuid").uuid4()) for role in "ABCD"}
+    for role, user in manifest["users"].items():
+        user.update({"id": uids[role], "write_state": "CONFIRMED_CREATED"})
+    payloads = harness._build_vector_payloads(manifest, uids)
+    office_ns = f"kancelarija_{manifest['office']['id']}"
+    office_vectors = payloads[office_ns]
+    for vector in manifest["vectors"]:
+        if vector["namespace"] == office_ns:
+            vector["write_state"] = "ATTEMPTED_UNKNOWN"
+    manifest["stage"] = f"pinecone.upsert.{office_ns}"
+    harness._write_manifest(path, manifest)
+
+    class _Provider400(Exception):
+        status = 400
+        code = "vector_metadata_invalid"
+        body = "must-not-be-logged-secret-provider-body"
+    class _Index:
+        def __init__(self): self.vectors, self.deleted = {}, []
+        def upsert(self, *, vectors, namespace):
+            first = vectors[0]
+            self.vectors[(namespace, first["id"])] = {
+                "metadata": first["metadata"],
+            }  # provider may have committed a partial request before the error
+            raise _Provider400()
+        def fetch(self, *, ids, namespace):
+            return SimpleNamespace(vectors={vector_id: SimpleNamespace(metadata=self.vectors[(namespace, vector_id)]["metadata"])
+                                             for vector_id in ids if (namespace, vector_id) in self.vectors})
+        def delete(self, *, ids, namespace):
+            self.deleted.extend((namespace, vector_id) for vector_id in ids)
+            for vector_id in ids: self.vectors.pop((namespace, vector_id), None)
+    auth_users = {
+        uids[role]: SimpleNamespace(id=uids[role], email=user["email"],
+                                    user_metadata={"vindex_private_rag_ab_run": manifest["run_id"]})
+        for role, user in manifest["users"].items()
+    }
+    class _NotFound(Exception): status = 404
+    class _Admin:
+        def get_user_by_id(self, user_id):
+            if user_id not in auth_users: raise _NotFound()
+            return SimpleNamespace(user=auth_users[user_id])
+        def delete_user(self, user_id): auth_users.pop(user_id, None)
+    service, index = SimpleNamespace(auth=SimpleNamespace(admin=_Admin())), _Index()
+
+    with pytest.raises(_Provider400) as captured:
+        index.upsert(vectors=office_vectors, namespace=office_ns)
+    error = harness._preserve_primary_failure(
+        captured.value, service, index, path, manifest, manifest["stage"],
+    )
+    report = harness._safe_error(error, stage="ignored", mutation_attempted=True, manifest_path=path)
+    assert report["primary_error"]["stage"] == f"pinecone.upsert.{office_ns}"
+    assert report["primary_error"]["http_status"] == 400
+    assert report["primary_error"]["provider_reason_category"] == "request_validation_rejected"
+    assert "provider_code" not in report["primary_error"]
+    assert "must-not-be-logged-secret" not in json.dumps(report)
+    assert report["cleanup_error"] is None and report["journal_error"] is None
+    assert manifest["cleanup"]["verified"] is True
+    assert manifest["cleanup"]["errors"] == []
+    assert index.deleted == [(office_ns, office_vectors[0]["id"])]
+    assert index.vectors == {}
+    assert auth_users == {}
+
+
