@@ -314,6 +314,151 @@ def test_partial_database_fixture_journals_success_and_ambiguous_next_write(tmp_
     assert len(manifest["database_writes"]) == 2
 
 
+def test_seed_rows_uses_a_database_allowed_office_member_role(tmp_path):
+    manifest = harness._new_manifest()
+    path = tmp_path / "member-role.json"
+    manifest["_manifest_path"] = str(path)
+    harness._write_manifest(path, manifest)
+    for user in manifest["users"].values():
+        user["id"] = str(__import__("uuid").uuid4())
+    inserted = []
+
+    class _Insert:
+        def __init__(self, payload): self.payload = payload
+        def execute(self): inserted.append(self.payload)
+    class _Table:
+        def insert(self, payload): return _Insert(payload)
+    class _Service:
+        def table(self, name): return _Table()
+
+    harness._seed_rows(_Service(), manifest, path)
+    memberships = [row for row in inserted if "kancelarija_id" in row]
+    assert {row["email"] for row in memberships} == {
+        manifest["users"][role]["email"] for role in ("C", "D")
+    }
+    assert {row["uloga"] for row in memberships} == {"advokat"}
+
+
+def test_created_b_user_persists_canonical_vector_namespace_immediately(tmp_path, monkeypatch):
+    import shared.deps
+
+    manifest = harness._new_manifest()
+    path = tmp_path / "b-namespace.json"
+    manifest["_manifest_path"] = str(path)
+    harness._write_manifest(path, manifest)
+    created = {}
+    ids = {role: str(__import__("uuid").uuid4()) for role in ("A", "B")}
+
+    class _Admin:
+        def create_user(self, payload):
+            role = payload["email"].rsplit("-", 1)[1].split("@", 1)[0].upper()
+            created[payload["email"]] = ids[role]
+            return SimpleNamespace(user=SimpleNamespace(id=ids[role]))
+    class _AnonAuth:
+        current_id = None
+        def sign_in_with_password(self, payload):
+            if payload["email"] == manifest["users"]["B"]["email"]:
+                raise RuntimeError("synthetic interruption after B auth creation")
+            self.current_id = created[payload["email"]]
+            return SimpleNamespace(session=SimpleNamespace(access_token=self.current_id, refresh_token="synthetic"))
+        def set_session(self, access_token, refresh_token): self.current_id = access_token
+        def get_user(self): return SimpleNamespace(user=SimpleNamespace(id=self.current_id))
+    service = SimpleNamespace(auth=SimpleNamespace(admin=_Admin()))
+    anon = SimpleNamespace(auth=_AnonAuth())
+    monkeypatch.setattr(shared.deps, "_verify_token", lambda token: {"sub": token})
+
+    with pytest.raises(RuntimeError, match="interruption after B auth creation"):
+        harness._create_auth_users(service, anon, manifest)
+
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    b_vector = next(v for v in saved["vectors"] if v["owner"] == "B")
+    assert saved["users"]["B"]["id"] == ids["B"]
+    assert saved["users"]["B"]["write_state"] == "CONFIRMED_CREATED"
+    assert b_vector["namespace"] == f"user_{ids['B']}"
+    assert b_vector["write_state"] == "NOT_ATTEMPTED"
+
+
+def test_partial_seed_failure_allows_exact_cleanup_of_unattempted_pending_b_vector(tmp_path):
+    manifest = harness._new_manifest()
+    path = tmp_path / "partial-membership-cleanup.json"
+    manifest["_manifest_path"] = str(path)
+    for user in manifest["users"].values():
+        user["id"] = str(__import__("uuid").uuid4())
+        user["write_state"] = "CONFIRMED_CREATED"
+    # Models an older interrupted run: B Auth exists, but the B vector has
+    # not yet been attempted and its planned namespace is still a placeholder.
+    manifest["vectors"][2]["namespace"] = "user__pending__B"
+    harness._write_manifest(path, manifest)
+    rows = {}
+    auth_users = {
+        user["id"]: SimpleNamespace(
+            id=user["id"], email=user["email"],
+            user_metadata={"vindex_private_rag_ab_run": manifest["run_id"]},
+        ) for user in manifest["users"].values()
+    }
+    inserted_memberships = []
+
+    class _NotFound(Exception):
+        status = 404
+    class _Query:
+        def __init__(self, table, operation="select", payload=None):
+            self.table, self.operation, self.payload, self.row_id = table, operation, payload, None
+        def select(self, *_args, **_kwargs): self.operation = "select"; return self
+        def insert(self, payload): self.operation, self.payload = "insert", payload; return self
+        def delete(self): self.operation = "delete"; return self
+        def eq(self, key, value):
+            assert key == "id"
+            self.row_id = value
+            return self
+        def limit(self, _n): return self
+        def execute(self):
+            table_rows = rows.setdefault(self.table, {})
+            if self.operation == "insert":
+                if self.payload["id"] == manifest["memberships"]["C"]:
+                    inserted_memberships.append(self.payload)
+                    raise RuntimeError("synthetic membership CHECK violation")
+                table_rows[self.payload["id"]] = dict(self.payload)
+                return SimpleNamespace(data=[dict(self.payload)])
+            if self.operation == "delete":
+                table_rows.pop(str(self.row_id), None)
+                return SimpleNamespace(data=[])
+            row = table_rows.get(str(self.row_id))
+            return SimpleNamespace(data=[dict(row)] if row else [])
+    class _Admin:
+        def get_user_by_id(self, user_id):
+            if user_id not in auth_users: raise _NotFound()
+            return SimpleNamespace(user=auth_users[user_id])
+        def delete_user(self, user_id): auth_users.pop(user_id, None)
+    class _Service:
+        auth = SimpleNamespace(admin=_Admin())
+        def table(self, name): return _Query(name)
+    class _Index:
+        def fetch(self, **_kwargs): raise AssertionError("no vector upsert was attempted")
+        def delete(self, **_kwargs): raise AssertionError("no vector cleanup should be needed")
+
+    service = _Service()
+    with pytest.raises(RuntimeError, match="synthetic membership CHECK violation"):
+        harness._seed_rows(service, manifest, path)
+    assert inserted_memberships[0]["uloga"] == "advokat"
+    assert all(v["write_state"] == "NOT_ATTEMPTED" for v in manifest["vectors"])
+
+    harness._clean(service, _Index(), path, manifest)
+
+    assert manifest["cleanup"]["verified"] is True
+    assert rows == {"kancelarije": {}, "predmeti": {}, "kancelarija_clanovi": {}}
+    assert auth_users == {}
+    assert all(v["write_state"] == "NOT_ATTEMPTED" for v in manifest["vectors"])
+
+
+def test_pending_b_namespace_is_rejected_after_any_vector_write_attempt():
+    manifest = harness._new_manifest()
+    manifest["users"]["B"]["id"] = str(__import__("uuid").uuid4())
+    manifest["vectors"][2]["namespace"] = "user__pending__B"
+    manifest["vectors"][2]["write_state"] = "ATTEMPTED_UNKNOWN"
+    with pytest.raises(RuntimeError, match="vector IDs/namespaces"):
+        harness._validate_manifest_for_cleanup(manifest)
+
+
 def test_not_found_during_ambiguous_vector_cleanup_is_not_cleanup_proof(tmp_path):
     manifest = harness._new_manifest()
     manifest["_manifest_path"] = str(tmp_path / "not-found.json")

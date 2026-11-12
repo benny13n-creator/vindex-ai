@@ -447,6 +447,11 @@ def _create_auth_users(service, anon, manifest: dict[str, Any]) -> dict[str, str
             raise RuntimeError(f"Synthetic auth user creation was not confirmed for role {role}")
         record["id"] = str(created_user.id)
         record["write_state"] = "CONFIRMED_CREATED"
+        if role == "B":
+            b_vector = next((v for v in manifest["vectors"] if v.get("id") == f"vindex-ab-{manifest['run_id']}-b"), None)
+            if b_vector is None:
+                raise RuntimeError("Manifest is missing the exact synthetic B vector")
+            b_vector["namespace"] = f"user_{record['id']}"
         _write_manifest(_active_manifest_path(manifest), manifest)
         session = anon.auth.sign_in_with_password({"email": record["email"], "password": password})
         access_token = getattr(getattr(session, "session", None), "access_token", None)
@@ -502,7 +507,7 @@ def _seed_rows(service, manifest: dict[str, Any], path: Path) -> None:
             "kancelarija_id": office,
             "email": manifest["users"][role]["email"],
             "user_id": users[role],
-            "uloga": "saradnik",
+            "uloga": "advokat",
             "status": "ACTIVE",
             "invited_by": users["A"],
             "joined_at": datetime.now(timezone.utc).isoformat(),
@@ -576,18 +581,32 @@ def _validate_manifest_for_cleanup(manifest: dict[str, Any]) -> None:
     except (ValueError, TypeError, AttributeError) as exc:
         raise RuntimeError("Manifest database ids are malformed") from exc
 
-    expected_vectors = {
-        f"vindex-ab-{run}-a": (f"kancelarija_{office_id}", "A", "A", False),
-        f"vindex-ab-{run}-c": (f"kancelarija_{office_id}", "C", "C", False),
-        f"vindex-ab-{run}-b": (
-            f"user_{users['B']['id']}" if users["B"]["id"] else "user__pending__B",
-            "B", "B", False,
-        ),
-        f"vindex-ab-{run}-tmp-a": (f"tmp_{run}", "A", "A", True),
-    }
     vectors = manifest.get("vectors")
     if not isinstance(vectors, list) or len(vectors) > VECTOR_LIMIT:
         raise RuntimeError("Manifest vector set is malformed or exceeds the cap")
+    if schema == 2 and any(
+        not isinstance(v, dict) or v.get("write_state") not in WRITE_STATES for v in vectors
+    ):
+        raise RuntimeError("Manifest vector write state is malformed")
+
+    b_vector_id = f"vindex-ab-{run}-b"
+    b_vector = next((v for v in vectors if isinstance(v, dict) and v.get("id") == b_vector_id), None)
+    b_namespace = f"user_{users['B']['id']}" if users["B"]["id"] else "user__pending__B"
+    # A pre-upsert interrupted fixture may still have the planned placeholder
+    # even after Auth creation. Permit that exact state only while no Pinecone
+    # write was ever journaled; attempted/ambiguous writes must name user B's
+    # canonical namespace so cleanup cannot target a different namespace.
+    if (schema == 2 and users["B"]["id"] and b_vector is not None
+            and b_vector.get("namespace") == "user__pending__B"
+            and b_vector.get("write_state") == "NOT_ATTEMPTED"):
+        b_namespace = "user__pending__B"
+
+    expected_vectors = {
+        f"vindex-ab-{run}-a": (f"kancelarija_{office_id}", "A", "A", False),
+        f"vindex-ab-{run}-c": (f"kancelarija_{office_id}", "C", "C", False),
+        b_vector_id: (b_namespace, "B", "B", False),
+        f"vindex-ab-{run}-tmp-a": (f"tmp_{run}", "A", "A", True),
+    }
     observed = {}
     for vector in vectors:
         if not isinstance(vector, dict):
@@ -603,8 +622,6 @@ def _validate_manifest_for_cleanup(manifest: dict[str, Any]) -> None:
             raise RuntimeError("Manifest database write journal is malformed")
         if manifest.get("delegation_update", {}).get("write_state") not in WRITE_STATES:
             raise RuntimeError("Manifest delegation write state is malformed")
-        if any(v.get("write_state") not in WRITE_STATES for v in vectors):
-            raise RuntimeError("Manifest vector write state is malformed")
         permitted = {
             ("kancelarije", str(office_id)),
             *(('predmeti', str(v)) for v in matters.values()),
