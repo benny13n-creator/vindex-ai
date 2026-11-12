@@ -196,6 +196,56 @@ def test_incomplete_db_or_auth_reads_never_mean_resource_absent():
         harness._auth_users_page(_Service(), page=1, per_page=100)
 
 
+@pytest.mark.parametrize("page", [[{"id": "synthetic-user"}], []])
+def test_auth_users_page_accepts_verified_direct_list_responses(page):
+    service = SimpleNamespace(auth=SimpleNamespace(admin=SimpleNamespace(
+        list_users=lambda **kwargs: page,
+    )))
+    assert harness._auth_users_page(service, page=1, per_page=100) is page
+
+
+@pytest.mark.parametrize("response", [None, {}, (), "users", SimpleNamespace(users=None),
+                                       SimpleNamespace(users=()), SimpleNamespace(users={})])
+def test_auth_users_page_rejects_invalid_response_shapes(response):
+    service = SimpleNamespace(auth=SimpleNamespace(admin=SimpleNamespace(
+        list_users=lambda **kwargs: response,
+    )))
+    with pytest.raises(RuntimeError, match="Incomplete exact synthetic Auth listing"):
+        harness._auth_users_page(service, page=1, per_page=100)
+
+
+def test_legacy_manifest_reconciliation_uses_direct_list_auth_response(tmp_path):
+    manifest = harness._new_manifest()
+    manifest["schema"] = 1
+    for user in manifest["users"].values():
+        user.pop("write_state", None)
+    for vector in manifest["vectors"]:
+        vector.pop("write_state", None)
+    path = tmp_path / "legacy.json"
+    harness._write_manifest(path, manifest)
+    calls = []
+
+    class _Admin:
+        def list_users(self, **kwargs):
+            calls.append(kwargs)
+            return []  # Actual SDK response shape for an empty page.
+    class _Query:
+        def select(self, *args, **kwargs): return self
+        def eq(self, *args, **kwargs): return self
+        def limit(self, *args, **kwargs): return self
+        def execute(self): return SimpleNamespace(data=[])
+    class _Service:
+        auth = SimpleNamespace(admin=_Admin())
+        def table(self, name): return _Query()
+    class _Index:
+        def fetch(self, **kwargs): return SimpleNamespace(vectors={})
+
+    result = harness._inspect_legacy_manifest(_Service(), _Index(), path, manifest)
+    assert len(calls) == 4
+    assert result["reconciled_absent"] is True
+    assert result["auth_users_present"] == []
+
+
 def test_missing_founder_environment_import_failure_is_reproduced_offline():
     import os
     import sys
