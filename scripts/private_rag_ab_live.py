@@ -271,7 +271,10 @@ def _exact_db_rows(service, table: str, row_id: str, columns: str = "*") -> list
 
 def _auth_users_page(service, *, page: int, per_page: int) -> list[Any]:
     response = service.auth.admin.list_users(page=page, per_page=per_page)
-    users = getattr(response, "users", None)
+    # Supabase Python SDK versions return the page as a list directly; some
+    # compatible wrappers expose the same list through ``.users``. Accept both
+    # verified shapes, while rejecting absent or malformed page data.
+    users = response if isinstance(response, list) else getattr(response, "users", None)
     if not isinstance(users, list):
         raise RuntimeError("Incomplete exact synthetic Auth listing response")
     return users
