@@ -5,8 +5,8 @@ stranica o bezbednosti i prijava problema iz V2 aplikacije.
 
 Founder mandat „Website V3 / Growth Experience Sprint“ (2026-10-21). Ugovori:
 
-  1. Početna kaže šta je Vindex, zašto i šta je sledeći korak; jedini primarni
-     poziv je „Prijavi se za rani pristup“ (/beta, postojeća waitlist ruta).
+  1. Početna predstavlja rad sa predmetima i vodi na /funkcionalnosti; zajednički
+     header i footer nude /app, dok /beta ostaje postojeća izdvojena stranica.
   2. (Premium Positioning, 2026-11-01 — zamenjuje V3 ugovor o sektorima) Sajt nema
      katalog sektora ni „moguću primenu“: Vindex se predstavlja samo kao pravni
      operativni sistem za advokate (MIR-04 korporativni rad je BLOCKED_REQUIREMENTS_DETAIL).
@@ -33,7 +33,7 @@ import routers.support as sp  # noqa: E402
 from shared.deps import get_current_user  # noqa: E402
 
 KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CTA = "Prijavi se za rani pristup"
+CTA = "Pogledajte funkcionalnosti"
 
 
 @pytest.fixture(scope="module")
@@ -58,25 +58,31 @@ def _odeljak(html, id_naslova):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def test_prvi_ekran_kaze_sta_je_vindex_i_sledeci_korak(k):
+    """PR #85: opis realnog rada sa predmetima, bez promotivnog beta CTA."""
     t = k.get("/").text
     hero = re.search(r'<section class="uvod uvod--glavni".*?</section>', t, flags=re.S).group(0)
-    assert "Jedan prostor za čitav predmet." in hero          # Premium Positioning 2026-11-01
-    assert "Pravni operativni sistem" in hero                   # kategorija
-    assert "vezani za dokument" in hero and "potvrdi" in hero   # razlika: izvor i potvrda (obim: izdvojeno iz dokumenata)
+    assert '<h1 id="naslov">Pravo na dohvat ruke</h1>' in hero
+    assert "Vindex je aplikacija za rad na advokatskim predmetima." in hero
+    for posao in ("dokumentaciju", "beleške", "rokove", "ročišta", "pravna pitanja", "nacrte podnesaka"):
+        assert posao in hero
     dugmad = re.findall(r'<a class="dugme[^"]*" href="([^"]+)">([^<]+)</a>', hero)
-    assert dugmad == [("/beta", CTA)], dugmad                    # jedan primarni poziv
-    assert 'href="/kako-radi">Pogledaj kako Vindex radi</a>' in hero
-    assert 'class="snimak uvod__snimak' in hero                  # stvaran ekran
+    assert dugmad == [("/funkcionalnosti", CTA)], dugmad
+    assert 'href="/kako-radi">Kako radi</a>' in hero
+    assert 'href="/beta"' not in hero
+    assert 'class="snimak uvod__snimak' in hero
+    assert "Prikaz sa izmišljenim podacima." in hero
 
 
 @pytest.mark.parametrize("ruta", ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"])
-def test_poziv_za_rani_pristup_je_dosledan(k, ruta):
+def test_zajednicka_navigacija_nudi_prijavu_bez_beta_promocije(k, ruta):
+    """PR #85: /beta nije uklonjen, već samo povučen iz zajedničkog headera i footera."""
     t = k.get(ruta).text
-    for href, tekst in re.findall(r'<a class="dugme[^"]*" href="(/beta)">([^<]+)</a>', t):
-        assert tekst == CTA, f"{ruta}: dugme ka /beta glasi {tekst!r}"
     zaglavlje = re.search(r'<header class="zaglavlje">.*?</header>', t, flags=re.S).group(0)
-    assert zaglavlje.count(f'href="/beta">{CTA}</a>') == 2      # desktop i mobilni meni
-    assert "Beta pristup" not in t and "Prijavite se za beta testiranje" not in t
+    assert zaglavlje.count('href="/app">Prijava</a>') == 2
+    assert 'href="/beta"' not in zaglavlje
+    podnozje = re.search(r'<footer.*?</footer>', t, flags=re.S)
+    assert podnozje and 'href="/beta"' not in podnozje.group(0)
+    assert "Prijavite se za beta testiranje" not in t
 
 
 def test_rani_pristup_koristi_postojecu_waitlist_rutu_i_ne_obecava_nalog(k):
@@ -87,17 +93,18 @@ def test_rani_pristup_koristi_postojecu_waitlist_rutu_i_ne_obecava_nalog(k):
     assert "/waitlist/prijava" in k.get("/v2/site/sajt.js").text
 
 
-def test_istaknute_funkcije_su_dostupne_i_vode_na_katalog(k):
-    """Premium Positioning: tri koraka toka sa stvarnim ekranom; svaki kaže i šta odlučuje advokat."""
+def test_tok_pocetne_vodi_na_katalog_i_pokazuje_stvarne_ekrane(k):
+    """PR #85: tematski tok, stvarne demo slike i tačna sidra; tri stare kartice su ukinute."""
     t = k.get("/").text
-    clanci = re.findall(r'<article class="istaknuto[^"]*".*?</article>', t, flags=re.S)
-    assert len(clanci) == 3
     katalog = k.get("/funkcionalnosti").text
-    for c in clanci:
-        assert 'class="istaknuto__uloga"' in c                     # uloga advokata u svakom koraku
-        sidro = re.search(r'href="/funkcionalnosti#([^"]+)"', c).group(1)
+    sidra = re.findall(r'href="/funkcionalnosti#([^"]+)"', t)
+    assert sidra == ["dokumenti", "dokazi", "rokovi", "nacrti"], sidra
+    for sidro in sidra:
         assert f'id="{sidro}"' in katalog, sidro
-        assert "Demonstracioni prikaz" in c
+    assert len(re.findall(r'<span class="demo-oznaka">Demonstracioni prikaz</span>', t)) == 3
+    assert 'class="istaknuto' not in t
+    assert "Predmeti i dokumentacija" in t and "Rokovi, ročišta i zadaci" in t
+    assert "Pravna pitanja i nacrti podnesaka" in t
 
 
 # ═══════════════════════════════════════════════════════════════════════════

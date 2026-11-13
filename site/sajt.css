@@ -1,14 +1,13 @@
 /* Vindex — javni sajt (Website V2).
- * Vizuelni autoritet: frontend-v2-ng/src/tokens.css (tamna tema). Vrednosti su
- * iste kao u radnom prostoru V2; sajt ih ne redefiniše, samo ih primenjuje.
+ * Topla crna je odluka samo za javni sajt; aplikacijski tokeni ostaju odvojeni.
  * Sve klase su pod `.sajt` (body), da se ne sudaraju ni sa jednim drugim stilom. */
 
 :root {
   --font-serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
   --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --bg: #0d0e10; --bg-sheet: #131417; --bg-panel: #16181b; --bg-hover: #1b1d21; --bg-selected: #1e2229; --bg-input: #0f1012;
-  --line: #24272c; --line-strong: #33373e;
-  --text-1: #e8e6e1; --text-2: #a9acb2; --text-3: #8a8e95;
+  --bg: #11100F; --bg-sheet: #191715; --bg-panel: #201e1b; --bg-hover: #27231f; --bg-selected: #302b25; --bg-input: #151311;
+  --line: #36312C; --line-strong: #514940;
+  --text-1: #F3EFE9; --text-2: #BDB5AB; --text-3: #A79D92;
   --accent: #7aa2dc; --accent-strong: #98b8e8; --accent-quiet: rgba(122, 162, 220, 0.12); --focus: #98b8e8;
   --ok: #8fb59a; --ceka: #c9ad72; --zatvoreno: #8a8e95; --greska: #e09a8f;
   --demo-bg: rgba(201, 173, 114, 0.10); --demo-line: rgba(201, 173, 114, 0.32); --demo-text: #d4bb86;
@@ -21,13 +20,13 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 88px; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  .sajt .ulaz { animation: none; } html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; } }
 body.sajt {
   margin: 0; background: var(--bg); color: var(--text-1);
   font-family: var(--font-sans); font-size: 1rem; line-height: 1.6;
   -webkit-font-smoothing: antialiased; overflow-x: hidden;
 }
-.sajt #pozadina { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .sajt .strana { position: relative; z-index: 1; }
 .sajt a { color: inherit; }
 .sajt :focus { outline: none; }
@@ -41,8 +40,9 @@ body.sajt {
 .sajt .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ── Zaglavlje ─────────────────────────────────────────────── */
-.sajt .zaglavlje { position: sticky; top: 0; z-index: 5; background: rgba(13, 14, 16, 0.94); border-bottom: 1px solid var(--line); }
+.sajt .zaglavlje { position: sticky; top: 0; z-index: 5; background: rgba(17, 16, 15, 0.97); border-bottom: 1px solid var(--line); }
 .sajt .zaglavlje .okvir { display: flex; align-items: center; gap: 20px; min-height: 64px; }
+.sajt .zaglavlje .zaglavlje__unutrasnji { width: 100%; max-width: none; padding-inline: clamp(20px, 2vw, 40px); }
 .sajt .logo { display: flex; align-items: center; flex: none; padding: 8px 0; }
 .sajt .logo img { display: block; height: 48px; width: auto; }
 .sajt .meni { display: flex; gap: 4px; list-style: none; padding: 0; margin: 0 0 0 auto; }
@@ -249,13 +249,13 @@ body.sajt {
 .sajt .uvod__koristi li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .sajt .snimak__okvir--sjaj { box-shadow: 0 0 0 1px rgba(122, 162, 220, 0.18), 0 24px 80px -24px rgba(122, 162, 220, 0.35); }
 
+
 @keyframes vx-ulaz { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .sajt .ulaz { animation: vx-ulaz 640ms var(--ease) both; }
 .sajt .ulaz--2 { animation-delay: 80ms; }
 .sajt .ulaz--3 { animation-delay: 160ms; }
 .sajt .ulaz--4 { animation-delay: 240ms; }
 .sajt .ulaz--5 { animation-delay: 340ms; animation-duration: 820ms; }
-
 /* ── Istaknuti poziv na akciju ────────────────────────────── */
 .sajt .dugme--istaknuto { min-height: 48px; padding: 0 24px; background: var(--accent-strong); border-color: var(--accent-strong); color: var(--bg); gap: 10px;
   transition: background 160ms var(--ease), border-color 160ms var(--ease), transform 160ms var(--ease), box-shadow 160ms var(--ease); }
@@ -266,7 +266,6 @@ body.sajt {
 /* ── Otkrivanje pri skrolovanju ───────────────────────────── */
 .sajt.pokret .otkrij { opacity: 0; transform: translateY(18px); }
 .sajt.pokret .otkrij.vidljivo { opacity: 1; transform: none; transition: opacity 560ms var(--ease), transform 560ms var(--ease); }
-
 /* ── Kartice ──────────────────────────────────────────────── */
 .sajt .kartice { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
 .sajt .kartice--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 28px; }
@@ -290,11 +289,11 @@ body.sajt {
 .sajt .istaknuto:hover .snimak__okvir { transform: translateY(-3px); box-shadow: 0 24px 60px -28px rgba(122, 162, 220, 0.45); }
 
 /* ── Tok rada sa linijom napretka ─────────────────────────── */
+
 .sajt .tok--pokret { position: relative; }
 .sajt .tok--pokret::after { content: ""; position: absolute; left: 0; top: -1px; height: 1px; width: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); transform-origin: left; }
 .sajt.pokret .tok--pokret::after { transform: scaleX(0); transition: transform 1400ms var(--ease) 200ms; }
 .sajt.pokret .tok--pokret.vidljivo::after { transform: scaleX(1); }
-
 /* ── Vrednosti (početna): urednička mreža sa brojem i linijom, bez dekorativnih kartica ── */
 .sajt .vrednosti { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 32px; }
 .sajt .vrednost { padding-top: 20px; border-top: 2px solid var(--text-1); }
@@ -373,15 +372,12 @@ body.sajt {
   .sajt .kartica:hover, .sajt .dugme--istaknuto:hover, .sajt .istaknuto:hover .snimak__okvir { transform: none; }
 }
 
-/* ── Crna i boja kosti (odluka osnivača 2026-10-21) ───────────
- * Dve glavne boje: crna (zaglavlje, uvod, završni poziv, podnožje) i boja kosti
- * (sadržajni odeljci). Tekst i akcenti ostaju isti; na kosti dobijaju tamnije
- * nijanse iste boje, da kontrast ostane ≥ 4,5:1. Tanke linije dele odeljke. */
+/* Javne stranice: topla crna samo u tamnim delovima; sadržajni odeljci ostaju svetli. */
 :root {
-  --bg: #0b0b0b; --bg-sheet: #121212; --bg-panel: #161616; --bg-hover: #1c1c1c; --bg-selected: #202020; --bg-input: #0f0f0f;
-  --line: #262626; --line-strong: #363636;
+  --bg: #11100F; --bg-sheet: #191715; --bg-panel: #201e1b; --bg-hover: #27231f; --bg-selected: #302b25; --bg-input: #151311;
+  --line: #36312C; --line-strong: #514940;
 }
-.sajt .zaglavlje { background: rgba(11, 11, 11, 0.96); }
+.sajt .zaglavlje { background: rgba(17, 16, 15, 0.97); }
 .sajt .odeljak:not(.odeljak--zavrsni) {
   --bg: #f2eee6; --bg-sheet: #faf8f3; --bg-panel: #fffdf8; --bg-hover: #e8e3d8; --bg-selected: #e2dccf; --bg-input: #fffdf9;
   --line: #ddd6c9; --line-strong: #c3bbab;
@@ -401,3 +397,32 @@ body.sajt {
 .sajt .odeljak:not(.odeljak--zavrsni) .snimak__okvir { border-color: #1f1f1f; }
 .sajt .odeljak:not(.odeljak--zavrsni) .istaknuto:hover .snimak__okvir { box-shadow: 0 24px 60px -30px rgba(20, 20, 20, 0.45); }
 .sajt .odeljak:not(.odeljak--zavrsni) .dugme--istaknuto:hover { box-shadow: 0 10px 30px -14px rgba(20, 20, 20, 0.5); }
+
+/* Desktop header: logo levo, navigacija centrirana, prijava desno. */
+.sajt .zaglavlje .zaglavlje__unutrasnji {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; gap: 20px; min-height: 64px;
+  width: 100%; max-width: none; padding-inline: clamp(20px, 2vw, 40px);
+}
+.sajt .zaglavlje .logo { grid-column: 1; grid-row: 1; justify-self: start; }
+.sajt .zaglavlje .meni { grid-column: 2; grid-row: 1; justify-self: center; margin: 0; }
+.sajt .zaglavlje .zaglavlje__akcije { grid-column: 3; grid-row: 1; justify-self: end; }
+
+@media (max-width: 980px) {
+  .sajt .zaglavlje .meni,
+  .sajt .zaglavlje .zaglavlje__unutrasnji > nav,
+  .sajt .zaglavlje .zaglavlje__akcije { display: none; }
+  .sajt .zaglavlje .zaglavlje__unutrasnji {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .sajt .zaglavlje .meni-mob { display: block; grid-column: 2; grid-row: 1; justify-self: end; margin: 0; }
+  .sajt .meni-mob__panel {
+    position: fixed; top: 65px; left: 0; right: 0; bottom: 0; z-index: 6;
+    background: var(--bg); border-bottom: 0;
+    padding: 12px var(--pad) calc(24px + env(safe-area-inset-bottom));
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+}

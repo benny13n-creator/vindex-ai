@@ -138,14 +138,19 @@ def test_granice_iz_nezavisnog_pregleda_ostaju_vidljive(k):
     assert "nije našao izvor" in _povrsine(k.get("/funkcionalnosti").text)
 
 
-def test_pocetna_je_kraca_i_vodi_jednim_pozivom(k):
-    """Hijerarhija početne: uvod → vrednost → tok sa stvarnim ekranima → poverenje → poziv. Bez kataloga svih funkcija."""
+def test_pocetna_predstavlja_odobreni_tok_i_vodi_u_katalog(k):
+    """PR #85: naslov i sedam informativnih odeljaka; tri prikaza i bez beta promocije."""
     t = k.get("/").text
     sekcije = re.findall(r'<section class="([^"]+)" aria-labelledby="([^"]+)"', t)
-    assert [s[1] for s in sekcije] == ["naslov", "vrednost-naslov", "tok-naslov", "poverenje-naslov", "zavrsni-naslov"]
-    assert len(re.findall(r'class="vrednost otkrij"', t)) == 4
-    assert 'class="stavka' not in t                                   # bez kataloga na početnoj
-    assert len(re.findall(r'<a class="dugme dugme--istaknuto" href="/beta">', t)) == 2
+    assert [s[1] for s in sekcije] == [
+        "naslov", "predmeti-naslov", "izvori-naslov", "rokovi-naslov",
+        "pravna-pitanja-naslov", "naplata-naslov", "obrada-naslov", "funkcionalnosti-naslov",
+    ]
+    assert len(re.findall(r'<figure class="snimak', t)) == 3
+    assert 'class="stavka' not in t
+    assert len(re.findall(r'<a class="dugme dugme--istaknuto" href="/funkcionalnosti">', t)) == 1
+    assert 'href="/beta"' not in t
+    assert 'href="/app"' in t
 
 
 def test_za_advokate_je_jedan_tok_jednog_predmeta(k):
@@ -153,6 +158,6 @@ def test_za_advokate_je_jedan_tok_jednog_predmeta(k):
     koraci = re.findall(r'<li class="prica__korak">', t)
     assert 5 <= len(koraci) <= 8
     vidljivo = _povrsine(t)
-    assert "Okolnosti su izmišljene" in vidljivo
+    assert "Primer prikazuje rad na izmišljenom predmetu naknade štete" in vidljivo
     for rx in (r"dobi(li|o) (smo )?spor", r"presuda u korist", r"uštede?l", r"sati manje", r"\d+\s*%"):
         assert not re.search(rx, vidljivo, re.I), rx            # bez izmišljenog ishoda
