@@ -478,7 +478,7 @@ def test_pozivi_na_akciju_ne_dodaju_novi_kontakt_ili_beta_cta(klijent, ruta):
     """Paket koristi odobrene navigacione ciljeve; /beta ostaje samo na svojoj stranici."""
     telo = _tekst(klijent, ruta)
     ulazi = set(re.findall(r'<a[^>]+class="dugme[^"]*"[^>]+href="([^"]+)"', telo))
-    dozvoljeni = {APP_ULAZ, "/funkcionalnosti", "/kako-radi", "/beta"}
+    dozvoljeni = {APP_ULAZ, "/app?instaliraj=1", "/funkcionalnosti", "/kako-radi", "/beta"}
     assert ulazi <= dozvoljeni, f"{ruta}: pozivi na akciju vode na {ulazi}"
     if ruta == "/":
         assert "/funkcionalnosti" in ulazi and "/beta" not in ulazi, "homepage CTA contract"

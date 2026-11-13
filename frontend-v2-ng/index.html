@@ -45,6 +45,12 @@
         <span class="demo-badge" title="Svi predmeti i obaveze na ovom ekranu su izmišljeni primeri.">
           <span class="demo-badge__full">Demonstracioni podaci</span><span class="demo-badge__short">Demo</span>
         </span>
+        <button class="text-btn text-btn--line install-app-btn" id="install-app-btn" type="button"
+          aria-label="Instaliraj Vindex na uređaj" aria-controls="install-app-dialog" aria-haspopup="dialog"
+          title="Instaliraj Vindex na uređaj">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5v9m0 0 3.5-3.5M10 11.5 6.5 8M3.5 12.5v3a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"/></svg>
+          <span>Instaliraj</span>
+        </button>
         <button class="text-btn" id="panel-toggle" type="button" aria-controls="panel" aria-expanded="false">
           Zahteva pažnju <span class="count" id="panel-toggle-count"></span>
         </button>
@@ -1191,6 +1197,25 @@
     <div class="toast" id="status" role="status" aria-live="polite"></div>
   </div>
 
+  <dialog class="install-dialog" id="install-app-dialog" aria-labelledby="install-app-title">
+    <div class="install-dialog__head">
+      <h2 id="install-app-title">Dodaj Vindex na uređaj</h2>
+      <button class="icon-btn" id="install-app-close" type="button" aria-label="Zatvori uputstvo">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg>
+      </button>
+    </div>
+    <p>Vindex možete dodati kao aplikaciju iz pregledača. Instalacija otvara Vindex u posebnom prozoru.</p>
+    <div id="install-app-native" hidden>
+      <p>Pregledač nudi direktnu instalaciju.</p>
+      <button class="text-btn text-btn--primary" id="install-app-confirm" type="button">Instaliraj Vindex</button>
+    </div>
+    <section class="install-dialog__instructions" aria-labelledby="install-app-how-title">
+      <h3 id="install-app-how-title">Uputstvo za vaš uređaj</h3>
+      <p id="install-app-instructions" aria-live="polite"></p>
+    </section>
+    <p class="field__help">Vindex se instalira preko pregledača; ne preuzima se .exe ili .apk fajl.</p>
+  </dialog>
+
   <script src="src/runtime.js"></script>
   <script src="src/api.js"></script>
   <script src="src/session.js"></script>
@@ -1250,5 +1275,6 @@
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>
+  <script src="src/pwa-install.js"></script>
 </body>
 </html>

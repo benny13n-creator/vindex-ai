@@ -66,7 +66,10 @@ def test_prvi_ekran_kaze_sta_je_vindex_i_sledeci_korak(k):
     for posao in ("dokumentaciju", "beleške", "rokove", "ročišta", "pravna pitanja", "nacrte podnesaka"):
         assert posao in hero
     dugmad = re.findall(r'<a class="dugme[^"]*" href="([^"]+)">([^<]+)</a>', hero)
-    assert dugmad == [("/funkcionalnosti", CTA)], dugmad
+    assert dugmad == [
+        ("/funkcionalnosti", CTA),
+        ("/app?instaliraj=1", "Dodaj Vindex na uređaj"),
+    ], dugmad
     assert 'href="/kako-radi">Kako radi</a>' in hero
     assert 'href="/beta"' not in hero
     assert 'class="snimak uvod__snimak' in hero

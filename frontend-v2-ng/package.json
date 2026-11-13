@@ -31,6 +31,7 @@
     "verify:live-matrix": "node tests/live-browser-matrix.mjs",
     "verify:session-contract": "node tests/session-contract.mjs",
     "verify:brand": "node tests/brand-identity.mjs",
+    "verify:pwa-install": "node tests/pwa-install.mjs",
     "verify:live-analiza": "node tests/live-analiza.mjs",
     "verify:live-pregled-zivi": "node tests/live-pregled-zivi.mjs",
     "verify:live-cg001-kontinuitet": "node tests/live-cg001-kontinuitet.mjs",
