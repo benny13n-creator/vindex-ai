@@ -73,11 +73,24 @@ def _pokreni(okruzenje, putanje):
 # ne prefiks, da svaki novi lokalni asset i dalje mora da nosi build token.
 _JAVNE_STRANICE = {"/privacy", "/terms", "/dpa", "/security", "/status", "/ai-disclosure", "/kako-radi", "/bezbednosni-list"}
 
+# PWA metadata/assets are intentionally shared by the app shell. The manifest
+# keeps its established root URL; icon filenames are immutable, explicitly
+# versioned assets covered by test_website_public.py. They are not build-local
+# executable assets (src/fonts/brand) and must not be rewritten to a build token.
+_PWA_ZAJEDNICKE_REFERENCE = {
+    "/manifest.json",
+    "/static/apple-touch-icon-v6.png",
+    "/static/favicon-vindex-v6-16.png",
+    "/static/favicon-vindex-v6-32.png",
+    "/static/favicon-vindex-v6-64.png",
+}
+
 
 def _reference(html):
-    """Sve src/href vrednosti osim sidara, /app* navigacije, javnih stranica sajta i spoljnih adresa."""
+    """Build-local refs; excludes navigation, external links and fixed PWA refs."""
     return [v for v in re.findall(r'\b(?:href|src)="([^"]*)"', html)
-            if not v.startswith(("#", "/app", "http:", "https:", "mailto:")) and v not in _JAVNE_STRANICE]
+            if not v.startswith(("#", "/app", "http:", "https:", "mailto:"))
+            and v not in _JAVNE_STRANICE and v not in _PWA_ZAJEDNICKE_REFERENCE]
 
 
 def _izvorne_reference():
@@ -134,6 +147,15 @@ def test_a_b_se_razlikuju_samo_po_tokenu(html_a, html_b):
     assert not set(ref_a) & set(ref_b), "isti URL u dva builda = keš može da ih spoji"
     assert [v.replace(f"@{TOK_A}/", f"@{TOK_B}/") for v in ref_a] == ref_b
     assert html_a["/app"]["telo"].replace(f"/v2/app/@{TOK_A}/", f"/v2/app/@{TOK_B}/") == html_b["/app"]["telo"]
+
+
+def test_pwa_refs_are_exact_shared_versioned_icons_and_stable_manifest(html_a, html_b):
+    expected = sorted(_PWA_ZAJEDNICKE_REFERENCE)
+    for html in (html_a["/app"]["telo"], html_b["/app"]["telo"]):
+        shared = sorted(v for v in re.findall(r'\b(?:href|src)="([^"]*)"', html)
+                        if v == "/manifest.json" or v.startswith("/static/"))
+        assert shared == expected
+        assert all(re.search(r"-v6(?:-\d+)?\.png$", name) for name in expected if name.startswith("/static/"))
 
 
 # ── B. NEMA MEŠANJA BUILDOVA ─────────────────────────────────────────────────
