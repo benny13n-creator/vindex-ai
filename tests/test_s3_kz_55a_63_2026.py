@@ -27,8 +27,9 @@ _LAT = dict(zip("абвгдђежзијклљмнњопрстћуфхцчџшА�
                  "t", "ć", "u", "f", "h", "c", "č", "dž", "š", "A", "B", "V", "G", "D", "Đ", "E", "Ž", "Z", "I", "J", "K",
                  "L", "Lj", "M", "N", "Nj", "O", "P", "R", "S", "T", "Ć", "U", "F", "H", "C", "Č", "Dž", "Š"]))
 
-NOVO = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za umišljajna dela, otpušten je pre tri godine, a sada "
-        "je sa umišljajem izvršio delo za koje je propisan zatvor od jedne do osam godina.")
+NOVO = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za umišljajna dela, "
+        "otpušten je 01.11.2023. godine, a novo delo izvršio je 01.11.2026. godine sa umišljajem, za koje je propisan "
+        "zatvor od jedne do osam godina. Obe prethodne presude su pravnosnažne.")
 
 
 def _ishod(q):
@@ -88,6 +89,32 @@ def test_vremensko_vazenje_i_strana_osuda_se_navode():
     c = V.iz_pitanja(q.replace("15.01.2025", "15.09.2026"))
     assert c["novo_delo"] == date(2026, 9, 15)
     assert not any(n.startswith("Vremensko važenje") for n in V.izracunaj(**c).napomene)   # delo posle 18.07.2026
+
+
+@pytest.mark.parametrize("datum,pravnosnazne,ishod", [
+    ("17.07.2026", False, V.NEPOZNATO),
+    ("17.07.2026", True, V.NEPOZNATO),
+    ("18.07.2026", False, V.NEPOZNATO),
+    ("18.07.2026", True, V.DA),
+])
+def test_strana_osuda_trazi_utvrdjenu_pravnosnaznost_i_vremenski_merodavan_zakon(datum, pravnosnazne, ishod):
+    # Kzz 144/2024: po ranijem čl. 55a, strane presude su uzete u obzir u konkretnom slučaju
+    # uz dokaze iz kaznene evidencije i već izvršene kazne u inostranstvu.
+    q = NOVO.replace("01.11.2026", datum) + " Jednom ga je osudio strani sud. Ranija dela su istovrsna sa novim."
+    if not pravnosnazne:
+        q = q.replace(" Obe prethodne presude su pravnosnažne.", "")
+    c = V.iz_pitanja(q)
+    tekst, rezultat = V.blok(q)
+    assert c["pravnosnaznost"] == (V.DA if pravnosnazne else V.NEPOZNATO)
+    assert rezultat.primenjuje_se == ishod
+    assert ("sud MORA" in tekst) is (ishod == V.DA)
+    if datum == "17.07.2026":
+        assert any("blaži zakon" in uslov.razlog for uslov in rezultat.uslovi if uslov.stanje == V.NEPOZNATO)
+
+
+def test_pomen_inostranstva_bez_strane_osude_ne_menja_proracun():
+    q = NOVO.replace("01.11.2026", "17.07.2026") + " Svedok je u inostranstvu. Ranija dela su istovrsna sa novim."
+    assert _ishod(q) == V.DA
 
 
 @pytest.mark.parametrize("mn_g,mx_g,polovina,najniza", [
@@ -153,8 +180,7 @@ def test_napomene_stvarne_nadleznosti_i_sedista(q, stvarna, sedista):
 
 def test_stari_tekst_55a_iz_baze_se_oznacava_u_odgovoru():
     import main as M
-    q = ("Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, otpušten je pre tri "
-         "godine, a sada je sa umišljajem izvršio krađu za koju je propisan zatvor od jedne do osam godina. Raspon?")
+    q = "Koje su izmene pravila o višestrukom povratu po članu 55a KZ?"
     ai = ("--- CITAT ZAKONA [RAG]\n\"Krivični zakonik, član 55a: Za krivično delo učinjeno sa umišljajem, za koje je propisana kazna "
           "zatvora, sud će izreći kaznu iznad polovine raspona propisane kazne, pod sledećim uslovima: 1) ako je učinilac ranije "
           "dva puta osuđen za krivična dela učinjena sa umišljajem na zatvor od najmanje jednu godinu\"")
@@ -239,17 +265,19 @@ def test_oznaka_starog_teksta_ne_pogadja_vazeci_citat_iz_korpusa():
     assert M._STARI_55A_RE.search(V.CITAT_55A_DO_63_2026)
 
 
-@pytest.mark.parametrize("tekst, ocekivano", [
-    ("Okrivljeni može pokušati da ospori primenu člana 55a ako smatra da uslovi nisu ispunjeni.", set()),
-    ("Odbrana tvrdi da uslovi nisu ispunjeni.", set()),
-    ("U ovom slučaju uslovi iz člana 55a nisu ispunjeni.", {"NE"}),
-    ("Čl. 55a se ne primenjuje jer dela nisu istovrsna.", {"NE"}),
+@pytest.mark.parametrize("tekst", [
+    "Okrivljeni može pokušati da ospori primenu člana 55a ako smatra da uslovi nisu ispunjeni.",
+    "Odbrana tvrdi da uslovi nisu ispunjeni.",
+    "U ovom slučaju uslovi iz člana 55a nisu ispunjeni.",
+    "Čl. 55a se ne primenjuje jer dela nisu istovrsna.",
 ])
-def test_uslovna_negacija_nije_tvrdnja_o_primeni(tekst, ocekivano):
-    """Živo merenje (Bojan beta, D3): uslovi DA, a AI rečenica „ako smatra da uslovi nisu ispunjeni“ je davala lažno
-    UPOZORENJE da AI tvrdi suprotno."""
+def test_neproveren_model_nema_uticaj_na_zakljucak_o_utvrdjenim_uslovima(tekst):
     import main as M
-    assert M._tvrdnje_o_primeni(tekst) == ocekivano
+    rezultat = M._dodaj_proracun_povrata(NOVO + " Ranija dela su istovrsna sa novim delom.",
+                                         {"status": "success", "data": "--- ANALIZA\n" + tekst})
+    assert rezultat["proracun_povrata"] == V.DA
+    assert tekst not in rezultat["data"] and "UPOZORENJE" not in rezultat["data"]
+    assert "više od 4 godine i 6 meseci, najviše 8 godina" in rezultat["data"]
 
 
 def test_zus_u_kontekstu_je_izvor_koji_provera_citata_priznaje():

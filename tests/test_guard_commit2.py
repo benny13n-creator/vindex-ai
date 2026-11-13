@@ -129,7 +129,7 @@ def test_t3_nacrt_fabricated_article_blocked():
 
 # ─── ANALIZA T4: doc has Član 162, analiza cites Član 162 → PASS ───────────────
 
-def test_t4_analiza_legit_citation_passes():
+def test_t4_analiza_legit_citation_passes(caplog):
     """
     ask_analiza: document contains 'Član 162', analysis cites 'Član 162' → allowed.
     """
@@ -139,10 +139,11 @@ def test_t4_analiza_legit_citation_passes():
         "Zaposleni se obavezuje da po prestanku radnog odnosa neće raditi konkurentski posao."
     )
 
-    with patch.object(_m, "_pozovi_openai",
+    marker = "QA-POVERLJIVO-ANALIZA-4213"
+    with caplog.at_level("DEBUG"), patch.object(_m, "_pozovi_openai",
                       return_value=(
                           "PRAVNI OSNOV: Zakon o radu Član 162.\n\n"
-                          "ANALIZA: Ugovor sadrži klauzulu zabrane konkurencije prema Član 162 ZR."
+                          f"ANALIZA: {marker}. Ugovor sadrži klauzulu zabrane konkurencije prema Član 162 ZR."
                       )), \
          patch.object(_m, "_verifikuj_pravne_greske", return_value=(True, "")), \
          patch.object(_m, "_ogranici_pouzdanost", side_effect=lambda x: x), \
@@ -153,6 +154,8 @@ def test_t4_analiza_legit_citation_passes():
     assert "[!] ANALIZA BLOKIRANA" not in (rezultat.get("data") or ""), \
         "T4 FAIL: Član 162 is in document, should NOT be blocked"
     assert rezultat.get("status") == "success"
+    assert marker in rezultat["data"]
+    assert marker not in caplog.text
 
 
 # ─── ANALIZA T5: doc has Član 162, analiza cites Član 175 (not in doc) → BLOCK ──

@@ -37,7 +37,7 @@ import asyncio
 import logging
 import uuid as _uuid
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from fastapi import HTTPException, status
 
@@ -439,7 +439,8 @@ class UsageService:
         tokens_completion: Optional[int] = None,
         latency_ms: Optional[int] = None,
         predmet_id: Optional[str] = None,
-    ) -> int:
+        atomic_charge: Optional[Callable[[int], Awaitable[int | None]]] = None,
+    ) -> int | None:
         """
         multiplier: za operacije koje su N puta skuplje od registrovane bazne
         cene (npr. strategija/kompletna-analiza pokreće 6 modula = 6x cena
@@ -474,6 +475,9 @@ class UsageService:
         spajanjem. Prosleđuje ga onaj pozivalac koji predmet zna; ostali ga
         izostavljaju i kolona ostaje NULL, tačno kao pre ove izmene.
 
+        atomic_charge može zameniti samo završni debit transakcijom koja zajedno upisuje plaćeni rezultat.
+        Potvrđen upis bez dostupnog salda vraća None samo tom pozivaocu.
+
         Vraća preostali broj kredita. Baca HTTPException(402/429) ako nema
         budžeta ili je cooldown aktivan.
         """
@@ -487,6 +491,8 @@ class UsageService:
         est_cost = policy.get("estimated_cost_usd")
 
         if _is_founder(email):
+            if atomic_charge is not None:
+                await atomic_charge(0)
             return FOUNDER_BALANCE
 
         if cooldown:
@@ -615,8 +621,11 @@ class UsageService:
             # contains two CONTRADICTORY deduct_credit definitions
             # (supabase_migration.sql:74 returns -1, supabase_setup.sql:139
             # returns 0) -- exactly the drift this removes reliance on.
-            preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
-            if preostalo < 0:
+            if atomic_charge is not None:
+                preostalo = await atomic_charge(n_credits)
+            else:
+                preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
+            if preostalo is not None and preostalo < 0:
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
                     detail={
@@ -627,7 +636,11 @@ class UsageService:
                     },
                 )
         else:
-            preostalo = await asyncio.to_thread(_get_credits, user_id)
+            if atomic_charge is not None:
+                await atomic_charge(0)
+                preostalo = None
+            else:
+                preostalo = await asyncio.to_thread(_get_credits, user_id)
 
         # NIGHT-001 (2026-08-09): the pre-charge _increment_usage above at the
         # daily-gate is the ONLY increment. This second call was left behind by

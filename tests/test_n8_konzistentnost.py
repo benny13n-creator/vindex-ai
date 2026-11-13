@@ -1,0 +1,389 @@
+"""N8 kroz stvarno parsiranje, isporuku i keš pravnog agenta."""
+
+import hashlib
+import json
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+
+import main as M
+
+
+_FIXTURES = Path(__file__).with_name("fixtures")
+_ARHIVA = json.loads((_FIXTURES / "beta_n8_natural_9f16_live.json").read_text("utf-8"))
+_USLOVNA_ARHIVA = json.loads((_FIXTURES / "beta_n8_conditional_fb4e_live.json").read_text("utf-8"))
+_KORACI_ARHIVA = json.loads((_FIXTURES / "beta_n8_conditional_2af9_live.json").read_text("utf-8"))
+_BORAVAK_ARHIVA = json.loads((_FIXTURES / "beta_n8_supported_7c7b_live.json").read_text("utf-8"))
+PITANJE = _ARHIVA["pitanje"]
+USLOVNI_ODGOVOR = {
+    "brza_procena_pravna_utemeljenost": "visoka",
+    "brza_procena_dokazna_potpunost": "potpuna",
+    "pravni_zakljucak": (
+        "Sud prebivališta u Novom Sadu ima opštu mesnu nadležnost. "
+        "Sud boravišta u Beogradu može biti dodatno nadležan ako okolnosti upućuju na duži boravak."
+    ),
+    "pravni_osnov": "Član 39 ZPP",
+    "potrebne_informacije": "Utvrditi okolnosti očekivanog dužeg boravka.",
+    "procesni_koraci": "Pre izbora Beograda proveriti okolnosti koje upućuju na duži boravak.",
+}
+
+
+@pytest.fixture
+def tok(monkeypatch):
+    clan = "ZAKON: Zakon o parničnom postupku\nČLAN: Član 39\n" + M._lokalni_clan("Zakon o parničnom postupku", "39")
+    meta = {
+        "confidence": "HIGH", "top_score": 0.8, "top_article": "Član 39",
+        "top_law": "Zakon o parničnom postupku",
+        "izvori": [{"zakon": "Zakon o parničnom postupku", "clan": "Član 39", "score": 0.8}],
+    }
+    model = Mock()
+    l2 = {}
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([clan], meta))
+    monkeypatch.setattr(M, "retrieve_sudska_praksa", lambda *a, **k: [])
+    monkeypatch.setattr(M, "retrieve_misljenja", lambda *a, **k: [])
+    monkeypatch.setattr(M, "_pozovi_openai", model)
+    monkeypatch.setattr(M, "_CACHE", {})
+    monkeypatch.setattr(M, "_supa_cache_get", l2.get)
+    monkeypatch.setattr(M, "_supa_cache_set", l2.__setitem__)
+    monkeypatch.delenv("VINDEX_CACHE_BYPASS", raising=False)
+    return model, meta, l2
+
+
+def test_n8_exact_archived_model_response_is_withheld_without_caching(tok):
+    model, _, l2 = tok
+    raw = _ARHIVA["raw"]
+    assert hashlib.sha256(raw.encode()).hexdigest() == "3240d795fd810c0bbfc6133f7f98dea0a1bcec22fc423ac2619fd2c4d4b5553f"
+    model.return_value = raw
+    rezultat = M.ask_agent(PITANJE)
+    assert rezultat.get("blocked") is True, rezultat["data"]
+    assert "Nema dodatnih rizika" not in rezultat["data"]
+    assert not M._CACHE and not l2
+    assert model.call_count == 1
+
+
+@pytest.mark.parametrize(("arhiva", "sha256"), [
+    (_USLOVNA_ARHIVA, "bfe06f29f5f433a17bb88db765a6a5038300c15bc85079dcfe790cc270cfac91"),
+    (_KORACI_ARHIVA, "c9df94c3e443a399badd8af28c8af608b8b094f21f664e27f9fdb6b23cb60642"),
+    (_BORAVAK_ARHIVA, "6e8da5ff495ce6463df495d027a74f144dc18c95016bb3e64e420666f9302eaa"),
+])
+def test_n8_each_exact_live_response_is_withheld_without_caching(tok, arhiva, sha256):
+    model, _, l2 = tok
+    raw = arhiva["raw"]
+    assert hashlib.sha256(raw.encode()).hexdigest() == sha256
+    model.return_value = raw
+    rezultat = M.ask_agent(arhiva["pitanje"])
+    assert rezultat.get("blocked") and not M._CACHE and not l2
+
+
+@pytest.mark.parametrize(("polje", "tvrdnja"), [
+    ("procesni_koraci", "Podneti tužbu u Beogradu."),
+    ("brza_procena_koraci", [{"akcija": "Podnesite tužbu u Beogradu.", "zasto": "Tamo je boravište."}]),
+    ("brza_procena_obrazlozenje", "Sve potrebne okolnosti su utvrđene."),
+    ("brza_procena_rizik", "Nema dodatnih rizika u postupku zbog jasne nadležnosti."),
+    ("rizici_i_izuzeci", "Nema specifičnih rizika ili izuzetaka u vezi sa određivanjem mesne nadležnosti."),
+    ("pravni_zakljucak", "Sud u Beogradu nije nadležan jer je prebivalište u Novom Sadu."),
+    ("pravni_zakljucak", "Nadležan je i sud u Beogradu zbog boravišta."),
+    ("kada_ne_vazi", "Prebivalište isključuje nadležnost suda boravišta."),
+    ("potrebne_informacije", "Nije predmet pitanja."),
+    ("pravni_osnov", "Sud boravišta je mesno nadležan po članu 39 ZOO."),
+    ("pravni_zakljucak", "Sud boravišta je nadležan ako tuženi tamo živi najmanje 90 dana."),
+    ("pravni_zakljucak", "Sud boravišta je nadležan ako tuženi tamo živi najmanje tri meseca."),
+    ("pravni_zakljucak", "Sud boravišta je nadležan ako duži boravak traje 90 dana."),
+    ("pravni_zakljucak", "Sud boravišta je nadležan ako tuženi tamo boravi duže od 90 dana."),
+    ("procesni_koraci", "Ako tužilac odluči da proveri duži boravak, podneti tužbu u Beogradu."),
+    ("pravni_zakljucak", "Sud boravišta može biti nadležan samo na osnovu boravišta."),
+    ("pravni_zakljucak", "Jedini mesno nadležan sud je sud prebivališta."),
+    ("procesni_koraci", "Nije utvrđeno da li je nadležan sud u Beogradu, ipak podneti tužbu u Beogradu."),
+    ("procesni_koraci", "Tužbu predajte sudu u Beogradu."),
+    ("brza_procena_rizik", "Rizik od pogrešnog izbora suda ne postoji."),
+    ("pravni_zakljucak", "Sud boravišta u Beogradu je nadležan čak i ako se ne može pretpostaviti duži boravak tuženog."),
+    ("pravni_zakljucak", "Sud boravišta u Beogradu nije nadležan ako se ne utvrdi duži boravak tuženog."),
+    ("rizici_i_izuzeci", "Ako se ne dokaže duži boravak, sud u Beogradu neće biti nadležan."),
+    ("procesni_koraci", "Podneti poseban zahtev za utvrđivanje mesne nadležnosti."),
+    ("procesni_koraci", "Podneti poseban predlog za utvrđivanje mesne nadležnosti."),
+    ("procesni_koraci", "Podneti zahtev da sud prethodno utvrdi svoju mesnu nadležnost."),
+    ("procesni_koraci", "Ako se utvrdi da će boravak biti duži, podneti tužbu i pred sudom u Beogradu."),
+    ("rizici_i_izuzeci", "Ako se utvrdi da tuženi neće duže boraviti u Beogradu, nadležnost ostaje isključivo u Novom Sadu."),
+    ("brza_procena_koraci", [{"akcija": "Podnesite zahtev za utvrđivanje mesne nadležnosti."}]),
+])
+def test_n8_each_visible_contradiction_is_withheld(tok, polje, tvrdnja):
+    model, _, l2 = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "brza_procena_dokazna_potpunost": "delimicna", polje: tvrdnja})
+    rezultat = M.ask_agent(PITANJE)
+    assert rezultat.get("blocked") is True, rezultat["data"]
+    assert not M._CACHE and not l2
+
+
+@pytest.mark.parametrize("putanja", ["HIGH", "MEDIUM", "downgrade"])
+def test_n8_delivered_answer_is_consistent_in_both_cache_layers(tok, putanja):
+    model, meta, l2 = tok
+    if putanja == "MEDIUM":
+        meta.update(confidence="MEDIUM", top_score=0.6)
+    raw = json.dumps(USLOVNI_ODGOVOR)
+    model.side_effect = ["nevažeći JSON", raw] if putanja == "downgrade" else [raw]
+    cold = M.ask_agent(PITANJE)
+    l1 = M.ask_agent(PITANJE)
+    assert l2
+    M._CACHE.clear()
+    l2_hit = M.ask_agent(PITANJE)
+    assert not cold.get("blocked")
+    assert "Pravna utemeljenost: VISOKA" in cold["data"]
+    assert "Dokazna potpunost: DELIMIČNA" in cold["data"]
+    assert "Novom Sadu" in cold["data"] and "duži boravak" in cold["data"]
+    assert l1 == l2_hit == {**cold, "from_cache": True}
+    assert model.call_count == (2 if putanja == "downgrade" else 1)
+
+
+@pytest.mark.parametrize("dodatak", [
+    "Pretpostavimo da će tuženi duže boraviti u Beogradu.",
+    "Tuženi ne boravi duže vreme u Beogradu.",
+    "Dužeg boravka nema.",
+    "Stranke osporavaju da li će tuženi duže boraviti u Beogradu.",
+    "Tužilac već duže boravi u Beogradu.",
+    "Tuženi već duže boravi u Novom Sadu.",
+    "Tuženi već duže boravi u Beogradu. Protivna strana osporava duži boravak.",
+    "Tužilac tvrdi da tuženi u Beogradu boravi duže vreme, ali tuženi to negira.",
+])
+def test_n8_hypothetical_negated_or_disputed_stay_cannot_establish_additional_venue(tok, dodatak):
+    model, _, l2 = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "pravni_zakljucak": "Oba suda su mesno nadležna."})
+    odgovor = M.ask_agent(f"{PITANJE} {dodatak}")
+    assert odgovor.get("blocked") is True
+    assert not l2
+
+
+@pytest.mark.parametrize("okolnosti", [
+    "Tuženi već duže boravi u Beogradu, gde radi i živi sa porodicom.",
+    "Tuženi duže boravi u Beogradu i to nije sporno.",
+    "Tuženi će u Beogradu boraviti i naredne dve godine; to potvrđuje ugovor o radu.",
+])
+def test_n8_supported_stay_keeps_supported_conclusion(tok, okolnosti):
+    model, _, _ = tok
+    model.return_value = json.dumps({
+        **USLOVNI_ODGOVOR, "pravni_zakljucak": "Oba suda su mesno nadležna prema članu 39 ZPP.",
+        "potrebne_informacije": "", "procesni_koraci": "",
+    })
+    odgovor = M.ask_agent(f"{PITANJE} {okolnosti}")
+    assert not odgovor.get("blocked")
+    assert "Oba suda su mesno nadležna" in odgovor["data"]
+    assert "Dokazna potpunost: POTPUNA" in odgovor["data"]
+
+
+@pytest.mark.parametrize("zakljucak", [
+    "Sud u Beogradu nije nadležan jer prebivalište u Novom Sadu ima prednost.",
+    "Sud u Beogradu nije mesno nadležan.",
+    "Sud boravišta u Beogradu nadležan je tek kada duži boravak traje 90 dana.",
+])
+def test_n8_supported_stay_does_not_authorize_wrong_rule(tok, zakljucak):
+    model, _, l2 = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "pravni_zakljucak": zakljucak})
+    rezultat = M.ask_agent(PITANJE + " Tuženi već duže boravi u Beogradu, gde radi i živi sa porodicom.")
+    assert rezultat.get("blocked") and not l2
+
+
+def test_n8_explicit_negative_condition_is_not_an_unconditional_exclusion(tok):
+    model, _, _ = tok
+    uslov = "Sud boravišta u Beogradu nije nadležan po tom osnovu ako okolnosti ne upućuju na duži boravak."
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "kada_ne_vazi": uslov})
+    odgovor = M.ask_agent(PITANJE)
+    assert not odgovor.get("blocked")
+    assert uslov in odgovor["data"]
+
+
+def test_n8_neutral_checks_and_questions_are_not_venue_claims(tok):
+    model, _, _ = tok
+    provera = "Proveriti okolnosti dužeg boravka u Beogradu radi odluke o mesnoj nadležnosti."
+    pitanje = "Da li je sud u Beogradu nadležan na osnovu okolnosti dužeg boravka?"
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "procesni_koraci": provera, "kljucno_pitanje": pitanje})
+    odgovor = M.ask_agent(PITANJE)
+    assert not odgovor.get("blocked")
+    assert provera in odgovor["data"] and pitanje in odgovor["data"]
+
+
+@pytest.mark.parametrize("koraci", [
+    "Ne podnositi poseban zahtev za utvrđivanje mesne nadležnosti. Proveriti okolnosti dužeg boravka.",
+    "Ne treba da podnesete poseban zahtev za utvrđivanje mesne nadležnosti.",
+    "Nije neophodno podneti poseban zahtev za utvrđivanje mesne nadležnosti.",
+    "Ako okolnosti upućuju na duži boravak, u tužbi obrazložiti osnov mesne nadležnosti suda boravišta.",
+    "Ako se utvrdi da će boravak biti duži, tužilac može podneti tužbu i pred sudom boravišta.",
+])
+def test_n8_ordinary_procedural_advice_is_not_a_standalone_venue_request(tok, koraci):
+    model, _, _ = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "procesni_koraci": koraci})
+    rezultat = M.ask_agent(PITANJE)
+    assert not rezultat.get("blocked")
+    assert koraci in rezultat["data"]
+
+
+@pytest.mark.parametrize("utvrdjen", [False, True])
+def test_n8_prompt_overrides_generic_parnica_steps_only_within_residence_venue(tok, utvrdjen):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    pitanje = PITANJE
+    if utvrdjen:
+        pitanje += " Tuženi već duže boravi u Beogradu, gde radi i živi sa porodicom."
+    assert not M.ask_agent(pitanje).get("blocked")
+    prompt = model.call_args.args[0]
+    assert "Ne predlaži takav zahtev ni drugi neproveren procesni korak" in prompt
+    assert ("N8 — NEUTVRĐENE OKOLNOSTI" in prompt) is not utvrdjen
+    if not utvrdjen:
+        assert "Dodatna nadležnost suda boravišta ostaje neutvrđena" in prompt
+        assert "proveru okolnosti očekivanog dužeg boravka pre izbora suda" in prompt
+
+
+@pytest.mark.parametrize(("pitanje", "utvrdjen"), [
+    (PITANJE, False),
+    (_KORACI_ARHIVA["pitanje"], False),
+    (_BORAVAK_ARHIVA["pitanje"], True),
+])
+def test_n8_uses_strict_venue_fields_for_single_venue_question(tok, pitanje, utvrdjen):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    assert not M.ask_agent(pitanje).get("blocked")
+    zahtev = model.call_args.kwargs["response_format"]["json_schema"]
+    assert zahtev["strict"] and zahtev["name"] == (
+        "vindex_parnica_n8_utvrdjen_boravak" if utvrdjen else "vindex_parnica_n8_neutvrdjen_boravak"
+    )
+    schema = zahtev["schema"]
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(schema["properties"])
+    fields = schema["properties"]
+    assert "39 st. 1" in fields["pravni_zakljucak"]["enum"][0]
+    assert "39 st. 3" in fields["pravni_zakljucak"]["enum"][0]
+    assert fields["brza_procena_dokazna_potpunost"]["enum"] == ["potpuna" if utvrdjen else "delimicna"]
+    assert "pre izbora suda" in fields["procesni_koraci"]["enum"][0]
+    assert fields["citat_zakona"] == M._JSON_SCHEMA_PARNICA["json_schema"]["schema"]["properties"]["citat_zakona"]
+    for polje in ("sudska_praksa", "brza_procena_koraci"):
+        stavka = fields[polje]["items"]
+        assert stavka["additionalProperties"] is False and set(stavka["required"]) == set(stavka["properties"])
+
+
+@pytest.mark.parametrize("dodatak", [
+    " Tuženi duže boravi u Beogradu i to nije sporno.",
+    " Da li je potraživanje zastarelo?",
+    " KONTEKST PREDMETA: Sintetički privatni predmet.",
+])
+def test_n8_context_supported_or_multiple_questions_keep_normal_schema(tok, dodatak):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    assert not M.ask_agent(PITANJE + dodatak).get("blocked")
+    assert model.call_args.kwargs["response_format"] is M._JSON_SCHEMA_PARNICA
+
+
+@pytest.mark.parametrize("uvod", [
+    "Objasni i da li je potraživanje zastarelo. ",
+    "Tuženi je dokazano u Beogradu samo tri dana i sutra se vraća u Novi Sad. ",
+])
+def test_n8_does_not_constrain_additional_requests_or_facts_before_venue_question(tok, uvod):
+    model, _, _ = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    M.ask_agent(uvod + PITANJE)
+    assert model.call_args.kwargs["response_format"] is M._JSON_SCHEMA_PARNICA
+
+
+def test_n8_article_label_alone_cannot_activate_strict_venue_format(tok, monkeypatch):
+    model, meta, _ = tok
+    lazno = "ZAKON: Zakon o parničnom postupku\nČLAN: Član 39\nOvaj tekst ne sadrži pravilo mesne nadležnosti."
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([lazno], meta))
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    M.ask_agent(PITANJE)
+    assert model.call_args.kwargs["response_format"] is M._JSON_SCHEMA_PARNICA
+
+
+@pytest.mark.parametrize(("pitanje", "ocena"), [(PITANJE, "DELIMIČNA"), (_BORAVAK_ARHIVA["pitanje"], "POTPUNA")])
+def test_n8_structured_venue_format_delivers_cited_rule_and_safe_step(tok, pitanje, ocena):
+    model, _, l2 = tok
+
+    def generisi(*_, response_format, **kwargs):
+        fields = response_format["json_schema"]["schema"]["properties"]
+        data = {ime: polje["enum"][0] for ime, polje in fields.items() if "enum" in polje}
+        koraci = fields["brza_procena_koraci"]["items"]["properties"]
+        data.update(
+            brza_procena_koraci=[{ime: polje["enum"][0] for ime, polje in koraci.items()}],
+            pravni_osnov="Član 39 ZPP",
+            brza_procena_pravna_utemeljenost="visoka",
+            citat_zakona=M._lokalni_clan("Zakon o parničnom postupku", "39").strip(),
+        )
+        return json.dumps(data)
+
+    model.side_effect = generisi
+    rezultat = M.ask_agent(pitanje)
+    assert not rezultat.get("blocked") and l2
+    assert "opšta mesna nadležnost pripada sudu prebivališta tuženog" in rezultat["data"]
+    assert "dodatno mesno nadležan" in rezultat["data"]
+    assert f"Dokazna potpunost: {ocena}" in rezultat["data"]
+    assert "pre izbora suda" in rezultat["data"]
+
+
+@pytest.mark.parametrize(("rizik", "blokiraj"), [
+    ("Mogućnost promene boravišta tuženog tokom postupka može uticati na nadležnost.", True),
+    ("Tokom postupka promena prebivališta tuženog menja mesnu nadležnost.", True),
+    ("Ako tuženi promeni boravište tokom postupka, nadležnost prelazi na sud novog mesta boravišta.", True),
+    ("Promena boravišta tokom postupka sama po sebi ne utiče na mesnu nadležnost suda koji je bio nadležan pri podnošenju.", False),
+    ("Ako tuženi promeni boravište tokom postupka, nadležnost ne prelazi na sud novog mesta boravišta.", False),
+    ("Proveriti da li je boravište promenjeno pre podnošenja tužbe jer to može uticati na nadležnost.", False),
+])
+def test_n8_later_change_does_not_displace_court_competent_when_filed(tok, rizik, blokiraj):
+    model, _, l2 = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "rizici_i_izuzeci": rizik})
+    rezultat = M.ask_agent(_BORAVAK_ARHIVA["pitanje"])
+    assert bool(rezultat.get("blocked")) == blokiraj
+    assert bool(l2) != blokiraj
+
+
+def test_n8_retrieved_wrong_law_cannot_be_a_basis_for_article_39_venue(tok, monkeypatch):
+    model, meta, l2 = tok
+    docs, _ = M.retrieve_documents(PITANJE)
+    zoo = "ZAKON: Zakon o obligacionim odnosima\nČLAN: Član 39\n" + M._lokalni_clan("Zakon o obligacionim odnosima", "39")
+    monkeypatch.setattr(M, "retrieve_documents", lambda *a, **k: ([*docs, zoo], meta))
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "pravni_osnov": "Član 39 ZOO"})
+    rezultat = M.ask_agent(PITANJE)
+    assert rezultat.get("blocked") and not l2
+
+
+@pytest.mark.parametrize("zakljucak", [
+    "Sud boravišta može biti dodatno nadležan kada okolnosti upućuju na to da će tuženi tamo boraviti duže.",
+    "Sud boravišta može biti dodatno nadležan samo uz utvrđene okolnosti dužeg boravka.",
+])
+def test_n8_alternative_conditional_wording_is_delivered(tok, zakljucak):
+    model, _, _ = tok
+    model.return_value = json.dumps({**USLOVNI_ODGOVOR, "pravni_zakljucak": zakljucak})
+    rezultat = M.ask_agent(PITANJE)
+    assert not rezultat.get("blocked")
+    assert zakljucak in rezultat["data"]
+
+
+@pytest.mark.parametrize(("pitanje", "suffix"), [
+    (PITANJE, "|n8-nadleznost-10"),
+    ("Dva privredna društva su u sporu. Koji je sud nadležan?", "|n8-nadleznost-6"),
+    ("Koji je rok zastarelosti po ZOO?", ""),
+])
+def test_only_residence_venue_cache_namespace_changes(pitanje, suffix):
+    expected = hashlib.md5(
+        f"{M._CACHE_VERZIJA}{suffix}|{M._normalizuj_za_cache(pitanje)}".encode(), usedforsecurity=False,
+    ).hexdigest()
+    assert M._cache_kljuc(pitanje) == expected
+
+
+def test_n8_private_case_context_is_never_cached(tok):
+    model, _, l2 = tok
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    pitanje = PITANJE + "\n\nKONTEKST PREDMETA:\nSintetički privatni predmet."
+    assert not M.ask_agent(pitanje).get("blocked")
+    assert not M.ask_agent(pitanje).get("from_cache")
+    assert not M._CACHE and not l2
+    assert model.call_count == 2
+
+
+def test_legal_agent_logs_a_query_reference_without_case_content(tok, caplog):
+    model, _, _ = tok
+    marker = "QA-POVERLJIVO-TEST-1847"
+    pitanje = f"{marker}. {PITANJE}"
+    model.return_value = json.dumps(USLOVNI_ODGOVOR)
+    with caplog.at_level("INFO"):
+        assert M.ask_agent(pitanje).get("blocked") is not True
+        assert M.ask_agent(pitanje).get("from_cache") is True
+    assert model.call_count == 1
+    assert any("[ASK_AGENT]" in r.message and M._hash_za_log(pitanje) in r.message for r in caplog.records)
+    assert marker not in caplog.text

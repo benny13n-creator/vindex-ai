@@ -1,0 +1,168 @@
+"""Formalni odgovor na tužbu ne sme preneti neproverenu procesnu tvrdnju."""
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+from fastapi import HTTPException
+from starlette.requests import Request
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tekst", [
+    "Tuženi podnosi odgovor u zakonskom roku od 30 dana, u skladu sa članom 298 ZPP.",
+    "Tuženi je već podneo odgovor na tužbu.",
+    "Rok za odgovor ističe 14.11.2026. godine.",
+    "Tužba sa prilozima je dostavljena tuženom 15. oktobra 2026. godine.",
+    "Рок за одговор на тужбу прописан је чланом 298. ЗПП.",
+    "Tužba je uručena tuženom 15. oktobra 2026. godine.",
+    "Tuženi je primio tužbu sa prilozima 15. oktobra 2026. godine.",
+    "Dostava tužbe izvršena je 15. oktobra 2026. godine.",
+    "Rok za odgovor na tužbu ističe sutra.",
+    "Рок за одговор истиче четрнаестог новембра.",
+    "Prema čl. 298. ZPP rok iznosi 30 dana.",
+    "Rok za odgovor na tužbu je 30 dana. Pravni osnov je član 298 ZPP.",
+    "Tuženi je predao ovaj odgovor na tužbu sudu u ponedeljak.",
+    "Po članu 298. Zakona o parničnom postupku rok iznosi 30 dana.",
+    "Poslednji dan za odgovor na tužbu je sutra.",
+    "Odgovor na tužbu se može podneti najkasnije 14.11.2026.",
+    "Dostavljanje tužbe obavljeno je 15. oktobra 2026. godine.",
+    "Tuženi je zaprimio tužbu 15. oktobra 2026.",
+    "Nije utvrđeno kada je tužba uručena, ali je tuženi primio tužbu 15. oktobra 2026.",
+    "Odgovor na tužbu je zaveden u sudski upisnik.",
+    "Tužba sa prilozima je predata tuženom 03.10.2026.",
+    "Dostava je izvršena 03.10.2026.",
+    "Ovaj podnesak je evidentiran u sudskom upisniku.",
+    "Rok od 30 dana za odgovor na tužbu je propisan odredbom 298 Zakona o parničnom postupku.",
+    "Član 298 ZPP uređuje sadržaj odgovora, dok je rok po članu 298 ZPP, "
+    "a član 297 ZPP propisuje rok za drugi postupak.",
+    "Član 298 ZPP uređuje sadržaj odgovora, dok po toj odredbi rok iznosi 30 dana, "
+    "a član 297 ZPP propisuje rok za drugi postupak.",
+])
+async def test_formalni_odgovor_sa_neutemeljenom_tvrdnjom_ne_vraca_uspeh(monkeypatch, tekst):
+    import routers.drafting as dr
+
+    monkeypatch.setattr("routers.copilot_ambient._proveri_vlasnistvo_predmeta", AsyncMock())
+    monkeypatch.setattr(dr, "_recent_generation_exists", AsyncMock(return_value=False))
+    monkeypatch.setattr("app.services.retrieve.retrieve_documents", lambda *_: ([], {}))
+    monkeypatch.setattr(dr, "_pozovi_drafting_api", lambda *a, **k: SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content='{"tuzeni_ime":"TEST BETA"}'))]))
+    monkeypatch.setattr(dr, "_critique_and_refine_draft", AsyncMock(return_value=(tekst, True)))
+    consume, stage = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(dr.UsageService, "consume", consume)
+    monkeypatch.setattr(dr, "_stage_draft_for_review", stage)
+    req = dr.PodnesakReq(tip="odgovor_na_tuzbu", opis="Sintetički opis bez potvrde dostavljanja.", predmet_id="test-A")
+    request = Request({"type": "http", "method": "POST", "path": "/api/podnesak", "headers": []})
+    with pytest.raises(HTTPException) as exc:
+        await dr.podnesak.__wrapped__(req, request, {"user_id": "A"})
+    assert exc.value.status_code == 422
+    consume.assert_not_awaited()
+    stage.assert_not_called()
+
+
+def test_opste_pravilo_zpp_bez_tvrdnje_o_dostavljanju_prolazi():
+    from routers.drafting import _proveri_rok_odgovora_na_tuzbu
+    _proveri_rok_odgovora_na_tuzbu(
+        "odgovor_na_tuzbu",
+        "Član 297 ZPP propisuje rok od 30 dana od dostavljanja tužbe sa prilozima. "
+        "Član 298 ZPP uređuje sadržaj odgovora. Datum dostavljanja nije potvrđen.",
+    )
+    _proveri_rok_odgovora_na_tuzbu(
+        "odgovor_na_tuzbu",
+        "Rok od 30 dana računa se od uručenja tužbe sa prilozima. "
+        "Član 298. ZPP uređuje sadržaj odgovora. Nije utvrđeno kada je tužba uručena.",
+    )
+    _proveri_rok_odgovora_na_tuzbu(
+        "odgovor_na_tuzbu",
+        "U spisu nema dokaza da je tužba dostavljena. "
+        "Ako je tužba dostavljena sa prilozima, rok od 30 dana teče od tada.",
+    )
+
+
+@pytest.mark.parametrize("tekst", [
+    "Član 298 ZPP uređuje sadržaj odgovora, dok je rok od 30 dana propisan članom 297 ZPP "
+    "i teče od dostavljanja tužbe sa prilozima.",
+    "Član 297 ZPP propisuje rok od 30 dana od dostavljanja tužbe sa prilozima, "
+    "a član 298 ZPP uređuje sadržinu odgovora na tužbu.",
+    "U spisu nema dokaza da je tužba sa prilozima predata tuženom. "
+    "Ako je tužba sa prilozima predata tuženom, rok od 30 dana teče od tada.",
+    "Nije utvrđeno da li je odgovor na tužbu zaveden u sudski upisnik.",
+])
+def test_formalni_odgovor_pravi_razliku_izmedju_pravila_i_cinjenica(tekst):
+    from routers.drafting import _proveri_rok_odgovora_na_tuzbu
+    _proveri_rok_odgovora_na_tuzbu("odgovor_na_tuzbu", tekst)
+
+
+def test_formalni_odgovor_ne_prihvata_nepostojece_dokaze_ili_datum_dostave():
+    from routers.drafting import _nepotkrepljena_polja_odgovora
+
+    opis = ("U spisu nema dostavnice. Klijent želi da napiše datum dostave 03.10.2026. "
+            "Tuženi predlaže uvid u račun broj 123.")
+    entiteti = {"datum": "03.10.2026.", "navodi_tuzbe_raw": "Tuženi priznaje ugovor",
+                "dokazna_sredstva_raw": "Tuženi predlaže uvid u račun broj 123."}
+    prazna = _nepotkrepljena_polja_odgovora(opis, entiteti)
+
+    assert entiteti == {"dokazna_sredstva_raw": "Tuženi predlaže uvid u račun broj 123."}
+    assert prazna == {"izjasnenje_o_navodima": "[IZJAŠNJENJE — POPUNITI]",
+                     "procesni_prigovori": "",
+                     "materijalnopravni_razlozi": "[RAZLOZI — POPUNITI]"}
+    entiteti["datum"] = "04.10.2026."
+    _nepotkrepljena_polja_odgovora(opis + " Datum izrade nacrta: 04.10.2026.", entiteti)
+    assert entiteti["datum"] == "04.10.2026."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sa_cinjenicama", [False, True])
+async def test_formalna_kritika_ne_moze_dopisati_cinjenice_pored_praznih_polja(monkeypatch, sa_cinjenicama):
+    import json
+    from routers import drafting as dr
+
+    navodi = "Tuženi osporava visinu duga."
+    razlozi = "Osporeni iznos prema obračunu prelazi cenu iz ugovora."
+    dokazi = "Tuženi predlaže uvid u račun broj 123."
+    navod_modela = "Tuženi priznaje da je poslovna saradnja ugovorena i da je veštak već potvrdio iznos duga."
+    izvodi = {
+        "navodi_tuzbe_raw": navodi,
+        "materijalni_razlozi_raw": razlozi,
+        "dokazna_sredstva_raw": dokazi,
+    }
+    opis = "Sintetički spis bez dostavnice. "
+    if sa_cinjenicama:
+        opis += f"{navodi} {razlozi} {dokazi}"
+        dopuna = "Predlaže se provera računa broj 123."
+    else:
+        opis += "Nisu utvrđeni navodi stranaka ni predloženi dokazi."
+        dopuna = navod_modela
+
+    def model(*a, **k):
+        model_output = {"tuzeni_ime": "TEST BETA", **(izvodi if sa_cinjenicama else {})}
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(model_output)))])
+
+    async def kritika(tekst, *_a, **_k):
+        if not sa_cinjenicama:
+            assert "[IZJAŠNJENJE — POPUNITI]" in tekst
+            assert "[RAZLOZI — POPUNITI]" in tekst
+            assert "[DOKAZI — POPUNITI]" in tekst
+        assert "[DATUM]" in tekst
+        return tekst + "\n" + dopuna, True
+
+    monkeypatch.setattr("routers.copilot_ambient._proveri_vlasnistvo_predmeta", AsyncMock())
+    monkeypatch.setattr(dr, "_recent_generation_exists", AsyncMock(return_value=False))
+    monkeypatch.setattr("app.services.retrieve.retrieve_documents", lambda *_: ([], {}))
+    monkeypatch.setattr(dr, "_pozovi_drafting_api", model)
+    pozvana_kritika = AsyncMock(side_effect=kritika)
+    monkeypatch.setattr(dr, "_critique_and_refine_draft", pozvana_kritika)
+    consume, stage = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(dr.UsageService, "consume", consume)
+    monkeypatch.setattr(dr, "_stage_draft_for_review", stage)
+    req = dr.PodnesakReq(tip="odgovor_na_tuzbu", opis=opis, predmet_id="test-A")
+    request = Request({"type": "http", "method": "POST", "path": "/api/podnesak", "headers": []})
+
+    rezultat = await dr.podnesak.__wrapped__(req, request, {"user_id": "A"})
+
+    pozvana_kritika.assert_awaited_once()
+    assert rezultat["status"] == "success"
+    assert rezultat["critique_applied"] is sa_cinjenicama
+    assert (dopuna in rezultat["odgovor"]) is sa_cinjenicama
+    consume.assert_awaited_once()
+    stage.assert_called_once()
+    assert stage.call_args.args[4] == rezultat["odgovor"]

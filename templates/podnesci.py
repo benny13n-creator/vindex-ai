@@ -1159,12 +1159,12 @@ Vrati ČIST JSON — bez komentara, bez markdown.
   "sud_naziv": "Naziv suda iz tužbe",
   "sud_adresa": "Adresa suda ili prazno",
   "broj_predmeta": "Broj sudskog predmeta ako je naveden ili prazno",
-  "navodi_tuzbe_raw": "Ključni navodi tužbe koje tuženi osporava — direktno iz teksta",
-  "procesni_prigovori_raw": "Eventualni procesni prigovori: nenadležnost suda, zastarelost, litispendencija, pravnosnažnost — ako postoje u tekstu",
-  "materijalni_razlozi_raw": "Materijalnopravni razlozi za odbijanje tužbe iz teksta",
-  "dokazna_sredstva_raw": "Dokazi koje tuženi predlaže iz teksta",
-  "mesto": "Grad podnošenja",
-  "datum": "Datum u formatu DD. mesec YYYY. godine"
+  "navodi_tuzbe_raw": "Doslovan izvod navoda i izjašnjenja tuženog iz opisa, ili prazno",
+  "procesni_prigovori_raw": "Doslovan izvod procesnih prigovora iz opisa, ili prazno",
+  "materijalni_razlozi_raw": "Doslovan izvod činjeničnih razloga za odbijanje iz opisa, ili prazno",
+  "dokazna_sredstva_raw": "Doslovan izvod o dokazima koje tuženi predlaže, ili prazno",
+  "mesto": "Grad izrade nacrta ako je izričito naveden, ili prazno",
+  "datum": "Doslovan datum izričito označen kao datum izrade nacrta, ili prazno. Datum dostave nije datum nacrta."
 }
 
 PRAVILA: NE izmišljati podatke. Ekavica.
@@ -1404,14 +1404,14 @@ Na osnovu dostavljenih podataka (JSON entiteti) i zakonskog konteksta (RAG), nap
 Vrati ČIST JSON — bez markdown, bez komentara.
 
 {
-  "uvod": "Uvodna izjava u 2-3 rečenice: tuženi se pojavljuje u ovom postupku kao stranka, tužba mu je dostavljena, i u zakonskom roku od 30 dana (ZPP čl. 298) podnosi ovaj odgovor. Navedi broj predmeta i naziv suda.",
-  "izjasnenje_o_navodima": "Tačka po tačku izjašnjenje o navodima tužbe u 3-5 paragrafa. Format: 'Tuženi OSPORAVA navod tužioca da... jer...' / 'Tuženi PRIHVATA navod tužioca da...' Svako osporavanje mora biti potkrepljeno konkretnim razlogom ili dokazom. KRITIČNO: Jasno razgraničiti koje navode tuženi prihvata a koje osporava — ne osporavati neosnovano sve navode.",
-  "procesni_prigovori": "Procesni prigovori ako postoje osnovi: (1) nenadležnost — stvarna (ZPP čl. 16-21) ili mesna (ZPP čl. 22-41); (2) zastarelost potraživanja — navesti primenjeni zastarni rok (ZOO čl. 371 i dalje); (3) litispendencija — parnica o istom predmetu već u toku (ZPP čl. 291); (4) pravnosnažno presuđena stvar. Ako nema procesnih prigovora: prazno string.",
-  "materijalnopravni_razlozi": "Materijalnopravni razlozi zbog kojih treba odbiti tužbu u 3-4 paragrafa: (1) analiza da li su ispunjeni zakonski uslovi za tužbeni zahtev; (2) relevantni zakonski propisi iz RAG konteksta; (3) sudska praksa iz RAG konteksta ako postoji; (4) zaključak zašto tužbeni zahtev treba odbiti.",
-  "dokazna_sredstva": "Numerisana lista dokaznih sredstava tuženog: 1. [Vrsta] — radi dokazivanja [elementa]; 2. ... Dodati dokaze pomenute u tekstu."
+  "uvod": "Uvodna izjava u 2-3 rečenice: navedi da je tekst nacrt izjašnjenja tuženog i upotrebi samo navedeni broj predmeta i naziv suda. Ako je pravilo o roku potrebno, navedi čl. 297 ZPP: 30 dana od dostavljanja tužbe sa prilozima. Čl. 298 ZPP uređuje sadržaj odgovora. Ne tvrdi da su tužba ili prilozi dostavljeni, da je odgovor podnet ili blagovremen i ne navodi konkretan datum isteka: ovaj tok nema proverenu potvrdu dostavljanja.",
+  "izjasnenje_o_navodima": "Samo o navodima iz navodi_tuzbe_raw. Prihvatanje ili osporavanje navedi samo ako je izričito navedeno. Ako je podatak prazan, napiši [IZJAŠNJENJE — POPUNITI].",
+  "procesni_prigovori": "Samo prigovori iz procesni_prigovori_raw. Ako taj podatak nije naveden, vrati prazan string.",
+  "materijalnopravni_razlozi": "Samo na osnovu materijalni_razlozi_raw i konkretnih izvora. Ako činjenice nedostaju, napiši [RAZLOZI — POPUNITI].",
+  "dokazna_sredstva": "Samo dokazi iz dokazna_sredstva_raw. Ako taj podatak nije naveden, napiši [DOKAZI — POPUNITI]."
 }
 
-PRAVILA: Ekavica, formalni pravni stil. NE izmišljati podatke koji nisu u tekstu.
+PRAVILA: Ekavica, formalni pravni stil. Zakon je izvor pravila, ne činjenica konkretnog spora. Ne izmišljaj ugovore, komunikaciju, dokaze, prigovore ili priznanja. Ne popunjavaj prazna polja pretpostavkama.
 """,
 
 "zalba_krivicna": """\

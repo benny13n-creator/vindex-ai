@@ -275,7 +275,7 @@ class _Q:
 
 class _Storage:
     def from_(self, *a, **k): return self
-    def upload(self, *a, **k): raise RuntimeError("storage isključen u testu")
+    def upload(self, *a, **k): return {"Key": k.get("path")}
     def remove(self, *a, **k): return None
 
 
@@ -299,8 +299,8 @@ def _docx_bajtovi(tekst=TEKST):
 
 
 class _Fajl:
-    def __init__(self, sadrzaj):
-        self.filename = "br001.docx"
+    def __init__(self, sadrzaj, filename="br001.docx"):
+        self.filename = filename
         self.content_type = ("application/vnd.openxmlformats-officedocument"
                              ".wordprocessingml.document")
         self._b = sadrzaj
@@ -309,7 +309,7 @@ class _Fajl:
         return self._b
 
 
-def _vozi_rutu(index, emb=None, tekst=TEKST):
+def _vozi_rutu(index, emb=None, tekst=TEKST, filename="br001.docx", rag=None):
     """Vozi PRAVU `predmet_upload_auto_analyze` do kraja upisa u bazu.
 
     Zamenjeno je samo ono što nije predmet merenja: auth, entitlement, baza,
@@ -355,9 +355,9 @@ def _vozi_rutu(index, emb=None, tekst=TEKST):
          patch.object(ING, "_get_pinecone_index", return_value=index), \
          patch.object(ING, "_get_embeddings_client", return_value=emb or _Emb()), \
          patch("openai.OpenAI", _oai), \
-         patch("app.services.retrieve.retrieve_documents", return_value=([], {})):
+         patch("app.services.retrieve.retrieve_documents", side_effect=rag, return_value=([], {})):
         try:
-            asyncio.run(ruta(PREDMET, zahtev, _Fajl(_docx_bajtovi(tekst)), "Bearer t"))
+            asyncio.run(ruta(PREDMET, zahtev, _Fajl(_docx_bajtovi(tekst), filename), "Bearer t"))
         except BaseException as e:
             zapis["izuzetak"] = e
     return zapis
@@ -373,6 +373,22 @@ def test_5_uspesan_ingest_daje_status_indeksirano_i_isti_namespace():
     # SPOJ: baza i Pinecone moraju govoriti o istom mestu.
     assert idx.namespaces == {red["pinecone_namespace"]}, (idx.namespaces, red)
     assert red.get("content_sha256"), "bez heša sadržaja nema ni dedupa ni brisanja"
+
+
+def test_upload_keeps_filename_and_document_text_out_of_diagnostic_logs(caplog):
+    filename_marker = "QA-POVERLJIVO-IME-4211"
+    body_marker = "QA-POVERLJIVO-TEKST-4212"
+
+    def rag(query, *args, **kwargs):
+        assert body_marker in query
+        return ["ZAKON: Zakon o parničnom postupku\nČLAN: Član 39"], {"top_law": "ZPP"}
+
+    with caplog.at_level("INFO"):
+        z = _vozi_rutu(_Index(), tekst=f"{body_marker}\n{TEKST}", filename=filename_marker + ".docx", rag=rag)
+    assert z.get("red"), z.get("izuzetak")
+    assert any("[P2.1] RAG:" in r.message for r in caplog.records)
+    assert filename_marker not in caplog.text
+    assert body_marker not in caplog.text
 
 
 def test_5b_ruta_nikad_ne_upisuje_pred_namespace():

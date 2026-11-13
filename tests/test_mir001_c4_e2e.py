@@ -35,10 +35,10 @@ DUG = {"oznaka": "DOK-09", "ime": "09 Dopis tuzenog i prepiska.pdf", "skeniran":
        + [f"Dopis broj {i}: stranke su razmenile misljenja o rokovima isporuke i kvalitetu radova na krovu hale." for i in range(70)]
        + [PRESUDNA, "Kraj prepiske."]}
 NACRT = ("PRIVREDNOM SUDU U PRIMERGRADU\nBroj predmeta: P 9901/2026\n"
-         "Vestak u nalazu navodi da je uzrok neodgovarajuce izvedena hidroizolacija (DOK-05). "
-         "Tuzilac smatra da dopuna vestacenja nije potrebna jer je steta od 3.150.000 dinara jasno navedena.\n"
-         "Tuzeni je dopisom br. 118/26 priznao dug (DOK-09).\n"
+         "Vestak u nalazu navodi da je uzrok prokisnjavanja neodgovarajuce izvedena hidroizolacija (DOK-05).\n\n"
+         "Tuzilac smatra da dopuna vestacenja nije potrebna.\n\n"
          "⚠️ Ovaj nacrt generisala je AI i mora ga pregledati i potpisati ovlašćeni advokat pre podnošenja sudu.")
+NEPROCITAN_NAVOD = "Tuzeni je dopisom br. 118/26 priznao dug (DOK-09)."
 
 
 def _seg(ime, uslov, detalj=""):
@@ -95,10 +95,11 @@ def test_ceo_tok_dug_dokument_odluka_suda_brisanje_izvora(spis, monkeypatch):
 
     # 4. nacrt iz spisa sa procesnim stanjem
     snim, odlozeni = [], []
+    tekst_modela = f"{NACRT}\n\n{NEPROCITAN_NAVOD}"
 
     def _model_savetnik(client, system, user_msg):
         snim.append(user_msg)
-        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=NACRT))])
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=tekst_modela))])
 
     async def _politika(f):
         return {"aktivno": True, "status": "ACTIVE", "feature_type": "CORE", "min_plan": "free", "krediti": 1}
@@ -125,8 +126,17 @@ def test_ceo_tok_dug_dokument_odluka_suda_brisanje_izvora(spis, monkeypatch):
     monkeypatch.setattr(MA, "asyncio", _Asyncio())
     b.podrazumevano.setdefault("staging_memory", {}).update({"status": "pending", "is_lawyer_approved": False,
                                                             "pinecone_indexed": False, "quality_detail": {}, "naziv": ""})
-    r = k.post("/api/agents/run", json={"agent": "drafting", "predmet_id": pid,
-                                        "task": "Sastavi izjasnjenje tuzioca na nalaz vestaka (DOK-05) i na DOK-06."}, headers=A)
+    zahtev_nacrta = {"agent": "drafting", "predmet_id": pid,
+                    "task": "Sastavi izjasnjenje tuzioca na nalaz vestaka (DOK-05) i na DOK-06."}
+    odbijen = k.post("/api/agents/run", json=zahtev_nacrta, headers=A)
+    prikaz_d9 = snim[-1].split("[DOK-09:", 1)[1].split("\n[DOK-", 1)[0]
+    _seg("05a kasna činjenica iz nedostavljenog dela DOK-09 ne postaje AI predlog",
+         "118/26" not in prikaz_d9 and odbijen.status_code == 502
+         and "Ništa nije naplaćeno ni sačuvano" in odbijen.json()["detail"]
+         and not any(s.get("predmet_id") == pid for s in b.tabele["staging_memory"]),
+         odbijen.text)
+    tekst_modela = NACRT
+    r = k.post("/api/agents/run", json=zahtev_nacrta, headers=A)
     o = r.json()
     u = snim[-1]
     # C3b STRUCTURAL: procesno stanje servera u poruci. C3b FINAL CLOSURE: tekst modela je AI RADNI PREDLOG — ceo
@@ -136,8 +146,8 @@ def test_ceo_tok_dug_dokument_odluka_suda_brisanje_izvora(spis, monkeypatch):
          and natpis in u and u.rfind(natpis) > u.rfind("[KRAJ DOKUMENATA]")
          and "izvod: Sud prihvata predlog za dopunu vestacenja." in u.split(natpis, 1)[1])
     _seg("07 AI radni predlog je ceo (protivrečna rečenica vidljiva advokatu, ništa nije obrisano)",
-         o.get("status_teksta") == "AI_RADNI_PREDLOG" and "nije potrebna" in o.get("predlog_teksta", "")
-         and "priznao dug (DOK-09)." in o.get("predlog_teksta", "") and "[IZOSTAVLJENO" not in o.get("odgovor", ""),
+         o.get("status_teksta") == "AI_RADNI_PREDLOG" and o.get("predlog_teksta") == NACRT
+         and "[IZOSTAVLJENO" not in o.get("odgovor", ""),
          o.get("predlog_teksta"))
     while odlozeni:
         asyncio.run(odlozeni.pop(0))

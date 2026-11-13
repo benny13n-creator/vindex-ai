@@ -16,34 +16,33 @@ izvor istine za RPO/RTO brojeve. Ciljevi ispod ažurirani da se poklapaju sa
 zvaničnim planom; pročitati DISASTER_RECOVERY_PLAN.md §2.1 za pošten caveat --
 RPO od 15 minuta zahteva Supabase Point-in-Time Recovery (PITR) da bude
 aktivan, što NIJE potvrđeno iz koda (billing/plan odluka, ne kod odluka).
-Dok se ne potvrdi (v. §8 Verification Log u DRP-u), efektivan RPO je i dalje
-gornja granica dnevnog backup-a (do 24h), ne 15 minuta.
+Bez potvrđenog backup artefakta i uspešnog restore-a efektivni produkcioni RPO
+je UNKNOWN; ne pretpostavlja se ni dnevni backup ni 24-časovni maksimum.
 
 DEFINCIJE:
   RPO (Recovery Point Objective): max gubitak podataka koji je prihvatljiv
     Zvaničan cilj (DISASTER_RECOVERY_PLAN.md): 15 minuta -- zahteva PITR (nepotvrđeno)
-    Potvrđena donja granica bez PITR-a: 24 sata (dnevni Supabase backup)
+    Efektivni produkcioni RPO: UNKNOWN dok backup/restore ne budu dokazani
 
   RTO (Recovery Time Objective): koliko brzo mora biti sistem online
-    Zvaničan cilj (DISASTER_RECOVERY_PLAN.md): 2 sata -- proceduralni cilj, dostižan
-    sa trenutnim alatima (v. DRP §2.2 za obrazloženje izvodljivosti)
+    Zvaničan cilj (DISASTER_RECOVERY_PLAN.md): 2 sata -- policy target, nije izmeren
 
 SCENARIJI OPORAVKA:
   P0 — Kompletni gubitak (Supabase + Render nedostupni):
     1. Aktiviraj Render.com "Rollback to previous deploy" (< 5 min)
-    2. Restoruj Supabase iz poslednjeg point-in-time backup-a (< 30 min)
+    2. Restore može početi tek kada postoji izabrani provereni backup artefakt.
     3. Verifikuj audit_immutable lanac integritet
     4. Obavesti korisnike (email template u INCIDENT_EMAIL_TEMPLATE)
-    Ukupno RTO: ~1-2 sata
+    Ukupno RTO: UNKNOWN — restore nije meren
 
   P1 — Supabase dole (Render OK):
     1. Supabase dashboard → Project Settings → Restore
     2. Promena env var SUPABASE_URL na backup instance (ako postoji)
-    Ukupno RTO: ~30-60 minuta
+    Ukupno RTO: UNKNOWN — restore nije meren
 
   P2 — Render dole (Supabase OK):
     1. Render.com → New Web Service → Deploy from GitHub (main branch)
-    Ukupno RTO: ~15-30 minuta
+    Ukupno RTO: UNKNOWN — recovery nije meren
 
 KONTAKTI:
   Render.com incident: https://status.render.com
@@ -77,12 +76,9 @@ except ImportError:
 
 # ─── Konstantne definicije ───────────────────────────────────────────────────
 
-# CELINA 5: RTO_HOURS now matches the official 2h target in
-# docs/security/DISASTER_RECOVERY_PLAN.md §2. RPO_HOURS stays at the
-# confirmed 24h daily-backup floor (not the 0.25h/15min policy target) --
-# claiming 15 minutes here would be an unverified claim; see DRP §2.1.
-RPO_HOURS = 24
-RPO_TARGET_HOURS = 0.25  # 15 min policy target — requires Supabase PITR, unconfirmed
+# The active organization's Free plan does not provide a guaranteed daily
+# backup. The historic 24h interval is an unverified planning assumption.
+RPO_TARGET_HOURS = 0.25  # 15 min policy target; current effective RPO is UNKNOWN
 RTO_HOURS = 2
 
 INCIDENT_EMAIL_TEMPLATE = """
@@ -136,9 +132,11 @@ def check_supabase() -> bool:
 
         check("Konekcija", True, f"OK ({ms}ms)")
 
-        # Proveri backup status (Supabase Pro+)
-        check("WAL backup", True, "Supabase managed — proveriti dashboard manuelno")
-        check("Point-in-time restore", True, f"RPO cilj: {RPO_HOURS}h — Supabase daily backup potvrđen")
+        # API connectivity cannot establish that a provider backup exists or
+        # that a restore is possible. Keep these as explicit unknowns until
+        # account-level provider evidence is supplied.
+        check("Backup availability", False, "UNKNOWN — potvrditi u Supabase Dashboard-u", critical=False)
+        check("Point-in-time recovery", False, "UNKNOWN — PITR status i retention nisu provereni", critical=False)
 
         # Proveri kritične tabele
         for table in ["audit_immutable", "ai_forensics", "predmeti", "klijenti"]:
@@ -239,12 +237,13 @@ def check_audit_chain() -> bool:
 def check_rpo_rto() -> bool:
     print("\n[RPO / RTO DEFINICIJE]")
     check(
-        "RPO (Recovery Point Objective)", True,
-        f"cilj {RPO_TARGET_HOURS*60:.0f}min (zahteva PITR, nepotvrđeno) — "
-        f"potvrđena donja granica {RPO_HOURS}h (dnevni Supabase backup)",
+        "RPO (Recovery Point Objective)", False,
+        f"UNKNOWN — policy cilj {RPO_TARGET_HOURS*60:.0f}min; backup raspored i restore nisu dokazani",
+        critical=False,
     )
-    check("RTO (Recovery Time Objective)", True, f"{RTO_HOURS}h — Render rollback + Supabase restore")
-    check("P0 Procedura", True, "docs/security/DISASTER_RECOVERY_PLAN.md §4 (zvaničan plan)")
+    check("RPO evidence", False, "UNKNOWN — cilj nije dokaz stvarnog backup rasporeda", critical=False)
+    check("RTO evidence", False, "UNKNOWN — nije meren restore od incidenta do servisa", critical=False)
+    check("P0 Procedura", False, "DOCUMENTED — stvarni restore drill nije izvršen", critical=False)
     check("Kontakti", True, "benny13.n@gmail.com, Render dashboard, Supabase dashboard")
     print()
     print("  NAPOMENA: Ručno testiranje restore procedure:")
@@ -267,7 +266,7 @@ def main():
     print("=" * 70)
     print(f"Vindex AI — Disaster Recovery Runbook")
     print(f"Vreme: {datetime.now(timezone.utc).isoformat()}")
-    print(f"RPO cilj: {RPO_TARGET_HOURS*60:.0f}min (zahteva PITR) / {RPO_HOURS}h potvrđeno  |  RTO cilj: {RTO_HOURS}h")
+    print(f"RPO cilj: {RPO_TARGET_HOURS*60:.0f}min (efektivni RPO UNKNOWN) | RTO cilj: {RTO_HOURS}h (nije izmeren)")
     print("=" * 70)
 
     checks_to_run = {
@@ -309,13 +308,14 @@ def main():
     if args.json_out:
         out = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": "CHECKS_PASS" if not critical and not warnings else "BLOCKED_OR_UNKNOWN",
             "summary": {"total": total, "passed": passed, "critical": len(critical), "warnings": len(warnings)},
             "checks": CHECK_RESULTS,
         }
         Path(args.json_out).write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"JSON rezultati: {args.json_out}")
 
-    sys.exit(1 if critical else 0)
+    sys.exit(1 if critical or warnings else 0)
 
 
 if __name__ == "__main__":

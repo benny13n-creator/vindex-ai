@@ -141,27 +141,27 @@ Prepoznaj tip (B) po rečima: "plan", "priprema za ročište", "checklist", "kor
 KADA SU DOSTAVLJENI DOKUMENTI PREDMETA (spis):
 - Činjenice, datume, iznose i imena uzimaj ISKLJUČIVO iz dokumenata; uz svaku činjenicu u obrazloženju navedi dokument (npr. „(DOK-05)“). Podatak kog nema u spisu (adresa, matični broj, ime) upiši kao „[PROVERITI: …]“ — nikad ga ne izmišljaj.
 - Navod protivne strane i nalaz veštaka nisu utvrđene činjenice („veštak u nalazu navodi“, nikad „utvrdio“); ono što je SPORNO ostaje sporno i u nacrtu.
-- Pre pisanja utvrdi PROCESNO STANJE iz najnovijih procesnih dokumenata (zapisnik, rešenje, dopuna nalaza): ne predlaži ono o čemu je sud već odlučio, nego se pozovi na tu odluku sa oznakom dokumenta.
+- Pre pisanja utvrdi PROCESNO STANJE iz merodavnih sudskih akata (zapisnik, rešenje, presuda): ne predlaži ono o čemu je sud već odlučio, nego se pozovi na tu odluku sa oznakom dokumenta.
 - Konkretan član zakona navedi samo ako je u izvorima prava iz konteksta; inače piši „[PROVERITI član zakona]“.
-- Rokove računaj prema današnjem datumu iz konteksta.
+- Rok računaj samo od dokazanog zakonski merodavnog događaja. Ako početak nije dokazan, napiši „datum isteka nije utvrđen“.
 
 Pri generisanju svakog dokumenta tipa (A) primenjuj:
 
-### FORMALNI ZAHTEVI (ZPP čl. 98-106):
+### FORMALNI ZAHTEVI ZA PODNESAK (ZPP čl. 98):
 - Zaglavlje: naziv suda, ime/adresa stranaka, broj predmeta ako postoji
 - Predmet podneska jasno naznačen
-- Taksativno navedeni dokazi koji se predlažu (čl. 106 st. 1 t. 7 ZPP)
-- Vrednost predmeta spora ako je novčana (čl. 33 ZPP)
+- Navedi činjenice i potrebne dokaze prema vrsti podneska (čl. 98 st. 4, za tužbu čl. 192 st. 1, za osporavanje u odgovoru čl. 298 st. 2 ZPP)
+- Vrednost predmeta spora prema vrsti zahteva kada je merodavna (čl. 28–33 ZPP)
 - Potpis i datum
 
 ### VRSTE DOKUMENATA I OSNOV:
 - **Tužba**: čl. 192-200 ZPP — tužbeni zahtev mora biti određen i konkretan
-- **Žalba na presudu**: čl. 368-384 ZPP — rok 15 dana, žalbeni razlozi čl. 373 ZPP
-- **Žalba na rešenje**: čl. 395 ZPP — rok 15 dana
+- **Žalba na presudu**: čl. 367 st. 1 ZPP — opšti rok 15 dana od dostavljanja prepisa presude. Proveri izuzetke, uključujući menične i čekovne sporove i sporove male vrednosti (čl. 479). Žalbeni razlozi: čl. 373 ZPP.
+- **Žalba na rešenje**: proveri da li je posebna žalba dozvoljena po čl. 399 ZPP. Za rok primeni čl. 402 u vezi sa čl. 367 st. 1 ako nema posebnog pravila.
 - **Revizija**: čl. 403-415 ZPP — rok 30 dana, vrednosni cenzus čl. 403 st. 3
-- **Odgovor na tužbu**: čl. 295-296 ZPP — rok 30 dana
-- **Predlog za izvršenje**: ZOIO čl. 35-52 — izvršna isprava, predmet i sredstvo izvršenja
-- **Radni spor — tužba**: ZR čl. 195, rok 60 dana od dostave rešenja
+- **Odgovor na tužbu**: čl. 297 st. 1 ZPP — u redovnom postupku 30 dana od dostavljanja tužbe sa prilozima. Proveri posebna pravila postupka.
+- **Predlog za izvršenje na osnovu izvršne isprave**: ZIO čl. 59. Za izvršenje na celokupnoj imovini proveri izuzetak iz čl. 60.
+- **Radni spor — zaštita pojedinačnih prava**: čl. 195 st. 2 ZR — rok 60 dana od dostavljanja rešenja, odnosno saznanja za povredu prava.
 - **Ugovor**: odgovarajući tip uz primenu ZOO odredbi o formi i sadržini
 
 ### JEZIČKI STANDARD:
@@ -193,8 +193,8 @@ KADA SU DOSTAVLJENI DOKUMENTI PREDMETA (spis):
 - Svaku činjenicu, datum i iznos veži za oznaku dokumenta iz kog potiče (npr. „DOK-02“).
 - Navod stranke ili nalaz veštaka nije utvrđena činjenica: piši „tužilac tvrdi“, „tuženi tvrdi“, „veštak u nalazu navodi“ — nikad „veštak je utvrdio/potvrdio“ (činjenice utvrđuje sud; nalaz se može osporiti i dopuniti). Ono što je označeno kao SPORNO tretiraj kao sporno.
 - Pre nego što predložiš pribavljanje dokaza, proveri da li je već u spisu (npr. povratnica, potvrda, nalaz) i navedi ga sa oznakom dokumenta.
-- Rokove računaj od datuma iz dokumenata u odnosu na današnji datum iz konteksta; istekao rok navedi kao istekao.
-- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: iz najnovijih procesnih dokumenata (zapisnik, rešenje, dopuna nalaza) navedi sledeće zakazano ročište sa datumom, naložene radnje sa rokovima i šta je pokrenuto, uz oznaku dokumenta.
+- Sudski rok računaj od dokazanog merodavnog događaja. Datum dokumenta sam ne dokazuje početak. Ako početak nije dokazan, navedi da istek nije utvrđen.
+- Kad se traži strategija ili procena predmeta, PRVA sekcija odgovora je „## 0. PROCESNO STANJE“: zakazana ročišta i naložene radnje navedi iz merodavnih sudskih akata, uz oznaku izvora. Dopunu nalaza prikaži odvojeno kao navod veštaka, uključujući svaki njen navod o roku. Dopuna sama ne potvrđuje odluku suda ni početak roka.
 - Najnoviji dokument uporedi sa ranijima i u posebnoj stavci „**Šta menja <oznaka najnovijeg dokumenta>:**“ navedi kome ide u prilog i šta treba uraditi.
 - Dokaz koji je pomenut ili naložen, a nije dostavljen, navedi kao nedostajući — ne pretpostavljaj njegov sadržaj.
 ──────────────────────────────────────────────────────────
@@ -206,8 +206,8 @@ Identifikuj procesne propuste koji mogu dovesti do odbačaja ili odbijanja:
 - Mesna i stvarna nadležnost suda (ZPP čl. 16-54)
 - Aktivna i pasivna legitimacija stranaka
 - Rokovi — zastarelost, prekluzivni rokovi
-- Forma tužbe i urednost podneska (ZPP čl. 101-103)
-- Litispendencija ili presuđena stvar (ZPP čl. 208 st. 2)
+- Sadržina tužbe i urednost podneska (ZPP čl. 192, 98 i 101)
+- Litispendencija (ZPP čl. 203) i pravnosnažno presuđena stvar (ZPP čl. 359 st. 2)
 
 ## 2. MATERIJALNOPRAVNE SLABOSTI
 Za svaku od 3-5 identifikovanih slabosti:
@@ -285,45 +285,38 @@ Budi konkretan sa iznosima. Srpski jezik.""",
         "opis":  "Prati i upravlja procesnim rokovima",
         "system": """Ti si Deadline Agent — specijalizovan za procesne rokove srpskog prava.
 
-Identifikuješ, objašnjavaš i upravljaš rokovima prema sledećim zakonima:
+Za svaki konkretan rok utvrdi vrstu postupka i primenljivu verziju propisa. Proveri poseban rok, izuzetke i pravilo računanja pre zaključka. Opšta pravila ispod služe za orijentaciju.
 
-### PARNIČNI POSTUPAK (ZPP, Sl. gl. RS 72/2011):
-- Odgovor na tužbu: 30 dana od dostave (čl. 295 ZPP)
-- Prigovor mesne nenadležnosti: pre upuštanja u raspravljanje (čl. 20 ZPP)
-- Žalba na presudu: 15 dana od dostave (čl. 368 ZPP)
-- Žalba na rešenje: 15 dana od dostave (čl. 395 ZPP)
-- Revizija: 30 dana od dostave drugostepene presude (čl. 410 ZPP)
-- Povraćaj u pređašnje stanje: 8 dana od prestanka razloga (čl. 111 ZPP), max 6 mes.
-- Predlog za ponavljanje postupka: 30 dana od saznanja za razlog (čl. 430 ZPP)
+### PARNIČNI POSTUPAK (ZPP):
+- Odgovor na tužbu: opšti rok je 30 dana od dostavljanja tužbe sa prilozima (čl. 297 ZPP).
+- Prigovor mesne nenadležnosti: proveri da li se tužba dostavlja na odgovor i primenljivu procesnu fazu (čl. 19 i 298 ZPP).
+- Žalba protiv prvostepene presude: 15 dana od dostavljanja prepisa ako ZPP ne određuje drugi rok. U meničnim i čekovnim sporovima rok je 8 dana (čl. 367 ZPP). Za sporove male vrednosti proveri čl. 479 ZPP.
+- Žalba protiv rešenja: proveri dopuštenost i shodnu primenu pravila o žalbi na presudu, uz posebne odredbe (čl. 399 i 402 ZPP).
+- Revizija: kada je dopuštena, 30 dana od dostavljanja pravnosnažne drugostepene presude (čl. 403 ZPP).
+- Vraćanje u pređašnje stanje: opšti rok je 8 dana od prestanka razloga ili kasnijeg saznanja za propuštanje, uz granicu od 60 dana od propuštanja (čl. 110 ZPP). Za privredne sporove proveri čl. 486 ZPP.
+- Ponavljanje postupka: proveri razlog, odgovarajući početak i objektivne granice opšteg roka od 60 dana (čl. 428 ZPP).
 
-### KRIVIČNI POSTUPAK (ZKP, Sl. gl. RS 72/2011):
-- Žalba na presudu: 15 dana od dostave (čl. 434 ZKP)
-- Pritvor (trajanje): ročišta na svakih 30 dana (čl. 214 ZKP)
-- Privatna tužba: zastarelost 3 meseca od saznanja za delo (čl. 20 ZKP)
+### KRIVIČNI POSTUPAK (ZKP):
+- Žalba protiv prvostepene presude: opšti rok je 15 dana od dostavljanja prepisa, uz zakonske izuzetke i mogućnost produženja (čl. 432 ZKP).
+- Pritvor: razlikuj preispitivanje u istrazi od preispitivanja nakon podizanja optužnice (čl. 215 i 216 ZKP).
+- Privatna tužba: rok je tri meseca od saznanja oštećenog i za krivično delo i za osumnjičenog (čl. 65 ZKP).
 
-### RADNO PRAVO (ZR, Sl. gl. RS 91/2023):
-- Tužba za poništaj otkaza: 60 dana od dostave rešenja (čl. 195 ZR)
-- Zastarelost potraživanja iz radnog odnosa: 3 godine (čl. 196 ZR)
+### RADNO PRAVO (ZR):
+- Pokretanje spora: opšti rok je 60 dana od dostavljanja rešenja, odnosno saznanja za povredu prava (čl. 195 ZR).
+- Novčana potraživanja iz radnog odnosa: tri godine od nastanka obaveze (čl. 196 ZR).
 
-### UPRAVNI POSTUPAK (ZUP, Sl. gl. RS 18/2016):
-- Žalba na prvostepeno rešenje: 15 dana (čl. 147 ZUP), može biti 8 ili 30 po posebnom zakonu
-- Ćutanje uprave: žalba nakon 60 dana neodlučivanja (čl. 148 ZUP)
-- Upravni spor: tužba u roku 30 dana od dostave konačnog akta (čl. 18 ZUSP)
+### UPRAVNI POSTUPAK (ZUP):
+- Žalba na prvostepeno rešenje: 15 dana od obaveštavanja ako zakon ne propisuje drugačije (čl. 153 ZUP). Proveri dopuštenost prema čl. 151 ZUP.
+- Ćutanje uprave: ako je žalba dopuštena, podnosi se po isteku primenljivog roka za izdavanje rešenja, najkasnije godinu dana nakon njegovog isteka (čl. 145, 151 i 153 ZUP).
+- Upravni spor: opšti rok je 30 dana od dostavljanja upravnog akta, uz zakonske izuzetke (čl. 18 ZUS).
 
-### OBLIGACIONO PRAVO — ZASTARELOST (ZOO, Sl. gl. RS 29/1978):
-- Opšti zastarni rok: 10 godina (čl. 371 ZOO)
-- Potraživanja iz ugovora: 3 godine od dospelosti (čl. 372 ZOO)
-- Naknada štete: 3 godine od saznanja, aps. 5 godina (čl. 376 ZOO)
-- Periodična potraživanja (kirija, alimentacija): 3 godine (čl. 379 ZOO)
-- Potraživanja prema državi: 3 godine (čl. 380 ZOO)
+### OBLIGACIONO PRAVO — ZASTARELOST (ZOO):
+- Opšti zastarni rok: 10 godina ako zakon ne propisuje drugi rok (čl. 371 ZOO).
+- Povremena davanja: proveri uslove čl. 372 ZOO i dospelost svakog davanja. Međusobna potraživanja pravnih lica iz prometa robe i usluga: proveri čl. 374 ZOO.
+- Naknada štete: proveri početak, opšte rokove i izuzetke prema čl. 376 i 377 ZOO, uključujući poseban tretman štete zbog povrede ugovora.
 
 ### FORMAT IZVEŠTAJA:
-Za svaki rok navedi:
-1. Naziv roka i zakonska osnova
-2. Datum početka računanja
-3. Datum isteka (sa tačnim datumom)
-4. Posledica propuštanja (gubitak prava / prekluzija / zastarelost)
-5. Status: ✅ Na vreme | ⚠️ Upozorenje (<15 dana) | 🔴 Kritično (<7 dana) | ❌ Propušteno
+Za svaki rok navedi vrstu, provereni pravni osnov, dokaze o početku roka i posledicu propuštanja. Ako relevantan početak, pravilo računanja ili primenljiv izuzetak nisu utvrđeni, napiši „datum isteka i status nisu utvrđeni“. Ne računaj datum isteka niti proglašavaj rok isteklim u tom slučaju. Datum dokumenta ili ročišta sam po sebi nije dokaz dostave.
 
 Srpski jezik. Tačnost iznad svega — pogrešan rok može koštati klijenta predmeta.""",
     },
@@ -631,7 +624,14 @@ PROCESNO STANJE IZ SPISA (obavezno kad je blok dostavljen):
 - Ono što je u bloku pod „NIJE UTVRĐENO“ (tok i istek roka, postupanje po nalogu, uplata, dejstvo kasnijeg dokumenta) ne tvrdi ni u jednom smeru — navedi kao neutvrđeno.
 - Sudski rok računaj samo kad merodavan sudski izvor IZRIČITO određuje početni događaj i spis potvrđuje kada se on desio. Navod o roku u nalazu veštaka ne dokazuje sudski nalog ni početak roka. Kad početak nije izričito naveden (npr. samo „u roku od 15 dana“), datum dokumenta ili ročišta NIJE početak roka — napiši da tok i istek roka nisu utvrđeni iz spisa. Ovo pravilo ima prednost nad opštim pravilom o računanju rokova.
 - Dokument koji nije pročitan ili je pročitan delimično može sadržati odluku suda: odsustvo u bloku nije dokaz da odluke nema.
-- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda."""
+- Navod stranke u zapisniku i nalaz veštaka nisu odluka suda.
+- Pri svakoj procesnoj tvrdnji proveri oznaku i aktera iz bloka. Samo uz sudski dokument koristi afirmativno „Sud je naložio/odredio/ostavio“. Kada nesudski izvor pominje rok, čak i ako rečenica počinje sa „Sud ostavlja“, napiši „Izvor navodi rok, ali sudski nalog i početak roka nisu potvrđeni“. Posebno reci da li u spisu postoji
+  merodavan sudski akt koji potvrđuje tu radnju i početni događaj. Datum dopune nalaza sam po sebi ne dokazuje početak
+  roka. Ako nije utvrđen, ne računaj niti predlaži konkretan datum isteka, čak ni kao orijentaciju.
+- Kad stranka navodi da je priložila ispravu (npr. povratnicu), navedi šta stranka tvrdi da isprava dokazuje. Ne tvrdi da
+  si pročitao ispravu, niti da je sadržaj ili prijem potvrđen, ako je pročitan samo navod u podnesku.
+- Odgovori na svaku traženu činjenicu pre opšte strategije. Protivrečne navode prikaži sa oba konkretna datuma i odvojenim
+  oznakama izvora. Ako datum ili isprava nedostaje, napiši šta nije utvrđeno. Zabeleženu radnju stranke pripiši stranci."""
 
 
 def _procesno_stanje_za_savetnika(stanje: Optional[dict]) -> str:
@@ -722,6 +722,206 @@ def _recenice(tekst: str) -> list:
     if tekst and tekst[od:].strip():
         out.append((od, len(tekst), tekst[od:].strip()))
     return out
+
+
+_ROK_ZA_IZJASNJENJE_IZVOD_RE = re.compile(r"\brok(?:u|a)?\s+od\s+\d+\s+dana\b[^.!?\n]*\bizjasnjenj\w*")
+_ROK_ZA_IZJASNJENJE_RE = re.compile(r"\bizjasnjenj\w*")
+_SUD_OSTAVLJA_ROK_RE = re.compile(
+    r"\bsud\s+(?:je\s+)?"
+    r"(?:(?:strank\w*|u\s+dopuni\s+nalaza(?:\s+vestak\w*)?)(?:\s+\(dok-\d+\))?\s+){0,2}"
+    r"(?:ostav\w*|odred\w*|nalaz\w*)[^.!?\n]*\brok\w*"
+)
+_NAVOD_O_ROKU_RE = re.compile(
+    r"\b(?:vestak\w*\s+(?:navod\w*|pominj\w*)|u\s+dopuni\s+(?:se\s+)?(?:navod\w*|pominj\w*)"
+    r"|prema\s+navodu\s+vestak\w*|u\s+nalazu\s+(?:se\s+)?navod\w*|navod\s+vestak\w*"
+    r"|vestak\w*\s+je\s+u\s+dopuni\s+(?:naveo|navela)\s+da(?=\s*$)"
+    r"|izvor\s+(?:dok-\d+\s+)?navodi\s+da)\b"
+)
+_ISTEK_ROKA_RE = re.compile(r"\b(?:istic\w*|istek\w*|pocin\w*|tec\w*|zavrsav\w*|najkasnije)\b")
+_DATUM_ROKA_RE = re.compile(r"\b(?:\d{1,2}\.\s*\d{1,2}\.\s*\d{4}|\d{4}-\d{2}-\d{2})\b")
+_NEUTVRDJEN_ROK_RE = re.compile(
+    r"\b(?:nije\s+(?:utvrdjen\w*|poznat\w*)|ne\s+moze\s+se\s+utvrditi|proveriti\s+da\s+li)\b"
+)
+
+
+def _sporni_izvori_roka(izvori: Optional[dict]) -> set[str]:
+    from shared.rociste_iz_teksta import preslovi
+
+    stanje = (izvori or {}).get("_procesno_stanje") or {}
+    akteri = {d["oznaka"].lower(): d["akter"] for d in stanje.get("dokumenti") or []}
+    return {
+        d["oznaka"].lower()
+        for d in (stanje.get("dogadjaji") or []) + ((izvori or {}).get("_odluke_suda") or [])
+        if re.fullmatch(r"DOK-\d+", d.get("oznaka") or "", re.IGNORECASE)
+        and akteri.get(d["oznaka"].lower()) != "SUD"
+        and _ROK_ZA_IZJASNJENJE_IZVOD_RE.search(preslovi(d.get("izvod") or d.get("tekst", "")).translate(_LAT).lower())
+    }
+
+
+def _pravila_litigation_iz_spisa(izvori: Optional[dict]) -> str:
+    oznake = sorted(_sporni_izvori_roka(izvori))
+    if not oznake:
+        return PRAVILA_PROCESNOG_STANJA_SAVETNIKA
+    return (
+        PRAVILA_PROCESNOG_STANJA_SAVETNIKA
+        + "\nSISTEMSKA PROVERA IZVORA: " + ", ".join(oznaka.upper() for oznaka in oznake)
+        + " sadrži navod o roku za izjašnjenje, bez potvrđenog sudskog autoriteta tog dokumenta. "
+        "Za svaki takav izvor napiši da je rok naveden u izvoru i da sudski nalog i početak roka nisu potvrđeni. "
+        "Ne pripisuj taj rok sudu, ne računaj datum isteka i nemoj taj navod spajati sa drugim sudskim rokom."
+    )
+
+
+def _proveri_procesni_odgovor(odgovor: str, izvori: Optional[dict]) -> None:
+    """Odbija rok za izjašnjenje izveden iz nesudskog izvoda, pre prikaza i naplate."""
+    from shared.http_errors import NamerniHTTPException
+    from shared.rociste_iz_teksta import preslovi
+
+    stanje = (izvori or {}).get("_procesno_stanje") or {}
+    sporne_oznake = _sporni_izvori_roka(izvori)
+    if not sporne_oznake:
+        return
+
+    sudski_izvor = any(
+        d.get("akter") == "SUD" and d["vrsta"] in ("SUD_NALAZE", "SUD_ODREDJUJE", "SUD_VISESTRUKO")
+        and _ROK_ZA_IZJASNJENJE_IZVOD_RE.search(preslovi(d["izvod"]).translate(_LAT).lower())
+        for d in stanje.get("dogadjaji") or []
+    )
+    for _, _, recenica in _recenice(odgovor):
+        recenica = preslovi(recenica).translate(_LAT).lower()
+        sporni_izvor = any(oznaka in recenica for oznaka in sporne_oznake)
+        rok_za_izjasnjenje = "rok" in recenica and _ROK_ZA_IZJASNJENJE_RE.search(recenica)
+        if not (sporni_izvor or (rok_za_izjasnjenje and not sudski_izvor)):
+            continue
+        tvrdi_nalog = _SUD_OSTAVLJA_ROK_RE.search(recenica)
+        rok_iz_spornog_izvora = sporni_izvor and "rok" in recenica
+        tvrdi_tok = _ISTEK_ROKA_RE.search(recenica) if (
+            (rok_za_izjasnjenje or rok_iz_spornog_izvora) and _DATUM_ROKA_RE.search(recenica)
+        ) else None
+        if (tvrdi_nalog and not _NAVOD_O_ROKU_RE.search(recenica[:tvrdi_nalog.start()])
+                or tvrdi_tok and not _NEUTVRDJEN_ROK_RE.search(recenica[:tvrdi_tok.start()])):
+            raise NamerniHTTPException(
+                status_code=502,
+                detail="Strategija nije izrađena jer sudski izvor ili početak roka za izjašnjenje nisu potvrđeni. "
+                       "Proverite sudski akt i početni događaj. Ovaj odgovor nije naplaćen.",
+            )
+
+
+_NALAZ_VESTAKA_RE = re.compile(
+    r"\b(?:nalaz\w*(?:\s+i\s+misljenj\w*)?\s+vestak\w*|vestakov\w*\s+nalaz\w*)"
+)
+_DOSTAVA_NALAZA_RE = re.compile(r"\b(?:dostavljen\w*|urucen\w*|primljen\w*|primio|primila|primili|primile)\b")
+_PRIMALAC_DOSTAVE_RE = re.compile(
+    r"\s+(?:(?:je|su)\s+)?(?P<primalac>strank\w*|tuzio\w*|tuzen\w*|punomocnik\w*)\b"
+)
+_NALAZ_OD_RE = re.compile(rf"\s+od\s+(?P<datum>{_DATUM_ROKA_RE.pattern})")
+_DATUM_DOSTAVE_NALAZA_RE = re.compile(
+    r"\s+(?:(?:je|su)\s+)?"
+    r"(?:u\s+(?:(?:ovom|tom)\s+)?predmetu(?:\s+(?:broj|br\.?)\s+(?:[a-z]+\d*\s*)?\d+/\d{4})?\s+)?"
+    rf"(?:dana\s+)?(?P<datum>{_DATUM_ROKA_RE.pattern})"
+)
+_USLOV_DOSTAVE_RE = re.compile(
+    r"\b(?:ako|ukoliko|pretpostav\w*|hipotetick\w*|da li je|da li su)\b"
+)
+_NEGACIJA_DOSTAVE_RE = re.compile(r"\b(?:nije|nisu|ne)\s+(?:jos\s+|nikada\s+)?$")
+_NAVOD_DOSTAVE_RE = re.compile(
+    r"\b(?:(tuzilac|tuzeni|vestak|punomocnik\s+(?:tuzioca|tuzenog))\s+)?"
+    r"(?:navod\w*|tvrd\w*|izjav\w*)\s+da\b"
+)
+
+
+def _datum_iz_dostave(datum):
+    if datum is None:
+        return None
+    sirovi = datum["datum"]
+    delovi = [int(x) for x in re.findall(r"\d+", sirovi)]
+    try:
+        return date(*(delovi if "-" in sirovi else reversed(delovi))).isoformat()
+    except ValueError:
+        return ""  # neispravan datum nikad nije dokaz
+
+
+def _primalac_dostave(tekst: str) -> str:
+    if tekst.startswith(("tuzil", "tuzio")):
+        return "TUZILAC"
+    if tekst.startswith("tuzen"):
+        return "TUZENI"
+    return "STRANKE" if tekst.startswith("strank") else "PUNOMOCNIK"
+
+
+def _tvrdnje_o_dostavi_nalaza(recenica: str):
+    """Izdvaja tvrdnju o dostavi čak i kad njen datum nije naveden."""
+    for celina in re.split(r";|,\s*(?:ali|medjutim)\b", recenica):
+        nalaz = _NALAZ_VESTAKA_RE.search(celina)
+        if not nalaz:
+            continue
+        datum_nalaza = _NALAZ_OD_RE.match(celina, nalaz.end())
+        for dostava in _DOSTAVA_NALAZA_RE.finditer(celina):
+            uvod = celina[:dostava.start()]
+            if (_NEUTVRDJEN_ROK_RE.search(uvod) or _USLOV_DOSTAVE_RE.search(uvod)
+                    or _NEGACIJA_DOSTAVE_RE.search(uvod) or re.search(r"\b(?:bude|budu)\s+$", uvod)):
+                continue
+            posle = dostava.end()
+            primalac = None
+            if dostava[0] in ("primio", "primila", "primili", "primile"):
+                aktivni = re.search(r"\b(tuzilac|tuzeni|stranke|punomocnik)\s+(?:je\s+|su\s+)?$", uvod)
+                if not aktivni or not re.fullmatch(r"\s+", celina[posle:nalaz.start()]):
+                    continue
+                primalac = _primalac_dostave(aktivni[1])
+                posle = datum_nalaza.end() if datum_nalaza else nalaz.end()
+            else:
+                if nalaz.start() > dostava.end() and re.search(r"[,;]", celina[dostava.end():nalaz.start()]):
+                    continue
+                if nalaz.end() < dostava.start() and re.search(
+                    r"\b(?:dnevnik|podnesak|reklamacij|zapisnik)\w*\s+(?:je\s+|su\s+)?$",
+                    celina[nalaz.end():dostava.start()],
+                ):
+                    continue
+                primaoc = _PRIMALAC_DOSTAVE_RE.match(celina, posle)
+                if primaoc:
+                    primalac = _primalac_dostave(primaoc["primalac"])
+                    posle = primaoc.end()
+            datum = _DATUM_DOSTAVE_NALAZA_RE.match(celina, posle)
+            navod = _NAVOD_DOSTAVE_RE.search(uvod)
+            yield (_datum_iz_dostave(datum), (navod[1] or "NEPOZNAT").upper() if navod else None,
+                   primalac, _datum_iz_dostave(datum_nalaza), celina)
+
+
+def _proveri_dostavu_nalaza_u_nacrtu(tekst: str, stanje: Optional[dict]) -> tuple[dict, set]:
+    """Dokaz dostave i pripisani navod su različite tvrdnje o istom izvodu."""
+    from shared.http_errors import NamerniHTTPException
+    from shared.procesno_stanje import HUMAN
+    from shared.rociste_iz_teksta import preslovi
+
+    izvori = {}
+    sudski_ids = set()
+    dokazi = None
+    for _, _, recenica in _recenice(tekst):
+        for datum, akter, primalac, nalaz_od, celina in _tvrdnje_o_dostavi_nalaza(preslovi(recenica).translate(_LAT).lower()):
+            if dokazi is None:
+                dokazi = []
+                for d in (stanje or {}).get("dogadjaji") or []:
+                    if not d.get("dokument_id") or not d.get("tekst_sha256"):
+                        continue
+                    sudski = (d.get("akter") == "SUD" and d.get("vrsta") == "SUD_KONSTATUJE"
+                              and d.get("vrsta_dokumenta", {}).get("klasa") == HUMAN)
+                    for dan, navod, kome, od, _ in _tvrdnje_o_dostavi_nalaza(preslovi(d["izvod"]).translate(_LAT).lower()):
+                        if dan != "" and od != "" and (sudski or navod or d.get("akter") in ("TUZILAC", "TUZENI", "VESTAK")):
+                            dokazi.append((dan, navod or (None if sudski else d["akter"]), kome, od, d))
+            oznake = set(re.findall(r"\b(?:dok|ps)-\d+\b", celina))
+            dokaz = next((d for dan, govornik, kome, od, d in dokazi
+                          if datum != "" and (datum is None or datum == dan) and akter == govornik
+                          and (primalac is None or primalac == kome) and (nalaz_od is None or nalaz_od == od)
+                          and oznake.intersection((d["oznaka"].lower(), d["id"].lower()))), None)
+            if dokaz is None:
+                raise NamerniHTTPException(
+                    status_code=502,
+                    detail="Predlog nije izrađen jer datum dostave nalaza veštaka nije potkrepljen sudskim izvorom. "
+                           "Ništa nije naplaćeno ni sačuvano.",
+                )
+            izvori[dokaz["dokument_id"]] = dokaz["tekst_sha256"]
+            if akter is None:
+                sudski_ids.add(dokaz["dokument_id"])
+    return izvori, sudski_ids
 
 
 def _osnove(tekst: str) -> set:
@@ -894,13 +1094,24 @@ async def _potvrde_vrste(supa, uid: str, dok_ids: list) -> dict:
         return {}
     out: dict = {}
     for red in redovi:                                         # rastuće po seq → poslednja odluka pobeđuje
-        md = red.get("metadata") if isinstance(red.get("metadata"), dict) else {}
-        if red.get("resource_id") and isinstance(md.get("novo"), str):
-            out[str(red["resource_id"])] = md["novo"]
+        if not red.get("resource_id"):
+            continue
+        did = str(red["resource_id"])
+        md = red.get("metadata")
+        if isinstance(md, str):
+            try:
+                md = json.loads(md)                            # audit writer stores a JSONB string
+            except ValueError:
+                md = None
+        if isinstance(md, dict) and isinstance(md.get("novo"), str):
+            out[did] = md["novo"]
+        else:
+            out.pop(did, None)                                 # nepoznata novija odluka poništava prethodnu potvrdu
     return out
 
 
-async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: str = "", procesno: bool = False) -> tuple:
+async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: str = "",
+                            procesno: bool = False, *, dokazi_nacrta: bool = False) -> tuple:
     """Kontekst predmeta za savetnika: `(tekst, predmet_verifikovan, izvori_predmeta)`. JEDAN izvor za /run,
     /run-parallel i /pipeline (VCR002 T05): vlasništvo (`predmeti.user_id`), dokumenti u granici poverenja (T3),
     Genome sažetak. Nedostupan ili tuđ predmet daje `("", False, None)` — pozivalac to izričito vraća, nikad tiho kao
@@ -1084,6 +1295,7 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                     # potvrda vrste samo iz audit traga. Nepročitan, izostavljen ili bez teksta → NEPOTPUNO. Greška
                     # čitanja ili utvrđivanja → `greska` (i napomena u internom delu predloga).
                     from shared import procesno_stanje as _PS
+                    potvrde = {}
                     try:
                         dok_za_stanje = []
                         for u in ukljuceni:
@@ -1106,7 +1318,21 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                                   "potpunost": "NEPOTPUNO", "odbaceni": [], "greska": True}
                     izvori["_procesno_stanje"] = stanje
                     # C3b FINAL CLOSURE: identitet dokumenata spisa za snimak AI predloga (advokat otvara izvor po id-u)
-                    izvori["_dokumenti_ids"] = {x["oznaka"]: x["id"] for x in dok_za_stanje if x.get("id")}
+                    from shared.usvajanje_nacrta import sha as _sha_teksta
+                    izvori["_snimci_dokumenata"] = {
+                        x["oznaka"]: {"dokument_id": x["id"], "sha256_teksta": _sha_teksta(x["tekst"])}
+                        for x in dok_za_stanje if x.get("id") and x.get("tekst")
+                    }
+                    if dokazi_nacrta and not stanje.get("greska"):
+                        potpuni = {u["oznaka"] for u in ukljuceni if u["potpun"]}
+                        izvori["_izvodi_nacrta"] = {}
+                        for x in dok_za_stanje:
+                            if x["oznaka"] in potpuni and x["predmet_id"] == predmet_id and x["user_id"] == uid:
+                                tekst_izvora = _bez_lazne_evidencije(x["tekst"].strip())
+                                izvori["_izvodi_nacrta"][x["oznaka"]] = {
+                                    "tekst": tekst_izvora,
+                                    "vrsta": _PS.vrsta_dokumenta(tekst_izvora, potvrde.get(x["id"])),
+                                }
                 _evidencija = (_evidencija_za_model({**izvori, "trazeni_nisu_dostavljeni": trazeni_nisu}, izostavljeni)
                                if meta or greska_citanja or nepostojeci else "")
                 # Dodaj Case Genome sazetak ako postoji (kao i ranije: samo uz predmet koji ima dokumente)
@@ -1240,7 +1466,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
     # ── Dohvati kontekst predmeta (VCR002 T05: zajednički sa /run-parallel) ──
     predmet_ctx, predmet_verifikovan, izvori_predmeta = await _kontekst_predmeta(
         supa, uid, req.predmet_id, zahtev=(req.task or "") + " " + (req.kontekst or ""),
-        procesno=(agent_id in ("drafting", "litigation") and bool(req.predmet_id)))
+        procesno=(agent_id in ("drafting", "litigation") and bool(req.predmet_id)), dokazi_nacrta=agent_id == "drafting")
     if req.predmet_id and not predmet_verifikovan:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
     # MIR001 C3b: nacrt iz spisa = zaštićen tok (procesno stanje servera → JSON predlog + napomene → AI RADNI PREDLOG na
@@ -1364,13 +1590,15 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             resp = await asyncio.to_thread(_pozovi_nacrt_api, client, agent_cfg["system"] + "\n\n" + _NZ.PRAVILA_ZA_MODEL,
                                            user_msg)
         else:
-            sistem = agent_cfg["system"] + (f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}" if procesno_ctx else "")
+            sistem = agent_cfg["system"] + (f"\n\n{_pravila_litigation_iz_spisa(izvori_predmeta)}" if procesno_ctx else "")
             resp = await asyncio.to_thread(_pozovi_agent_api, client, sistem, user_msg)
         odgovor = (resp.choices[0].message.content or "").strip()
     except Exception as exc:
         _sentry_capture(exc)
         logger.error("[AGENT] GPT greška: %s", exc)
         raise HTTPException(status_code=503, detail="AI servis trenutno nedostupan.")
+    if agent_id == "litigation" and procesno_ctx:
+        _proveri_procesni_odgovor(odgovor, izvori_predmeta)
     if nacrt_iz_spisa:
         # Razdvajanje teksta za sud od napomena je obavezno: bez ispravnog JSON-a (ili posle odsečenog odgovora) nacrt se
         # NE pravi, ništa se ne upisuje na pregled i ništa se ne naplaćuje — bez automatskog ponavljanja (trošak).
@@ -1390,6 +1618,43 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                 "Nacrt nije izrađen: odgovor savetnika nije mogao bezbedno da se razdvoji na predlog teksta i napomene. "
                 "Ništa nije naplaćeno ni sačuvano. Pokušajte ponovo."))
         odgovor = tekst_za_sud.strip()
+        tekst_i_napomene = "\n\n".join([odgovor, *napomene_modela])
+        izvori_dostave, sudski_izvori = _proveri_dostavu_nalaza_u_nacrtu(
+            tekst_i_napomene, stanje
+        )
+        if izvori_dostave:
+            from routers.drafting import _proveri_izvore_za_sud
+
+            async def potvrdi_izvore_dostave():
+                await _proveri_izvore_za_sud(supa, req.predmet_id, uid, izvori_dostave)
+                potvrde = await _potvrde_vrste(supa, uid, list(sudski_izvori))
+                if any(potvrde.get(did) not in ("court_decision", "judgment") for did in sudski_izvori):
+                    raise HTTPException(status_code=409, detail="Sudsko poreklo dokaza o dostavi više nije potvrđeno.")
+
+            await potvrdi_izvore_dostave()
+        from shared import mir03_source_fidelity as _MF
+        ip = izvori_predmeta or {}
+        snimci = ip.get("_snimci_dokumenata") or {}
+        izvodi_nacrta = ip.get("_izvodi_nacrta") or {}
+
+        def proverena_dostava(deo: str) -> bool:
+            # Posebna kapija je već proverila datum, primaoca, aktera i izvor ove tvrdnje.
+            return bool(izvori_dostave and not re.search(r"[,;]|\bi\b", _NALAZ_VESTAKA_RE.sub("", deo, count=1))
+                        and any(_tvrdnje_o_dostavi_nalaza(deo)))
+
+        try:
+            potkrepljeni = _MF.proveri(
+                tekst_i_napomene, izvodi_nacrta, stanje, proverena_dostava=proverena_dostava,
+            )
+        except _MF.NepouzdanIzvor:
+            from shared.http_errors import NamerniHTTPException
+            raise NamerniHTTPException(status_code=502, detail=(
+                "Nacrt nije izrađen: pripisani navod nije potkrepljen pročitanim izvorom. "
+                "Ništa nije naplaćeno ni sačuvano."))
+        zavisni_izvori = dict(izvori_dostave)
+        for oznaka in potkrepljeni:
+            snimak_izvora = snimci[oznaka]
+            zavisni_izvori[snimak_izvora["dokument_id"]] = snimak_izvora["sha256_teksta"]
         try:
             # C3b FINAL CLOSURE: tekst modela je AI RADNI PREDLOG, ceo (leksička kapija `zastiti` povučena posle GATE-03
             # C3B_FAIL). Pre naplate (GATE-02 N1): pad obrade ne sme da naplati nacrt koji ne postoji.
@@ -1397,15 +1662,18 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
             # C3b FINAL CLOSURE TASK-01: snimak predloga (stavke, dokumenti, procesne tačke sa doslovnim izvodima) — osnov
             # za izričito usvajanje u dokument za sud (`shared/usvajanje_nacrta`). Ništa u snimku nije „potvrđeno“.
             from shared import usvajanje_nacrta as _UN
-            ip = izvori_predmeta or {}
-            ids = ip.get("_dokumenti_ids") or {}
-            dokumenti = ([{"oznaka": u["oznaka"], "naziv": u.get("naziv") or "", "dokument_id": ids.get(u["oznaka"]),
+            dokumenti = ([{"oznaka": u["oznaka"], "naziv": u.get("naziv") or "",
+                           **snimci.get(u["oznaka"], {"dokument_id": None}),
                            "stanje": "PROCITAN" if u.get("potpun") else "DELIMICNO_PROCITAN"} for u in ip.get("ukljuceni") or []]
                          + [{"oznaka": x["oznaka"], "naziv": x.get("naziv") or "", "dokument_id": None, "stanje": "BEZ_TEKSTA"}
                             for x in ip.get("bez_teksta") or []]
                          + [{"oznaka": x["oznaka"], "naziv": x.get("naziv") or "", "dokument_id": None, "stanje": "NIJE_PROCITAN"}
                             for x in ip.get("izostavljeni") or []])
             snimak = _UN.snimak_predloga(predlog_ai["tekst"], stanje, dokumenti, predlog_ai["tekst_za_dokument"])
+            if potkrepljeni:
+                for sirova, sacuvana in zip(_UN.stavke(odgovor), snimak["stavke"], strict=True):
+                    oznake = _MF.proveri(sirova["tekst"], izvodi_nacrta, stanje, proverena_dostava=proverena_dostava)
+                    sacuvana["izvori"] = sorted(set(sacuvana["izvori"]) | oznake)
         except Exception as exc:
             from shared.http_errors import NamerniHTTPException
             _sentry_capture(exc)
@@ -1415,9 +1683,8 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
 
     # ── Credit deduction ──────────────────────────────────────────────────────
     email = user.get("email", "")
-    await UsageService.consume(uid, email, "multi_agent")
-
-    logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
+    if not nacrt_iz_spisa:
+        await UsageService.consume(uid, email, "multi_agent")
 
     _NEXT_AGENT = {
         "intake":    "research",
@@ -1439,11 +1706,18 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                                        _napomena_za_pregled(provera_citata, javni_izvori, None))
         odgovor = _NZ.sastavi(predlog_ai["tekst"], interno)
         dodatno = {"predlog_teksta": predlog_ai["tekst"], "status_teksta": "AI_RADNI_PREDLOG"}
-        # snimak predloga je napravljen PRE naplate (GATE-R1 N5) — v. gore
         from routers.drafting import _stage_draft_for_review
-        asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, _TIP_NACRTA_IZ_SPISA, "AI radni predlog (savetnik)",
-                                                    odgovor, dodatni_detalj={"predlog": snimak}))
 
+        async def upisi_predlog(krediti: int) -> int | None:
+            return await _stage_draft_for_review(
+                user, req.predmet_id, _TIP_NACRTA_IZ_SPISA, "AI radni predlog (savetnik)",
+                odgovor, dodatni_detalj={"predlog": snimak}, krediti=krediti,
+                izvori_dostave=zavisni_izvori, sudski_izvori=sorted(sudski_izvori),
+            )
+
+        await UsageService.consume(uid, email, "multi_agent", atomic_charge=upisi_predlog)
+
+    logger.info("[AGENT] user=%s agent=%s predmet=%s rag=%s", uid[:8], agent_id, req.predmet_id or "-", bool(rag_ctx))
     return {
         **dodatno,
         "agent":          agent_id,
@@ -1562,13 +1836,15 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
         cfg = _AGENTS[agent_id]
         try:
             if agent_id == "litigation" and procesno_lit:
-                resp = await _pozovi_para_api(oai, cfg["system"] + f"\n\n{PRAVILA_PROCESNOG_STANJA_SAVETNIKA}",
+                resp = await _pozovi_para_api(oai, cfg["system"] + f"\n\n{_pravila_litigation_iz_spisa(izvori_predmeta)}",
                                               f"{predmet_ctx}{rag_ctx}{procesno_lit}\n\nZahtev: {req.task}".strip())
             else:
                 resp = await _pozovi_para_api(oai, cfg["system"], base_msg)
             odgovor = (resp.choices[0].message.content or "").strip()
             if not odgovor:
                 raise ValueError("prazan odgovor modela")
+            if agent_id == "litigation" and procesno_lit:
+                _proveri_procesni_odgovor(odgovor, izvori_predmeta)
             return {
                 "agent_id": agent_id,
                 "naziv":    cfg["naziv"],

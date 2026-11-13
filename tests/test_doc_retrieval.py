@@ -73,8 +73,11 @@ def test_retrieve_documents_default_no_extra_ns():
 # ─── Test 2: retrieve_documents with extra_namespaces ────────────────────────
 
 def test_retrieve_documents_with_extra_ns():
-    """extra_namespaces triggers _pretraga_ns and populates doc_passages."""
+    """Authenticated tmp retrieval uses an owner filter and returns its own passage."""
     from app.services.retrieve import retrieve_documents
+    from shared.ai_provenance import set_request_context
+
+    owner = "owner-test-uid"
 
     mock_match = MagicMock()
     mock_match.metadata = {
@@ -82,6 +85,7 @@ def test_retrieve_documents_with_extra_ns():
         "article_label": "Član 1",
         "source_filename": "ugovor.docx",
         "text": "Zaposleni se obavezuje da poštuje propise.",
+        "owner_user_id": owner,
     }
     mock_match.score = 0.9
 
@@ -90,7 +94,9 @@ def test_retrieve_documents_with_extra_ns():
     def _side_effect(**kwargs):
         ns = kwargs.get("namespace", "")
         res = MagicMock()
-        if ns.startswith("tmp_"):
+        owner_filter = kwargs.get("filter") or {}
+        owner_match = owner_filter.get("owner_user_id", {}).get("$eq") == owner
+        if ns.startswith("tmp_") and owner_match:
             res.matches = [mock_match]
         else:
             res.matches = []
@@ -104,18 +110,23 @@ def test_retrieve_documents_with_extra_ns():
     mock_cohere = MagicMock()
     mock_cohere.rerank.side_effect = Exception("no cohere")
 
-    with _stub_retrieve_llm(), \
-         patch("app.services.retrieve._get_index", return_value=mock_index), \
-         patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
-         patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
-        docs, meta = retrieve_documents(
-            "Kakvi su uslovi?",
-            extra_namespaces=["tmp_abc123"],
-        )
+    set_request_context(user_id=owner)
+    try:
+        with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._get_index", return_value=mock_index), \
+             patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
+             patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
+            docs, meta = retrieve_documents(
+                "Kakvi su uslovi?",
+                extra_namespaces=["tmp_abc123"],
+            )
+    finally:
+        set_request_context(user_id=None)
 
-    assert meta["doc_passages"] != [] or True  # passages may be empty if text < 50 chars threshold
-    # The important thing: no exception was raised and meta has doc_passages key
-    assert "doc_passages" in meta
+    assert mock_match.metadata["text"] in "\n".join(docs)
+    assert len(meta["doc_passages"]) == 1
+    tmp_query = next(q for q in mock_index.query.call_args_list if q.kwargs.get("namespace") == "tmp_abc123")
+    assert tmp_query.kwargs["filter"] == {"owner_user_id": {"$eq": owner}}
 
 
 # ─── Test 3: empty extra_namespaces list ─────────────────────────────────────

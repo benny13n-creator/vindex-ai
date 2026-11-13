@@ -99,8 +99,9 @@ def test_jedan_predmet_kroz_ceo_tok(lanac):
     t = M._napomene_nadleznosti("Tužimo dva tužena solidarno, jedan iz Sombora, drugi iz Leskovca. Kom sudu podnosimo tužbu?", "")
     assert "ZPP čl. 42" in t
     v = M._dodaj_proracun_povrata(
-        "Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, otpušten je pre tri godine, "
-        "a sada je sa umišljajem izvršio krađu za koju je propisan zatvor od jedne do osam godina. Ranija dela su istovrsna "
+        "Okrivljeni je ranije dva puta osuđen na zatvor od po dve godine za krađe učinjene sa umišljajem, "
+        "otpušten je 01.11.2023. godine, a novo delo izvršio je 01.11.2026. godine sa umišljajem, za koje je propisan "
+        "zatvor od jedne do osam godina. Obe prethodne presude su pravnosnažne. Ranija dela su istovrsna "
         "sa novim. Koji je raspon kazne?",
         {"status": "success", "data": "--- PRAVNI ZAKLJUČAK\nx"})
     assert re.search(r"više od 4 godine i 6 meseci, najviše 8 godina", v["data"]) and v["proracun_povrata"] == "DA"

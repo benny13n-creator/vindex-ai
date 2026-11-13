@@ -86,7 +86,7 @@ class _IndexSaRezultatima:
         return SimpleNamespace(vectors={})
 
 
-def _retrieve(index, embed_pada=False):
+def _retrieve(index, embed_pada=False, pitanje=PITANJE):
     """Poziva pravi `retrieve_documents` sa zamenjenim Pinecone-om.
 
     Svi LLM-ovi u lancu (multi-query, HyDE, GPT-ekspanzija, CRAG) su isključeni
@@ -108,7 +108,7 @@ def _retrieve(index, embed_pada=False):
         # `_oceni_relevantnost` — oba su naplativi pozivi. Mere se granice
         # greške, ne kvalitet rerankinga/CRAG-a; oba se zamenjuju identitetom
         # (isto što urade kad je ocena RELEVANTNO).
-        return R.retrieve_documents(PITANJE, k=5)
+        return R.retrieve_documents(pitanje, k=5)
 
 
 def _kroz_ask_agent(docs, meta):
@@ -149,6 +149,26 @@ def test_1_pad_upita_je_FAILURE_a_ne_EMPTY(kvar):
     assert R.IZVOR_ZAKON in (meta.get("izvori_neuspeh") or []), \
         "pad upita nije prijavljen — nerazlučiv je od prazne pretrage (%s)" % kvar
     assert docs == []
+
+
+@pytest.mark.parametrize("embed_pada", [False, True])
+def test_retrieval_logs_no_question_text_on_empty_or_embedding_failure(caplog, embed_pada):
+    marker = "QA-POVERLJIVO-UPIT-1847"
+    pitanje = f"{marker}. {PITANJE}"
+    with caplog.at_level("INFO"):
+        docs, meta = _retrieve(_IndexPrazan(), embed_pada=embed_pada, pitanje=pitanje)
+    assert docs == []
+    assert (R.IZVOR_ZAKON in meta["izvori_neuspeh"]) == embed_pada
+    assert any("[RETRIEVE]" in r.message for r in caplog.records)
+    assert marker not in caplog.text
+
+
+def test_decomposition_keeps_returned_subquestions_out_of_debug_logs(caplog):
+    marker = "QA-POVERLJIVO-PODUPIT-4214"
+    response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=f'["{marker}"]'))])
+    with caplog.at_level("DEBUG"), patch.object(R, "_pozovi_chat_api", return_value=response):
+        assert R._dekomponuj_query(PITANJE) == [marker]
+    assert marker not in caplog.text
 
 
 # ── 2. Model NE sme biti pozvan ──────────────────────────────────────────────

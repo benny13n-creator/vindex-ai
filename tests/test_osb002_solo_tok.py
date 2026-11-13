@@ -20,6 +20,7 @@ import json
 import re
 import types
 from contextlib import contextmanager
+from hashlib import sha256
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -99,8 +100,26 @@ def postavi_solo(monkeypatch):
         return None
 
     async def _naplati(*a, **kw):
+        if "atomic_charge" in kw:
+            await kw["atomic_charge"](1)
         b.naplate.append(a)
         return 10
+
+    def _nacrt_u_transakciji(baza, p):
+        from postgrest.exceptions import APIError
+
+        red = p["p_red"]
+        dokumenti = {d["id"]: d for d in baza.tabele["predmet_dokumenti"]
+                      if d["predmet_id"] == red["predmet_id"] and d["user_id"] == red["user_id"]}
+        for did, ocekivani in p["p_izvori"].items():
+            tekst = dokumenti.get(did, {}).get("tekst_sadrzaj") or ""
+            if not tekst or sha256(tekst.encode()).hexdigest() != ocekivani:
+                raise APIError({"code": "PT409", "message": "Izvor se promenio."})
+        red = {k: v for k, v in red.items() if k not in ("mesec", "sudski_izvori")}
+        baza.table("staging_memory").insert(red).execute()
+        return 9
+
+    b.rpc_impl["mir03_sacuvaj_nacrt"] = _nacrt_u_transakciji
 
     async def _klas_model(tekst):
         return "other", 0.5

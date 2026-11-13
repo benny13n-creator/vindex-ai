@@ -4167,15 +4167,16 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 
         tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
         begin_cost_tracking()
-        _firma_ns = await _get_firma_namespace(user["user_id"])
-        _extra_ns = [_firma_ns] if _firma_ns else None
         _mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
         # VCR001 T04: pretraga dokumenata zna za TRENUTNI predmet (pojačanje istog predmeta, suženje posle _MAX_IN).
         # Samo potvrđen vlasnik i predmet koji nije u brisanju; ACL (`shared/rag_acl`) ostaje jedina kapija pristupa.
         from shared.ai_provenance import case_context as _pitanje_case_ctx
         with _pitanje_case_ctx(predmet_id=predmet_id if _vlasnik_potvrdjen else None,
                                module_name="pravno_pitanje", operation_name="ask_agent"):
-            rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
+            # Persistent firm documents are retrieved inside retrieve_documents
+            # through the authenticated owner namespace and matter ACL. Do not
+            # pass the legacy office namespace through the unfiltered tmp_* lane.
+            rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, None, _mem_ctx)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
         # UsageService.consume() already pre-deducted the credit above (same timing as the
         # old require_credits pre-deduction) — refund on cache-hit/blocked/genuine LLM
@@ -4222,7 +4223,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 
         resp = normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
         if not resp.get("odgovor"):
-            logger.error("[PITANJE] normalizuj_rezultat vratio prazan odgovor — rezultat=%s", rezultat)
+            logger.error("[PITANJE] normalizuj_rezultat vratio prazan odgovor [q=%s]", qh)
             resp["odgovor"] = "Sistem nije mogao da formuliše odgovor. Pokušajte ponovo."
         # Kontekst predmeta se ubacuje FAIL-CLOSED: na svaku sumnju (tuđi
         # predmet, predmet u brisanju, greška pri čitanju) grane iznad ga tiho
@@ -4359,9 +4360,6 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             content={"greska": "Zahtev je odbijen iz bezbednosnih razloga."},
         )
     asyncio.create_task(_audit(user["user_id"], "pitanje_stream", qh))
-    _stream_firma_ns = await _get_firma_namespace(user["user_id"])
-    _stream_extra_ns = [_stream_firma_ns] if _stream_firma_ns else None
-
     # Atomično oduzmi kredit PRE agent poziva (isti timing kao stari require_credits
     # pre-deduction) — refunduje se ispod ako je odgovor iz keša ili blokiran.
     _stream_preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
@@ -4400,7 +4398,9 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
             _stream_mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
-            rezultat = await pokreni(ask_agent, req.pitanje, history_obj, _stream_extra_ns, _stream_mem_ctx)
+            # Keep streaming retrieval on the same ACL-filtered owner path as
+            # /api/pitanje; no legacy office namespace through extra_namespaces.
+            rezultat = await pokreni(ask_agent, req.pitanje, history_obj, None, _stream_mem_ctx)
 
             if rezultat.get("status") == "success":
                 data_text = rezultat.get("data", "")
@@ -6113,11 +6113,9 @@ async def predmet_upload_auto_analyze(
     # slika, potpisan PDF) je neprihvatljiv gubitak, ne kozmetički propust.
     # Isti šifrovani-pre-upload obrazac kao Smart Intake (routers/
     # smart_intake.py::_encrypt, koji sam prati klijenti/router.py Trezor) --
-    # reuse-ovan, ne ponovo izmišljen. Best-effort: ako storage upis padne,
-    # ostatak toka (OCR/Pinecone/DB) NIJE blokiran (bila bi regresija u
-    # dostupnosti za funkciju koja ranije nije ni postojala) -- storage_path
-    # ostaje na staroj labeli, jasno signalizirajuci da original NIJE sačuvan,
-    # umesto da tiho tvrdi suprotno.
+    # reuse-ovan, ne ponovo izmišljen. Ovaj endpoint predstavlja trajno
+    # čuvanje spisa, zato OCR/RAG/DB upis ne sme početi dok Storage ne potvrdi
+    # trajni original.
     _original_storage_path = None
     try:
         import uuid as _uuid
@@ -6132,7 +6130,22 @@ async def predmet_upload_auto_analyze(
         )
         _original_storage_path = _storage_key
     except Exception as _se:
-        logger.warning("[P1.1] Original fajl storage upis neuspesan (nastavljam bez cuvanja originala): %s", _se)
+        # Upload može imati nepoznat ishod (npr. timeout posle prihvatanja).
+        # Putanja je jedinstvena za ovaj pokušaj, pa je bezbedno pokušati
+        # kompenzaciono uklanjanje samo tog objekta. Ako i cleanup ne uspe,
+        # zahtev i dalje ostaje fail-closed i ne stvara DB/RAG zapis.
+        try:
+            _cleanup_storage = _get_supa().storage.from_(_si_bucket).remove([_storage_key])
+            if asyncio.iscoroutine(_cleanup_storage):
+                await _cleanup_storage
+        except Exception:
+            logger.warning("[P1.1] Original upload/cleanup nije potvrđen; obrada prekinuta (predmet=%s)", predmet_id)
+        else:
+            logger.warning("[P1.1] Original upload nije potvrđen; obrada prekinuta nakon cleanup pokušaja (predmet=%s)", predmet_id)
+        raise HTTPException(
+            status_code=503,
+            detail="Čuvanje originalnog dokumenta nije potvrđeno. Pokušajte ponovo.",
+        ) from _se
 
     # Program Intake Sprint 002 (2026-08-05) -- ceo ostatak obrade (OCR ->
     # Pinecone -> DB) je uvijen u ovaj try/except da bi orphan-blob nalaz
@@ -6183,7 +6196,7 @@ async def predmet_upload_auto_analyze(
 
         # Phase 2.1 — detect document type for routing to specialized prompt
         doc_type = _detect_doc_type(text)
-        logger.info("[P2.1] doc_type=%r for predmet=%s, filename=%s", doc_type, predmet_id, file.filename)
+        logger.info("[P2.1] doc_type=%r for predmet=%s", doc_type, predmet_id)
 
         # Chunk + ingest to Pinecone
         # BETA-DATA-ID-02: kanonski identitet sadrzaja je hes IZVUCENOG TEKSTA,
@@ -6509,8 +6522,8 @@ async def predmet_upload_auto_analyze(
                 if _d not in _seen:
                     _law_chunks.append(_d)
                     _seen.add(_d)
-            logger.info("[P2.1] RAG: %d chunks, top_law=%s, query='%.60s'",
-                        len(_rag_docs), _rag_meta.get("top_law", "?"), _rag_query)
+            logger.info("[P2.1] RAG: %d chunks, top_law=%s [q=%s]",
+                        len(_rag_docs), _rag_meta.get("top_law", "?"), _q_hash(_rag_query))
     except asyncio.TimeoutError:
         logger.warning("[P2.1] RAG timeout (>4s) — nastavljamo bez RAG")
     except Exception:

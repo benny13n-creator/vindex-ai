@@ -165,30 +165,43 @@ async def test_upload_stores_original_file_and_writes_real_storage_path():
 
 
 @pytest.mark.anyio
-async def test_upload_still_succeeds_and_falls_back_to_session_label_when_storage_upload_fails():
+@pytest.mark.parametrize(
+    "upload_error, cleanup_error",
+    [
+        (Exception("storage bucket unreachable"), None),
+        (TimeoutError("upload outcome unknown"), None),
+        (TimeoutError("upload outcome unknown"), Exception("cleanup unavailable")),
+    ],
+)
+async def test_upload_fails_closed_when_original_storage_upload_fails(upload_error, cleanup_error):
     inserted_rows = []
     supa = _supa_upload_succeeds(inserted_rows=inserted_rows)
-    supa.storage.from_.return_value.upload = MagicMock(side_effect=Exception("storage bucket unreachable"))
+    supa.storage.from_.return_value.upload = MagicMock(side_effect=upload_error)
+    supa.storage.from_.return_value.remove = MagicMock(side_effect=cleanup_error)
 
     with patch("api._require_auth", return_value=_fake_user("user-42")), \
          patch("api._get_supa", return_value=supa), \
          patch("api.PermissionService.require", return_value=_fake_permission_dependency), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
-         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None, None)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None, None)) as mock_extract, \
          patch("uploaded_doc.chunker.chunk_document",
                return_value=types.SimpleNamespace(total_chunks=1)), \
-         patch("uploaded_doc.ingest.ingest_session", return_value=1), \
+         patch("uploaded_doc.ingest.ingest_session", return_value=1) as mock_ingest, \
          patch("routers.smart_intake._encrypt", return_value=b"ENCRYPTED-BLOB"), \
          patch("openai.OpenAI", new=_fake_openai_client()), \
-         patch("api.UsageService.consume", new=AsyncMock()):
-        result = await api.predmet_upload_auto_analyze(
-            "pred-1", _fake_request(),
-            _upload_file("tuzba.pdf", "application/pdf"),
-            authorization="Bearer test-token",
-        )
+         patch("api.UsageService.consume", new=AsyncMock()) as mock_consume:
+        with pytest.raises(api.HTTPException) as exc:
+            await api.predmet_upload_auto_analyze(
+                "pred-1", _fake_request(),
+                _upload_file("tuzba.pdf", "application/pdf"),
+                authorization="Bearer test-token",
+            )
 
-    assert result is not None  # request completes normally — best-effort storage never blocks the flow
-    assert result["original_preserved"] is False  # Final Beta Gate F7: honestly disclosed, not hidden
-    assert len(inserted_rows) == 1
-    storage_path = inserted_rows[0]["storage_path"]
-    assert storage_path.startswith("session/")  # honest fallback, not a value that looks like success
+    assert exc.value.status_code == 503
+    assert "Čuvanje originalnog dokumenta nije potvrđeno" in exc.value.detail
+    assert inserted_rows == []
+    mock_extract.assert_not_called()
+    mock_ingest.assert_not_called()
+    mock_consume.assert_not_awaited()
+    supa.storage.from_.return_value.upload.assert_called_once()
+    supa.storage.from_.return_value.remove.assert_called_once()

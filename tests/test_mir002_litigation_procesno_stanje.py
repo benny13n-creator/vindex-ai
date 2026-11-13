@@ -70,7 +70,7 @@ def _dogadjaji(blok: str) -> list:
     """[{oznaka, akter, vrsta, izvod}] iz redova bloka."""
     out = []
     for r in _redovi(blok):
-        m = re.match(r"(DOK-\d\d) \| akter po tekstu: (\w+) \| vrsta \(kandidat\): (\w+) \| izvod: (.*?)(?: \| kasnije: .*)?$", r)
+        m = re.match(r"(DOK-\d\d) \| akter po tekstu: (\w+) \| vrsta \(kandidat\): (\w+) \| izvod: (.*?)(?: \| (?:naslov dokumenta|datum dokumenta|povezano): .*)?$", r)
         if m:
             out.append(dict(zip(("oznaka", "akter", "vrsta", "izvod"), m.groups())))
     return out
@@ -152,8 +152,7 @@ def test_p05_rok_bez_pocetka_ostaje_neutvrdjen_i_server_ne_racuna_datum(lit):
         assert izracunat not in u
     # svaka pojava isteka u bloku je u stavci „NIJE UTVRĐENO“, nikad tvrdnja
     assert all(r.startswith("NIJE UTVRĐENO: ") for r in _redovi(blok) if "istek" in r)
-    # sistemska poruka savetnika je zaključana (`test_mir001_c3b_pravila`); pravilo o početku roka dolazi samo uz blok
-    # i izričito ima prednost nad opštim pravilom „Rokove računaj od datuma iz dokumenata …“
+    # Posebna pravila uz procesni blok ostaju važeća i posle ispravke opšteg uputstva.
     pravila = sistem.split("PROCESNO STANJE IZ SPISA (obavezno", 1)[1]
     assert "datum dokumenta ili ročišta NIJE početak roka" in pravila
     assert "Ovo pravilo ima prednost nad opštim pravilom o računanju rokova." in pravila
@@ -172,6 +171,9 @@ def test_p06_p07_kasniji_dokument_odvojen_bez_racunanja_i_bez_pripisivanja_sudu(
     d08 = [d for d in dog if d["oznaka"] == "DOK-08"]
     rok8 = [d for d in d08 if d["izvod"] == "Sud ostavlja strankama rok od 8 dana od dana dopune nalaza za izjasnjenje."]
     assert rok8 and rok8[0]["akter"] != "SUD"        # dokument veštaka nepoznate vrste: glas suda nije utvrđen
+    assert "rok računaj od dokazanog merodavnog događaja" in sn[-1]["system"]
+    assert "zapisnik, rešenje, dopuna nalaza" not in sn[-1]["system"]
+    assert "Rokove računaj od datuma iz dokumenata" not in sn[-1]["system"]
     assert any(n.startswith("DOK-08: vrsta dokumenta nije utvrđena") for n in _nije_utvrdjeno(blok))
     for izracunat in ("28.10.2026", "2026-10-28"):
         assert izracunat not in u
@@ -390,6 +392,35 @@ def test_h_nacrt_iz_spisa_zadrzava_svoj_blok_i_pravila(lit):
     assert PRAVILA_ZA_MODEL in sistem and PRAVILA_PROCESNOG_STANJA_SAVETNIKA not in sistem
 
 
+def test_litigation_u_stvarnom_pozivu_razlikuje_litispendenciju_i_presudjenu_stvar(lit):
+    k, _, pid, _, sn = lit
+    _pitaj(k, pid)
+    assert len(sn) == 1
+    sistem = sn[0]["system"]
+    assert "Litispendencija (ZPP čl. 203)" in sistem
+    assert "pravnosnažno presuđena stvar (ZPP čl. 359 st. 2)" in sistem
+    assert "čl. 208 st. 2" not in sistem
+
+
+def test_drafting_u_stvarnom_pozivu_razlikuje_osnov_i_pocetak_roka(lit):
+    k, _, pid, _, sn = lit
+    _pitaj(k, pid, agent="drafting")
+    assert len(sn) == 1
+    sistem = sn[0]["system"]
+    redovi = sistem.splitlines()
+    presuda = next(r for r in redovi if r.startswith("- **Žalba na presudu**"))
+    resenje = next(r for r in redovi if r.startswith("- **Žalba na rešenje**"))
+    odgovor = next(r for r in redovi if r.startswith("- **Odgovor na tužbu**"))
+
+    assert all(t in presuda for t in ("367", "15 dana", "dostavljanja", "izuzet"))
+    assert all(t in resenje for t in ("399", "402", "posebna žalba dozvoljena", "ako nema posebnog pravila"))
+    assert all(t in odgovor for t in ("297", "30 dana", "dostavljanja tužbe sa prilozima"))
+    assert "295-296 ZPP" not in sistem and "395 ZPP" not in sistem
+    assert "106 st. 1 t. 7 ZPP" not in sistem and "ZOIO čl. 35-52" not in sistem
+    assert "ZIO čl. 59" in sistem and "izuzetak iz čl. 60" in sistem
+    assert "datum isteka nije utvrđen" in sistem
+
+
 @pytest.mark.parametrize("agent", ["research", "intake", "deadline", "billing"])
 def test_i_ostali_savetnici_bez_bloka_i_bez_pravila(lit, agent):
     import routers.multi_agent as MA
@@ -476,3 +507,158 @@ def test_k_pipeline_bez_predmeta_bez_bloka(lit):
     assert r.status_code == 200, r.text
     [poruka] = sn[n:]
     assert NATPIS not in poruka["user"] and "PROCESNO STANJE IZ SPISA (obavezno" not in poruka["system"]
+
+
+def test_savetnik_za_rokove_salje_proverene_osnove_bez_izmisljanja_datuma(lit):
+    client, _db, predmet, _docs, captured = lit
+    _pitaj(client, predmet, agent="deadline")
+    assert len(captured) == 1
+    sistem = captured[0]["system"]
+    for pravilo in (
+        "čl. 367 ZPP", "8 dana", "čl. 479 ZPP", "čl. 110 ZPP",
+        "čl. 403 ZPP", "čl. 428 ZPP", "čl. 432 ZKP", "čl. 153 ZUP",
+        "čl. 145, 151 i 153 ZUP", "datum isteka i status nisu utvrđeni",
+    ):
+        assert pravilo in sistem
+    for pogresno in ("čl. 368 ZPP", "čl. 410 ZPP", "max 6 mes.", "čl. 147 ZUP", "čl. 148 ZUP"):
+        assert pogresno not in sistem
+
+
+@pytest.mark.parametrize("endpoint,body", [
+    ("run", {"agent": "litigation", "task": ZADATAK}),
+    ("run-parallel", {"agenti": ["litigation"], "task": ZADATAK}),
+    ("pipeline", {"pipeline": ["litigation"], "opis": ZADATAK}),
+])
+@pytest.mark.parametrize("odgovor", [
+    "**DOK-08**: Sud ostavlja strankama rok od 8 dana od dana dopune nalaza za izjašnjenje.",
+    "Sud je strankama ostavio rok od 8 dana za izjašnjenje (DOK-08).",
+    "Sud je u dopuni nalaza (DOK-08) ostavio strankama rok od 8 dana od dana dopune nalaza za izjašnjenje.",
+    "Sud je u dopuni nalaza veštaka (DOK-08) ostavio strankama rok od 8 dana za izjašnjenje.",
+    "Veštak je u dopuni naveo da nema upisa, ali sud je ostavio strankama rok od 8 dana "
+    "za izjašnjenje (DOK-08).",
+    "Sud je u dopuni nalaza odredio rok od osam dana za izjašnjenje (DOK-08).",
+    "Rok za izjašnjenje strankama ističe 28.10.2026. godine, ali nije utvrđeno da li je stranka postupila po nalogu suda iz DOK-07.",
+    "Рок за изјашњење истиче 2026-10-28.",
+    "Rok iz DOK-08 počinje 20.10.2026.",
+])
+def test_p06_nepouzdan_rok_ne_dospeva_u_odgovor_i_ne_naplacuje_se(lit, monkeypatch, endpoint, body, odgovor):
+    from routers import multi_agent as MA
+
+    k, b, pid, _, _ = lit
+    _dodaj_dokument(k, b, pid, gc.KASNIJI)
+    pre = len(b.naplate)
+    pozivi = []
+
+    def response(*args):
+        pozivi.append(args)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(
+            message=types.SimpleNamespace(content=odgovor), finish_reason="stop")])
+
+    async def response_parallel(*args):
+        return response(*args)
+
+    monkeypatch.setattr(MA, "_pozovi_agent_api", response)
+    monkeypatch.setattr(MA, "_pozovi_para_api", response_parallel)
+    r = k.post(f"/api/agents/{endpoint}", json={**body, "predmet_id": pid}, headers=A)
+    assert len(pozivi) == 1
+    if endpoint == "run-parallel":
+        assert r.status_code == 200, r.text
+        assert r.json()["rezultati"][0]["stanje"] == "NEUSPEH"
+        assert r.json()["naplaceno_savetnika"] == 0
+    else:
+        assert r.status_code == 502, r.text
+        assert "nisu potvrđeni" in r.json()["detail"]
+    assert "28.10.2026" not in r.text and "2026-10-28" not in r.text
+    assert len(b.naplate) == pre
+
+
+@pytest.mark.parametrize("uvod", [
+    "U dopuni se navodi",
+    "Izvor navodi",
+    "Izvor DOK-08 navodi",
+    "Veštak je u dopuni naveo",
+])
+def test_p06_pripisani_navod_i_odvojeni_rok_prolaze(lit, monkeypatch, uvod):
+    from routers import multi_agent as MA
+
+    k, b, pid, _, _ = lit
+    _dodaj_dokument(k, b, pid, gc.KASNIJI)
+    odgovor = (
+        f"{uvod} da sud ostavlja rok od 8 dana za izjašnjenje (DOK-08). "
+        "To je navod veštaka. Sudski izvor i početak roka za izjašnjenje nisu potvrđeni. "
+        "Sud nije u dopuni nalaza (DOK-08) odredio rok. "
+        "Sud nalaže dostavu dnevnika u roku od 15 dana (DOK-07). Početak tog roka nije utvrđen."
+    )
+    monkeypatch.setattr(MA, "_pozovi_agent_api", lambda *a: types.SimpleNamespace(
+        choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=odgovor), finish_reason="stop")]))
+    pre = len(b.naplate)
+    assert _pitaj(k, pid)["odgovor"] == odgovor
+    assert len(b.naplate) == pre + 1
+
+
+@pytest.mark.parametrize("izvor,datum,oznaka,status", [
+    (None, "15.06.2026.", "DOK-05", 502),
+    ("nepotvrdjen", "15.06.2026.", "DOK-08", 502),
+    ("navod_stranke", "15.06.2026.", "DOK-08", 502),
+    ("potvrdjen", "14.06.2026.", "DOK-08", 502),
+    ("potvrdjen", "15.06.2026.", "DOK-05", 502),
+    ("potvrdjen", "2026-06-15", "DOK-08", 200),
+    (None, None, "DOK-05", 200),
+])
+def test_mir03_datum_nalaza_nije_dokaz_dostave(lit, monkeypatch, izvor, datum, oznaka, status):
+    import json
+    from unittest.mock import AsyncMock
+
+    from routers import drafting as DR
+    from routers import multi_agent as MA
+
+    k, b, pid, _, _ = lit
+    if izvor:
+        naslov = "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+        konstatacija = "Sud konstatuje da je nalaz vestaka dostavljen tuziocu dana 15.06.2026. godine."
+        if izvor == "navod_stranke":
+            konstatacija = "Tuzilac navodi da je nalaz vestaka dostavljen tuziocu dana 15.06.2026. godine."
+        novi = {
+            **gc.KASNIJI, "ime": "08 Zapisnik o navodu.pdf", "strana": "sud",
+            "vrsta": "zapisnik", "redovi": [gc.SUD, naslov, konstatacija],
+        }
+        _dodaj_dokument(k, b, pid, novi)
+        if izvor != "nepotvrdjen":
+            did = next(d["id"] for d in _dok_predmeta(b, pid) if d["naziv_fajla"] == novi["ime"])
+            b.tabele.setdefault("audit_immutable", []).append({
+                "seq": 1, "user_id": "uid-A", "resource_id": did, "resource_type": "predmet_dokumenti",
+                "action": "dokument_vrsta_ispravljena", "metadata": {"novo": "court_decision"},
+            })
+    tekst = (
+        f"U vezi sa nalazom i mišljenjem veštaka Petra Izmišljenog, dostavljenim dana {datum} ({oznaka}), "
+        "tužilac iznosi izjašnjenje."
+        if datum else "Izjašnjenje na nalaz veštaka od 15.06.2026. (DOK-05). Datum dostave nije utvrđen."
+    )
+    odgovor = json.dumps({"tekst_za_sud": tekst, "napomene_za_advokata": []})
+    monkeypatch.setattr(MA, "_pozovi_nacrt_api", lambda *a: types.SimpleNamespace(
+        choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=odgovor), finish_reason="stop")]))
+    stage = AsyncMock()
+    monkeypatch.setattr(DR, "_stage_draft_for_review", stage)
+    pre = len(b.naplate)
+    r = k.post("/api/agents/run", json={"agent": "drafting", "task": ZADATAK, "predmet_id": pid}, headers=A)
+    assert r.status_code == status, r.text
+    assert len(b.naplate) == pre + (status == 200)
+    if status == 200:
+        assert r.json()["status_teksta"] == "AI_RADNI_PREDLOG"
+        assert r.json()["predlog_teksta"] == tekst
+        stage.assert_called_once()
+    else:
+        assert "datum dostave nalaza veštaka nije potkrepljen" in r.json()["detail"]
+        stage.assert_not_called()
+
+
+def test_mir03_broj_predmeta_izmedju_dostave_i_datuma_ne_zaobilazi_proveru():
+    from fastapi import HTTPException
+    from routers.multi_agent import _proveri_dostavu_nalaza_u_nacrtu
+
+    with pytest.raises(HTTPException) as exc:
+        _proveri_dostavu_nalaza_u_nacrtu(
+            "U vezi sa nalazom i mišljenjem veštaka, dostavljenim u predmetu broj P 9901/2026 dana 15.06.2026. (DOK-05), "
+            "tužilac iznosi izjašnjenje.", None,
+        )
+    assert exc.value.status_code == 502

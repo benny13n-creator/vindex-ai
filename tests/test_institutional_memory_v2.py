@@ -414,6 +414,8 @@ class TestTimeDecayRanking:
         # NS008 Task 21: LAWYER_VERIFIED vektor se servira samo dok je njegov staging roditelj odobren
         # (`_vazece_overe_matcheva`); ovaj test meri RANGIRANJE, pa su oba roditelja važeća.
         with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta",
+                   return_value=("kancelarija_kanc-1", ["pred-1", "pred-2"])), \
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere), \
@@ -450,6 +452,8 @@ class TestTimeDecayRanking:
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
         with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta",
+                   return_value=("kancelarija_kanc-1", ["pred-1", "pred-2"])), \
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
@@ -476,6 +480,8 @@ class TestMatchBreakdown:
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
         with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta",
+                   return_value=("kancelarija_kanc-1", ["pred-1", "pred-2"])), \
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
@@ -508,6 +514,8 @@ class TestMatchBreakdown:
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
         with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta",
+                   return_value=("kancelarija_kanc-1", ["pred-1", "pred-2"])), \
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):

@@ -30,7 +30,7 @@ legitimate cache's own purpose.
 import sys
 import os
 from contextlib import contextmanager
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-fake")
 os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
@@ -180,3 +180,43 @@ def test_cache_key_has_no_tenant_component_documented_as_the_reason_gates_must_b
     assert "user" not in src.lower()
     assert "firma" not in src.lower()
     assert "namespace" not in src.lower()
+
+
+def test_authenticated_owner_rag_is_not_reused_from_shared_cache():
+    """Auto-derived owner RAG is private even when extra_namespaces is None.
+
+    The answer cache is deliberately tenant-less. A user A retrieval must not
+    seed a value that user B can receive before B's own ACL-filtered retrieval.
+    This runs the real ask_agent/cache path with synthetic document provenance;
+    only the external retrieval and side pipelines are stubbed.
+    """
+    from app.services.doc_formatter import _DOC_LABEL
+    from shared.ai_provenance import scoped_request_context
+
+    question = "Koji je poseban sintetički uslov za predmet?"
+    marker_a = "SYNTHETIC_TENANT_A_PRIVATE_MARKER_71"
+    marker_b = "SYNTHETIC_TENANT_B_PRIVATE_MARKER_92"
+    docs_a = [f"{_DOC_LABEL} [a.pdf, chunk 0]\n\n{marker_a}"]
+    docs_b = [f"{_DOC_LABEL} [b.pdf, chunk 0]\n\n{marker_b}"]
+    meta = {
+        "confidence": "LOW", "top_score": 0.30, "top_article": "Član 1",
+        "top_law": "ZPP", "doc_passages": [{"predmet_id": "matter-a"}],
+    }
+    retrieval = Mock(side_effect=[(docs_a, meta), (docs_b, meta)])
+    _real_main._CACHE.clear()
+
+    with patch.object(_real_main, "_supa_cache_get", return_value=None), \
+         patch.object(_real_main, "_supa_cache_set"), \
+         _offline_side_pipelines(), \
+         patch.object(_real_main, "retrieve_documents", retrieval):
+        with scoped_request_context(user_id="synthetic-user-a"):
+            answer_a = ask_agent(question)
+        with scoped_request_context(user_id="synthetic-user-b"):
+            answer_b = ask_agent(question)
+
+    assert marker_a in str(answer_a)
+    assert not answer_b.get("from_cache"), "Tenant B received A's tenant-less cached answer"
+    assert marker_a not in str(answer_b), "Tenant A's source marker crossed the cache boundary"
+    assert marker_b in str(answer_b), "Tenant B's own retrieval did not run"
+    assert retrieval.call_count == 2
+    _real_main._CACHE.clear()

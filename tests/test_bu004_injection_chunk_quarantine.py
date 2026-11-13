@@ -147,6 +147,15 @@ def test_A_normalan_dokument_prolazi():
     assert meta["karantin"] == []
 
 
+def test_authorized_document_stays_in_context_and_out_of_retrieval_logs(caplog):
+    marker = "QA-POVERLJIVO-SPIS-3749"
+    with caplog.at_level("INFO"):
+        docs, _ = _retrieve(_Index(vlasnicki=[_chunk(marker, P1, f"{marker}\n{SAFE_TEKST}")]))
+    assert marker in _spojeno(docs)
+    assert any("[RETRIEVE]" in r.message for r in caplog.records)
+    assert marker not in caplog.text
+
+
 def test_B_injection_dokument_nikad_ne_stize_do_modela():
     docs, meta = _retrieve(_Index(vlasnicki=[_chunk("d2", P1, INJ_TEKST)]))
     spoj = _spojeno(docs)

@@ -43,7 +43,12 @@ def _trazi(dozvoljeni, **kw):
     emb.embed_query.return_value = [0.0] * 3072
     coh = MagicMock()
     coh.rerank.side_effect = Exception("no cohere")
-    with _stub_retrieve_llm(), patch("app.services.retrieve._get_index", return_value=idx), \
+    # Explicit namespace/ACL arguments are not themselves authorization. These
+    # ranking tests model a user whose server-derived scope grants this matter set.
+    _scope = ("kancelarija_kanc-1", dozvoljeni) if dozvoljeni is not None else (None, None)
+    with _stub_retrieve_llm(), \
+            patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta", return_value=_scope), \
+            patch("app.services.retrieve._get_index", return_value=idx), \
             patch("app.services.retrieve._get_embeddings", return_value=emb), \
             patch("app.services.retrieve._get_cohere", return_value=coh):
         _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1",

@@ -25,6 +25,7 @@ from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 from pinecone import Pinecone
 
+from shared.ai_provenance import sha256_text
 from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
 
@@ -37,6 +38,10 @@ except ImportError:
     _COHERE_AVAILABLE = False
 
 logger = logging.getLogger("vindex.retrieve")
+
+
+def _query_log_id(query: str) -> str:
+    return (sha256_text(query) or "-")[:16]
 
 # ─── Embedding cache (TTL=1h, LRU eviction) ──────────────────────────────────
 
@@ -711,19 +716,32 @@ def _prepoznaj_zakon(query: str) -> Optional[str]:
     return None
 
 
-def _izvuci_broj_clana(query: str) -> Optional[str]:
+def _pronadji_clan(query: str) -> Optional[re.Match]:
     q = query.lower()
     for obrazac in [
         # N8: i padeži („prema članu 999“, „člana 39“, „članom 5“) — ranije je izmišljen član u padežu prolazio
         # bez provere postojanja (KORAK 1.5) i odgovor je tiho citirao drugi član.
         r"(?:clan|član)(?:a|u|om)?\s*(\d+[a-zA-Z]?)",
         r"(?:čl\.|cl\.)\s*(\d+[a-zA-Z]?)",  # Latin (with/without diacritic)
-        r"(?:чл\.?)\s*(\d+[a-zA-Z]?)",                 # Cyrillic
+        r"(?:чл(?:ан(?:а|у|ом)?)?\.?)\s*(\d+[a-zA-Zа]?)",                 # Cyrillic
     ]:
         m = re.search(obrazac, q)
         if m:
-            return m.group(1)
+            return m
     return None
+
+
+def _izvuci_broj_clana(query: str) -> Optional[str]:
+    m = _pronadji_clan(query)
+    return m.group(1) if m else None
+
+
+_ZAKON_O_UREDJENJU_SUDOVA = "zakon o uredjenju sudova"
+_NAZIV_ZAKONA_O_SUDOVIMA = (
+    r"\b(?:zakon(?:a|u|om)?\s+o\s+uredjenju\s+sudova"
+    r"|закон(?:а|у|ом)?\s+о\s+уређењу\s+судова)\b"
+)
+_ODREDBA_CLANA = r"(?:(?:\s*,\s*|\s+)(?:stav(?:a|u|om)?|st\.|tack(?:a|e|i|u|om)|tac\.|став(?:а|у|ом)?|ст\.|тачк(?:а|е|и|у|ом)|тач\.)\s*\d+[.)]?)*"
 
 
 # Short-code → Pinecone law value (mirrors corpus_coverage.py LAWS registry)
@@ -760,12 +778,28 @@ def ekstrakcija_clana(query: str) -> tuple[Optional[str], Optional[str]]:
     Returns (label_clana, zakon) e.g. ("Član 175", "zakon o obligacionim odnosima"),
     or (None, None) if no article reference found.
     """
-    broj = _izvuci_broj_clana(query)
-    if not broj:
+    from shared.rociste_iz_teksta import preslovi
+
+    query = preslovi(query)
+    clan = _pronadji_clan(query)
+    if not clan:
         return None, None
 
-    label_clana = f"Član {broj}"
+    label_clana = f"Član {clan.group(1)}"
     normalized = _normalizuj(query)
+
+    # Pun naziv uz izabrani član ima prednost nad semantičkim hintom.
+    # Skraćenica ZUS ostaje šifra Zakona o upravnim sporovima u korpusu.
+    ispred = _normalizuj(query[:clan.start()])
+    iza = _normalizuj(query[clan.end():])
+    if re.search(rf"{_NAZIV_ZAKONA_O_SUDOVIMA}\s*[:,]?\s*$", ispred) or re.match(
+        rf"\.?{_ODREDBA_CLANA}\s*,?\s+{_NAZIV_ZAKONA_O_SUDOVIMA}", iza,
+    ):
+        return label_clana, _ZAKON_O_UREDJENJU_SUDOVA
+
+    naziv_kz = r"\b(?:kz|krivicn(?:i|og|om|im)\s+zakonik(?:a|u|om)?)\b"
+    if re.search(rf"{naziv_kz}\s*[:,]?\s*$", ispred) or re.match(rf"\.?\s+{naziv_kz}", iza):
+        return label_clana, _ZAKON_KODOVI["kz"]
 
     for code, zakon_val in _ZAKON_KODOVI.items():
         if re.search(rf"\b{re.escape(code)}\b", normalized):
@@ -987,12 +1021,15 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
         vektor = _ugradi_query(query)
         matches = index.query(vector=vektor, top_k=k, namespace=_ZAKONI_NS, include_metadata=True, filter=filter_dict).matches
         if not matches:
-            logger.warning("[PINECONE] Prazni rezultati za query='%s' filter=%s", query[:60], filter_zakon)
+            logger.warning("[PINECONE] Prazni rezultati [q=%s] filter=%s",
+                           _query_log_id(query), filter_zakon)
         return _vazeci_tekst_clanova(matches)
     except Exception as exc:
         _sentry_capture(exc)
-        logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
-        _log_rag_error(type(exc).__name__, _ZAKONI_NS, str(exc))
+        error_type = type(exc).__name__
+        log_id = _query_log_id(query)
+        logger.error("[PINECONE] Greška u pretrazi [q=%s]: %s", log_id, error_type)
+        _log_rag_error(error_type, _ZAKONI_NS, f"q={log_id}")
         if neuspeh is not None:
             neuspeh.append(IZVOR_ZAKON)
         return []
@@ -1201,7 +1238,7 @@ def _dekomponuj_query(query: str) -> list[str]:
         raw = re.sub(r"\s*```$", "", raw)
         parsed = json.loads(raw)
         if isinstance(parsed, list) and all(isinstance(s, str) for s in parsed):
-            logger.debug("[MULTI_Q] %s", parsed)
+            logger.debug("[MULTI_Q] broj podupita=%d", min(len(parsed), 3))
             return parsed[:3]
     except Exception as e:
         _sentry_capture(e)
@@ -1359,8 +1396,8 @@ def decompose_query(user_query: str) -> list[str]:
         if isinstance(parsed, list) and all(isinstance(s, str) for s in parsed):
             sub_queries = [q.strip() for q in parsed[:3] if q.strip()]
             logger.info(
-                "[FIX1_DECOMPOSE] intent=%s → %d sub-queries: %s",
-                intent, len(sub_queries), sub_queries,
+                "[FIX1_DECOMPOSE] intent=%s → %d sub-queries",
+                intent, len(sub_queries),
             )
             return sub_queries
     except json.JSONDecodeError as exc:
@@ -1420,7 +1457,7 @@ def _generiši_hyde(query: str) -> str:
             ],
         )
         hyde = resp.choices[0].message.content.strip()
-        logger.debug("[HyDE] '%s'", hyde[:100])
+        logger.debug("[HyDE] generated chars=%d", len(hyde))
         return hyde
     except Exception as e:
         _sentry_capture(e)
@@ -2086,6 +2123,7 @@ def retrieve_documents(
     """
     import time as _time
     t0 = _time.perf_counter()
+    log_id = _query_log_id(query)
 
     zakon       = _prepoznaj_zakon(query)
     broj_clana  = _izvuci_broj_clana(query)
@@ -2102,7 +2140,7 @@ def retrieve_documents(
         vektor = _ugradi_query(query)
     except Exception as exc:
         _sentry_capture(exc)
-        logger.error("[RETRIEVE] Embedding neuspešan za query='%s': %s", query[:60], exc)
+        logger.error("[RETRIEVE] Embedding neuspešan [q=%s]: %s", log_id, type(exc).__name__)
         # B4: pad embeddinga znaci da NIJEDAN izvor nije pretrazen. Ranije je
         # ovaj povratak bio oblikovan kao potpuno validan „LOW, nista nije
         # nadjeno" rezultat, pa je `ask_agent` iz njega proizvodio tvrdnju o
@@ -2132,10 +2170,36 @@ def retrieve_documents(
 
     _extra_exec = None
     _extra_futures: dict = {}
-    if extra_namespaces:
-        _extra_exec = ThreadPoolExecutor(max_workers=len(extra_namespaces))
-        for _ns in extra_namespaces:
-            _extra_futures[_ns] = _extra_exec.submit(_pretraga_ns, vektor, _ns, 5)
+    # `extra_namespaces` is reserved for the existing ephemeral tmp_* upload
+    # flow. Persistent case_doc/draft_final vectors must use the owner namespace
+    # path below, which derives identity and applies rag_acl's predmet_id filter.
+    # A caller-supplied office/owner namespace used to bypass that filter.
+    try:
+        from shared.ai_provenance import _request_ctx as _rag_request_ctx
+        _extra_owner_uid = (_rag_request_ctx.get() or {}).get("user_id")
+    except Exception:
+        _extra_owner_uid = None
+    _authorized_tmp_namespaces = []
+    if extra_namespaces and _extra_owner_uid:
+        _authorized_tmp_namespaces = list(dict.fromkeys(
+            ns for ns in extra_namespaces
+            if isinstance(ns, str) and ns.startswith("tmp_") and len(ns) > 4
+        ))
+        rejected = [ns for ns in extra_namespaces if ns not in _authorized_tmp_namespaces]
+        if rejected:
+            logger.warning(
+                "[RAG_ACL] odbijeni dodatni namespace-ovi koji nisu autorizovane tmp sesije: %d",
+                len(rejected),
+            )
+    elif extra_namespaces:
+        logger.warning("[RAG_ACL] dodatni privatni namespace preskočen bez autentifikovanog identiteta")
+    if _authorized_tmp_namespaces:
+        _extra_exec = ThreadPoolExecutor(max_workers=len(_authorized_tmp_namespaces))
+        _tmp_owner_filter = {"owner_user_id": {"$eq": _extra_owner_uid}}
+        for _ns in _authorized_tmp_namespaces:
+            _extra_futures[_ns] = _extra_exec.submit(
+                _pretraga_ns, vektor, _ns, 5, _tmp_owner_filter,
+            )
 
     # Institutional Learning & RAG Audit (2026-07-26) #2 — cross-case kancelarija
     # pretraga. Zaseban executor od _extra_exec iznad: taj mehanizam je za
@@ -2188,6 +2252,12 @@ def retrieve_documents(
         else:
             _dozvoljeni_set = set(_izvedeni_acl or [])
             dozvoljeni_predmeti = [p for p in dozvoljeni_predmeti if p in _dozvoljeni_set]
+    else:
+        # A caller-provided namespace/ACL is never authority. If identity or
+        # ACL resolution failed, do not let explicit parameters reopen private
+        # retrieval (including background or internal callers).
+        kancelarija_namespace = None
+        dozvoljeni_predmeti = None
     if current_predmet_id is None:
         current_predmet_id = _trenutni_predmet_iz_konteksta()
 
@@ -2214,7 +2284,7 @@ def retrieve_documents(
     # fall back to generic _dekomponuj_query for simple ones.
     _decomp_fn = decompose_query if _treba_fx1_dekompozicija(query) else _dekomponuj_query
     if _decomp_fn is decompose_query:
-        logger.info("[FIX1] Aktivirana intent-aware dekompozicija za query='%.60s'", query)
+        logger.info("[FIX1] Aktivirana intent-aware dekompozicija [q=%s]", log_id)
 
     # S2-4 (2026-08-09): a raw ThreadPoolExecutor does NOT propagate contextvars.
     # _decomp_fn and _generiši_hyde both make LLM calls, so without this the
@@ -2593,17 +2663,14 @@ def retrieve_documents(
 
     elapsed = _time.perf_counter() - t0
     logger.info(
-        "[RETRIEVE] %.2fs | raw_matches=%d | docs_posle_crag=%d | zakon=%s | clan=%s | query='%s'",
-        elapsed, len(matchevi), len(docs), zakon or "—", label_clana or "—", query[:80],
+        "[RETRIEVE] %.2fs | raw_matches=%d | docs_posle_crag=%d | zakon=%s | clan=%s [q=%s]",
+        elapsed, len(matchevi), len(docs), zakon or "—", label_clana or "—", log_id,
     )
-    if docs:
-        for _i, _d in enumerate(docs[:3]):
-            logger.info("[RETRIEVE doc%d] %s", _i, _d[:200].replace("\n", " "))
-    else:
+    if not docs:
         logger.error(
-            "[RETRIEVE] PRAZAN KONTEKST — Pinecone vratio 0 korisnih rezultata za query='%s'. "
+            "[RETRIEVE] PRAZAN KONTEKST — Pinecone vratio 0 korisnih rezultata [q=%s]. "
             "Proverite: PINECONE_API_KEY, PINECONE_HOST, ime indeksa '%s'.",
-            query[:80], os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
+            log_id, os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
         )
 
     # ── B-U-003: FAILURE != EMPTY za zakonski korpus ─────────────────────────
@@ -2625,8 +2692,8 @@ def retrieve_documents(
     if _neuspeh_primarni and (len(_neuspeh_primarni) >= _ZAKON_PRIMARNIH_UPITA or not reranked):
         logger.error(
             "[RETRIEVE] zakonski korpus NIJE pretrazen: %d/%d primarnih upita palo, "
-            "rezultata=%d — oznacavam IZVOR_ZAKON kao neproveren [query=%s]",
-            len(_neuspeh_primarni), _ZAKON_PRIMARNIH_UPITA, len(reranked), query[:60],
+            "rezultata=%d — oznacavam IZVOR_ZAKON kao neproveren [q=%s]",
+            len(_neuspeh_primarni), _ZAKON_PRIMARNIH_UPITA, len(reranked), log_id,
         )
         if IZVOR_ZAKON not in _izvori_neuspeh:
             _izvori_neuspeh.append(IZVOR_ZAKON)
@@ -2848,7 +2915,7 @@ def retrieve_sudska_praksa(query: str, top_k: int = 10) -> list:
         vektor = _ugradi_query(query)
     except Exception as exc:
         _sentry_capture(exc)
-        logger.warning("[PRAKSA] Embed neuspešan za query='%s': %s", query[:60], exc)
+        logger.warning("[PRAKSA] Embed neuspešan [q=%s]: %s", _query_log_id(query), type(exc).__name__)
         return []
 
     raw = _pretraga_praksa(vektor, k=max(top_k, 20))
@@ -3075,7 +3142,7 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
         vektor = _ugradi_query(query)
     except Exception as exc:
         _sentry_capture(exc)
-        logger.error("[GRUPISANO] Embed neuspešan za query='%s': %s", query[:60], exc)
+        logger.error("[GRUPISANO] Embed neuspešan [q=%s]: %s", _query_log_id(query), type(exc).__name__)
         return _prazna_grupisano
     index = _get_index()
     res = index.query(
@@ -3165,8 +3232,8 @@ def retrieve_grupisano(query: str, top_k: int = 10) -> dict:
     nm = len(grupe["mesovito"])
     nn = len(grupe["nepoznato"])
 
-    logger.info("[GRUPISANO] query=%r total=%d tuzilac=%d tuzeni=%d mesovito=%d nepoznato=%d",
-                query[:60], total, nt, nd, nm, nn)
+    logger.info("[GRUPISANO] [q=%s] total=%d tuzilac=%d tuzeni=%d mesovito=%d nepoznato=%d",
+                _query_log_id(query), total, nt, nd, nm, nn)
     return {
         "query": query,
         "total": total,

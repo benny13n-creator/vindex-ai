@@ -202,3 +202,24 @@ def test_gate_c3_iznos_datum_skracenica_i_navodi_uz_odluku():
     val3_n1 = ("- Tužilac se protivi tvrdnjama tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već "
                "prihvatio predlog za dopunu veštačenja i naložio tuženom dostavljanje građevinskog dnevnika (DOK-07).")
     assert not p(val3_n1, prihvaceno)
+
+
+def test_model_dobija_naslov_i_datum_uz_istu_oznaku_izvoda():
+    from shared.nacrt_za_sud import PRAVILA_ZA_MODEL, blok_za_model
+    from shared.procesno_stanje import utvrdi
+
+    stanje = utvrdi([
+        {"id": d["oznaka"], "oznaka": d["oznaka"], "tekst": "\n".join(d["redovi"]),
+         "predmet_id": "predmet-A", "user_id": "user-A"}
+        for d in gc.DOKUMENTI
+    ], predmet_id="predmet-A", user_id="user-A")
+    _, podaci = blok_za_model(stanje)
+    podnesak = next(
+        red for red in podaci.splitlines()
+        if "DOK-03 |" in red and "postavljeni tek dana 10.10.2025." in red
+    )
+    assert "naslov dokumenta: PODNESAK TUZIOCA" in podnesak
+    assert "datum dokumenta: 2026-04-02" in podnesak
+    assert " | povezano: DOK-06" in podaci and " (ranije, dejstvo NEUTVRĐENO)" in podaci
+    assert " | kasnije: DOK-06" not in podaci
+    assert "Vrstu dokumenta u rečenici uskladi sa naslovom" in PRAVILA_ZA_MODEL

@@ -295,6 +295,8 @@ class TestCrossCaseRetrieval:
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
         with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta",
+                   return_value=("kancelarija_kanc-1", ["predmet-NEW", "predmet-OLD"])), \
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
@@ -348,6 +350,8 @@ class TestCrossCaseRetrieval:
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
         with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta",
+                   return_value=("kancelarija_kanc-1", ["predmet-NEW", "predmet-OLD"])), \
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):

@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import uuid
 from typing import Optional, List
 
@@ -37,7 +38,7 @@ from shared.usage import UsageService
 from shared.sentry import capture_exception as _sentry_capture
 from shared.llm_retry import llm_retry
 
-from main import ask_analiza, _skini_pii
+from main import ask_analiza, _cirilica_u_latinicu, _normalizuj, _skini_pii
 from drafting.router import generate_draft as _drafting_generate
 from drafting.templates import get_types_list as _drafting_get_types
 from templates.podnesci import (
@@ -243,18 +244,58 @@ def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 # automatskim Quality Gate skorom (services/quality_gate.py) i čeka
 # eksplicitnu advokatsku potvrdu (v. POST /api/staging/{id}/approve) PRE
 # nego što ijedan vektor uđe u Pinecone.
+async def _sacuvaj_naplaceni_predlog(supa, zapis: dict, izvori: dict, sudski_izvori: list, krediti: int) -> int | None:
+    from postgrest.exceptions import APIError
+    from shared.deps import _get_current_month
+    from shared.http_errors import NamerniHTTPException
+
+    red_za_rpc = {**zapis, "sudski_izvori": sudski_izvori}
+    if krediti:
+        red_za_rpc["mesec"] = _get_current_month()
+    try:
+        r = await asyncio.to_thread(lambda: supa.rpc("mir03_sacuvaj_nacrt", {
+            "p_red": red_za_rpc, "p_izvori": izvori, "p_krediti": krediti,
+        }).execute())
+        if type(r.data) is int:
+            return r.data
+    except APIError as exc:
+        if exc.code == "PT409":
+            raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR) from exc
+        if str(exc.code or "").startswith(("22", "23", "40", "42")) or exc.code == "P0001":
+            raise NamerniHTTPException(status_code=503, detail="Nacrt nije sačuvan. Nije naplaćen.") from exc
+        _sentry_capture(exc)
+    except Exception as exc:
+        _sentry_capture(exc)
+
+    # Ako se odgovor izgubio, red sa ovim ID-jem potvrđuje upis i debit. Saldo nije deo tog dokaza.
+    try:
+        red = await _red_staging(supa, zapis["id"], zapis["user_id"])
+    except Exception:
+        red = None
+    if red and all(red.get(k) == zapis[k] for k in ("predmet_id", "tip", "tekst")):
+        return None
+    raise NamerniHTTPException(
+        status_code=503,
+        detail="Ishod čuvanja nacrta nije potvrđen. Proverite karticu Nacrt pre ponavljanja.",
+    )
+
+
 async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str,
-                                  dodatni_detalj: dict | None = None) -> None:
-    """Fire-and-forget (asyncio.create_task) -- ne sme da uspori odgovor
-    korisniku niti da greška ovde ikad utiče na već generisan i vraćen nacrt."""
+                                  dodatni_detalj: dict | None = None, *, krediti: int | None = None,
+                                  izvori_dostave: dict | None = None, sudski_izvori: list | None = None) -> bool | int | None:
+    """Upis za pregled. Nacrt iz spisa čeka potvrdu upisa pre odgovora."""
+    obavezan = krediti is not None
+    stanje_kredita = 0
     try:
         supa = _get_supa()
         pred_row = await asyncio.to_thread(
             lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user["user_id"]).maybe_single().execute()
         )
         if not pred_row.data:
+            if obavezan:
+                raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
             logger.warning("[STAGING] predmet_id=%s ne pripada korisniku — preskočeno", predmet_id)
-            return
+            return False
 
         # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-031): a user-triggered retry
         # (double-click, or a genuine "Generiši" retry after a network hiccup) fires
@@ -274,15 +315,14 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
                 .gte("created_at", _recent_cutoff)
                 .limit(1).execute()
         )
-        # MIR001 R4: AI radni predlog iz spisa je NAPLAĆEN pre ovog upisa — tiho odbacivanje bi značilo naplatu bez
-        # predloga na pregledu. Mrežno ponavljanje istog zahteva već zaustavlja `Idempotency-Key`, a drugi klik u prozoru
-        # `run_agent` odbija PRE modela i naplate; ako ipak stigne (trka pre ovog upisa), svaka naplata ima svoj predlog.
+        # MIR001 R4: isti ključ i kasniji klik se odbijaju pre modela. Paralelni nezavisni zahtevi
+        # koji su već prošli tu proveru mogu biti naplaćeni samo uz sopstveni predlog.
         if _dup_r.data and tip != "nacrt_iz_spisa":
             logger.info(
                 "[STAGING] predmet=%s tip=%s -- duplikat unutar %ds prozora, preskočeno (id=%s)",
                 predmet_id, tip, _STAGING_RETRY_WINDOW_SECONDS, _dup_r.data[0]["id"],
             )
-            return
+            return False
 
         from services.quality_gate import evaluate_draft_quality
         from shared.kancelarija_utils import get_kancelarija_id
@@ -290,19 +330,37 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
         quality = await evaluate_draft_quality(tekst, tip)
         kancelarija_id = await get_kancelarija_id(supa, user["user_id"])
 
-        await asyncio.to_thread(
-            lambda: supa.table("staging_memory").insert({
-                "user_id": user["user_id"],
-                "kancelarija_id": kancelarija_id,
-                "predmet_id": predmet_id,
-                "tip": tip,
-                "naziv": naziv,
-                "tekst": tekst,
-                "confidence_score": quality["confidence_score"],
-                # C3b FINAL CLOSURE: AI radni predlog nosi i svoj snimak (`predlog`) — v. shared/usvajanje_nacrta
-                "quality_detail": {**(quality["detail"] or {}), **(dodatni_detalj or {})},
-            }).execute()
-        )
+        zapis = {
+            "user_id": user["user_id"],
+            "kancelarija_id": kancelarija_id,
+            "predmet_id": predmet_id,
+            "tip": tip,
+            "naziv": naziv,
+            "tekst": tekst,
+            "confidence_score": quality["confidence_score"],
+            # C3b FINAL CLOSURE: AI radni predlog nosi i svoj snimak (`predlog`) — v. shared/usvajanje_nacrta
+            "quality_detail": {**(quality["detail"] or {}), **(dodatni_detalj or {})},
+        }
+        if obavezan:
+            zapis["id"] = str(uuid.uuid4())
+            stanje_kredita = await _sacuvaj_naplaceni_predlog(
+                supa, zapis, izvori_dostave or {}, sudski_izvori or [], krediti
+            )
+            if stanje_kredita is not None and stanje_kredita < 0:
+                return stanje_kredita
+        else:
+            await asyncio.to_thread(lambda: supa.table("staging_memory").insert(zapis).execute())
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[STAGING] neuspešno predmet=%s: %s", predmet_id, type(exc).__name__)
+        if obavezan:
+            if isinstance(exc, HTTPException):
+                raise
+            from shared.http_errors import NamerniHTTPException
+            raise NamerniHTTPException(status_code=503, detail="Nacrt nije sačuvan. Nije naplaćen.") from exc
+        return False
+
+    try:
         logger.info(
             "[STAGING] predmet=%s tip=%s confidence=%.2f -- čeka advokatsku potvrdu",
             predmet_id, tip, quality["confidence_score"],
@@ -320,7 +378,8 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
         ))
     except Exception as exc:
         _sentry_capture(exc)
-        logger.warning("[STAGING] neuspešno (non-fatal) predmet=%s: %s", predmet_id, exc)
+        logger.warning("[STAGING] audit nije zakazan predmet=%s: %s", predmet_id, type(exc).__name__)
+    return stanje_kredita if obavezan else True
 
 
 _APPROVAL_CONFIDENCE_THRESHOLD = 0.85
@@ -939,6 +998,127 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
     return {"status": "ok"}
 
 
+_POLJA_ODGOVORA_NA_TUZBU = (
+    ("navodi_tuzbe_raw", "izjasnenje_o_navodima", "[IZJAŠNJENJE — POPUNITI]"),
+    ("procesni_prigovori_raw", "procesni_prigovori", ""),
+    ("materijalni_razlozi_raw", "materijalnopravni_razlozi", "[RAZLOZI — POPUNITI]"),
+    ("dokazna_sredstva_raw", "dokazna_sredstva", "[DOKAZI — POPUNITI]"),
+)
+
+
+def _nepotkrepljena_polja_odgovora(opis: str, entiteti: dict) -> dict:
+    def normalizuj(vrednost):
+        return " ".join(vrednost.casefold().split())
+
+    izvor = normalizuj(opis)
+    prazna = {}
+    for sirovo, izlaz, zamena in _POLJA_ODGOVORA_NA_TUZBU:
+        navod = entiteti.get(sirovo)
+        if not isinstance(navod, str) or not navod.strip() or normalizuj(navod) not in izvor:
+            entiteti.pop(sirovo, None)
+            prazna[izlaz] = zamena
+    datum = entiteti.get("datum")
+    if not isinstance(datum, str) or not datum.strip() or not re.search(
+        r"\bdatum (?:izrade(?: nacrta)?|nacrta)\s*:\s*" + re.escape(normalizuj(datum)), izvor,
+    ):
+        entiteti.pop("datum", None)
+    return prazna
+
+
+def _proveri_rok_odgovora_na_tuzbu(tip: str | None, tekst: str) -> None:
+    """Formalni nacrt nema verifikovan događaj dostavljanja ni podnošenja."""
+    if tip != "odgovor_na_tuzbu":
+        return
+    lat = _cirilica_u_latinicu(tekst)
+    # Tačka iza broja člana nije kraj rečenice kad sledi oznaka propisa.
+    lat = re.sub(r"(\b(?:čl(?:an\w*)?|cl(?:an\w*)?)\.?\s*\d+)\."
+                 r"(?=\s+(?:ZPP|Zakona? o parni[čc]nom postupku)\b)",
+                 r"\1", lat, flags=re.IGNORECASE)
+    prethodni_rok = False
+    predaja_tuzenom = r"predat[aoe]? (?:sa prilozima )?tuzen(?:om|oj|ima)"
+    dostava = (
+        r"je tuzba(?: sa prilozima)? (?:uredno )?"
+        rf"(?:(?:dostavljena|urucena|primljena)(?: sa prilozima)?(?: tuzenom)?|{predaja_tuzenom})"
+    )
+    neutvrdjenost = r"(?:nije (?:utvrdjeno|poznato) (?:da li|kada)|(?:u spisu )?nema dokaza da)"
+    zavodjenje = r"(?:zaveden[ao]?|evidentiran[ao]?) u (?:sudski upisnik|sudskom upisniku)"
+    oznaka_clana = r"\b(?:clan\w*|cl\.?|odredb\w*|zpp)\s*"
+    clan_297 = rf"{oznaka_clana}297\b"
+    clan_298 = rf"{oznaka_clana}298\b"
+    propis = r"(?:\s+(?:zpp|zakona? o parnicnom postupku))?"
+    odredba_o_sadrzaju = (
+        rf"{clan_298}{propis} (?:uredjuje|propisuje) sadrz(?:aj|inu) odgovora(?: na tuzbu)?"
+    )
+    rok_30 = r"rok od (?:30|trideset) dana"
+    od_dostave = r"od (?:dostave|dostavljanja|urucenja) tuzbe sa prilozima"
+    odredba_o_roku = (
+        rf"(?:{clan_297}{propis} (?:uredjuje|propisuje|odredjuje) {rok_30} {od_dostave}"
+        rf"|(?:je )?{rok_30} (?:je )?(?:propisan|uredjen|odredjen) {clan_297}{propis}"
+        rf" i tece {od_dostave})"
+    )
+    veznik = r"[,;]\s+(?:a|dok)\s+"
+    odvojene_odredbe = (
+        rf"(?:{odredba_o_sadrzaju}{veznik}{odredba_o_roku}"
+        rf"|{odredba_o_roku}{veznik}{odredba_o_sadrzaju})[.!]?"
+    )
+    for rec in re.split(r"(?<=[.!?;])\s+(?=[A-ZČĆŽŠĐ])|\n+", lat):
+        rec = _normalizuj(rec)
+        rok = re.search(r"\b(?:rok\w*|(?:30|trideset)\s+dana)\b", rec)
+        datum = re.search(
+            r"\b(?:\d{1,2}[./-]\s*\d{1,2}[./-]\s*\d{4}|\d{4}-\d{2}-\d{2}|"
+            r"\d{1,2}\.?\s+(?:januar|februar|mart|april|maj|jun|jul|avgust|septembar|"
+            r"septembr|oktobar|oktobr|novembar|novembr|decembar|decembr)\w*\s+\d{4})\b",
+            rec,
+        )
+        relativni_datum = re.search(
+            r"\b(?:danas|sutra|prekosutra|juce|ponedelj\w*|utor\w*|sred[uae]|"
+            r"cetvrt\w*|pet(?:ak|k\w*)|subot\w*|nedelj\w*|"
+            r"januar\w*|februar\w*|mart\w*|april\w*|maj[ua]?|jun[ua]?|jul[ua]?|"
+            r"avgust\w*|septembr\w*|oktobr\w*|novembr\w*|decembr\w*)\b",
+            rec,
+        )
+        konkretan_rok = re.search(r"\b(?:poslednji|krajnji) dan\b", rec) or (
+            re.search(r"\bnajkasnije\b", rec) and (rok or re.search(r"\bodgovor\w*\b", rec))
+        )
+        fiksni_istek = relativni_datum and re.search(r"\b(?:istic\w*|istek\w*|zavrsava\s+se)\b", rec)
+        dostava_neutvrdjena = re.fullmatch(
+            rf"(?:{neutvrdjenost} {dostava}"
+            rf"|ako {dostava},? rok (?:od (?:30|trideset) dana )?(?:tece|racuna se) od tada)[.!]?",
+            rec.strip(),
+        )
+        tvrdi_dostavu = re.search(r"\btuzb\w*\b", rec) and not dostava_neutvrdjena and re.search(
+            r"\b(?:dostavljen|urucen|primljen|zaprimljen)(?:a|o|e|i)?\b|\b(?:za)?primi(?:o|la|lo|li|le)\b"
+            r"|\b(?:dostav[aeu]|dostavljanj[aeu])\b.*\b(?:izvrsen|obavljen)(?:a|o|e|i)?\b"
+            rf"|\b{predaja_tuzenom}\b",
+            rec,
+        )
+        zavodjenje_neutvrdjeno = re.fullmatch(
+            rf"(?:{neutvrdjenost} je odgovor(?: na tuzbu)? {zavodjenje}"
+            rf"|odgovor(?: na tuzbu)? nije {zavodjenje})[.!]?",
+            rec.strip(),
+        )
+        tvrdi_podnosenje = re.search(r"\b(?:odgovor|podnesak)\w*\b", rec) and (
+            re.search(
+                r"\b(?:podneo|podnela|podnelo|podneli|podnet(?:a|o)?|preda(?:o|la|lo|li|le)|predat(?:a|o)?|blagovremen\w*)\b"
+                r"|\btuzen\w*\s+podnosi\b.*\bu\s+(?:(?:zakonskom|propisanom)\s+)?roku\b",
+                rec,
+            )
+            or (not zavodjenje_neutvrdjeno and re.search(rf"\b{zavodjenje}\b", rec))
+        )
+        pogresan_osnov = re.search(clan_298, rec) and (
+            (rok and not re.fullmatch(odvojene_odredbe, rec.strip()))
+            or (prethodni_rok and re.search(r"\bpravni osnov\b", rec))
+        )
+        tvrdi_dostavu = tvrdi_dostavu or re.match(r"^dostav[ae] je (?:izvrsena|obavljena)\b", rec)
+        if (pogresan_osnov or (rok and (datum or fiksni_istek)) or (konkretan_rok and (datum or relativni_datum))
+                or tvrdi_dostavu or tvrdi_podnosenje):
+            raise HTTPException(status_code=422, detail=(
+                "Nacrt sadrži nepotvrđenu tvrdnju o dostavljanju, podnošenju ili roku. "
+                "Čl. 297 ZPP uređuje rok od dostavljanja tužbe sa prilozima, a čl. 298 sadržaj odgovora."
+            ))
+        prethodni_rok = bool(rok)
+
+
 @router.post("/api/podnesak")
 @limiter.limit("5/minute")
 async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(PermissionService.require("drafting"))):
@@ -973,6 +1153,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         )
         _tekst = (_staged.data or [{}])[0].get("tekst") if _staged.data else None
         if _tekst:
+            _proveri_rok_odgovora_na_tuzbu(req.tip, _tekst)
             return {
                 "status":  "success",
                 "odgovor": _tekst,
@@ -1067,6 +1248,10 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
             logger.warning("Ekstrakcija entiteta neuspešna [q=%s]: %s", log_id, exc)
             entiteti = {}
 
+        prazna_polja = {}
+        if req.tip == "odgovor_na_tuzbu":
+            prazna_polja = _nepotkrepljena_polja_odgovora(opis_api, entiteti)
+
         rag_upit = f"{PODNESAK_TIPOVI[req.tip]}: {opis_api[:400]}"
         try:
             from app.services.retrieve import retrieve_documents
@@ -1121,17 +1306,22 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
             logger.warning("Obogaćivanje neuspešno [q=%s]: %s", log_id, exc)
             obogacivanje = {}
 
+        obogacivanje.update(prazna_polja)
         nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
+        osnovni_nacrt = nacrt
         nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
+        _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
+        oznake = set(prazna_polja.values()) - {""}
+        if req.tip == "odgovor_na_tuzbu" and "datum" not in entiteti:
+            oznake.add("[DATUM]")
+        # Prisustvo oznake ne sprečava model da uz nju dopiše činjenice kojih nema u opisu.
+        if any(prazna_polja.values()) or any(oznaka not in nacrt for oznaka in oznake):
+            nacrt = osnovni_nacrt
+            critique_applied = False
+            _proveri_rok_odgovora_na_tuzbu(req.tip, nacrt)
 
-    # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-027): this charged unconditionally even
-    # when entity extraction (the step whose failure makes the draft closest to worthless --
-    # a template with no real case facts filled in, just placeholders) silently degraded to
-    # an empty dict. Output here is never literally zero (unlike /api/nacrt's own failure
-    # mode, LIVINGSYS-DEBT-002), so this only skips the charge for the specific worst case,
-    # not for RAG/VKS/enrichment individually degrading -- those still produce a
-    # substantially useful draft and are still charged, matching this debt item's own
-    # "Medium, not High" severity distinction from -002.
+    # LIVINGSYS-DEBT-027: empty extraction leaves only placeholders and is not charged.
+    # A useful draft can still be produced when optional retrieval or enrichment degrades.
     if entiteti:
         await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
     else:
@@ -1306,6 +1496,24 @@ async def _firma_za_zaglavlje(supa, uid: str):
     return None
 
 
+def _docx_content_disposition(naslov: str) -> str:
+    """RFC 6266/5987: Latin-1-safe header with UTF-8 filename for Serbian/Cyrillic titles.
+
+    Starlette encodes response headers as Latin-1. Passing e.g. "tužbu" directly
+    raises UnicodeEncodeError AFTER a valid DOCX was generated (beta 2026-11-08).
+    This helper never exposes untrusted title characters in a raw HTTP header.
+    """
+    from urllib.parse import quote
+
+    clean = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
+    if clean.isascii():
+        return f'attachment; filename="{clean}.docx"'
+    latin = clean.translate(str.maketrans("čćđšžČĆĐŠŽ", "ccdszCCDSZ"))
+    fallback = "".join(c if c.isascii() and (c.isalnum() or c in " _-") else "_" for c in latin).strip(" _-") or "Nacrt"
+    ordinary = f'attachment; filename="{fallback}.docx"'
+    return ordinary + "; filename*=UTF-8''" + quote(clean + ".docx", safe="")
+
+
 @router.post("/api/nacrti/export/docx")
 @limiter.limit("30/minute")
 async def export_nacrt_docx(
@@ -1330,18 +1538,17 @@ async def export_nacrt_docx(
         raise HTTPException(status_code=409, detail="Tekst sadrži interne napomene za advokata. Nacrt sa pregleda "
                                                     "izvezite iz pregleda nacrta — u DOCX ide samo tekst za sud.")
 
+    _proveri_rok_odgovora_na_tuzbu(req.tip, req.tekst)
     try:
         docx_bytes = await asyncio.to_thread(_nacrt_to_docx, req.tekst, naslov, firma_info)
     except Exception as e:
         logger.error("DOCX export greška: %s", e)
         raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
 
-    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
-    filename = f"{safe_name}.docx"
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _docx_content_disposition(naslov)},
     )
 
 
@@ -1356,7 +1563,7 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
     from shared import usvajanje_nacrta as UN
     supa = _get_supa()
     r = await asyncio.to_thread(
-        lambda: supa.table("staging_memory").select("id,tip,naziv,tekst,status,quality_detail")
+        lambda: supa.table("staging_memory").select("id,tip,naziv,predmet_id,tekst,status,quality_detail")
             .eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
     )
     red = getattr(r, "data", None)
@@ -1379,13 +1586,22 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
             raise HTTPException(status_code=409, detail=" ".join(razlozi) + " Odobren tekst se pri izvozu ne menja: "
                                 "napravite novu verziju, ispravite tekst i odobrite je (ako je AI predlog izrađen pre "
                                 "ovog pravila, potreban je novi predlog).")
+        uid = user["user_id"]
+        izvori = odobreno.get("sha256_izvori")
+        if izvori is None:
+            _, snimak = await _predlog_dokumenta(supa, red, uid)
+            izvori = _snimi_izvore_za_sud(red, snimak)
+        await _proveri_izvore_za_sud(supa, red["predmet_id"], uid, izvori)
         try:
-            docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, "", await _firma_za_zaglavlje(supa, user["user_id"]),
-                                                 True)
+            docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, "", await _firma_za_zaglavlje(supa, uid), True)
         except Exception as e:
             logger.error("DOCX export (dokument za sud) greška: %s", type(e).__name__)
             raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
-        _audit_usvajanja("dokument_za_sud_izvezen", user, staging_id, {"sha256": odobreno["sha256"]})
+        from shared.audit_immutable import log_action
+
+        if not await log_action(action="dokument_za_sud_izvezen", user_id=uid, resource_type="staging",
+                                resource_id=staging_id, metadata={"sha256": odobreno["sha256"]}):
+            raise HTTPException(status_code=503, detail="Izvoz trenutno nije moguće evidentirati. Pokušajte ponovo.")
         return Response(
             content=docx_bytes,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1395,17 +1611,17 @@ async def staging_docx(staging_id: str, request: Request, user: dict = Depends(g
         tekst, razlog = za_izvoz(tekst)
         if razlog:
             raise HTTPException(status_code=409, detail=razlog)
+    _proveri_rok_odgovora_na_tuzbu(red.get("tip"), tekst)
     naslov = red.get("naziv") or red.get("tip") or "Nacrt"
     try:
         docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, naslov, await _firma_za_zaglavlje(supa, user["user_id"]))
     except Exception as e:
         logger.error("DOCX export (staging) greška: %s", type(e).__name__)
         raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
-    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}.docx"'},
+        headers={"Content-Disposition": _docx_content_disposition(naslov)},
     )
 
 
@@ -1510,12 +1726,14 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
 
     from services.quality_gate import evaluate_draft_quality
     from shared.vector_origin import now_iso
+    _proveri_rok_odgovora_na_tuzbu(red.get("tip"), req.tekst)
     kvalitet = await evaluate_draft_quality(req.tekst, red.get("tip") or "")
     detalj = {**(kvalitet.get("detail") or {}), "izmenio_advokat": True, "izmenjeno_at": now_iso()}
     za_sud = red.get("tip") == UN.TIP_DOKUMENTA_ZA_SUD
     if za_sud:
         # zapis usvajanja ostaje; izmena važi samo nad pročitanim tekstom i revizijom (bez izgubljenog usvajanja u trci)
-        detalj["usvajanje"] = _usvajanje(red)
+        _, snimak = await _predlog_dokumenta(supa, red, user["user_id"])
+        detalj["usvajanje"] = UN.posle_izmene_teksta(red.get("tekst") or "", req.tekst, _usvajanje(red), snimak)
         detalj["usvajanje_rev"] = _rev(red) + 1
 
     def _azuriraj():
@@ -1598,6 +1816,40 @@ async def _predlog_dokumenta(supa, dok: dict, uid: str) -> tuple:
         raise HTTPException(status_code=409, detail="AI predlog ovog dokumenta nije dostupan ili je promenjen — "
                                                     "usvajanje nije moguće.")
     return pr, snimak
+
+
+_NEPOTVRDJEN_IZVOR = (
+    "Izvor na koji se dokument oslanja nije potvrđen u aktuelnom spisu. Pregledajte i izradite novi predlog."
+)
+
+
+def _snimi_izvore_za_sud(dok: dict, snimak: dict) -> dict:
+    from shared import usvajanje_nacrta as UN
+
+    oznake = UN.zavisni_izvori(_usvajanje(dok), snimak)
+    izvori = {d["oznaka"]: d for d in snimak.get("dokumenti") or [] if d.get("oznaka") in oznake}
+    if set(izvori) != oznake or any(not d.get("dokument_id") or not d.get("sha256_teksta") for d in izvori.values()):
+        raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR)
+    return {d["dokument_id"]: d["sha256_teksta"] for d in izvori.values()}
+
+
+async def _proveri_izvore_za_sud(supa, predmet_id: str, uid: str, ocekivani: dict) -> None:
+    from shared import usvajanje_nacrta as UN
+
+    if not isinstance(ocekivani, dict):
+        raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR)
+    if not ocekivani:
+        return
+    try:
+        odgovor = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select("id,tekst_sadrzaj")
+                .eq("predmet_id", predmet_id).eq("user_id", uid).in_("id", list(ocekivani)).execute())
+        aktuelni = {red["id"]: UN.sha(red.get("tekst_sadrzaj") or "") for red in odgovor.data}
+    except Exception as exc:
+        logger.warning("[USVAJANJE] provera izvora nije uspela: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Stanje izvora trenutno nije moguće proveriti. Pokušajte ponovo.") from exc
+    if aktuelni != ocekivani:
+        raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR)
 
 
 def _prikaz_dokumenta(dok: dict, snimak: Optional[dict]) -> dict:
@@ -1800,12 +2052,22 @@ async def _odobri_dokument_za_sud(supa, dok: dict, request: Request, user: dict)
     razlozi = UN.razlozi_protiv_odobrenja(tekst, usv, snimak)
     if razlozi:
         raise HTTPException(status_code=409, detail={"razlog": "NIJE_SPREMNO", "razlozi": razlozi})
+    izvori = _snimi_izvore_za_sud(dok, snimak)
+    await _proveri_izvore_za_sud(supa, dok["predmet_id"], uid, izvori)
     sad = now_iso()
-    qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "odobreno": {"sha256": trazeni, "by": uid, "at": sad}}}
-    await _uslovno_azuriraj_dokument(supa, dok, uid, {"status": "approved", "is_lawyer_approved": True, "approved_by": uid,
-                                                      "approved_at": sad, "quality_detail": qd})
-    _audit_usvajanja("dokument_za_sud_odobren", user, dok["id"], {"predmet_id": dok.get("predmet_id"), "sha256": trazeni,
-                                                                  "verzija": usv.get("verzija")})
+    odobreno = {"sha256": trazeni, "by": uid, "at": sad, "sha256_izvori": izvori}
+    qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "odobreno": odobreno}}
+    from postgrest.exceptions import APIError
+
+    try:
+        await _uslovno_azuriraj_dokument(supa, dok, uid, {"status": "approved", "is_lawyer_approved": True, "approved_by": uid,
+                                                          "approved_at": sad, "quality_detail": qd})
+    except APIError as exc:
+        if exc.code == "PT409":
+            raise HTTPException(status_code=409, detail=_NEPOTVRDJEN_IZVOR) from exc
+        logger.warning("[USVAJANJE] upis odobrenja nije uspeo: %s", exc.code)
+        raise HTTPException(status_code=503, detail="Odobrenje trenutno nije moguće proveriti. Osvežite dokument.") from exc
+    # Migration 150 appends the immutable approval event in the same transaction.
     return {"status": "approved", "indexed": False, "razlog": "DOKUMENT_ZA_SUD", "sha256": trazeni,
             "poruka": "Dokument za sud je odobren. Ne dodaje se u bazu znanja kancelarije ni u dokumente predmeta."}
 
@@ -1884,6 +2146,7 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
     if not row_res.data:
         raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
     staging_row = row_res.data
+    _proveri_rok_odgovora_na_tuzbu(staging_row.get("tip"), staging_row.get("tekst") or "")
     # C3b FINAL CLOSURE TASK-01: AI radni predlog se ne odobrava (nije dokument ni znanje); dokument za sud se odobra-
     # va po svom ugovoru (tačan tekst, procesne tačke, bez promocije) — `_odobri_dokument_za_sud`.
     if staging_row.get("tip") == _TIP_IZ_SPISA:

@@ -145,7 +145,11 @@ def _pretrazi(dozvoljeni, namespace=NS_A, indeks=None):
     ugradnje.embed_query.return_value = [0.0] * 3072
     cohere = MagicMock()
     cohere.rerank.side_effect = Exception("bez cohere")
+    # Simulate the trusted identity/ACL derivation boundary. Explicit function
+    # arguments alone are intentionally not sufficient authorization anymore.
+    _derived_scope = (namespace, dozvoljeni) if dozvoljeni is not None else (None, None)
     with _stub_llm(), \
+         patch("app.services.retrieve._vlasnicki_opseg_iz_konteksta", return_value=_derived_scope), \
          patch("app.services.retrieve._get_index", return_value=indeks), \
          patch("app.services.retrieve._get_embeddings", return_value=ugradnje), \
          patch("app.services.retrieve._get_cohere", return_value=cohere):

@@ -3,12 +3,12 @@
 """
 Vindex AI — scripts/verify_backup_restore.py
 
-Backup Restore Verification Drill (Celina 5, 2026-07-24)
+Backup/Restore Structural Verification (Celina 5, 2026-07-24)
 
 Implements §6 of docs/security/DISASTER_RECOVERY_PLAN.md — the "structural
-soundness" check that plain connectivity (scripts/dr_runbook.py) does not
-cover on its own. Produces a timestamped, HMAC-signed JSON report
-(backup_restore_verification.json) suitable for the DRP §8 evidence log.
+structural-health check that plain connectivity (scripts/dr_runbook.py) does
+not cover on its own. Produces a timestamped, HMAC-signed JSON report. This
+script does not create a backup or perform a restore.
 
 WHAT THIS SCRIPT DOES NOT DO — read before relying on it:
   It does NOT trigger an actual Supabase point-in-time restore. There is no
@@ -144,8 +144,8 @@ def check_audit_chain() -> dict:
         result = asyncio.run(verify_chain_integrity(limit=1000))
         ok = result.get("ok", False)
         check(
-            "Hash-chain integritet", ok,
-            result.get("message", "")[:120],
+            "Hash-chain sample integritet", ok,
+            f"Poslednjih najviše 1000 zapisa; {result.get('message', '')[:100]}",
             critical=not ok,
         )
         check("Zapisi provereni", True, f"{result.get('checked', 0)} zapisa")
@@ -226,7 +226,7 @@ def verify_report_signature(report_path: str) -> bool:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Vindex AI Backup Restore Verification Drill")
+    parser = argparse.ArgumentParser(description="Vindex AI backup/restore structural verification (no restore performed)")
     parser.add_argument("--quick", action="store_true", help="Samo konektivnost + chain (bez tabela/join)")
     parser.add_argument("--out", type=str, default=DEFAULT_OUT, help="Putanja JSON izveštaja")
     parser.add_argument("--verify-signature", type=str, default=None,
@@ -239,7 +239,7 @@ def main() -> None:
         sys.exit(0 if ok else 1)
 
     print("=" * 72)
-    print("Vindex AI — Backup Restore Verification Drill")
+    print("Vindex AI — Backup/Restore Structural Verification")
     print(f"Vreme: {datetime.now(timezone.utc).isoformat()}")
     print("Implementira DISASTER_RECOVERY_PLAN.md §6 — struktura, ne destruktivan restore.")
     print("=" * 72)
@@ -279,16 +279,30 @@ def main() -> None:
     if warnings:
         print(f"  Upozorenja ({len(warnings)}): {', '.join(r['name'] for r in warnings)}")
     if not critical_failures and not warnings:
-        print("  Sve provere prošle — restore bi bio strukturno zdrav.")
+        print("  Strukturne provere su prošle; stvarni restore NIJE izvršen.")
     print("=" * 72)
 
     overall_ok = len(critical_failures) == 0
 
     report_body = {
-        "report_type": "backup_restore_verification",
+        "report_type": "backup_restore_structural_verification",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "mode": "quick" if args.quick else "full",
         "overall_ok": overall_ok,
+        "status": (
+            "STRUCTURAL_CHECKS_INCOMPLETE"
+            if critical_failures
+            else ("STRUCTURAL_CHECKS_PASS_WITH_WARNINGS" if warnings else "STRUCTURAL_CHECKS_PASS")
+        ),
+        "connectivity_status": "CONNECTIVITY_PASS" if connectivity.get("ok") else "CONNECTIVITY_FAIL",
+        "schema_status": (
+            "SCHEMA_PASS"
+            if tables and all(item.get("exists") and item.get("ok") for item in tables.values())
+            else ("NOT_RUN" if args.quick else "SCHEMA_FAIL")
+        ),
+        "restore_status": "NOT_PERFORMED",
+        "restore_pass": False,
+        "audit_chain_scope": "only the configured verifier limit; this is not full-history proof unless the verifier confirms complete coverage",
         "summary": {
             "total_checks": total,
             "passed": passed,

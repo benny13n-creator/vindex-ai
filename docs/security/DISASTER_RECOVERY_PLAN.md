@@ -21,8 +21,8 @@ disaster recovery, which is out of scope for a hosted SaaS product.
 
 | Target | Definition | Value | Status |
 |---|---|---|---|
-| **RPO** (Recovery Point Objective) | Maximum acceptable data loss, measured in time since the last durable, restorable snapshot | **≤ 15 minutes** | **POLICY TARGET — requires Supabase Point-in-Time Recovery (PITR) to be active. See §2.1 for current confirmed state.** |
-| **RTO** (Recovery Time Objective) | Maximum acceptable time from incident detection to restored service | **≤ 2 hours** | **POLICY TARGET — achievable with the procedures in §4, contingent on the caveats in §4.4.** |
+| **RPO** (Recovery Point Objective) | Maximum acceptable data loss, measured in time since the last durable, restorable snapshot | **≤ 15 minutes** | **POLICY TARGET — current production RPO UNKNOWN; no provider backup artifact/PITR evidence. See §2.1.** |
+| **RTO** (Recovery Time Objective) | Maximum acceptable time from incident detection to restored service | **≤ 2 hours** | **POLICY TARGET — current production RTO UNKNOWN; no production-equivalent timed restore. See §2.2.** |
 
 ### 2.1 Honest current-state caveat (read before treating RPO ≤ 15 min as a settled fact)
 
@@ -30,10 +30,12 @@ This project's own security documentation discipline (`docs/security/SECURITY_GA
 `PUBLIC_SECURITY_CLAIMS.md`) is explicit that claims must be evidence-based, not aspirational. In
 that spirit:
 
-- **What is confirmed from the repository alone:** Supabase is a managed Postgres provider with
-  automatic backups on paid tiers. The previous DR runbook (`scripts/dr_runbook.py`, written before
-  this policy) assumed **daily** backups and stated an informal RPO target of 24 hours — consistent
-  with Supabase's **daily backup** tier, not continuous WAL/PITR.
+- **Current read-only account evidence (2026-11-10):** the production project
+  `czsxymueizfqrbbgqqob` is associated with organization `prdvzjpvjxermmrglufm`, whose connected
+  Supabase control-plane record reports plan `free`. Supabase documents automatic daily backups on
+  Pro, Team and Enterprise plans. No guaranteed automatic production database backup or PITR has
+  been demonstrated for this Free organization. The historic 24-hour value is not a confirmed
+  production floor.
 - **What is NOT confirmed from the repository:** whether the live Supabase project has **Point-in-Time
   Recovery (PITR)** enabled. PITR is a paid-tier feature (Supabase Pro/Team and above) that continuously
   archives the write-ahead log, enabling restoration to *any point in time* within a retention window
@@ -45,9 +47,8 @@ that spirit:
   Database → Backups) whether PITR is enabled and what its retention window is.
 - **Action item (blocking the RPO ≤ 15 min claim from being a verified fact rather than a target):**
   Founder to confirm PITR status and record the result in §8 (Verification Log) of this document.
-  Until that entry exists, treat the effective RPO as **24 hours** (the confirmed daily-backup floor)
-  for incident-response planning purposes, and the 15-minute figure as the policy this project is
-  committing to reach, not a promise already met.
+  Until provider evidence and a restorable artifact are recorded, effective production RPO is
+  **UNKNOWN**. The 15-minute value remains a policy target, not a current capability.
 
 This caveat is deliberately kept prominent rather than buried — an incident responder who reads only
 the RPO number in §2 without this context would make a false assumption at exactly the moment
@@ -55,11 +56,10 @@ accuracy matters most.
 
 ### 2.2 RTO ≤ 2 hours — feasibility
 
-Unlike RPO, RTO is primarily a *procedural* target (how fast can the team execute the recovery
-steps), not a billing-tier dependency. The step-by-step procedures in §4 are designed to fit inside
-2 hours for the P0 (total outage) scenario, based on the component-level time estimates already
-validated in `scripts/dr_runbook.py`'s prior 1–2 hour P0 estimate. This target is **achievable with
-current tooling**, provided:
+RTO is a policy target. It has not been demonstrated by a timed production-equivalent recovery. A
+local synthetic drill does not establish production RTO. Evidence needed to call the two-hour target
+met includes an available production backup, recoverable original Storage objects, key recovery and a
+timed restore to an approved destination. Until then RTO is **UNKNOWN**. The target depends on:
 - The founder (or whoever is on-call) is reachable and has the required dashboard access (§5).
 - The Supabase restore itself does not exceed ~30–45 minutes (consistent with Supabase's own
   published restore-time guidance for typical database sizes at Vindex's current scale).
@@ -103,11 +103,11 @@ This is the worst case and the one the 2-hour RTO target is calibrated against.
 | 2 | Post an internal status note (even a personal note/Slack-to-self) with start time — this becomes the RTO clock reference for the post-incident review in §7. | On-call | 5 min |
 | 3 | If Render is down: Render Dashboard → the Vindex service → "Manual Deploy" → redeploy the latest `main` commit, or wait for Render's own recovery if the outage is platform-wide (redeploying during a platform-wide Render outage will not help — check status page first). | Founder | 5–15 min |
 | 4 | If Supabase is down: Supabase Dashboard → Project → confirm outage scope. If project-specific corruption/deletion (not a platform outage), proceed to §4.2's restore procedure. If platform-wide, wait for Supabase's own recovery — do not attempt a restore against a still-down platform. | Founder | 15–45 min (parallel with step 3) |
-| 5 | Once both platforms report healthy: run `python scripts/dr_runbook.py --quick` from a machine with the production `.env` (or Render Shell) to confirm connectivity to Supabase, OpenAI, and Pinecone before declaring recovery. | Founder | +5 min |
-| 6 | Run `python scripts/verify_backup_restore.py` (see §6) against the restored database to produce a timestamped, signed verification report — this is the evidence that the restore is not just "connected" but *structurally sound*. | Founder | +10–15 min |
+| 5 | Once both platforms report healthy: run `python scripts/dr_runbook.py --quick` from an authorized machine to check Supabase connectivity only. The quick mode does not verify OpenAI or Pinecone. | Founder | +5 min |
+| 6 | Run `python scripts/verify_backup_restore.py` against the restored database for read-only structural checks. Its report explicitly says `restore_status=NOT_PERFORMED`; this step is not evidence that a backup existed or that the restore succeeded. | Founder | +10–15 min |
 | 7 | Run the audit chain integrity check: `GET /api/admin/security/audit-verify` (or `python scripts/dr_runbook.py --check chain`). A chain break exactly at the restore boundary is expected (§4.3) — anywhere else is a tampering signal requiring separate investigation, not a "recovery failed" signal. | Founder | +5 min |
 | 8 | Send the incident notification (template in `scripts/dr_runbook.py`'s `INCIDENT_EMAIL_TEMPLATE`, GDPR čl. 33-34 / ZZPL čl. 52-53 compliant) if the incident involved any data loss or exceeded 1 hour of downtime. | Founder | +10 min |
-| 9 | Declare recovery complete. Total elapsed should be within the 2-hour RTO target for a project at Vindex's current scale; if it exceeds 2 hours, that overage itself becomes an input to §7's post-incident review (the target may need revisiting, or the procedure has a gap). | Founder | ≤ 120 min |
+| 9 | Declare recovery complete only after verifying the actual restored database and original Storage objects. Record total elapsed; the 2-hour RTO remains a policy target until a production-equivalent timed restore proves it. | Founder | RTO target ≤ 120 min, unproven |
 
 ### 4.2 Scenario P1 — Database-only outage or corruption (Supabase down or data corrupted, Render OK)
 
@@ -115,14 +115,16 @@ This is the worst case and the one the 2-hour RTO target is calibrated against.
 2. If PITR is active: select "Restore to point in time" and choose the timestamp immediately
    before the incident (from the internal status note in §4.1 step 2, or from the last known-good
    entry in `audit_immutable`/application logs).
-3. If only daily backups are active (PITR not confirmed — see §2.1): select the most recent daily
-   snapshot. **This is where the true RPO gap between "15 minutes" and "up to 24 hours" becomes
-   concrete** — communicate this honestly in the incident notification if it applies.
+3. If provider evidence confirms a scheduled backup but PITR is not active, select the latest
+   available snapshot and record its timestamp. Do not assume daily availability or a 24-hour RPO;
+   communicate the actual measured recovery point. If no restorable artifact is available, stop and
+   follow the approved provider recovery path.
 4. Point the application at the restored database (Supabase restores in-place for the same
    project in most cases; a distinct restore-to-new-project would additionally require updating
    `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` in Render's environment variables and redeploying).
 5. Run §4.1 steps 5–7 (connectivity check, backup-restore verification, audit chain check).
-6. Target: 30–60 minutes (well inside the 2-hour RTO).
+6. Record elapsed time. The 30–60 minute estimate is unverified and does not establish the 2-hour
+   RTO target.
 
 ### 4.3 Why a chain break at the restore boundary is expected, not a tampering alarm
 
@@ -187,12 +189,18 @@ Two scripts implement the checks this plan describes:
 | Script | Purpose | Relationship to this plan |
 |---|---|---|
 | `scripts/dr_runbook.py` | Pre-incident and post-incident **connectivity + configuration** check (Supabase/OpenAI/Pinecone reachability, env vars present, audit chain integrity) | Implements §4.1 steps 5 and 7 |
-| `scripts/verify_backup_restore.py` (new, Celina 5) | Simulates and verifies a backup-restore drill, producing a timestamped, checksummed JSON report (`backup_restore_verification.json`) | Implements §4.1 step 6 — the *structural soundness* check that connectivity alone does not cover |
+| `scripts/verify_backup_restore.py` (Celina 5) | Read-only connectivity, schema, limited audit and relationship checks. It does not perform a backup or restore. Its report retains `restore_status=NOT_PERFORMED`. | Structural health only; not proof of completed restore. |
 
 Both scripts are safe to run against production for read-only verification (neither performs a
 destructive restore against the live database — an actual Supabase point-in-time restore must be
 triggered manually via the Supabase Dashboard, per §4.2, as a deliberate, human-confirmed action;
 no script in this repository automates that irreversible step).
+
+`scripts/isolated_restore_drill.py` performs an actual synthetic local CREATE → BACKUP → DESTROY →
+RESTORE exercise over a SQLite matter store and encrypted object files. This proves only that local
+synthetic procedure. It does not establish production backup availability, Storage coverage, key
+escrow, schedule, RPO or RTO. Its separate synthetic recovery key is test material, not a production
+key-management procedure.
 
 **Recommended cadence:** run `scripts/dr_runbook.py --quick` after every deploy (already low-cost),
 and `scripts/verify_backup_restore.py` monthly as a scheduled drill, not only during a real incident
@@ -225,7 +233,8 @@ a *tested* DR plan."
 | Date | Action | Result | Evidence |
 |---|---|---|---|
 | 2026-07-24 | DRP authored (Celina 5) | Policy targets set; PITR status confirmation still pending (§2.1) | This document |
-| 2026-07-24 | First live run of `scripts/verify_backup_restore.py` against production | 13/13 checks passed after fixing 2 real bugs the drill itself surfaced (audit-chain timestamp false positive + a genuine, non-malicious concurrent-write race at seq=32; no evidence of tampering anywhere in the 358-row table) | `docs/security/AUDIT_CHAIN_INCIDENT_2026-07-24.md`; `backup_restore_verification.json` (HMAC-signed, key source: `FIELD_ENCRYPTION_KEY`) |
+| 2026-07-24 | First live run of the read-only structural verifier against production (not a backup/restore drill) | 13/13 structural checks passed after fixing 2 bugs (audit-chain timestamp false positive + genuine concurrent-write race at seq=32; no evidence of tampering in the 358-row table). No backup artifact was restored by this run. | `docs/security/AUDIT_CHAIN_INCIDENT_2026-07-24.md`; historical `backup_restore_verification.json` (HMAC-signed, key source: `FIELD_ENCRYPTION_KEY`) |
+| 2026-11-10 | Read-only production account metadata + isolated synthetic restore | Organization plan is `free`; production backup artifact/schedule, PITR, Storage-object backup, production key recovery, RPO and RTO remain unverified. Synthetic local SQLite + encrypted-object CREATE/BACKUP/DESTROY/RESTORE passed in 0.064s; 2 tenants, 2 matters, 2 documents, 2 audit rows. This timing is not production RTO. | PR #84 evidence package `vindex-backup-restore-drill-final`; backup SHA-256 `245adea16194360e790579482629686cae2b5d385d0b471663ae14885af86f09`; manifest SHA-256 `22cb5da66f4488e2659c8de9dafb97bd00ab76714687b6e10883ed5a5ebd1547`; report SHA-256 `1c3fde6956cfc63b0c2500073ee0ea16fe9ac88706e07e349af623d7754cb443`. Manifest is retained separately from the deleted primary state; synthetic recovery key is separate test material, not a production secret. |
 
 ---
 

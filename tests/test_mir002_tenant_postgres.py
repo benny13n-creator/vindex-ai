@@ -19,6 +19,8 @@ def test_service_role_prompt_reads_require_child_ownership(lit, monkeypatch):
     tables = ("predmet_dokumenti", "rocista", "billing_entries")
     with sveza_baza() as dsn:
         with psycopg.connect(dsn) as db:
+            # Other fixtures can create this cluster-wide role without BYPASSRLS.
+            db.execute("ALTER ROLE service_role BYPASSRLS")
             db.execute("""
                 CREATE TABLE predmet_dokumenti (
                     id text, user_id text, predmet_id text, naziv_fajla text,

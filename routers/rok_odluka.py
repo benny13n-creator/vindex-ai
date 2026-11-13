@@ -51,6 +51,7 @@ from shared.rok_ispravka import (AKTER_ISPRAVKE, ispravka_iz_odbijanja, napomena
                                  postojeca_ispravka, upisi_ispravljen_rok)
 from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
+    IshodKapijePotvrde,
     STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_ODBIJEN, STANJE_POTVRDJEN,
     odbij_rok, odluke, potvrdi_rok, stanje_roka,
 )
@@ -70,11 +71,12 @@ async def _rok_u_vlasnistvu(supa, rok_id: str, uid: str, sa_vrstom: bool = False
 
     NS2-A2: posle migracije 129 cita se i `vrsta` — potvrda trazi da je red
     IZJAVLJEN kao rok (vidi `potvrdi`). Pre 129 kolona ne postoji i projekcija
-    ostaje bajt u bajt ista kao ranije (isti obrazac kao `kandidati`).
+    izostavlja `vrsta` (isti obrazac kao `kandidati`). Provenance polja iz
+    migracije 126 su potrebna za kontrolu izvora pre prve potvrde (S08).
     Pozivalac jednom pita semu i istu vrednost koristi i za upit i za kapiju.
     Pad citanja → 503 (ranije neuhvacen 500): stanje reda nije provereno, nista
     se ne upisuje."""
-    _kolone = "id, predmet_id, dogadjaj, datum_iso, vaznost, akter"
+    _kolone = "id, predmet_id, dogadjaj, datum_iso, vaznost, akter, dokument_id, dokument_naziv"
     if sa_vrstom:
         _kolone += ", vrsta"
     try:
@@ -283,6 +285,8 @@ async def potvrdi(
     uid = user["user_id"]
     ima_129 = _rokovi_domen._sema_ima_129(supa)
     red = await _rok_u_vlasnistvu(supa, rok_id, uid, sa_vrstom=ima_129)
+    # Audit resource IDs are text. Use the owned row's canonical UUID spelling.
+    rok_id = str(red["id"])
 
     # NS2-A2: potvrda daje IZVRSIVOST (podsetnici, .ics, klijent), a izlazni
     # slojevi pitaju samo `sme_pristupiti` — koja ne zna za `vrsta`. Potvrdjen
@@ -326,6 +330,7 @@ async def potvrdi(
     # bez promene stanja). Jedini izuzetak je N03-FD6: posle uklanjanja dokumenta iz predmeta
     # nova potvrda JESTE nova cinjenica (advokat je ponovo pregledao) i gasi upozorenje — tada
     # se upisuje. Ako to ne moze da se proveri → 503, nista se ne upisuje.
+    _ponovni_pregled = False
     if stanje_roka(rok_id, _pre) == STANJE_POTVRDJEN:
         try:
             _ponovni_pregled = str(rok_id) in await asyncio.to_thread(izvor_uklonjen_posle_potvrde, [red])
@@ -336,8 +341,38 @@ async def potvrdi(
                 detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
         if not _ponovni_pregled:
             return _bez_upisa(rok_id, red, STANJE_POTVRDJEN)
+    elif (red.get("akter") == _rokovi_domen.AKTER_GENOME
+          and red.get("dokument_naziv") and "dokument_id" in red
+          and not red.get("dokument_id")):
+        # Same evidence contract as kandidati / Case Actions. A remaining
+        # same-name document means provenance is unknown, not proven withdrawn.
+        # This early check gives a useful response. Migration 148 checks again
+        # in the audit transaction and holds the relevant row locks to commit.
+        try:
+            _dok = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokumenti").select("naziv_fajla")
+                    .eq("user_id", uid).eq("predmet_id", red["predmet_id"])
+                    .eq("naziv_fajla", red["dokument_naziv"]).execute())
+            if _dok is None or _dok.data is None:
+                raise RuntimeError("Source check returned no result")
+            _povucen = _rokovi_domen.izvor_povucen(
+                red, {d.get("naziv_fajla") for d in _dok.data})
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] source check failed rok=%s: %s", rok_id, exc)
+            raise HTTPException(status_code=503, detail="Provera izvora trenutno nije dostupna. Ništa nije zabeleženo.")
+        if _povucen:
+            raise HTTPException(status_code=409, detail="Izvor ovog predloga je povučen. Ništa nije zabeleženo.")
 
-    if not await potvrdi_rok(rok_id, uid, napomena=body.napomena):
+    try:
+        upisan = await potvrdi_rok(rok_id, uid, napomena=body.napomena, ponovni_pregled=_ponovni_pregled)
+    except IshodKapijePotvrde as exc:
+        if str(exc) == "P0802":
+            raise HTTPException(status_code=409, detail="Izvor ovog predloga je povučen. Ništa nije zabeleženo.")
+        if str(exc) == "P0804":
+            raise HTTPException(status_code=404, detail="Rok nije pronađen.")
+        odgovor = await _odgovor_posle_odluke(rok_id, red)
+        return _bez_upisa(rok_id, red, odgovor["stanje_odluke"])
+    if not upisan:
         raise HTTPException(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo — rok ostaje nepotvrđen.")
