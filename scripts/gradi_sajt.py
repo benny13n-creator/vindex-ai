@@ -27,8 +27,8 @@ DOMEN = "https://vindex.rs"
 
 STRANICE = [
     # (izvor, izlaz, ruta, naslov, opis, stavka menija)
-    ("index", "index.html", "/", "Vindex — pravni operativni sistem za advokate",
-     "Vindex povezuje dokumente, činjenice, dokaze, rokove, pravna pitanja i nacrte jednog predmeta u jedan tok rada. Podaci izdvojeni iz dokumenata ostaju vezani za svoj izvor, a odluka ostaje advokatu.", None),
+    ("index", "index.html", "/", "Vindex — aplikacija za advokate",
+     "Dokumentacija predmeta, hronologija, rokovi, ročišta i nacrti podnesaka. Pogledajte funkcije i način rada u Vindexu.", None),
     ("kako-radi", "kako-radi.html", "/kako-radi", "Kako radi — Vindex",
      "Tok rada u Vindexu od otvaranja predmeta do nacrta podneska: šta radi Vindex, šta odlučujete vi i šta je dobro da znate.", "Kako radi"),
     ("funkcionalnosti", "funkcionalnosti.html", "/funkcionalnosti", "Funkcionalnosti — Vindex",
@@ -49,19 +49,19 @@ CTA = "Prijavi se za rani pristup"
 # ORGANIZUJ → RAZUMI → POVEŽI → ANALIZIRAJ → PRIPREMI → DELUJ, pa kontrola i zaštita.
 # (sidro, naslov, uvod, oblasti iz registra)
 GRUPE = [
-    ("predmeti", "Organizujte predmete i klijente",
+    ("predmeti", "Predmeti i klijenti",
      "Registar, podaci predmeta, beleške, hronologija i klijenti, sa proverom sukoba interesa.", ["A", "H"]),
-    ("dokumenti", "Razumite dokumente",
+    ("dokumenti", "Prijem i obrada dokumenata",
      "Dokumenti i skenovi ulaze u predmet; Vindex čita tekst i predlaže vrstu i podatke za vaš pregled.", ["B"]),
-    ("dokazi", "Povežite podatke i dokaze",
+    ("dokazi", "Tvrdnje, dokazi i izvori",
      "Tvrdnje ostaju vezane za dokument iz kog potiču; razlike između dokumenata su vidljive.", ["C"]),
-    ("istrazivanje", "Istražite i iskoristite znanje kancelarije",
+    ("istrazivanje", "Pravna pitanja i znanje kancelarije",
      "Pravno pitanje uz izvore, savetnici, sudska praksa i iskustvo iz vaših predmeta.", ["E", "G"]),
-    ("nacrti", "Pripremite podneske i naplatu",
+    ("nacrti", "Nacrti podnesaka i evidencija naplate",
      "Nacrt kao polazna tačka koju overava advokat, i evidencija rada za naplatu.", ["F", "I"]),
-    ("rokovi", "Delujte na vreme",
+    ("rokovi", "Rokovi, ročišta i zadaci",
      "Rokovi, ročišta i zadaci preko svih predmeta, sa vašom potvrdom svakog predloženog roka.", ["D"]),
-    ("zastita", "Kontrola i zaštita",
+    ("zastita", "Pristup i obrada podataka",
      "Pristup po nalogu, poreklo svakog podatka, istinit prikaz grešaka, izvoz i anonimizacija naloga.", ["J", "K"]),
 ]
 e = html.escape
@@ -85,19 +85,17 @@ def zaglavlje(ruta: str) -> str:
         return f'<li><a href="{r}"{tren}>{m}</a></li>'
     meni = "".join(li(r, m) for r, m in stavke)
     return f"""<header class="zaglavlje">
-  <div class="okvir">
+  <div class="okvir zaglavlje__unutrasnji">
     <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-logo-final-tamna.png" alt="" width="398" height="287"></a>
     <nav aria-label="Glavna navigacija"><ul class="meni">{meni}</ul></nav>
     <div class="zaglavlje__akcije">
       <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
-      <a class="dugme dugme--malo" href="/beta">{CTA}</a>
     </div>
     <details class="meni-mob">
       <summary>Meni</summary>
       <div class="meni-mob__panel">
         <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul>{meni}</ul></nav>
         <div class="meni-mob__akcije">
-          <a class="dugme dugme--malo" href="/beta">{CTA}</a>
           <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
         </div>
       </div>
@@ -111,7 +109,7 @@ PODNOZJE = """<footer class="podnozje">
     <div class="podnozje__redovi">
       <div>
         <h2>Vindex</h2>
-        <p>Pravni operativni sistem za advokate: dokumenti, dokazi, rokovi, pravna pitanja i nacrti jednog predmeta, povezani sa svojim izvorom.</p>
+        <p>Vindex — aplikacija za rad na advokatskim predmetima.</p>
       </div>
       <nav aria-label="Sajt">
         <h2>Sajt</h2>
@@ -120,7 +118,6 @@ PODNOZJE = """<footer class="podnozje">
           <li><a href="/funkcionalnosti">Funkcionalnosti</a></li>
           <li><a href="/za-advokate">Za advokate</a></li>
           <li><a href="/bezbednost">Bezbednost</a></li>
-          <li><a href="/beta">Rani pristup</a></li>
           <li><a href="/app">Prijava u aplikaciju</a></li>
         </ul>
       </nav>
@@ -193,7 +190,7 @@ def stranica(reg: dict, izvor: str, ruta: str, naslov: str, opis: str) -> str:
 <meta name="description" content="{e(opis)}">
 <link rel="canonical" href="{url}">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0d0e10">
+<meta name="theme-color" content="#11100F">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="sr_RS">
 <meta property="og:site_name" content="Vindex">
@@ -212,7 +209,6 @@ def stranica(reg: dict, izvor: str, ruta: str, naslov: str, opis: str) -> str:
 </head>
 <body class="sajt">
 <a class="skip" href="#sadrzaj">Preskoči na sadržaj</a>
-<canvas id="pozadina" aria-hidden="true"></canvas>
 <div class="strana">
 {zaglavlje(ruta)}
 <main id="sadrzaj" tabindex="-1">
@@ -220,7 +216,6 @@ def stranica(reg: dict, izvor: str, ruta: str, naslov: str, opis: str) -> str:
 </main>
 {PODNOZJE}
 </div>
-<script src="/v2/site/potpis.js"></script>
 <script src="/v2/site/sajt.js?v={v}"></script>
 </body>
 </html>

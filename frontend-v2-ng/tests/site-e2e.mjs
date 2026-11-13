@@ -51,7 +51,7 @@ const kontrast = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((m, 
 // ── Website V2: sve javne stranice × šest širina ekrana ──────────────────────
 // Website V3: /razvoj je povučen (301 → /funkcionalnosti; planovi razvoja nisu javni).
 const STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"];
-const CTA = "Prijavi se za rani pristup";
+const CTA = "Pogledajte funkcionalnosti";
 const EKRANI = [["360", 360, 740], ["390", 390, 844], ["768", 768, 1024], ["1280", 1280, 800], ["1440", 1440, 900], ["1920", 1920, 1080]];
 const ime = (put) => put === "/" ? "pocetna" : put.slice(1);
 async function kontekst(opcije = {}) {
@@ -88,6 +88,7 @@ for (const [ek, w, h] of EKRANI) {
         najmanji: Math.min(...tekstualni.map(e => parseFloat(getComputedStyle(e).fontSize))),
         kontrast: tekstualni.map(e => ({ t: e.tagName + "." + e.className + ":" + e.textContent.trim().slice(0, 24), c: getComputedStyle(e).color, bg: pozadina(e) })),
         cta: [...document.querySelectorAll("a.dugme")].map(a => a.getAttribute("href")),
+        zajednickiBeta: !!document.querySelector('header a[href="/beta"], footer a[href="/beta"]'),
         ciljevi: [...document.querySelectorAll("a.dugme, button, summary, input, select, textarea")].filter(vidljiv)
           .filter(e => e.getBoundingClientRect().height < 40).map(e => e.tagName + ":" + (e.textContent || e.id).trim().slice(0, 20)),
         logo: { put: new URL(logo.currentSrc).pathname, w: logo.getBoundingClientRect().width, h: logo.getBoundingClientRect().height, nw: logo.naturalWidth },
@@ -103,7 +104,9 @@ for (const [ek, w, h] of EKRANI) {
     zapisi(g, "najmanji vidljiv tekst ≥ 12 px; tekst ≥ 4,5:1 na svojoj površini", r.najmanji >= 12 && losKontrast.length === 0,
       `min ${r.najmanji}px ${losKontrast.slice(0, 2).map(b => b.t + " " + kontrast(b.c, b.bg).toFixed(2)).join(" | ")}`);
     zapisi(g, "dugmad i polja visine ≥ 40 px", r.ciljevi.length === 0, r.ciljevi.join(","));
-    zapisi(g, "svi pozivi na akciju vode samo na /beta ili /app, a /beta je ponuđen", r.cta.includes("/beta") && r.cta.every(x => x === "/beta" || x === "/app"), r.cta.join(","));
+    const dozvoljeniCta = ["/app", "/beta", "/funkcionalnosti", "/kako-radi"];
+    zapisi(g, "postojeći i odobreni CTA ciljevi; bez beta promocije na početnoj", r.cta.every(x => dozvoljeniCta.includes(x)) && (put !== "/" || (r.cta.includes("/funkcionalnosti") && !r.cta.includes("/beta"))), r.cta.join(","));
+    zapisi(g, "zajedničko zaglavlje i podnožje bez ranog pristupa", !r.zajednickiBeta);
     zapisi(g, "kanonski logo u izvornoj razmeri", r.logo.put === "/v2/site/brand/vindex-logo-final-tamna.png" && r.logo.nw === 398 && Math.abs(r.logo.w - r.logo.h * 398 / 287) <= 0.5);
     zapisi(g, "sve slike učitane", r.slike.length === 0, r.slike.join(","));
     if (["390", "1440"].includes(ek)) await p.screenshot({ path: join(OUT, `${ime(put)}-${ek}.png`), fullPage: true });
@@ -122,10 +125,10 @@ for (const [ek, w, h] of [["390", 390, 844], ["1440", 1440, 900]]) {
   await p.evaluate(() => document.fonts.ready);
   const r = await p.evaluate(() => {
     const u = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return b.top >= 0 && b.bottom <= innerHeight; };
-    const a = document.querySelector('.uvod a.dugme[href="/beta"]');
-    return { h1: u("h1"), opis: u(".uvod .vodeci"), cta: u('.uvod a.dugme[href="/beta"]'), ctaTekst: a.textContent.trim(), h1px: parseFloat(getComputedStyle(document.querySelector("h1")).fontSize) };
+    const a = document.querySelector('.uvod a.dugme[href="/funkcionalnosti"]');
+    return { h1: u("h1"), opis: u(".uvod .vodeci"), cta: u('.uvod a.dugme[href="/funkcionalnosti"]'), ctaTekst: a.textContent.trim(), h1px: parseFloat(getComputedStyle(document.querySelector("h1")).fontSize) };
   });
-  zapisi(`prvi-ekran@${ek}`, "naslov (≥ 34 px), opis i „Prijavi se za rani pristup“ vidljivi bez pomeranja", r.h1 && r.opis && r.cta && r.ctaTekst === CTA && r.h1px >= 34, JSON.stringify(r));
+  zapisi(`prvi-ekran@${ek}`, "naslov (≥ 34 px), opis i link na funkcionalnosti vidljivi bez pomeranja", r.h1 && r.opis && r.cta && r.ctaTekst === CTA && r.h1px >= 34, JSON.stringify(r));
   await ctx.close();
 }
 
@@ -141,7 +144,7 @@ for (const [ek, w, h] of [["390", 390, 844], ["1440", 1440, 900]]) {
       return { t: (a.textContent || a.getAttribute("aria-label") || "").trim().slice(0, 24), obris: s.outlineStyle !== "none" && parseFloat(s.outlineWidth) >= 2 }; }));
   }
   zapisi("tastatura", "prvi Tab: „Preskoči na sadržaj“; svaki fokus ima vidljiv obris ≥ 2 px", fokusi[0].t === "Preskoči na sadržaj" && fokusi.every(f => f.obris), fokusi.map(f => f.t + (f.obris ? "" : "(!)")).join(" → "));
-  zapisi("tastatura", "redosled: preskok → logo → navigacija → Prijava → Prijavi se za rani pristup",
+  zapisi("tastatura", "redosled: preskok → logo → navigacija → Prijava → Funkcionalnosti",
     JSON.stringify(fokusi.map(f => f.t)) === JSON.stringify(["Preskoči na sadržaj", "Vindex — početna", "Kako radi", "Funkcionalnosti", "Za advokate", "Bezbednost", "Prijava", CTA.slice(0, 24)]), fokusi.map(f => f.t).join(" → "));
   await p.keyboard.press("Shift+Tab"); await p.keyboard.press("Shift+Tab");
   await p.goto(BASE + "/");
@@ -156,23 +159,27 @@ for (const [ek, w, h] of [["390", 390, 844], ["1440", 1440, 900]]) {
   const pre = await p.evaluate(() => ({ meni: getComputedStyle(document.querySelector(".meni")).display, mob: !!document.querySelector(".meni-mob").getBoundingClientRect().height }));
   await p.click(".meni-mob summary");
   const linkovi = await p.evaluate(() => [...document.querySelectorAll(".meni-mob__panel a")].filter(a => a.getBoundingClientRect().height >= 40).map(a => a.getAttribute("href")));
-  zapisi("mobilni-meni", "desktop meni skriven, „Meni“ otvara sve stranice, rani pristup i Prijavu (cilj ≥ 40 px), bez Razvoja",
-    pre.meni === "none" && pre.mob && ["/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta", "/app"].every(x => linkovi.includes(x)) && !linkovi.includes("/razvoj"), linkovi.join(","));
+  zapisi("mobilni-meni", "desktop meni skriven, „Meni“ otvara četiri stranice i Prijavu (cilj ≥ 40 px), bez promo CTA",
+    pre.meni === "none" && pre.mob && ["/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/app"].every(x => linkovi.includes(x)) && !linkovi.includes("/beta") && !linkovi.includes("/razvoj"), linkovi.join(","));
   await p.click('.meni-mob__panel a[href="/funkcionalnosti"]');
   zapisi("mobilni-meni", "link iz menija otvara stranicu", await p.evaluate(() => location.pathname === "/funkcionalnosti"));
   await ctx.close();
 }
 
-// ── Pokret: reduced motion = mirna pozadina, inače V2 potpis animira ─────────
-for (const [rm, ocekivano] of [["reduce", false], ["no-preference", true]]) {
+ // ── Javni sajt bez dekorativnog canvasa ili pozadinskog potpisa ─────────────
+for (const rm of ["reduce", "no-preference"]) {
   const { ctx } = await kontekst({ viewport: { width: 1440, height: 900 }, reducedMotion: rm });
   const p = await ctx.newPage();
   await p.goto(BASE + "/");
-  await p.waitForTimeout(600);
-  zapisi("pokret", `prefers-reduced-motion: ${rm} → pozadina ${ocekivano ? "animira" : "mirna"}`, await p.evaluate(() => window.__vxPozadina && window.__vxPozadina.animira) === ocekivano);
+  const stanje = await p.evaluate(() => ({
+    canvas: !!document.querySelector("#pozadina"),
+    signatureScript: [...document.scripts].some(s => s.src.includes("potpis.js")),
+    bodyBackground: getComputedStyle(document.body).backgroundColor,
+  }));
+  zapisi("pozadina", rm + ": nema dekorativnog canvasa/skripta, topla crna pozadina",
+    !stanje.canvas && !stanje.signatureScript && stanje.bodyBackground === "rgb(17, 16, 15)", JSON.stringify(stanje));
   await ctx.close();
 }
-
 // ── Website V3: otkrivanje odeljaka — sa pokretom se sve otkrije, bez pokreta je odmah vidljivo ──
 for (const [rm, sPokretom] of [["no-preference", true], ["reduce", false]]) {
   const { ctx } = await kontekst({ viewport: { width: 1440, height: 900 }, reducedMotion: rm });

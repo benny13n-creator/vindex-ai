@@ -23,18 +23,16 @@ Jedini izuzetak su strukturne provere HTML-a (§4), koje po prirodi gledaju
 sadržaj odgovora — ali i one gledaju ono što je server STVARNO poslao.
 
 NS004 (founder direktiva „nema tvrdnje bez živog puta u proizvodu"): sajt je
-jedna početna strana u V2 identitetu. Marketinške stranice bez živog puta su
-povučene (301 na odgovarajući odeljak). Ugovori tih stranica (Beta forma, /web3
-ograde, devet stranica) prevedeni su u: povučena ruta preusmerava, njen stari
-sadržaj više nije dostupan, a početna ne ponavlja nijednu od tih tvrdnji.
+višestraničan, a funkcije u katalogu dolaze iz registra `site/funkcije.json`.
+Urednički paket uklanja rani pristup iz zajedničkog headera i footera, ali
+ostavlja postojeću `/beta` stranicu, prijavnu formu i njena obaveštenja.
+Ostale povučene adrese preusmeravaju na stranicu koja ih nasleđuje.
 Matrica tvrdnji: docs/ns004-site-claims.md.
 
-WEBSITE V2 (founder mandat „Website V2 Master Implementation“, 2026-10-20): sajt je
-ponovo višestraničan, ali svaka funkcija na njemu dolazi iz JEDNOG registra
-(`site/funkcije.json`) sa statusom i dokazom. Povučene adrese koje sada imaju
-stranicu (/kako-radi, /za-advokate, /bezbednost, /beta) to više nisu; ostale
-stare adrese preusmeravaju na stranicu koja ih nasleđuje. §9 meri ugovor sadržaja:
-javna stranica ne sme reći ni više ni manje od registra.
+WEBSITE V2 (founder mandat „Website V2 Master Implementation“, 2026-10-20):
+svaka funkcija na sajtu dolazi iz JEDNOG registra (`site/funkcije.json`) sa
+statusom i dokazom. §9 meri ugovor sadržaja: javna stranica ne sme reći ni više
+ni manje od registra.
 """
 import os
 import re
@@ -330,7 +328,7 @@ def test_nema_zabranjenih_generickih_ikona(klijent, ruta):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 5. KONVERZIJA — Beta je jedini poziv na akciju
+# 5. POZIVI — funkcionalnosti i postojeća prijava
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.parametrize("ruta,cilj", sorted(POVUCENE.items()))
@@ -348,12 +346,11 @@ def test_pocetna_ne_linkuje_povucene_stranice(klijent):
         assert f'href="{ruta}"' not in telo, f"početna linkuje povučenu stranicu {ruta}"
 
 
-def test_beta_forma_postoji_samo_na_stranici_beta(klijent):
-    """Website V2: jedna prijavna putanja — /beta, POST /waitlist/prijava (sajt.js).
-    Nijedna druga stranica nema formu."""
+def test_beta_forma_postoji_samo_na_beta_stranici(klijent):
+    """Urednička izmena ne menja svrhu ni obaveštenja postojeće prijave."""
     for ruta in STRANICE:
         ima = "<form" in _tekst(klijent, ruta)
-        assert ima == (ruta == "/beta"), f"{ruta}: forma {'postoji' if ima else 'ne postoji'}"
+        assert ima == (ruta == "/beta"), ruta
     telo = _tekst(klijent, "/beta")
     for polje in ('name="ime"', 'name="email"', 'name="firma"', 'name="telefon"', 'name="poruka"'):
         assert polje in telo, f"/beta nema polje {polje}"
@@ -477,13 +474,14 @@ def test_registracija_je_stvarno_otvorena(klijent):
 
 
 @pytest.mark.parametrize("ruta", STRANICE)
-def test_pozivi_na_akciju_vode_samo_na_beta_ili_prijavu(klijent, ruta):
-    """Website V2: primarni poziv je prijava za beta (/beta), sporedni je ulaz u
-    aplikaciju (/app). Nijedno dugme ne vodi nigde drugde. Bez obećanja
-    besplatnog ili automatskog naloga."""
+def test_pozivi_na_akciju_ne_dodaju_novi_kontakt_ili_beta_cta(klijent, ruta):
+    """Paket koristi odobrene navigacione ciljeve; /beta ostaje samo na svojoj stranici."""
     telo = _tekst(klijent, ruta)
     ulazi = set(re.findall(r'<a[^>]+class="dugme[^"]*"[^>]+href="([^"]+)"', telo))
-    assert ulazi <= {APP_ULAZ, "/beta"} and ulazi, f"{ruta}: pozivi na akciju vode na {ulazi}"
+    dozvoljeni = {APP_ULAZ, "/funkcionalnosti", "/kako-radi", "/beta"}
+    assert ulazi <= dozvoljeni, f"{ruta}: pozivi na akciju vode na {ulazi}"
+    if ruta == "/":
+        assert "/funkcionalnosti" in ulazi and "/beta" not in ulazi, "homepage CTA contract"
     vidljivo = _vidljivi_tekst(klijent, ruta).lower()
     for izraz in ("besplatno", "odmah dobijate nalog", "automatski nalog"):
         assert izraz not in vidljivo, f"početna obećava nalog: {izraz!r}"
@@ -683,6 +681,27 @@ def test_naslovi_i_opisi_su_jedinstveni_a_canonical_tacan(klijent):
         assert f'<meta property="og:url" content="https://vindex.rs{ruta}">' in telo
 
 
+def test_pocetna_copy_ne_sadrzi_neodobrene_promotivne_tvrdnje(klijent):
+    pocetna = _cist_tekst(klijent, "/")
+    assert re.search(r"<h1[^>]*>Pravo na dohvat ruke</h1>", _tekst(klijent, "/"))
+    assert pocetna.count("Pravo na dohvat ruke") == 1
+    zabranjeno = re.compile(r"\b(beta|rani pristup|early access|waitlist|uskoro dostupno|coming soon)\b", re.I)
+    assert not zabranjeno.search(pocetna), "homepage ne treba da promoviše rani pristup"
+
+def test_sajt_je_topla_crna_bez_dekorativne_pozadine(klijent):
+    for ruta in STRANICE:
+        telo = _tekst(klijent, ruta)
+        assert "<canvas" not in telo.lower(), ruta
+        assert "potpis.js" not in telo, ruta
+        assert 'content="#11100F"' in telo
+    stil = klijent.get("/v2/site/sajt.css").text
+    assert "--bg: #11100F" in stil and "--bg-sheet: #191715" in stil
+    assert "--line: #36312C" in stil and "--text-1: #F3EFE9" in stil
+    assert "--text-2: #BDB5AB" in stil
+    assert "#pozadina" not in stil and ".sajt.pokret .otkrij" in stil
+    assert "overflow-x: hidden" in stil
+
+
 def test_stil_skript_i_snimci_su_dostupni_bez_legacy_kesa(klijent):
     """Asseti sajta žive pod /v2/site/, koje legacy /sw.js preskače."""
     for put, tip in (("/v2/site/sajt.css", "text/css"), ("/v2/site/sajt.js", "javascript"),
@@ -696,6 +715,55 @@ def test_stare_adrese_koje_sada_imaju_stranicu_ne_preusmeravaju(klijent):
     for ruta in ("/kako-radi", "/za-advokate", "/bezbednost", "/beta"):
         r = klijent.get(ruta, follow_redirects=False)
         assert r.status_code == 200 and "<h1" in r.text, ruta
+
+
+def test_urednicki_copy_i_pocetna_demo_prikazi(klijent):
+    pocetna = _tekst(klijent, "/")
+    assert "Vindex je aplikacija za rad na advokatskim predmetima." in _cist_tekst(klijent, "/")
+    assert '<title>Vindex — aplikacija za advokate</title>' in pocetna
+    assert 'content="Dokumentacija predmeta, hronologija, rokovi, ročišta i nacrti podnesaka. Pogledajte funkcije i način rada u Vindexu."' in pocetna
+    assert len(re.findall(r'<figure class="snimak', pocetna)) == 3
+    assert pocetna.count("Prikaz sa izmišljenim podacima.") == 3
+    assert 'href="/funkcionalnosti#dokumenti"' in pocetna
+    assert 'href="/funkcionalnosti#dokazi"' in pocetna
+    assert 'href="/funkcionalnosti#rokovi"' in pocetna
+    funkcije = _cist_tekst(klijent, "/funkcionalnosti")
+    for naslov in ("Predmeti i klijenti", "Prijem i obrada dokumenata", "Tvrdnje, dokazi i izvori",
+                   "Pravna pitanja i znanje kancelarije", "Nacrti podnesaka i evidencija naplate",
+                   "Rokovi, ročišta i zadaci", "Pristup i obrada podataka"):
+        assert naslov in funkcije, naslov
+    ocekivano = {
+        "/": ("Pravo na dohvat ruke", "Vindex je aplikacija za rad na advokatskim predmetima. U okviru predmeta pregledate dokumentaciju, vodite beleške, rokove i ročišta, postavljate pravna pitanja i pripremate nacrte podnesaka."),
+        "/kako-radi": ("Rad u Vindexu", "Pregled rada sa predmetom: unos podataka, prijem dokumenata, analiza, rokovi i priprema nacrta."),
+        "/funkcionalnosti": ("Funkcionalnosti Vindexa", "Opisi su grupisani po poslu: predmeti i klijenti, dokumenti, analiza, pravna pitanja, nacrti, rokovi i naplata."),
+        "/za-advokate": ("Primer rada na predmetu", "Primer prikazuje rad na izmišljenom predmetu naknade štete, iz ugla advokata tužene strane."),
+    }
+    for ruta, (naslov, uvod) in ocekivano.items():
+        html = _tekst(klijent, ruta)
+        tekst = _cist_tekst(klijent, ruta)
+        assert f'<h1 id="naslov">{naslov}</h1>' in html, ruta
+        assert uvod in tekst, ruta
+    advokati = _cist_tekst(klijent, "/za-advokate")
+    assert "Dokumentacija, beleške i evidentirane radnje ostaju vezane za predmet." in advokati
+    assert "Klijent donosi tužbu" in advokati
+    kako = _cist_tekst(klijent, "/kako-radi")
+    assert "Provera sukoba obuhvata podatke uneti u Vindex, ne spoljne registre." in kako
+
+
+def test_zaglavlje_podnozje_prate_copy_bez_promocije_ranog_pristupa(klijent):
+    telo = _tekst(klijent, "/")
+    zaglavlje = re.search(r"<header.*?</header>", telo, flags=re.S).group(0)
+    podnozje = re.search(r"<footer.*?</footer>", telo, flags=re.S).group(0)
+    menu = re.findall(r'<nav aria-label="Glavna navigacija"><ul class="meni">(.*?)</ul>', zaglavlje, flags=re.S)[0]
+    assert [x[0] for x in re.findall(r'href="([^"]+)"[^>]*>([^<]+)', menu)] == [
+        "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost"
+    ]
+    assert 'href="/app"' in zaglavlje and "Prijava" in zaglavlje
+    assert "/beta" not in zaglavlje and "/kontakt" not in zaglavlje
+    assert "/beta" not in podnozje and "/kontakt" not in podnozje
+    assert "Vindex — aplikacija za rad na advokatskim predmetima." in _cist_tekst(klijent, "/")
+    for href in ("/privacy", "/terms", "/dpa", "/ai-disclosure", "/status"):
+        assert f'href="{href}"' in podnozje
 
 
 def test_beta_prijava_neuspeh_baze_nije_uspeh():
