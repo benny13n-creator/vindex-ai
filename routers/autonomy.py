@@ -57,6 +57,8 @@ def _ovlascen(request: Request) -> bool:
 async def cron_autonomy(request: Request):
     if not _ovlascen(request):
         raise HTTPException(status_code=401, detail="Neovlašćen pristup.")
+    from shared.ai_budget import sistemska as _ai_sistemska
+    _ai_sistemska('cron_autonomy')  # Early Access, Faza A: AI bez korisnika, u granicama i projektnom limitu
     from services import autonomy as au
     from workers.background_agents import run_autonomy_cycle
 

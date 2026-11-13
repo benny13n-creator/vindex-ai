@@ -1022,6 +1022,13 @@ async def _http_exception_boundary(request: Request, exc: StarletteHTTPException
     if exc.status_code < 500 or isinstance(exc, _Namerni):
         return await _starlette_http_exception_handler(request, exc)
 
+    # Early Access, Faza A: ruta je progutala odbijanje AI budžeta (`except Exception`
+    # → 500). Ništa nije poslato provajderu; korisnik dobija stvarni razlog.
+    from shared.ai_budget import zabelezeno_odbijanje as _ai_odbijanje
+    _odb = _ai_odbijanje()
+    if _odb is not None:
+        return JSONResponse(status_code=_odb.status, content={"detail": _odb.detalj})
+
     # Observability se NE sme izgubiti: original ide u postojeci logger, ne
     # klijentu. SERVER LOG != USER RESPONSE.
     logger.error(
@@ -1053,6 +1060,18 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 from shared.audit import AuditMiddleware
 app.add_middleware(AuditMiddleware)
+
+# Early Access, Faza A — AI budžet po operaciji (shared/ai_budget.py): svež držač
+# operacije po zahtevu i namirenje rezervacije na kraju. Odbijanje se diže PRE
+# slanja ijednog tokena provajderu i ide klijentu kao 4xx/503 sa kodom.
+from shared.ai_budget import AIBudzetMiddleware, AIBudzetOdbijen
+app.add_middleware(AIBudzetMiddleware)
+
+
+@app.exception_handler(AIBudzetOdbijen)
+async def _ai_budzet_odbijen(request: Request, exc: AIBudzetOdbijen) -> JSONResponse:
+    logger.info("[AI_BUDZET] odbijeno %s %s -> %d %s", request.method, request.url.path, exc.status, exc.kod)
+    return JSONResponse(status_code=exc.status, content={"detail": exc.detalj})
 
 # ─── User-level rate limiting (in-memory sliding window) ─────────────────────
 # Dopuna IP-based slowapi limitera: prati pozive po user_id
@@ -2055,6 +2074,8 @@ async def cron_daily(request: Request):
     # pozivan bez ikakve autentifikacije od bilo koga ko zna URL.
     if not cron_secret or x_secret != cron_secret:
         raise HTTPException(status_code=401, detail="Neovlašćen pristup.")
+    from shared.ai_budget import sistemska as _ai_sistemska
+    _ai_sistemska('cron_daily')  # Early Access, Faza A: AI bez korisnika, u granicama i projektnom limitu
 
     run_id = _uuid.uuid4().hex[:8]
     _now = _dt.now(_tz.utc)
@@ -3673,6 +3694,8 @@ async def test_pitanje(q: str, x_admin_key: str = Header(default="")):
     admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
     if not admin_key or x_admin_key != admin_key:
         raise HTTPException(status_code=404, detail="Not found")
+    from shared.ai_budget import sistemska as _ai_sistemska
+    _ai_sistemska('admin_test_pitanje')  # Early Access, Faza A: AI bez korisnika, u granicama i projektnom limitu
     from app.services.retrieve import retrieve_documents
     from main import _filtriraj_kontekst
     # BUG FIX (2026-07-24): retrieve_documents vraća (docs, retrieval_meta),
@@ -3704,6 +3727,8 @@ async def rag_test(q: str = "zakon o privrednim drustvima registracija", x_admin
     admin_key = os.getenv("ADMIN_DEBUG_KEY", "")
     if not admin_key or x_admin_key != admin_key:
         raise HTTPException(status_code=404, detail="Not found")
+    from shared.ai_budget import sistemska as _ai_sistemska
+    _ai_sistemska('admin_rag_test')  # Early Access, Faza A: AI bez korisnika, u granicama i projektnom limitu
 
     def _run():
         out: dict = {

@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from shared.deps import _audit, _get_supa
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.ai_budget import ocekivani_multiplikator
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from shared.cost import begin_cost_tracking, log_cost_to_db
@@ -239,6 +240,7 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
     uid = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     # Kapija stoji ISPRED audita, Pinecone dohvata, AI poziva i naplate.
     # Provera dužine ostaje iznad nje namerno: ona je čista, u-procesu validacija
     # ulaza bez ijednog čitanja podataka — isti redosled kao na orkestratoru, gde
@@ -287,6 +289,7 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
     uid = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)   # kapija pre svakog posla
     asyncio.create_task(_audit(uid, "litigation", ""))
     _audit_strategija_durably(uid, "litigation", req.predmet_id)
@@ -327,6 +330,7 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
     uid = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)   # kapija pre svakog posla
     asyncio.create_task(_audit(uid, "ai_sudija", ""))
     _audit_strategija_durably(uid, "ai_sudija", req.predmet_id)
@@ -382,6 +386,7 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
     uid = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     # KLASIFIKACIJA: primarni subjekt ovog modula je DOKUMENT koji je advokat
     # nalepio, ne predmet. Kontekst predmeta je zato DOPUNSKI (v. `dopunski=True`
     # u `strategija.due_diligence_analiza_sync`) — nikad ne postaje ono što se
@@ -427,6 +432,7 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
     uid = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     # KLASIFIKACIJA: kao i Due Diligence — recenzira se NACRT, ne predmet, pa je
     # kontekst dopunski. Dobitak je stvaran: „formalni nedostaci" i „kritične
     # greške" nacrta zavise od činjenica koje žive u spisu (sud, stranke,
@@ -470,6 +476,7 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Iskaz mora imati najmanje 50 karaktera.")
     uid = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     # KLASIFIKACIJA: subjekt je ISKAZ, ali je dobitak ovde najveći od svih 8.
     # `_WITNESS_SYSTEM` traži „neslaganja sa poznatim činjenicama" — a bez
     # konteksta predmeta model nije imao NIJEDNU poznatu činjenicu, pa je taj deo
@@ -513,6 +520,7 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 100 karaktera.")
     uid = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)   # kapija pre svakog posla
     asyncio.create_task(_audit(uid, "sudija_v2", ""))
     _audit_strategija_durably(uid, "sudija_v2", req.predmet_id)
@@ -874,6 +882,7 @@ async def strategija_v2_analiza(
     from openai import AsyncOpenAI
 
     uid   = user["user_id"]
+    ocekivani_multiplikator(1)  # jedan modul = bazna cena (consume multiplier=1), ne registarskih ×6 — rezerviše se PRE AI poziva
     email = user.get("email", "")
     # Kapija pre audita, pre AI poziva, pre naplate. Ovaj modul nema sync
     # funkciju u `strategija.py` — prompt gradi ovde — pa se `_gate_i_kontekst`

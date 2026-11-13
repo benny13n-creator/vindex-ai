@@ -736,6 +736,8 @@ async def briefing_cron(request: Request):
     # tiho preskočio proveru.
     if not cron_secret or x_secret != cron_secret:
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
+    from shared.ai_budget import sistemska as _ai_sistemska
+    _ai_sistemska('cron_briefing')  # Early Access, Faza A: AI bez korisnika, u granicama i projektnom limitu
 
     supa = _get_supa()
 

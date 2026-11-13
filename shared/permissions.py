@@ -120,6 +120,15 @@ async def _check_dependencies(feature: str) -> None:
             )
 
 
+def _vezi_ai_operaciju(user: dict, feature: str, is_founder: bool) -> None:
+    """Early Access, Faza A: posle USPEŠNE autorizacije, veže tekuću operaciju za nalog
+    (iz verifikovanog tokena) i funkciju. AI budžetska brana (shared/ai_budget.py) na
+    granici provajdera rezerviše budžet BAŠ ove funkcije pre prvog poziva. Ovo ne
+    menja nijednu odluku o pristupu — samo saopštava šta je već odlučeno."""
+    from shared.ai_budget import vezi
+    vezi(user["user_id"], user.get("email", ""), feature, founder=is_founder)
+
+
 class PermissionService:
     """Statička fabrika FastAPI dependency-ja — svaki poziv .require(feature_key)
     pravi NOVU dependency funkciju zatvorenu nad konkretnim feature-om."""
@@ -181,6 +190,7 @@ class PermissionService:
                 user["subscription_type"] = effective_tier(profil)
                 user["addons"] = profil.get("addons") or []
                 user["_feature_policy"] = policy
+                _vezi_ai_operaciju(user, feature, is_founder)
                 return user
 
             # 3) DEPRECATED / COMING_SOON — obični korisnici blokirani, founder prolazi.
@@ -200,6 +210,7 @@ class PermissionService:
                 user["subscription_type"] = "enterprise"
                 user["addons"] = []
                 user["_feature_policy"] = policy
+                _vezi_ai_operaciju(user, feature, is_founder)
                 return user
 
             # 5) Standardna tarifna/addon provera.
@@ -219,6 +230,7 @@ class PermissionService:
                 user["subscription_type"] = effective_tier(profil)
                 user["addons"] = user_addons
                 user["_feature_policy"] = policy
+                _vezi_ai_operaciju(user, feature, is_founder)
                 return user
 
             required_tier = policy.get("minimum_plan")
@@ -238,6 +250,7 @@ class PermissionService:
 
             user["addons"] = profil.get("addons") or []
             user["_feature_policy"] = policy
+            _vezi_ai_operaciju(user, feature, is_founder)
             return user
 
         return _dependency

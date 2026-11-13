@@ -18,6 +18,7 @@ from typing import Optional
 from shared.deps import _get_supa
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared.ai_budget import ocekivani_multiplikator
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
@@ -1505,6 +1506,9 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
         raise HTTPException(status_code=422, detail="Nacrt iz spisa predmeta izradite pojedinačno (savetnik za nacrte), "
                                                     "ne u paralelnoj analizi.")
     n_needed = len(agenti_ids)
+    # Gornja granica cene (svaki izabrani savetnik uspe) rezerviše se PRE prvog poziva modela; naplata posle je
+    # po stvarno isporučenom odgovoru (consume multiplier=len(_uspesni)), a neiskorišćen deo vraća kraj operacije.
+    ocekivani_multiplikator(n_needed)
 
     # Budžet PRE plaćenih poziva: bez ovoga bi korisnik sa nedovoljno kredita pokrenuo n modela, a naplata posle
     # njih bi pala sa 402 — rad urađen o trošku servisa, odgovori bačeni.
@@ -1718,6 +1722,9 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
         logger.info("[PIPELINE] idempotency pogodak uid=%s — vraćam prethodni rezultat, bez naplate", uid[:8])
         return {**_cached, "iz_kesa": True}
 
+    # Gornja granica (svaki korak isporuči) rezerviše se PRE prvog poziva modela; svaki korak (run_agent → consume)
+    # naplaćuje iz iste rezervacije, a neiskorišćen deo (prekid niza) vraća kraj operacije.
+    ocekivani_multiplikator(len(pipeline))
     # Budžet za CEO niz pre prvog plaćenog poziva (isti obrazac kao /run-parallel): bez ovoga bi korak 3 pao na 402
     # posle dva već plaćena koraka.
     try:

@@ -291,6 +291,8 @@ async def zakon_monitoring_cron(request: Request):
     # Fail CLOSED: prazan cron_secret vise ne otvara endpoint za sve.
     if not cron_secret or x_secret != cron_secret:
         raise HTTPException(status_code=403, detail="Neovlašćen pristup.")
+    from shared.ai_budget import sistemska as _ai_sistemska
+    _ai_sistemska('cron_zakon_monitoring')  # Early Access, Faza A: AI bez korisnika, u granicama i projektnom limitu
 
     supa = _get_supa()
     result = await _skeniraj_sl_glasnik(supa, dana_unazad=7)

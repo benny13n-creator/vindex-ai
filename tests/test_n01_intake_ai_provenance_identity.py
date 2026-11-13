@@ -45,6 +45,22 @@ USER_A = "11111111-1111-4111-8111-111111111111"
 USER_B = "22222222-2222-4222-8222-222222222222"
 
 
+
+# Early Access, Faza A (shared/ai_budget.py): AI budžetska brana sada traži rezervaciju
+# pre svakog poziva provajdera, a ovaj test nema bazu. Test meri provenance/firewall,
+# ne budžet — zato se zamenjuje SAMO rezervacija u bazi; brana (modeli, granice,
+# brojač pokušaja, provera identiteta) ostaje uključena. Budžet dokazuje
+# tests/test_ai_cost_protection.py.
+@pytest.fixture(autouse=True)
+def _ai_budzet_bez_baze(monkeypatch):
+    from unittest.mock import AsyncMock as _AM
+
+    import shared.ai_budget as _ab
+    from shared.usage import UsageService as _US
+    monkeypatch.setattr(_US, "rezervisi_za_operaciju", _AM(return_value=0))
+    monkeypatch.setattr(_ab, "rezervisi_realtime", _AM(return_value=None))
+    _ab._resetuj_projekat_za_test()
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"

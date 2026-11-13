@@ -1086,8 +1086,11 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
             # `ai_forensics.user_id` je NOT NULL i red je tiho propadao. Vlasnik je `events.user_id`
             # (pise ga samo server; RLS: samo service_role). Kontekst vazi samo za ovaj red i vraca
             # se i kad handler baci izuzetak; nevalidan identitet ostaje None, nikad prethodni.
-            with scoped_request_context(user_id=_vlasnik_dogadjaja(row.get("user_id")),
-                                        correlation_id=event.correlation_id):
+            # Early Access, Faza A: jedan događaj = jedna AI operacija vlasnika (rezervacija
+            # PRE prvog poziva provajdera, shared/ai_budget.py); bez vlasnika = sistemska.
+            from shared.ai_budget import operacija as _ai_operacija
+            _vlasnik = _vlasnik_dogadjaja(row.get("user_id"))
+            with scoped_request_context(user_id=_vlasnik, correlation_id=event.correlation_id),                     _ai_operacija(_vlasnik, sistemska=not _vlasnik, izvor="event_bus"):
                 await bus.publish_async(event)
             await _mark_dispatched(supa, row_id)
             dispatched += 1
