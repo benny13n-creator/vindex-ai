@@ -878,6 +878,28 @@ def test_pwa_versioned_icon_assets_are_served_as_sized_pngs(klijent):
         assert (int.from_bytes(r.content[16:20], "big"), int.from_bytes(r.content[20:24], "big")) == expected, ruta
 
 
+def test_pwa_maskable_icons_keep_full_logo_inside_central_circle(klijent):
+    from io import BytesIO
+    import math
+    from PIL import Image
+
+    for ruta, size in (("/static/icon-192-maskable-v6.png", 192), ("/static/icon-512-maskable-v6.png", 512)):
+        response = klijent.get(ruta)
+        assert response.status_code == 200
+        image = Image.open(BytesIO(response.content)).convert("RGB")
+        background = image.getpixel((0, 0))
+        center = (size - 1) / 2
+        foreground = [
+            (x, y)
+            for y in range(size)
+            for x in range(size)
+            if image.getpixel((x, y)) != background
+        ]
+        assert foreground, ruta
+        assert max(math.hypot(x - center, y - center) for x, y in foreground) <= size * 0.40, ruta
+        assert any(y > size * 0.60 for _, y in foreground), f"{ruta}: puni VINDEX natpis nedostaje"
+
+
 def test_public_pages_reference_new_favicon_and_apple_icon_without_manifest(klijent):
     for ruta in STRANICE:
         html = _tekst(klijent, ruta)
