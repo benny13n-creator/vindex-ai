@@ -200,7 +200,10 @@ def stranica(reg: dict, izvor: str, ruta: str, naslov: str, opis: str) -> str:
 <meta property="og:image" content="{DOMEN}/v2/site/snimci/registar.webp">
 <meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" href="/static/favicon-vindex-v5-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon-v6.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-vindex-v6-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-vindex-v6-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/static/favicon-vindex-v6-64.png">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
 <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
