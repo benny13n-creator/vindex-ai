@@ -104,7 +104,7 @@ for (const [ek, w, h] of EKRANI) {
     zapisi(g, "najmanji vidljiv tekst ≥ 12 px; tekst ≥ 4,5:1 na svojoj površini", r.najmanji >= 12 && losKontrast.length === 0,
       `min ${r.najmanji}px ${losKontrast.slice(0, 2).map(b => b.t + " " + kontrast(b.c, b.bg).toFixed(2)).join(" | ")}`);
     zapisi(g, "dugmad i polja visine ≥ 40 px", r.ciljevi.length === 0, r.ciljevi.join(","));
-    const dozvoljeniCta = ["/app", "/beta", "/funkcionalnosti", "/kako-radi"];
+    const dozvoljeniCta = ["/app", "/app?instaliraj=1", "/beta", "/funkcionalnosti", "/kako-radi"];
     zapisi(g, "postojeći i odobreni CTA ciljevi; bez beta promocije na početnoj", r.cta.every(x => dozvoljeniCta.includes(x)) && (put !== "/" || (r.cta.includes("/funkcionalnosti") && !r.cta.includes("/beta"))), r.cta.join(","));
     zapisi(g, "zajedničko zaglavlje i podnožje bez ranog pristupa", !r.zajednickiBeta);
     zapisi(g, "kanonski logo u izvornoj razmeri", r.logo.put === "/v2/site/brand/vindex-logo-final-tamna.png" && r.logo.nw === 398 && Math.abs(r.logo.w - r.logo.h * 398 / 287) <= 0.5);

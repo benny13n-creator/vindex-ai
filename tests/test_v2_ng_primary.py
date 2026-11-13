@@ -56,7 +56,7 @@ _LAZNO = {
     "FIELD_ENCRYPTION_KEY": "a" * 64, "FOUNDER_EMAILS": "ci@example.com", "PYTHONUTF8": "1",
 }
 APP = ["/app", "/app-legacy", "/app-legacy?posle=app", "/app-legacy?odjava=1", "/app?rezim=demo"]
-ASSETI = ["/v2/app/src/app.js", "/v2/app/src/runtime.js", "/v2/app/fonts/ibm-plex-sans/400.css", *("/v2/app/" + f for f in LOGO)]
+ASSETI = ["/v2/app/src/app.js", "/v2/app/src/runtime.js", "/v2/app/src/pwa-install.js", "/v2/app/fonts/ibm-plex-sans/400.css", *("/v2/app/" + f for f in LOGO)]
 SKRIVENO = ["/v2/app/tests/live-api.mjs", "/v2/app/package.json", "/v2/app/serve.mjs", "/v2/app/README.md", "/v2/app/index.html",
             "/v2/app/src/%2e%2e/serve.mjs", "/v2/app/brand/%2e%2e/package.json"]
 OSTALO = ["/", "/app-v2", "/sw.js", "/offline", "/static/vindex.js", "/static/sw.js", "/api/predmeti", "/v2/preview/"]
