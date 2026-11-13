@@ -962,12 +962,14 @@ def proveri_hitne_podsetnike(uid: str) -> dict:
 
 
 _PERIOD_HITNE_S = 600
+_DNEVNI_TERMIN_UTC_SAT = 8  # .github/workflows/email-cron.yml: 0 8 * * *
 
 
 def proveri_hitne_svima() -> dict:
     """Periodična hitna provera za SVE uključene profile (revizija S2-N F2/F3): ono što trajni okidač ili pozadinski
     zadatak nisu mogli da pošalju (prolazna greška baze/SMTP-a, restart, pauza koja je u međuvremenu ukinuta) šalje se
-    najkasnije u sledećem krugu — ne tek sledećeg dnevnog slanja. Isti ključevi rezervacije → nema duplikata; sigurno
+    najkasnije u sledećem krugu — ne tek sledećeg dnevnog slanja. Posle 08:00 UTC nadoknađuje i redovne pragove
+    ako GitHub cron nije pokrenut. Isti ključevi rezervacije → nema duplikata; sigurno
     nepredate poruke najviše _MAX_POKUSAJA puta; nepoznat ishod se ne ponavlja (D4)."""
     n = _novi_brojaci()
     if _podsetnici_pauzirani():
@@ -980,10 +982,18 @@ def proveri_hitne_svima() -> dict:
         profili = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute().data or []
         if not profili:
             return n
-        try:
-            dnevno_proslo = bool(supa.table(_TABELA_POKRETANJA).select("dan").eq("dan", danas.isoformat()).execute().data)
-        except Exception:
-            dnevno_proslo = True
+        # Termin je UTC kao i GitHub raspored; pragovi ostaju po beogradskom datumu.
+        # Pre termina samo stvarno dnevno pokretanje otvara redovne pragove.
+        termin = datetime(danas.year, danas.month, danas.day, _DNEVNI_TERMIN_UTC_SAT, tzinfo=timezone.utc)
+        dnevno_proslo = sada >= termin
+        if not dnevno_proslo:
+            try:
+                oznaka = supa.table(_TABELA_POKRETANJA).select("dan").eq("dan", danas.isoformat()).execute()
+                dnevno_proslo = bool(oznaka.data)
+            except Exception as exc:
+                # Greška oznake ne sme ni otvoriti redovne pragove ni sprečiti nezavisne hitne poruke.
+                logger.error("[EMAIL-HITNO] dnevna oznaka nije pročitana: %s", type(exc).__name__)
+                n["greske"] += 1
         emails = {str(p["id"]): p.get("email", "") for p in (supa.table("profiles").select("id, email").execute().data or [])}
         for profil in profili:
             _obradi_korisnika(supa, profil, emails.get(profil["user_id"], ""), danas, sada_bg, n,

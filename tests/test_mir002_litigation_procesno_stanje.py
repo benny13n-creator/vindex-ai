@@ -390,6 +390,35 @@ def test_h_nacrt_iz_spisa_zadrzava_svoj_blok_i_pravila(lit):
     assert PRAVILA_ZA_MODEL in sistem and PRAVILA_PROCESNOG_STANJA_SAVETNIKA not in sistem
 
 
+def test_litigation_u_stvarnom_pozivu_razlikuje_litispendenciju_i_presudjenu_stvar(lit):
+    k, _, pid, _, sn = lit
+    _pitaj(k, pid)
+    assert len(sn) == 1
+    sistem = sn[0]["system"]
+    assert "Litispendencija (ZPP čl. 203)" in sistem
+    assert "pravnosnažno presuđena stvar (ZPP čl. 359 st. 2)" in sistem
+    assert "čl. 208 st. 2" not in sistem
+
+
+def test_drafting_u_stvarnom_pozivu_razlikuje_osnov_i_pocetak_roka(lit):
+    k, _, pid, _, sn = lit
+    _pitaj(k, pid, agent="drafting")
+    assert len(sn) == 1
+    sistem = sn[0]["system"]
+    redovi = sistem.splitlines()
+    presuda = next(r for r in redovi if r.startswith("- **Žalba na presudu**"))
+    resenje = next(r for r in redovi if r.startswith("- **Žalba na rešenje**"))
+    odgovor = next(r for r in redovi if r.startswith("- **Odgovor na tužbu**"))
+
+    assert all(t in presuda for t in ("367", "15 dana", "dostavljanja", "izuzet"))
+    assert all(t in resenje for t in ("399", "402", "posebna žalba dozvoljena", "ako nema posebnog pravila"))
+    assert all(t in odgovor for t in ("297", "30 dana", "dostavljanja tužbe sa prilozima"))
+    assert "295-296 ZPP" not in sistem and "395 ZPP" not in sistem
+    assert "106 st. 1 t. 7 ZPP" not in sistem and "ZOIO čl. 35-52" not in sistem
+    assert "ZIO čl. 59" in sistem and "izuzetak iz čl. 60" in sistem
+    assert "datum isteka nije utvrđen" in sistem
+
+
 @pytest.mark.parametrize("agent", ["research", "intake", "deadline", "billing"])
 def test_i_ostali_savetnici_bez_bloka_i_bez_pravila(lit, agent):
     import routers.multi_agent as MA
@@ -476,3 +505,18 @@ def test_k_pipeline_bez_predmeta_bez_bloka(lit):
     assert r.status_code == 200, r.text
     [poruka] = sn[n:]
     assert NATPIS not in poruka["user"] and "PROCESNO STANJE IZ SPISA (obavezno" not in poruka["system"]
+
+
+def test_savetnik_za_rokove_salje_proverene_osnove_bez_izmisljanja_datuma(lit):
+    client, _db, predmet, _docs, captured = lit
+    _pitaj(client, predmet, agent="deadline")
+    assert len(captured) == 1
+    sistem = captured[0]["system"]
+    for pravilo in (
+        "čl. 367 ZPP", "8 dana", "čl. 479 ZPP", "čl. 110 ZPP",
+        "čl. 403 ZPP", "čl. 428 ZPP", "čl. 432 ZKP", "čl. 153 ZUP",
+        "čl. 145, 151 i 153 ZUP", "datum isteka i status nisu utvrđeni",
+    ):
+        assert pravilo in sistem
+    for pogresno in ("čl. 368 ZPP", "čl. 410 ZPP", "max 6 mes.", "čl. 147 ZUP", "čl. 148 ZUP"):
+        assert pogresno not in sistem
