@@ -1,14 +1,20 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v165";
+const CACHE_NAME = "vindex-v166";
 
 const PRECACHE = [
   "/offline",
   "/static/supabase.min.js",
-  "/static/manifest.json",
-  "/static/icon-192-v5.png",
-  "/static/icon-512-v5.png",
+  "/manifest.json",
+  "/static/icon-192-v6.png",
+  "/static/icon-512-v6.png",
+  "/static/icon-192-maskable-v6.png",
+  "/static/icon-512-maskable-v6.png",
+  "/static/apple-touch-icon-v6.png",
+  "/static/favicon-vindex-v6-16.png",
+  "/static/favicon-vindex-v6-32.png",
+  "/static/favicon-vindex-v6-64.png",
 ];
 
 // ── Install ──────────────────────────────────────────────────────────────────
@@ -24,7 +30,11 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys
+          .filter(k => k !== CACHE_NAME && /^vindex-v[0-9]+$/.test(k))
+          .map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -161,8 +171,8 @@ self.addEventListener("push", event => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Vindex AI", {
       body:    data.body || "Imate novi podsetnik",
-      icon:    "/static/icon-192-v5.png",
-      badge:   "/static/favicon-vindex-v5-64.png",
+      icon:    "/static/icon-192-v6.png",
+      badge:   "/static/favicon-vindex-v6-64.png",
       data:    { url: data.url || "/app" },
       actions: [
         { action: "otvori",  title: "Otvori" },

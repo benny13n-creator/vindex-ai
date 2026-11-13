@@ -813,3 +813,112 @@ def test_pre_auth_ulaz_cuva_ugovor_prijave_i_vodi_na_beta(klijent):
     assert re.search(r'<dialog id="auth-modal"[^>]+aria-labelledby="auth-modal-title"', telo)
     assert '<h2 id="auth-modal-title">Dobrodošli.</h2>' in telo
     assert "15 besplatnih upita.</div>" not in telo, "početni naslov modala prijave ne sme biti tekst registracije"
+
+
+
+# PWA brand assets — served-route contract for the approved Vindex lockup.
+_PWA_ICON_DIMS = {
+    "/static/icon-192-v6.png": (192, 192),
+    "/static/icon-512-v6.png": (512, 512),
+    "/static/icon-192-maskable-v6.png": (192, 192),
+    "/static/icon-512-maskable-v6.png": (512, 512),
+    "/static/apple-touch-icon-v6.png": (180, 180),
+    "/static/favicon-vindex-v6-16.png": (16, 16),
+    "/static/favicon-vindex-v6-32.png": (32, 32),
+    "/static/favicon-vindex-v6-64.png": (64, 64),
+}
+
+
+def _pwa_ikonice(html: str) -> list[str]:
+    return re.findall(r'<link\s+rel="(?:icon|apple-touch-icon|manifest)"[^>]*>', html)
+
+
+def test_pwa_app_and_legacy_reference_one_current_icon_set(klijent):
+    for ruta in ("/app", "/app-legacy"):
+        html = _tekst(klijent, ruta)
+        tags = _pwa_ikonice(html)
+        assert sum('rel="manifest"' in tag for tag in tags) == 1
+        assert sum('rel="apple-touch-icon"' in tag for tag in tags) == 1
+        assert sum('rel="icon"' in tag for tag in tags) == 3
+        assert "/manifest.json" in tags[0]
+        assert "/static/apple-touch-icon-v6.png" in html
+        assert all(f"/static/favicon-vindex-v6-{n}.png" in html for n in (16, 32, 64))
+        assert "v5" not in " ".join(tags)
+        hrefs = [re.search(r'href="([^"]+)"', tag).group(1) for tag in tags]
+        assert len(hrefs) == len(set(hrefs)), f"{ruta}: duple icon reference"
+
+
+def test_pwa_manifest_uses_versioned_lockup_and_keeps_install_identity(klijent):
+    r = klijent.get("/manifest.json")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/manifest+json")
+    manifest = json.loads(r.text)
+    assert (manifest["name"], manifest["short_name"], manifest["start_url"], manifest["scope"]) == (
+        "Vindex AI", "Vindex", "/app", "/"
+    )
+    assert "id" not in manifest
+    assert { (x["sizes"], x["purpose"], x["src"]) for x in manifest["icons"] } == {
+        ("192x192", "any", "/static/icon-192-v6.png"),
+        ("192x192", "maskable", "/static/icon-192-maskable-v6.png"),
+        ("512x512", "any", "/static/icon-512-v6.png"),
+        ("512x512", "maskable", "/static/icon-512-maskable-v6.png"),
+    }
+    assert all(
+        icon["src"] == "/static/icon-192-v6.png"
+        for shortcut in manifest["shortcuts"] for icon in shortcut["icons"]
+    )
+
+
+def test_pwa_versioned_icon_assets_are_served_as_sized_pngs(klijent):
+    for ruta, expected in _PWA_ICON_DIMS.items():
+        r = klijent.get(ruta)
+        assert r.status_code == 200, ruta
+        assert r.headers["content-type"].split(";")[0] == "image/png", ruta
+        assert r.content[:8] == b"\x89PNG\r\n\x1a\n", ruta
+        assert (int.from_bytes(r.content[16:20], "big"), int.from_bytes(r.content[20:24], "big")) == expected, ruta
+
+
+def test_pwa_maskable_icons_keep_full_logo_inside_central_circle(klijent):
+    from io import BytesIO
+    import math
+    from PIL import Image
+
+    for ruta, size in (("/static/icon-192-maskable-v6.png", 192), ("/static/icon-512-maskable-v6.png", 512)):
+        response = klijent.get(ruta)
+        assert response.status_code == 200
+        image = Image.open(BytesIO(response.content)).convert("RGB")
+        background = image.getpixel((0, 0))
+        center = (size - 1) / 2
+        foreground = [
+            (x, y)
+            for y in range(size)
+            for x in range(size)
+            if image.getpixel((x, y)) != background
+        ]
+        assert foreground, ruta
+        assert max(math.hypot(x - center, y - center) for x, y in foreground) <= size * 0.40, ruta
+        assert any(y > size * 0.60 for _, y in foreground), f"{ruta}: puni VINDEX natpis nedostaje"
+
+
+def test_public_pages_reference_new_favicon_and_apple_icon_without_manifest(klijent):
+    for ruta in STRANICE:
+        html = _tekst(klijent, ruta)
+        tags = _pwa_ikonice(html)
+        assert sum('rel="apple-touch-icon"' in tag for tag in tags) == 1, ruta
+        assert sum('rel="icon"' in tag for tag in tags) == 3, ruta
+        assert not any('rel="manifest"' in tag for tag in tags), ruta
+        assert all(f"/static/favicon-vindex-v6-{n}.png" in html for n in (16, 32, 64)), ruta
+        assert "/static/apple-touch-icon-v6.png" in html, ruta
+        assert "v5" not in " ".join(tags), ruta
+
+
+def test_pwa_service_worker_updates_assets_without_clearing_other_origin_caches(klijent):
+    r = klijent.get("/sw.js")
+    assert r.status_code == 200
+    sw = r.text
+    assert 'const CACHE_NAME = "vindex-v166";' in sw
+    assert '"/manifest.json"' in sw
+    for ruta in _PWA_ICON_DIMS:
+        assert f'"{ruta}"' in sw
+    assert "k !== CACHE_NAME && /^vindex-v[0-9]+$/.test(k)" in sw
+    assert "keys.filter(k => k !== CACHE_NAME)" not in sw
