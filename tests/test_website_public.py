@@ -848,6 +848,22 @@ def test_pwa_app_and_legacy_reference_one_current_icon_set(klijent):
         assert len(hrefs) == len(set(hrefs)), f"{ruta}: duple icon reference"
 
 
+def test_pwa_v2_primary_app_route_references_one_current_icon_set(klijent, monkeypatch):
+    monkeypatch.setattr(api, "_V2_NG_PRIMARNI_HTML", api._v2_ng_primarni_html("icon-test"))
+    response = klijent.get("/app")
+    assert response.status_code == 200
+    html = response.text
+    tags = _pwa_ikonice(html)
+    assert sum('rel="manifest"' in tag for tag in tags) == 1
+    assert sum('rel="apple-touch-icon"' in tag for tag in tags) == 1
+    assert sum('rel="icon"' in tag for tag in tags) == 3
+    assert "/manifest.json" in tags[0]
+    assert "/static/apple-touch-icon-v6.png" in html
+    assert all(f"/static/favicon-vindex-v6-{n}.png" in html for n in (16, 32, 64))
+    hrefs = [re.search(r'href="([^"]+)"', tag).group(1) for tag in tags]
+    assert len(hrefs) == len(set(hrefs))
+
+
 def test_pwa_manifest_uses_versioned_lockup_and_keeps_install_identity(klijent):
     r = klijent.get("/manifest.json")
     assert r.status_code == 200
