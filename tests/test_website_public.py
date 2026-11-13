@@ -696,8 +696,8 @@ def test_sajt_je_topla_crna_bez_dekorativne_pozadine(klijent):
         assert 'content="#11100F"' in telo
     stil = klijent.get("/v2/site/sajt.css").text
     assert "--bg: #11100F" in stil and "--bg-sheet: #191715" in stil
-    assert "--line: #36312C" in stil and "--text-1: #F3EFE9" in stil
-    assert "--text-2: #BDB5AB" in stil
+    assert "--line: #36312C" in stil
+    assert "--bg: #f2eee6" in stil and "--text-1: #141414" in stil
     assert "#pozadina" not in stil and ".sajt.pokret .otkrij" in stil
     assert "overflow-x: hidden" in stil
 

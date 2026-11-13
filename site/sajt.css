@@ -372,25 +372,57 @@ body.sajt {
   .sajt .kartica:hover, .sajt .dugme--istaknuto:hover, .sajt .istaknuto:hover .snimak__okvir { transform: none; }
 }
 
-/* Javne stranice koriste toplu crnu; pravila su ograničena na body.sajt. */
+/* Javne stranice: topla crna samo u tamnim delovima; sadržajni odeljci ostaju svetli. */
 :root {
   --bg: #11100F; --bg-sheet: #191715; --bg-panel: #201e1b; --bg-hover: #27231f; --bg-selected: #302b25; --bg-input: #151311;
   --line: #36312C; --line-strong: #514940;
 }
+.sajt .zaglavlje { background: rgba(17, 16, 15, 0.97); }
 .sajt .odeljak:not(.odeljak--zavrsni) {
-  --bg: #11100F; --bg-sheet: #191715; --bg-panel: #201e1b; --bg-hover: #27231f; --bg-selected: #302b25; --bg-input: #151311;
-  --line: #36312C; --line-strong: #514940;
-  --text-1: #F3EFE9; --text-2: #BDB5AB; --text-3: #A79D92;
-  --accent: #7aa2dc; --accent-strong: #98b8e8; --accent-quiet: rgba(122, 162, 220, 0.12); --focus: #98b8e8;
-  --ok: #8fb59a; --ceka: #c9ad72; --zatvoreno: #a79d92; --greska: #e09a8f;
-  --demo-bg: rgba(201, 173, 114, 0.10); --demo-line: rgba(201, 173, 114, 0.32); --demo-text: #d4bb86;
-  background: var(--bg); color: var(--text-1); color-scheme: dark;
+  --bg: #f2eee6; --bg-sheet: #faf8f3; --bg-panel: #fffdf8; --bg-hover: #e8e3d8; --bg-selected: #e2dccf; --bg-input: #fffdf9;
+  --line: #ddd6c9; --line-strong: #c3bbab;
+  --text-1: #141414; --text-2: #3f3c36; --text-3: #5c574e;
+  --accent: #3a63a0; --accent-strong: #2b5290; --accent-quiet: rgba(58, 99, 160, 0.10); --focus: #2b5290;
+  --ok: #3f6b4c; --ceka: #7a5b1e; --zatvoreno: #5c574e; --greska: #9a3b2e;
+  --demo-bg: rgba(122, 91, 30, 0.08); --demo-line: rgba(122, 91, 30, 0.35); --demo-text: #6b4f18;
+  background: var(--bg); color: var(--text-1); color-scheme: light;
 }
+.sajt .odeljak.odeljak--tih:not(.odeljak--zavrsni) { --bg: #eae5da; --bg-hover: #e0dacd; background: var(--bg); }
 .sajt .odeljak--zavrsni { background: var(--bg); }
 .sajt .podnozje { background: var(--bg); border-top: 1px solid var(--line); }
 .sajt .odeljak:not(.odeljak--zavrsni) .kartica { background: var(--bg-sheet); }
-.sajt .odeljak--tih { background: var(--bg-sheet); }
-.sajt .zaglavlje .okvir { max-width: none; }
+.sajt .odeljak:not(.odeljak--zavrsni) .kartica:hover { border-color: rgba(43, 82, 144, 0.45); background: var(--bg-panel); }
+.sajt .odeljak:not(.odeljak--zavrsni) .ko--potvrda { border-color: rgba(122, 91, 30, 0.45); }
+.sajt .odeljak:not(.odeljak--zavrsni) .ko--advokat { border-color: rgba(63, 107, 76, 0.45); }
+.sajt .odeljak:not(.odeljak--zavrsni) .snimak__okvir { border-color: #1f1f1f; }
+.sajt .odeljak:not(.odeljak--zavrsni) .istaknuto:hover .snimak__okvir { box-shadow: 0 24px 60px -30px rgba(20, 20, 20, 0.45); }
+.sajt .odeljak:not(.odeljak--zavrsni) .dugme--istaknuto:hover { box-shadow: 0 10px 30px -14px rgba(20, 20, 20, 0.5); }
+
+/* Desktop header: logo levo, navigacija centrirana, prijava desno. */
+.sajt .zaglavlje .zaglavlje__unutrasnji {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; gap: 20px; min-height: 64px;
+  width: 100%; max-width: none; padding-inline: clamp(20px, 2vw, 40px);
+}
+.sajt .zaglavlje .logo { grid-column: 1; grid-row: 1; justify-self: start; }
+.sajt .zaglavlje .meni { grid-column: 2; grid-row: 1; justify-self: center; margin: 0; }
+.sajt .zaglavlje .zaglavlje__akcije { grid-column: 3; grid-row: 1; justify-self: end; }
+
 @media (max-width: 980px) {
-  .sajt .zaglavlje .zaglavlje__unutrasnji { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .sajt .zaglavlje .meni,
+  .sajt .zaglavlje .zaglavlje__unutrasnji > nav,
+  .sajt .zaglavlje .zaglavlje__akcije { display: none; }
+  .sajt .zaglavlje .zaglavlje__unutrasnji {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .sajt .zaglavlje .meni-mob { display: block; grid-column: 2; grid-row: 1; justify-self: end; margin: 0; }
+  .sajt .meni-mob__panel {
+    position: fixed; top: 65px; left: 0; right: 0; bottom: 0; z-index: 6;
+    background: var(--bg); border-bottom: 0;
+    padding: 12px var(--pad) calc(24px + env(safe-area-inset-bottom));
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    overflow-y: auto; overscroll-behavior: contain;
+  }
 }
