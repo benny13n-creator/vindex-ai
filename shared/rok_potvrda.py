@@ -63,10 +63,24 @@ AKCIJA_ODBIJANJE = "rok_odbijen"
 RESURS = "rok"
 
 
-async def potvrdi_rok(rok_id: str, user_id: str, *, napomena: Optional[str] = None) -> bool:
+class IshodKapijePotvrde(Exception):
+    """Expected outcome of the transactional S08 audit guard."""
+
+
+async def potvrdi_rok(rok_id: str, user_id: str, *, napomena: Optional[str] = None,
+                      ponovni_pregled: Optional[bool] = None) -> bool:
     """Advokat preuzima odgovornost za AI opažen rok. Tek posle ovoga rok sme
     da pokrene podsetnik/notifikaciju."""
-    return await _zapisi(AKCIJA_POTVRDA, rok_id, user_id, napomena)
+    try:
+        return await _zapisi(AKCIJA_POTVRDA, rok_id, user_id, napomena, bool(ponovni_pregled))
+    except Exception as exc:
+        code = getattr(exc, "code", None)
+        if code in {"P0801", "P0802", "P0804"}:
+            if ponovni_pregled is None:
+                # Correction callers use the existing success/failure contract.
+                return False
+            raise IshodKapijePotvrde(code) from exc
+        raise
 
 
 async def odbij_rok(rok_id: str, user_id: str, *, napomena: Optional[str] = None) -> bool:
@@ -74,11 +88,15 @@ async def odbij_rok(rok_id: str, user_id: str, *, napomena: Optional[str] = None
     return await _zapisi(AKCIJA_ODBIJANJE, rok_id, user_id, napomena)
 
 
-async def _zapisi(akcija: str, rok_id: str, user_id: str, napomena: Optional[str]) -> bool:
+async def _zapisi(akcija: str, rok_id: str, user_id: str, napomena: Optional[str],
+                  ponovni_pregled: bool = False) -> bool:
     from shared.audit_immutable import log_action
+    metadata = {"napomena": napomena} if napomena else {}
+    if ponovni_pregled:
+        metadata["ponovni_pregled"] = True
     zapis = await log_action(
         akcija, user_id=user_id, resource_type=RESURS, resource_id=str(rok_id),
-        metadata={"napomena": napomena} if napomena else None,
+        metadata=metadata or None,
     )
     if zapis is None:
         # `log_action` vraća None i kada akcija nije u `AUDITABLE_ACTIONS`.
