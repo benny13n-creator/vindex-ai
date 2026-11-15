@@ -49,7 +49,7 @@
   /* OCR001: PRIKACENO · U_TOKU · NEPOTPUNO · NIJE_PRIKACENO (routers/smart_intake.py::_stanje_prikacivanja). Server bez
    * tog polja (pre OCR001): `predmet_id` je tada bio jedini znak. */
   var PRIKACIVANJA = { PRIKACENO: 1, U_TOKU: 1, NEPOTPUNO: 1, NIJE_PRIKACENO: 1 };
-  function prikacivanje(j) { var s = tekst(j && j.prikacivanje); return PRIKACIVANJA[s] ? s : (j && j.predmet_id ? "PRIKACENO" : "NIJE_PRIKACENO"); }
+  function prikacivanje(j) { var s = tekst(j && j.prikacivanje); return PRIKACIVANJA[s] ? s : "NEPOZNATO"; }
   function ispravanId(v) { return /^[A-Za-z0-9_-]{1,64}$/.test(tekst(v)); }
   function procenat(p) { var n = Number(p); return Number.isFinite(n) ? Math.round(n * 100) + "%" : "—"; }
   function nazivPolja(t) { return NAZIVI.poljePodatka(t); }
@@ -63,11 +63,84 @@
     var d = root.document, $ = function (id) { return d.getElementById(P === "pd" ? id : P + id.slice(2)); };
     var sesija = o.sesija, api = o.api, osvezi = o.osvezi || function () {}, naOtvoren = o.naOtvoren || function () {};
     var trenutni = null, gen = 0, poslovi = [], saljem = false;
+    var NASTAVAK_PREFIX = "vindex:smart-intake:resume:v1:";
+
+    function kljucNastavka(korisnik, predmet) {
+      return NASTAVAK_PREFIX + encodeURIComponent(korisnik) + ":" + encodeURIComponent(predmet);
+    }
+    function procitajNastavak(korisnik, predmet) {
+      var sirovo;
+      try { sirovo = root.sessionStorage.getItem(kljucNastavka(korisnik, predmet)); }
+      catch (e) { return { ok: false, kod: "nedostupan" }; }
+      if (sirovo === null) return { ok: true, poslovi: [] };
+      var zapis;
+      try { zapis = JSON.parse(sirovo); } catch (e) { return { ok: false, kod: "neispravan" }; }
+      if (!zapis || typeof zapis !== "object" || Array.isArray(zapis)
+          || Object.keys(zapis).sort().join(",") !== "korisnik,poslovi,predmet_id,verzija"
+          || zapis.verzija !== 1 || zapis.korisnik !== korisnik || zapis.predmet_id !== predmet
+          || !Array.isArray(zapis.poslovi) || zapis.poslovi.some(function (id) { return typeof id !== "string" || id !== tekst(id) || !ispravanId(id); }))
+        return { ok: false, kod: "neispravan" };
+      var jedinstveni = [];
+      zapis.poslovi.forEach(function (id) { if (jedinstveni.indexOf(id) < 0) jedinstveni.push(id); });
+      return { ok: true, poslovi: jedinstveni };
+    }
+    function sacuvajNastavak(ids) {
+      if (P !== "pd" || !ids.length || !trenutni || !trenutni.id) return true;
+      var s = sesija.stanje();
+      if (s.stanje !== sesija.STANJA.PRIJAVLJEN || s.korisnik !== trenutni.korisnik) return false;
+      var prethodno = procitajNastavak(trenutni.korisnik, trenutni.id);
+      if (!prethodno.ok && prethodno.kod === "nedostupan") return false;
+      var svi = prethodno.ok ? prethodno.poslovi.slice() : [];
+      ids.forEach(function (id) { if (ispravanId(id) && svi.indexOf(id) < 0) svi.push(id); });
+      try {
+        root.sessionStorage.setItem(kljucNastavka(trenutni.korisnik, trenutni.id), JSON.stringify({
+          verzija: 1, korisnik: trenutni.korisnik, predmet_id: trenutni.id, poslovi: svi
+        }));
+        return true;
+      } catch (e) { return false; }
+    }
+    function ukloniNastavakPosla(id) {
+      if (P !== "pd" || !trenutni || !trenutni.id) return;
+      var prethodno = procitajNastavak(trenutni.korisnik, trenutni.id);
+      if (!prethodno.ok) return;
+      var ostali = prethodno.poslovi.filter(function (x) { return x !== id; });
+      if (ostali.length === prethodno.poslovi.length) return;
+      try {
+        var storage = root.sessionStorage, key = kljucNastavka(trenutni.korisnik, trenutni.id);
+        if (ostali.length) storage.setItem(key, JSON.stringify({ verzija: 1, korisnik: trenutni.korisnik, predmet_id: trenutni.id, poslovi: ostali }));
+        else storage.removeItem(key);
+      } catch (e) {}
+    }
+    function ukloniNastavkeKorisnika(korisnik) {
+      if (P !== "pd" || !ispravanId(korisnik)) return;
+      try {
+        var storage = root.sessionStorage, pocetak = NASTAVAK_PREFIX + encodeURIComponent(korisnik) + ":", kljucevi = [];
+        for (var i = 0; i < storage.length; i++) {
+          var key = storage.key(i);
+          if (key && key.indexOf(pocetak) === 0) kljucevi.push(key);
+        }
+        kljucevi.forEach(function (key) { storage.removeItem(key); });
+      } catch (e) {}
+    }
+    function obnoviNastavak() {
+      if (P !== "pd" || !trenutni || !trenutni.id) return;
+      var s = sesija.stanje();
+      if (s.stanje !== sesija.STANJA.PRIJAVLJEN || !ispravanId(s.korisnik) || s.korisnik !== trenutni.korisnik) return;
+      var zapis = procitajNastavak(trenutni.korisnik, trenutni.id);
+      if (!zapis.ok) {
+        poruka("pd-poruka", "nepoznato", "Nastavak poslova nije mogao da se učita. Proverite prijavu i stanje predmeta.");
+        return;
+      }
+      zapis.poslovi.forEach(function (id) { dodajPosao(id, "", false, true); });
+    }
+    function upozorenjeNastavka() {
+      return "Prikaz poslova nije sačuvan u ovoj kartici. Ostanite na ovoj stranici da biste pratili obradu.";
+    }
 
     function el(tag, cls, t) { var e = d.createElement(tag); if (cls) e.className = cls; if (t != null) e.textContent = t; return e; }
     function poruka(id, st, t) { var n = $(id); if (!st) { n.hidden = true; n.textContent = ""; delete n.dataset.stanje; return; } n.hidden = false; n.dataset.stanje = st; n.textContent = t; }
-    function zivi(p) { return !!trenutni && p.gen === gen && sesija.stanje().korisnik === trenutni.korisnik; }
-    function zaustaviPracenje(p) { if (p.tajmer) { clearTimeout(p.tajmer); p.tajmer = null; } if (p.k) { p.k.abort(); p.k = null; } }
+    function zivi(p) { var s = sesija.stanje(); return !!trenutni && p.gen === gen && s.stanje === sesija.STANJA.PRIJAVLJEN && s.korisnik === trenutni.korisnik; }
+    function zaustaviPracenje(p) { if (p.tajmer) { clearTimeout(p.tajmer); p.tajmer = null; } if (p.k) { p.k.abort(); p.k = null; } p.radiStatusa = false; }
 
     function ocisti() {
       gen++;
@@ -105,22 +178,31 @@
       }
       if (!r.podaci) { poruka("pd-poruka", "nepoznato", "Fajlovi su primljeni, ali odgovor nije mogao da se pročita. Ponovo otpremite iste fajlove da biste videli njihove poslove."); return; }
       $("pd-forma").reset();
-      var neuspeli = [];
+      var neuspeli = [], prihvaceni = [];
       r.podaci.rezultati.forEach(function (x) {
-        if (x && x.ok && ispravanId(x.job_id)) dodajPosao(tekst(x.job_id), tekst(x.filename), !!x.already_submitted);
-        else neuspeli.push(tekst(x && x.filename) + ": " + (tekst(x && x.greska) || "nije primljen"));
+        if (x && x.ok && ispravanId(x.job_id)) {
+          var id = tekst(x.job_id);
+          if (!prihvaceni.some(function (q) { return q.id === id; })) prihvaceni.push({ id: id, ime: tekst(x.filename), vecPoslat: !!x.already_submitted });
+        } else neuspeli.push(tekst(x && x.filename) + ": " + (tekst(x && x.greska) || "nije primljen"));
       });
+      /* Evidencija se upisuje pre prvog statusnog GET-a; čuva samo identifikatore. */
+      var nastavakSacuvan = sacuvajNastavak(prihvaceni.map(function (x) { return x.id; }));
+      prihvaceni.forEach(function (x) { dodajPosao(x.id, x.ime, x.vecPoslat, false); });
       var delovi = [];
       if (neuspeli.length) delovi.push("Nije primljeno — " + neuspeli.join("; ") + ".");
       if (r.podaci.nastavlja && Array.isArray(r.podaci.preostali_fajlovi) && r.podaci.preostali_fajlovi.length)
         delovi.push("Server je obradio deo fajlova; ponovo otpremite preostale: " + r.podaci.preostali_fajlovi.map(tekst).join(", ") + ".");
-      poruka("pd-poruka", delovi.length ? "greska" : "uspeh", delovi.length ? delovi.join(" ") : "Dokumenti su primljeni i obrađuju se. Obrada se nastavlja na serveru i ako napustite ovu stranicu.");
+      if (P === "pd" && prihvaceni.length && !nastavakSacuvan) delovi.push(upozorenjeNastavka());
+      var porukaStanje = neuspeli.length || (r.podaci.nastavlja && r.podaci.preostali_fajlovi && r.podaci.preostali_fajlovi.length)
+        ? "greska" : (!nastavakSacuvan ? "nepoznato" : "uspeh");
+      poruka("pd-poruka", porukaStanje, delovi.length ? delovi.join(" ") : "Dokumenti su primljeni i obrađuju se. Obrada se nastavlja na serveru i ako napustite ovu stranicu.");
     }
 
     /* ── Posao ── */
-    function dodajPosao(id, ime, vecPoslat) {
-      if (poslovi.some(function (p) { return p.id === id; })) return;
-      var p = { id: id, ime: ime, vecPoslat: vecPoslat, gen: gen, od: Date.now(), podaci: null, tajmer: null, k: null, radi: false, li: el("li", "intake") };
+    function dodajPosao(id, ime, vecPoslat, obnovljen) {
+      if (!ispravanId(id) || poslovi.some(function (p) { return p.id === id; })) return;
+      var p = { id: id, ime: ime, vecPoslat: vecPoslat, obnovljen: obnovljen === true, gen: gen, od: Date.now(), podaci: null,
+        tajmer: null, k: null, radi: false, radiStatusa: false, pracenjeZaustavljeno: false, li: el("li", "intake") };
       p.li.dataset.posao = id;
       poslovi.push(p);
       $("pd-poslovi").append(p.li);
@@ -132,26 +214,30 @@
      * pregled, prikačivanje) i dalje pokreće jedno sveže čitanje i kad je rok prošao. */
     function zakazi(p, ms, napomena) {
       if (Date.now() + ms - p.od > NAJDUZE_MS) {
-        prikazi(p, (napomena ? napomena + " " : "") + "Praćenje je zaustavljeno posle 5 minuta. Obrada se nastavlja na serveru — ponovo otpremite isti fajl da biste videli njen ishod.");
+        p.pracenjeZaustavljeno = true;
+        prikazi(p, (napomena ? napomena + " " : "") + "Praćenje je zaustavljeno posle 5 minuta. Obrada se nastavlja na serveru; možete ručno proveriti stanje.");
         return;
       }
       if (napomena) prikazi(p, napomena);
       p.tajmer = setTimeout(function () { prati(p); }, ms);
     }
 
-    async function prati(p) {
+    async function prati(p, rucno) {
+      if (rucno && p.radiStatusa) return;
       zaustaviPracenje(p);
       if (!zivi(p)) return;
+      p.radiStatusa = true;
       var k = p.k = new AbortController(), istekao = false;
       var rok = setTimeout(function () { istekao = true; k.abort(); }, ZAHTEV_MS);
       var r = await api.get("/api/smart-intake/jobs/" + encodeURIComponent(p.id), { token: sesija.token(), signal: k.signal,
         oblik: function (x) { return x.job && typeof x.job.status === "string" && Array.isArray(x.entiteti); } });
       clearTimeout(rok);
       if (!zivi(p) || p.k !== k) return;                       // novo čitanje ili gašenje praćenja je preuzelo posao
-      p.k = null;
+      p.k = null; p.radiStatusa = false;
       if (!r.ok) {
         var g = r.greska || {};
         if (g.kod === "ABORTED" && !istekao) return;
+        if (g.kod === "NOT_FOUND") { ukloniNastavakPosla(p.id); p.podaci = null; p.ime = ""; p.pracenjeZaustavljeno = false; }
         if (KONACNE_GRESKE[g.kod]) { p.greske = 0; prikazi(p, KONACNE_GRESKE[g.kod]); return; }
         p.greske = (p.greske || 0) + 1;
         zakazi(p, cekanjePosleGreske(g, p.greske), g.kod === "RATE_LIMITED"
@@ -161,18 +247,37 @@
       }
       p.greske = 0;
       p.podaci = r.podaci;
+      if (p.obnovljen) {
+        var nazivSaServera = tekst(p.podaci.job.original_filename);
+        if (nazivSaServera) p.ime = nazivSaServera;
+        p.obnovljen = false;
+      }
       if (p.otvara) usvojiIliOslobodi(p);
       else if (p.usvojen && prikacivanje(p.podaci.job) !== "U_TOKU") {
         p.usvojen = false;
         var mu = PORUKE_USVOJENOG[prikacivanje(p.podaci.job)];
         if (mu) javi(p, mu[0], mu[1]);
       }
-      var st = tekst(p.podaci.job.status);
-      if (ZAVRSNA[st] && prikacivanje(p.podaci.job) !== "U_TOKU") { prikazi(p, null); return; }
+      var st = tekst(p.podaci.job.status), signalPrikacivanja = prikacivanje(p.podaci.job);
+      if (signalPrikacivanja === "PRIKACENO" && ispravanId(p.podaci.job.predmet_id)) ukloniNastavakPosla(p.id);
+      if (ZAVRSNA[st] && signalPrikacivanja !== "U_TOKU") {
+        p.pracenjeZaustavljeno = signalPrikacivanja === "NEPOZNATO"
+          || (signalPrikacivanja === "PRIKACENO" && !ispravanId(p.podaci.job.predmet_id));
+        prikazi(p, null); return;
+      }
       prikazi(p, null);
       zakazi(p, RAZMAK_MS, null);
     }
 
+    function dodajRucnuProveru(akcije, p, j) {
+      var pr = j ? prikacivanje(j) : "";
+      if (p.pracenjeZaustavljeno || pr === "NEPOZNATO" || (pr === "PRIKACENO" && !ispravanId(j.predmet_id))) {
+        akcije.append(dugme("Proveri stanje obrade", "text-btn", function (b) {
+          if (!p.radiStatusa && zivi(p)) { b.disabled = true; prati(p, true); }
+        }));
+        akcije.lastChild.disabled = !!p.radiStatusa;
+      }
+    }
     function prikazi(p, napomena) {
       var li = p.li, x = p.podaci;
       li.replaceChildren();
@@ -186,7 +291,12 @@
       li.append(glava);
       if (p.vecPoslat) li.append(el("p", "field__help", "Ovaj sadržaj je već bio poslat — prikazuje se postojeći posao, bez duplikata."));
       if (napomena) { var n = el("p", "notice", napomena); n.dataset.stanje = "nepoznato"; li.append(n); }
-      if (!x) return;
+      var akcije = el("div", "form__actions");
+      if (!x) {
+        dodajRucnuProveru(akcije, p, null);
+        if (akcije.childNodes.length) li.append(akcije);
+        return;
+      }
       var j = x.job;
       if (st === "failed") { var f = el("p", "notice", "Obrada nije uspela posle više pokušaja. Dokument nije prikačen; otpremite ga ponovo ili ga dodajte drugim putem."); f.dataset.stanje = "greska"; li.append(f); }
       var dok = x.dokument, provera = x.potrebna_provera;
@@ -253,7 +363,6 @@
         });
         li.append(dl);
       }
-      var akcije = el("div", "form__actions");
       if (st === "awaiting_review" && !j.predmet_id) {
         akcije.append(dugme("Potvrđujem pregled", "text-btn text-btn--primary", function (b) { odluci(p, "resolve", b); }));
         akcije.append(dugme("Odbij dokument", "text-btn", function (b) { odluci(p, "reject", b); }));
@@ -265,6 +374,10 @@
       if (st === "completed" && pr === "NIJE_PRIKACENO") akcije.append(dugme(trenutni.id ? "Prikači ovom predmetu" : "Otvori predmet iz ovog dokumenta",
         "text-btn text-btn--primary", function (b) { prikaci(p, b); }));
       if (pr === "U_TOKU") { var ut = el("p", "notice", "Prikačivanje je u toku ili je upravo prekinuto. Dokument još nije potvrđen u predmetu; stanje se ponovo proverava."); ut.dataset.stanje = "nepoznato"; li.append(ut); }
+      else if (pr === "NEPOZNATO" || (pr === "PRIKACENO" && !ispravanId(j.predmet_id))) {
+        var npr = el("p", "notice", "Stanje prikačivanja nije potvrđeno. Podatak o predmetu sam po sebi nije potvrda.");
+        npr.dataset.stanje = "nepoznato"; li.append(npr);
+      }
       else if (pr === "NEPOTPUNO" && p.bezTeksta) {
         /* N1: server ne prikačuje dokument iz kog nije izdvojen tekst (`prazan_tekst`) — ponavljanje ne može da uspe. */
         var bt = el("p", "notice", PORUKA_BEZ_TEKSTA); bt.dataset.stanje = "greska"; li.append(bt);
@@ -273,8 +386,9 @@
         np.dataset.stanje = "greska"; li.append(np);
         if (st === "completed") akcije.append(dugme("Ponovi prikačivanje", "text-btn text-btn--primary", function (b) { prikaci(p, b); }));
       } else if (pr === "NEPOTPUNO") { var nd = el("p", "notice", "Prikačivanje ovog dokumenta drugom vašem predmetu nije završeno. Nastavite ga iz tog predmeta."); nd.dataset.stanje = "greska"; li.append(nd); }
-      else if (pr === "PRIKACENO" && j.predmet_id === trenutni.id) li.append(el("p", "intake__done", "Prikačeno ovom predmetu."));
-      else if (pr === "PRIKACENO") li.append(el("p", "notice", "Ovaj dokument je već prikačen drugom vašem predmetu."));
+      else if (pr === "PRIKACENO" && ispravanId(j.predmet_id) && j.predmet_id === trenutni.id) li.append(el("p", "intake__done", "Prikačeno ovom predmetu."));
+      else if (pr === "PRIKACENO" && ispravanId(j.predmet_id)) li.append(el("p", "notice", "Ovaj dokument je već prikačen drugom vašem predmetu (" + tekst(j.predmet_id) + ")."));
+      dodajRucnuProveru(akcije, p, j);
       if (akcije.childNodes.length) li.append(akcije);
       var por = el("p", "notice intake__msg"); por.hidden = true; por.setAttribute("role", "status"); li.append(por);
       p.poruka = por;
@@ -462,9 +576,12 @@
     }
 
     function postavi(predmet) {
-      if (trenutni && trenutni.id === predmet.id && trenutni.korisnik === sesija.stanje().korisnik) return;
+      var s = sesija.stanje(), id = tekst(predmet && predmet.id);
+      if (!predmet || !ispravanId(id) || s.stanje !== sesija.STANJA.PRIJAVLJEN || !ispravanId(s.korisnik)) { ocisti(); return; }
+      if (trenutni && trenutni.id === id && trenutni.korisnik === s.korisnik) return;
       ocisti();
-      trenutni = { id: predmet.id, korisnik: sesija.stanje().korisnik };
+      trenutni = { id: id, korisnik: s.korisnik };
+      obnoviNastavak();
     }
     /** „Nov predmet → Iz dokumenta“: prijem bez predmeta (prvi finalize ga otvara). */
     function pocniNov() {
@@ -474,7 +591,13 @@
     }
 
     $("pd-forma").addEventListener("submit", function (e) { e.preventDefault(); otpremi(); });
-    var odjavi = sesija.naPromenu(function (novo, staro) { if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) ocisti(); });
+    var odjavi = sesija.naPromenu(function (novo, staro) {
+      var odjava = (staro.stanje === sesija.STANJA.PRIJAVLJEN || staro.stanje === sesija.STANJA.ISTEKLA)
+        && novo.stanje === sesija.STANJA.NEPRIJAVLJEN;
+      var promenaKorisnika = !!staro.korisnik && !!novo.korisnik && novo.korisnik !== staro.korisnik;
+      if (odjava || promenaKorisnika) ukloniNastavkeKorisnika(staro.korisnik);
+      if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) ocisti();
+    });
 
     return { postavi: postavi, pocniNov: pocniNov, aktiviraj: function () {}, ocisti: ocisti, zaustavi: function () { odjavi(); ocisti(); } };
   }
