@@ -295,15 +295,24 @@ def test_odluka_pise_immutable_audit_i_prijavljuje_neuspeh():
         assert asyncio.run(rp.odbij_rok("r1", "u1")) is False
 
 
-def test_ruta_ne_tvrdi_uspeh_ako_audit_padne():
-    """Obe rute odluke moraju prijaviti neuspeh upisa. Treci 503 u fajlu je
-    citanje kandidata i meri se odvojeno, pa se ne broji ukupno nego po telu."""
-    s = _izv("routers/rok_odluka.py")
-    telo_potvrdi = s[s.index("async def potvrdi("):s.index("async def odbij(")]
-    telo_odbij = s[s.index("async def odbij("):]
-    for ime, telo in (("potvrdi", telo_potvrdi), ("odbij", telo_odbij)):
-        assert "status_code=503" in telo, f"`{ime}` ne prijavljuje neuspeh upisa"
-        assert "if not await" in telo, f"`{ime}` ne proverava ishod upisa"
+def test_ruta_ne_tvrdi_uspeh_ako_audit_padne(monkeypatch):
+    """Both routes must fail closed when the writer returns no audit ID."""
+    from tests.ns005_harness import ocisti, pripremi, zaglavlje
+    from tests.test_ns2b_c_odbijen_rok_ostaje_odbijen import _baza
+
+    async def no_audit_id(*args, **kwargs):
+        return None
+
+    client, db = pripremi(monkeypatch, _baza())
+    monkeypatch.setattr("shared.audit_immutable.log_action", no_audit_id)
+    try:
+        for action in ("potvrdi", "odbij"):
+            response = client.post(f"/api/rokovi/r-1/{action}", json={}, headers=zaglavlje("A"))
+            assert response.status_code == 503, response.text
+        assert db.tabele["audit_immutable"] == []
+        assert db.tabele["events"] == []
+    finally:
+        ocisti()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

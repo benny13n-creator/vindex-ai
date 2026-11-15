@@ -6,6 +6,7 @@ dokument kao predlog — a sam predlog se ne menja (odbijanje predloga radi ruta
 """
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Optional
@@ -63,6 +64,23 @@ def napomena_ispravke(rok_id: str) -> str:
     return f"Ispravka predloga roka {rok_id}"
 
 
+def _audit_metadata(raw: object) -> dict:
+    """Decode audit metadata from JSONB object or the writer's JSONB string.
+
+    Malformed audit data fails closed so prior corrections are never ignored.
+    """
+    if raw is None:
+        return {}
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid correction audit metadata") from exc
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid correction audit metadata type")
+    return raw
+
+
 def postojeca_ispravka(supa, *, uid: str, predlog: dict, rok_id: str) -> Optional[str]:
     """Id POTVRĐENE ispravke ovog predloga, ili None. G3: ako odbijanje predloga padne posle potvrđene ispravke,
     predlog ostaje nepotvrđen — bez ove provere druga ispravka ili potvrda predloga pravila je DRUGU potvrđenu obavezu.
@@ -75,7 +93,7 @@ def postojeca_ispravka(supa, *, uid: str, predlog: dict, rok_id: str) -> Optiona
         return None
     trazena = napomena_ispravke(rok_id)
     for red in procitaj_lanac(ids, "action, resource_id, metadata, seq"):
-        if red.get("action") == AKCIJA_POTVRDA and ((red.get("metadata") or {}).get("napomena") == trazena):
+        if red.get("action") == AKCIJA_POTVRDA and (_audit_metadata(red.get("metadata")).get("napomena") == trazena):
             return str(red.get("resource_id"))
     return None
 
@@ -92,7 +110,9 @@ def ispravka_iz_odbijanja(rok_id: str) -> Optional[str]:
     """Id ispravljenog roka iz napomene odbijanja predloga, ili None. Pad čitanja ide pozivaocu (fail-closed)."""
     from shared.rok_potvrda import AKCIJA_ODBIJANJE, procitaj_lanac
     for red in procitaj_lanac([rok_id], "action, resource_id, metadata, seq"):
-        napomena = str((red.get("metadata") or {}).get("napomena") or "")
-        if red.get("action") == AKCIJA_ODBIJANJE and napomena.startswith(PREFIKS_ODBIJANJA):
+        if red.get("action") != AKCIJA_ODBIJANJE:
+            continue
+        napomena = str(_audit_metadata(red.get("metadata")).get("napomena") or "")
+        if napomena.startswith(PREFIKS_ODBIJANJA):
             return napomena[len(PREFIKS_ODBIJANJA):].strip() or None
     return None

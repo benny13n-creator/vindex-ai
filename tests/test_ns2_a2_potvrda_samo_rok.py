@@ -138,8 +138,8 @@ def test_upit_vlasnistva_trazi_vrstu_samo_posle_129(ok, monkeypatch):
     for sema in (True, False):
         red = asyncio.run(ro._rok_u_vlasnistvu(_Sonda(b), "r-rok", "uid-A", sa_vrstom=sema))
         assert ("vrsta" in red) is sema
-    assert vidjeno == ["id, predmet_id, dogadjaj, datum_iso, vaznost, akter, vrsta",
-                       "id, predmet_id, dogadjaj, datum_iso, vaznost, akter"]
+    assert vidjeno == ["id, predmet_id, dogadjaj, datum_iso, vaznost, akter, dokument_id, dokument_naziv, vrsta",
+                       "id, predmet_id, dogadjaj, datum_iso, vaznost, akter, dokument_id, dokument_naziv"]
 
 
 # ── F1: sonda seme 129 kesira samo DOKAZAN odgovor ───────────────────────────────────────────────────────────

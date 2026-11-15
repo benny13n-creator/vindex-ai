@@ -313,6 +313,8 @@ async def log_action(
         entry = await asyncio.to_thread(_build_and_insert, action, user_id, resource_type, resource_id, ip, metadata, correlation_id)
         return entry
     except Exception as e:
+        if action == "rok_potvrdjen" and getattr(e, "code", None) in {"P0801", "P0802", "P0804"}:
+            raise
         logger.warning("[AUDIT_IMMUTABLE] greška upisa (nije kritično): %s", e)
         return None
 
