@@ -50,6 +50,7 @@ async function newScenario(options = {}) {
     });
     else if (seedKey && seedValue !== null) sessionStorage.setItem(seedKey, seedValue);
     window.__jobGets = [];
+    window.__uploadPosts = 0;
     window.__active = Object.create(null);
     window.__maxActive = Object.create(null);
     const originalFetch = window.fetch.bind(window);
@@ -57,6 +58,8 @@ async function newScenario(options = {}) {
       const match = /^\/api\/smart-intake\/jobs\/([^/]+)$/.exec(new URL(String(input), location.href).pathname);
       const isGet = match && (!init || !init.method || init.method === "GET");
       const id = isGet ? decodeURIComponent(match[1]) : null;
+      const pathname = new URL(String(input), location.href).pathname;
+      if (pathname === "/api/smart-intake/documents" && init && init.method === "POST") window.__uploadPosts++;
       if (isGet) {
         window.__jobGets.push(id);
         window.__active[id] = (window.__active[id] || 0) + 1;
@@ -71,9 +74,21 @@ async function newScenario(options = {}) {
   const overrides = options.overrides || Object.create(null);
   const omitSignal = new Set(options.omitSignal || []);
   const delays = options.delays || Object.create(null);
+  const uploadState = { accepted: false, completed: false };
+  const uploadDelay = Number(options.uploadDelay) || 0;
   await context.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.hostname !== "127.0.0.1") { await route.abort(); return; }
+    if (url.pathname === "/api/smart-intake/documents" && route.request().method() === "POST" && uploadDelay) {
+      const response = await route.fetch().catch(() => null);
+      uploadState.accepted = !!response;
+      if (response) {
+        await new Promise((resolve) => setTimeout(resolve, uploadDelay));
+        await route.fulfill({ response }).catch(() => {});
+      }
+      uploadState.completed = true;
+      return;
+    }
     const match = /^\/api\/smart-intake\/jobs\/([^/]+)$/.exec(url.pathname);
     if (match && route.request().method() === "GET") {
       const id = decodeURIComponent(match[1]), override = overrides[id];
@@ -102,7 +117,7 @@ async function newScenario(options = {}) {
   await page.goto(`http://127.0.0.1:${fixture.port}/?rezim=live#/predmeti/${A[0].id}/prijem`);
   const ready = await waitFor(page, () => !document.getElementById("odeljak-prijem").hidden
     && document.getElementById("predmet-naslov").textContent.length > 0);
-  return { fixture, context, page, pageErrors, ready, overrides,
+  return { fixture, context, page, pageErrors, ready, overrides, delays, uploadState,
     async close() { await context.close(); await fixture.zatvori(); } };
 }
 async function upload(page, names) {
@@ -138,6 +153,7 @@ try {
     Object.assign(JOBS_A[ids[5]], { status: "completed", predmet_id: A[0].id, prikacivanje: "PRIKACENO" });
 
     const resumeKey = keyFor("uid-A", A[0].id);
+    await p.evaluate(() => sessionStorage.setItem("unrelated-marker", "keep"));
     const raw = await p.evaluate((key) => sessionStorage.getItem(key), resumeKey);
     let saved; try { saved = JSON.parse(raw); } catch {}
     check("storage", "accepted IDs are persisted in a versioned user/matter-scoped record",
@@ -151,7 +167,11 @@ try {
       && /\/api\/smart-intake\/(documents|jobs\/.*\/(finalize|review\/))/.test(x.putanja)).length;
     const postsBefore = mutationPosts();
     await p.reload();
-    const restored = await waitFor(p, (n) => document.querySelectorAll("#pd-poslovi .intake").length === n, 6000, ids.length);
+    const restored = await waitFor(p, (n) => {
+      const rows = [...document.querySelectorAll("#pd-poslovi .intake")];
+      return rows.length === n && rows.every((li) => li.querySelector(".intake__state")?.dataset.stanje !== "ucitavanje"
+        && li.querySelector(".intake__name")?.textContent.startsWith("server-"));
+    }, 6000, ids.length);
     let r = await rows(p);
     check("refresh", "refresh restores every accepted job via status GET", restored && r.length === ids.length);
     check("server", "restored document names are taken from server status", r.length === ids.length && r.every((x) => x.tekst.includes("server-")));
@@ -168,12 +188,18 @@ try {
       && !r.find((x) => x.id === ids[3])?.tekst.includes("Prikačeno ovom predmetu"));
     check("states", "attachment to another matter is identified without claiming current attachment",
       r.find((x) => x.id === ids[4])?.tekst.includes("drugom vašem predmetu")
+      && r.find((x) => x.id === ids[4])?.tekst.includes(A[1].id)
       && !r.find((x) => x.id === ids[4])?.tekst.includes("Prikačeno ovom predmetu"));
     check("states", "predmet_id without explicit prikacivanje is not proof of attachment",
       r.find((x) => x.id === ids[5])?.tekst.includes("Stanje prikačivanja nije potvrđeno")
       && !r.find((x) => x.id === ids[5])?.tekst.includes("Prikačeno ovom predmetu"));
     check("states", "unknown attachment state retains a manual status check",
       r.find((x) => x.id === ids[5])?.dugmad.includes("Proveri stanje obrade"));
+    const afterRefreshRecord = JSON.parse(await p.evaluate((key) => sessionStorage.getItem(key), resumeKey));
+    check("storage", "only a server-confirmed attachment with a valid target is removed; review, incomplete and unknown jobs remain",
+      afterRefreshRecord.poslovi.length === 5 && !afterRefreshRecord.poslovi.includes(ids[4])
+      && [ids[0], ids[1], ids[2], ids[3], ids[5]].every((id) => afterRefreshRecord.poslovi.includes(id))
+      && await p.evaluate(() => sessionStorage.getItem("unrelated-marker") === "keep"), JSON.stringify(afterRefreshRecord.poslovi));
     const getIds = await p.evaluate(() => window.__jobGets.slice());
     check("pollers", "no duplicate rows or parallel polling for a restored job",
       new Set(r.map((x) => x.id)).size === ids.length
@@ -188,12 +214,46 @@ try {
     check("matter", "different case displays no prior jobs", another && matterRows.length === 0,
       JSON.stringify({ another, rows: matterRows.map((x) => x.id) }));
     await go(p, "#/danas");
+    const beforeReturn = await p.evaluate(() => window.__jobGets.slice());
     await go(p, `#/predmeti/${A[0].id}/prijem`);
-    const returned = await waitFor(p, (n) => document.querySelectorAll("#pd-poslovi .intake").length === n, 6000, ids.length);
+    const remainingIds = [ids[0], ids[1], ids[2], ids[3], ids[5]];
+    const returned = await waitFor(p, (expected) => {
+      const rows = [...document.querySelectorAll("#pd-poslovi .intake")];
+      return rows.length === expected.length && expected.every((id) => rows.some((li) => li.dataset.posao === id
+        && li.querySelector(".intake__state")?.dataset.stanje !== "ucitavanje"));
+    }, 6000, remainingIds);
     r = await rows(p);
-    check("navigation", "leaving and returning in the same tab restores the jobs", returned && r.length === ids.length
-      && new Set(r.map((x) => x.id)).size === ids.length);
+    const afterReturn = await p.evaluate(() => window.__jobGets.slice());
+    check("navigation", "leaving and returning restores only jobs requiring continuation", returned && r.length === remainingIds.length
+      && new Set(r.map((x) => x.id)).size === remainingIds.length && !r.some((x) => x.id === ids[4]));
+    check("navigation", "pending-review job is reread while the confirmed attachment is not restored",
+      afterReturn.filter((id) => id === ids[0]).length > beforeReturn.filter((id) => id === ids[0]).length
+      && afterReturn.filter((id) => id === ids[4]).length === beforeReturn.filter((id) => id === ids[4]).length);
     check("resume-no-write", "navigation recovery sends no upload/review/finalize requests", mutationPosts() === postsBefore);
+    const review = p.locator(`[data-posao="${ids[0]}"]`).getByRole("button", { name: "Potvrđujem pregled" });
+    await review.click();
+    const readyToAttach = await waitFor(p, (id) => {
+      const row = document.querySelector(`[data-posao="${CSS.escape(id)}"]`);
+      return !!row && [...row.querySelectorAll("button")].some((b) => b.textContent.includes("Prikači ovom predmetu"));
+    }, 4000, ids[0]);
+    const pointerAfterReview = JSON.parse(await p.evaluate((key) => sessionStorage.getItem(key), resumeKey));
+    check("recovered-action", "restored review is explicit and remains resumable until attachment is confirmed",
+      readyToAttach && pointerAfterReview.poslovi.includes(ids[0]));
+    if (readyToAttach) await p.locator(`[data-posao="${ids[0]}"]`).getByRole("button", { name: "Prikači ovom predmetu" }).click();
+    const attached = await waitFor(p, (id) => {
+      const row = document.querySelector(`[data-posao="${CSS.escape(id)}"]`);
+      return !!row && row.innerText.includes("Prikačeno ovom predmetu.");
+    }, 4000, ids[0]);
+    const finalRecord = JSON.parse(await p.evaluate((key) => sessionStorage.getItem(key), resumeKey));
+    const reviewPosts = s.fixture.zahtevi.filter((x) => x.metod === "POST" && x.putanja.endsWith(`/jobs/${ids[0]}/review/resolve`)).length;
+    const finalizePosts = s.fixture.zahtevi.filter((x) => x.metod === "POST" && x.putanja.endsWith(`/jobs/${ids[0]}/finalize`)).length;
+    check("recovered-action", "restored review and attachment finish with the server-confirmed matter and clear only that job",
+      readyToAttach && attached && JOBS_A[ids[0]].predmet_id === A[0].id && !finalRecord.poslovi.includes(ids[0])
+      && finalRecord.poslovi.length === 4 && reviewPosts === 1 && finalizePosts === 1,
+      JSON.stringify({ attached, target: JOBS_A[ids[0]].predmet_id, remaining: finalRecord.poslovi.length, reviewPosts, finalizePosts }));
+    check("storage", "successful attachment preserves other pending/unknown pointers and unrelated storage",
+      [ids[1], ids[2], ids[3], ids[5]].every((id) => finalRecord.poslovi.includes(id))
+      && await p.evaluate(() => sessionStorage.getItem("unrelated-marker") === "keep"));
     check("browser", "no uncaught frontend errors", s.pageErrors.length === 0, s.pageErrors.join(" | "));
     await s.close();
   }
@@ -304,10 +364,21 @@ try {
     check("errors", "confirmed 404 removes only the inaccessible job ID",
       !saved.poslovi.includes(missingId) && saved.poslovi.includes(authId) && saved.poslovi.includes(tempId));
     s.overrides[authId] = null; s.overrides[tempId] = null;
+    const beforeRecovery = await p.evaluate(() => window.__jobGets.slice());
     await go(p, "#/danas");
     await go(p, `#/predmeti/${A[0].id}/prijem`);
-    const recovered = await waitFor(p, (n) => document.querySelectorAll("#pd-poslovi .intake").length === n, 4000, 2);
-    check("errors", "return after auth/network recovery rereads authorized jobs", recovered && (await rows(p)).some((x) => x.id === authId));
+    const recovered = await waitFor(p, (expected) => {
+      const rows = [...document.querySelectorAll("#pd-poslovi .intake")];
+      return rows.length === expected.length && expected.every((id) => {
+        const row = rows.find((x) => x.dataset.posao === id);
+        return row && row.querySelector(".intake__state")?.dataset.stanje === "extracting"
+          && row.querySelector(".intake__name")?.textContent === (id === "resume-auth" ? "auth.pdf" : "temporary.pdf");
+      });
+    }, 4000, [authId, tempId]);
+    const afterRecovery = await p.evaluate(() => window.__jobGets.slice());
+    check("errors", "return after auth/network recovery displays fresh server-derived job state", recovered
+      && [authId, tempId].every((id) => afterRecovery.filter((x) => x === id).length > beforeRecovery.filter((x) => x === id).length),
+      JSON.stringify({ rows: await rows(p), beforeRecovery, afterRecovery }));
     check("browser", "no uncaught error for failure responses", s.pageErrors.length === 0);
     await s.close();
   }
@@ -341,6 +412,44 @@ try {
     await s.close();
   }
 
+  // Manual status recovery remains available when every initial read fails before any job data is loaded.
+  {
+    const id = "resume-manual-no-data";
+    JOBS_A[id] = { id, ime: "server-recovered.pdf", status: "completed", attempts: 0, predmet_id: null, dokument: null, entiteti: [], provera: null, prikacivanje: "NIJE_PRIKACENO" };
+    const s = await newScenario({ seedKey: keyFor("uid-A", A[0].id), seedValue: resumeRecord("uid-A", A[0].id, [id]),
+      overrides: { [id]: { status: 503 } } });
+    const p = s.page;
+    await waitFor(p, (job) => window.__jobGets.includes(job), 2500, id);
+    await fastForward(p, 306000);
+    const stopped = await waitFor(p, () => document.querySelector("#pd-poslovi .intake .notice")?.textContent.includes("Praćenje je zaustavljeno posle 5 minuta"), 2500);
+    const button = p.locator("#pd-poslovi .intake").getByRole("button", { name: "Proveri stanje obrade" });
+    const manualAvailable = await button.count() === 1;
+    const before = await p.evaluate((job) => window.__jobGets.filter((x) => x === job).length, id);
+    check("manual-no-data", "all initial status reads can fail while the bounded window still exposes manual recovery",
+      stopped && manualAvailable && before > 1 && (await rows(p))[0]?.stanje === "ucitavanje");
+    const postsBefore = s.fixture.zahtevi.filter((x) => x.metod === "POST").length;
+    s.overrides[id] = null;
+    s.delays[id] = 500;
+    await button.click();
+    const started = await waitFor(p, (job) => window.__active[job] === 1, 2000, id);
+    if (started) await p.evaluate((job) => {
+      const row = document.querySelector(`[data-posao="${CSS.escape(job)}"]`);
+      const b = [...(row?.querySelectorAll("button") || [])].find((x) => x.textContent.includes("Proveri stanje obrade"));
+      if (b) b.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }, id);
+    const recovered = await waitFor(p, (job) => {
+      const row = document.querySelector(`[data-posao="${CSS.escape(job)}"]`);
+      return row?.querySelector(".intake__state")?.dataset.stanje === "completed"
+        && row.querySelector(".intake__name")?.textContent === "server-recovered.pdf";
+    }, 3000, id);
+    const after = await p.evaluate((job) => window.__jobGets.filter((x) => x === job).length, id);
+    check("manual-no-data", "manual check reads and displays actual server state exactly once despite a repeated click", started
+      && recovered && after === before + 1 && await p.evaluate((job) => window.__maxActive[job] === 1, id));
+    check("manual-no-data", "recovery issued no upload, review or finalize POST", postsBefore === s.fixture.zahtevi.filter((x) => x.metod === "POST").length);
+    check("browser", "no uncaught error after no-data manual recovery", s.pageErrors.length === 0, s.pageErrors.join(" | "));
+    await s.close();
+  }
+
   // User change/logout clears only the old user's keys and leaves unrelated tab storage intact.
   {
     const s = await newScenario(), p = s.page;
@@ -365,6 +474,44 @@ try {
     check("identity", "logout clears only prior user's record", !await p.evaluate((k) => !!sessionStorage.getItem(k), bKey)
       && await p.evaluate(() => sessionStorage.getItem("unrelated-marker") === "keep"));
     check("browser", "no uncaught error during identity changes", s.pageErrors.length === 0);
+    await s.close();
+  }
+
+  // Session expiry preserves continuation; confirmed logout afterward clears it, even with an accepted upload response in flight.
+  {
+    const id = "resume-expiry-existing", key = keyFor("uid-A", A[0].id), otherAKey = keyFor("uid-A", A[1].id), bKey = keyFor("uid-B", B[0].id);
+    JOBS_A[id] = { id, ime: "existing.pdf", status: "extracting", attempts: 0, predmet_id: null, dokument: null, entiteti: [], provera: null, prikacivanje: "U_TOKU" };
+    const s = await newScenario({ seedKey: key, seedValue: resumeRecord("uid-A", A[0].id, [id]), overrides: { [id]: { status: 503 } }, uploadDelay: 700 });
+    const p = s.page;
+    await p.evaluate(({ otherAKey, bKey, otherA, b }) => {
+      sessionStorage.setItem("unrelated-marker", "keep");
+      sessionStorage.setItem(otherAKey, otherA);
+      sessionStorage.setItem(bKey, b);
+    }, { otherAKey, bKey, otherA: resumeRecord("uid-A", A[1].id, ["resume-other-matter"]), b: resumeRecord("uid-B", B[0].id, ["resume-user-b"]) });
+    await waitFor(p, (job) => window.__jobGets.includes(job), 2500, id);
+    await p.setInputFiles("#pd-fajlovi", [{ name: "late-after-logout.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 synthetic late response") }]);
+    await p.click("#pd-otpremi");
+    const uploadStarted = await waitFor(p, () => window.__uploadPosts === 1, 2500);
+    for (let i = 0; i < 100 && !s.uploadState.accepted; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+    const serverAccepted = s.uploadState.accepted;
+    await p.evaluate(({ key, user }) => {
+      localStorage.setItem(key, JSON.stringify({ access_token: "tok-A", expires_at: Math.floor(Date.now() / 1000) - 60, user: { id: user } }));
+      window.VxSesija.proveri();
+    }, { key: AUTH_KEY, user: "uid-A" });
+    const expired = await waitFor(p, () => window.VxSesija.stanje().stanje === "istekla", 2000);
+    const preservedOnExpiry = await p.evaluate((keys) => keys.every((k) => !!sessionStorage.getItem(k)), [key, otherAKey]);
+    await p.evaluate((k) => { localStorage.removeItem(k); window.VxSesija.proveri(); }, AUTH_KEY);
+    const loggedOut = await waitFor(p, () => window.VxSesija.stanje().stanje === "neprijavljen", 2000);
+    const clearedOnLogout = !await p.evaluate((keys) => keys.some((k) => !!sessionStorage.getItem(k)), [key, otherAKey]);
+    for (let i = 0; i < 150 && !s.uploadState.completed; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+    const absentAfterLateResponse = !await p.evaluate((k) => !!sessionStorage.getItem(k), key);
+    check("identity-expiry", "PRIJAVLJEN(A) → ISTEKLA(A) preserves the prior user's continuation", uploadStarted && serverAccepted && expired && preservedOnExpiry);
+    check("identity-expiry", "ISTEKLA(A) → NEPRIJAVLJEN clears only A's continuation and preserves unrelated storage", loggedOut
+      && clearedOnLogout && await p.evaluate((k) => !!sessionStorage.getItem(k), bKey)
+      && await p.evaluate(() => sessionStorage.getItem("unrelated-marker") === "keep"));
+    check("identity-expiry", "late accepted upload response cannot recreate the cleared pointer or render a row", s.uploadState.completed
+      && absentAfterLateResponse && (await rows(p)).length === 0);
+    check("browser", "no uncaught error across expiry, logout and stale upload response", s.pageErrors.length === 0, s.pageErrors.join(" | "));
     await s.close();
   }
 } finally {

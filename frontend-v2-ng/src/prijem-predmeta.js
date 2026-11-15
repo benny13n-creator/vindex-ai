@@ -259,6 +259,7 @@
         if (mu) javi(p, mu[0], mu[1]);
       }
       var st = tekst(p.podaci.job.status), signalPrikacivanja = prikacivanje(p.podaci.job);
+      if (signalPrikacivanja === "PRIKACENO" && ispravanId(p.podaci.job.predmet_id)) ukloniNastavakPosla(p.id);
       if (ZAVRSNA[st] && signalPrikacivanja !== "U_TOKU") {
         p.pracenjeZaustavljeno = signalPrikacivanja === "NEPOZNATO"
           || (signalPrikacivanja === "PRIKACENO" && !ispravanId(p.podaci.job.predmet_id));
@@ -268,6 +269,15 @@
       zakazi(p, RAZMAK_MS, null);
     }
 
+    function dodajRucnuProveru(akcije, p, j) {
+      var pr = j ? prikacivanje(j) : "";
+      if (p.pracenjeZaustavljeno || pr === "NEPOZNATO" || (pr === "PRIKACENO" && !ispravanId(j.predmet_id))) {
+        akcije.append(dugme("Proveri stanje obrade", "text-btn", function (b) {
+          if (!p.radiStatusa && zivi(p)) { b.disabled = true; prati(p, true); }
+        }));
+        akcije.lastChild.disabled = !!p.radiStatusa;
+      }
+    }
     function prikazi(p, napomena) {
       var li = p.li, x = p.podaci;
       li.replaceChildren();
@@ -281,7 +291,12 @@
       li.append(glava);
       if (p.vecPoslat) li.append(el("p", "field__help", "Ovaj sadržaj je već bio poslat — prikazuje se postojeći posao, bez duplikata."));
       if (napomena) { var n = el("p", "notice", napomena); n.dataset.stanje = "nepoznato"; li.append(n); }
-      if (!x) return;
+      var akcije = el("div", "form__actions");
+      if (!x) {
+        dodajRucnuProveru(akcije, p, null);
+        if (akcije.childNodes.length) li.append(akcije);
+        return;
+      }
       var j = x.job;
       if (st === "failed") { var f = el("p", "notice", "Obrada nije uspela posle više pokušaja. Dokument nije prikačen; otpremite ga ponovo ili ga dodajte drugim putem."); f.dataset.stanje = "greska"; li.append(f); }
       var dok = x.dokument, provera = x.potrebna_provera;
@@ -348,7 +363,6 @@
         });
         li.append(dl);
       }
-      var akcije = el("div", "form__actions");
       if (st === "awaiting_review" && !j.predmet_id) {
         akcije.append(dugme("Potvrđujem pregled", "text-btn text-btn--primary", function (b) { odluci(p, "resolve", b); }));
         akcije.append(dugme("Odbij dokument", "text-btn", function (b) { odluci(p, "reject", b); }));
@@ -373,13 +387,8 @@
         if (st === "completed") akcije.append(dugme("Ponovi prikačivanje", "text-btn text-btn--primary", function (b) { prikaci(p, b); }));
       } else if (pr === "NEPOTPUNO") { var nd = el("p", "notice", "Prikačivanje ovog dokumenta drugom vašem predmetu nije završeno. Nastavite ga iz tog predmeta."); nd.dataset.stanje = "greska"; li.append(nd); }
       else if (pr === "PRIKACENO" && ispravanId(j.predmet_id) && j.predmet_id === trenutni.id) li.append(el("p", "intake__done", "Prikačeno ovom predmetu."));
-      else if (pr === "PRIKACENO" && ispravanId(j.predmet_id)) li.append(el("p", "notice", "Ovaj dokument je već prikačen drugom vašem predmetu."));
-      if (p.pracenjeZaustavljeno || pr === "NEPOZNATO" || (pr === "PRIKACENO" && !ispravanId(j.predmet_id))) {
-        akcije.append(dugme("Proveri stanje obrade", "text-btn", function (b) {
-          if (!p.radiStatusa && zivi(p)) { b.disabled = true; prati(p, true); }
-        }));
-        akcije.lastChild.disabled = !!p.radiStatusa;
-      }
+      else if (pr === "PRIKACENO" && ispravanId(j.predmet_id)) li.append(el("p", "notice", "Ovaj dokument je već prikačen drugom vašem predmetu (" + tekst(j.predmet_id) + ")."));
+      dodajRucnuProveru(akcije, p, j);
       if (akcije.childNodes.length) li.append(akcije);
       var por = el("p", "notice intake__msg"); por.hidden = true; por.setAttribute("role", "status"); li.append(por);
       p.poruka = por;
@@ -583,7 +592,8 @@
 
     $("pd-forma").addEventListener("submit", function (e) { e.preventDefault(); otpremi(); });
     var odjavi = sesija.naPromenu(function (novo, staro) {
-      var odjava = staro.stanje === sesija.STANJA.PRIJAVLJEN && novo.stanje === sesija.STANJA.NEPRIJAVLJEN;
+      var odjava = (staro.stanje === sesija.STANJA.PRIJAVLJEN || staro.stanje === sesija.STANJA.ISTEKLA)
+        && novo.stanje === sesija.STANJA.NEPRIJAVLJEN;
       var promenaKorisnika = !!staro.korisnik && !!novo.korisnik && novo.korisnik !== staro.korisnik;
       if (odjava || promenaKorisnika) ukloniNastavkeKorisnika(staro.korisnik);
       if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) ocisti();
