@@ -2,14 +2,19 @@
 """G3 — ispravka AI predloga roka (POST /api/rokovi/{id}/ispravi): posle ispravke postoji TAČNO JEDNA operativna
 (potvrđena) obaveza — advokatov rok — a AI predlog ostaje vidljiv u istoriji kao ODBIJEN, sa vezom na ispravku.
 Stvarne rute i stvaran lanac odluka (shared/rok_potvrda + audit_immutable u bazi u memoriji)."""
-from datetime import date, timedelta
+import pytest
+
+from tests.reminder_clock import reminder_clock, reminder_day  # noqa: F401
 
 from tests.test_n4_ispravka_roka import _predlog, _stanje, lanac  # noqa: F401
 from tests.test_osb002_solo_tok import A, B, solo  # noqa: F401
 
+pytestmark = pytest.mark.usefixtures("reminder_clock")
+
 
 def _d(n):
-    return (date.today() + timedelta(days=n)).isoformat()
+    # _predlog uses this same Belgrade clock. UTC today differs around midnight.
+    return reminder_day(n).isoformat()
 
 
 def _kandidati(k, glava=A):
