@@ -275,7 +275,9 @@ class _Q:
 
 class _Storage:
     def from_(self, *a, **k): return self
-    def upload(self, *a, **k): raise RuntimeError("storage isključen u testu")
+    # Ingest assertions require a successfully preserved original. Storage
+    # failure itself is covered by test_intake_original_file_storage.
+    def upload(self, *a, **k): return {"path": k.get("path", "")}
     def remove(self, *a, **k): return None
 
 

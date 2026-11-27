@@ -6113,12 +6113,12 @@ async def predmet_upload_auto_analyze(
     # slika, potpisan PDF) je neprihvatljiv gubitak, ne kozmetički propust.
     # Isti šifrovani-pre-upload obrazac kao Smart Intake (routers/
     # smart_intake.py::_encrypt, koji sam prati klijenti/router.py Trezor) --
-    # reuse-ovan, ne ponovo izmišljen. Best-effort: ako storage upis padne,
-    # ostatak toka (OCR/Pinecone/DB) NIJE blokiran (bila bi regresija u
-    # dostupnosti za funkciju koja ranije nije ni postojala) -- storage_path
-    # ostaje na staroj labeli, jasno signalizirajuci da original NIJE sačuvan,
-    # umesto da tiho tvrdi suprotno.
+    # reuse-ovan, ne ponovo izmišljen. Trajna obrada ne sme početi dok
+    # Storage upload originala ne uspe. Greška ne sme proizvesti prividno
+    # sačuvan dokument bez originalnog fajla (izdvojeno iz PR #84).
     _original_storage_path = None
+    _storage_key = None
+    _si_bucket = None
     try:
         import uuid as _uuid
         from routers.smart_intake import _encrypt as _si_encrypt, _STORAGE_BUCKET as _si_bucket
@@ -6132,7 +6132,21 @@ async def predmet_upload_auto_analyze(
         )
         _original_storage_path = _storage_key
     except Exception as _se:
-        logger.warning("[P1.1] Original fajl storage upis neuspesan (nastavljam bez cuvanja originala): %s", _se)
+        # Timeout može značiti da je objekat ipak upisan. Uklanjamo samo
+        # jedinstveni ključ ovog zahteva; neuspeh cleanup-a ne menja 503.
+        if _storage_key is not None and _si_bucket is not None:
+            try:
+                _cleanup_storage = await asyncio.to_thread(
+                    lambda: _get_supa().storage.from_(_si_bucket).remove([_storage_key])
+                )
+                if asyncio.iscoroutine(_cleanup_storage):
+                    await _cleanup_storage
+            except Exception:
+                logger.warning("[P1.1] Original upload/cleanup nije potvrđen; obrada prekinuta (predmet=%s)", predmet_id)
+        raise HTTPException(
+            status_code=503,
+            detail="Čuvanje originalnog dokumenta nije potvrđeno. Pokušajte ponovo.",
+        ) from _se
 
     # Program Intake Sprint 002 (2026-08-05) -- ceo ostatak obrade (OCR ->
     # Pinecone -> DB) je uvijen u ovaj try/except da bi orphan-blob nalaz

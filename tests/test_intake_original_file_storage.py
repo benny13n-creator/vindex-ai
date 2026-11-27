@@ -17,11 +17,11 @@ Covers:
    smart_intake.py::_encrypt, the same AES-GCM pattern as the Klijenti
    Trezor) and uploads them to the intake-dokumenti bucket; storage_path
    in the predmet_dokumenti insert reflects the real, dereferencable key.
-2. A storage-upload failure does not abort the request (best-effort,
-   non-blocking by design — this is new protection, not an established
-   invariant, so it must not create an availability regression) — the
-   endpoint still succeeds, and storage_path honestly falls back to the
-   old label instead of falsely claiming the original was preserved.
+2. Storage rejection or an ambiguous timeout aborts with 503 before OCR,
+   indexing, document-row insertion or billing. Only this request's unique
+   storage key is eligible for compensating cleanup. Cleanup failure must
+   preserve the original failure response (security correction from PR #84).
+3. The real ASGI route retains the existing sanitized global 5xx response.
 
 Mirrors tests/test_sentinel_reliability_fixes.py's api.py auth-mocking and
 upload-pipeline mocking pattern.
@@ -165,30 +165,77 @@ async def test_upload_stores_original_file_and_writes_real_storage_path():
 
 
 @pytest.mark.anyio
-async def test_upload_still_succeeds_and_falls_back_to_session_label_when_storage_upload_fails():
+@pytest.mark.parametrize(
+    "upload_error, cleanup_error",
+    [
+        (Exception("storage bucket unreachable"), None),
+        (TimeoutError("upload outcome unknown"), None),
+        (TimeoutError("upload outcome unknown"), Exception("cleanup unavailable")),
+    ],
+)
+async def test_upload_fails_closed_when_original_storage_upload_fails(upload_error, cleanup_error):
     inserted_rows = []
     supa = _supa_upload_succeeds(inserted_rows=inserted_rows)
-    supa.storage.from_.return_value.upload = MagicMock(side_effect=Exception("storage bucket unreachable"))
+    supa.storage.from_.return_value.upload = MagicMock(side_effect=upload_error)
+    supa.storage.from_.return_value.remove = MagicMock(side_effect=cleanup_error)
 
     with patch("api._require_auth", return_value=_fake_user("user-42")), \
          patch("api._get_supa", return_value=supa), \
          patch("api.PermissionService.require", return_value=_fake_permission_dependency), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
-         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None, None)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None, None)) as mock_extract, \
          patch("uploaded_doc.chunker.chunk_document",
                return_value=types.SimpleNamespace(total_chunks=1)), \
-         patch("uploaded_doc.ingest.ingest_session", return_value=1), \
+         patch("uploaded_doc.ingest.ingest_session", return_value=1) as mock_ingest, \
          patch("routers.smart_intake._encrypt", return_value=b"ENCRYPTED-BLOB"), \
          patch("openai.OpenAI", new=_fake_openai_client()), \
-         patch("api.UsageService.consume", new=AsyncMock()):
-        result = await api.predmet_upload_auto_analyze(
-            "pred-1", _fake_request(),
-            _upload_file("tuzba.pdf", "application/pdf"),
-            authorization="Bearer test-token",
-        )
+         patch("api.UsageService.consume", new=AsyncMock()) as mock_consume:
+        with pytest.raises(api.HTTPException) as exc:
+            await api.predmet_upload_auto_analyze(
+                "pred-1", _fake_request(),
+                _upload_file("tuzba.pdf", "application/pdf"),
+                authorization="Bearer test-token",
+            )
 
-    assert result is not None  # request completes normally — best-effort storage never blocks the flow
-    assert result["original_preserved"] is False  # Final Beta Gate F7: honestly disclosed, not hidden
-    assert len(inserted_rows) == 1
-    storage_path = inserted_rows[0]["storage_path"]
-    assert storage_path.startswith("session/")  # honest fallback, not a value that looks like success
+    assert exc.value.status_code == 503
+    assert "Čuvanje originalnog dokumenta nije potvrđeno" in exc.value.detail
+    assert inserted_rows == []
+    mock_extract.assert_not_called()
+    mock_ingest.assert_not_called()
+    mock_consume.assert_not_awaited()
+    supa.storage.from_.return_value.upload.assert_called_once()
+    supa.storage.from_.return_value.remove.assert_called_once()
+    assert supa.storage.from_.return_value.remove.call_args.args == (
+        [supa.storage.from_.return_value.upload.call_args.kwargs["path"]],
+    )
+
+
+@pytest.mark.anyio
+async def test_storage_failure_returns_503_through_real_upload_route():
+    """Actual ASGI route; auth/storage/model dependencies remain synthetic."""
+    from httpx import ASGITransport, AsyncClient
+
+    inserted_rows = []
+    supa = _supa_upload_succeeds(inserted_rows=inserted_rows)
+    supa.storage.from_.return_value.upload.side_effect = TimeoutError("synthetic timeout")
+    with patch("api._require_auth", return_value=_fake_user("user-42")), \
+         patch("api._get_supa", return_value=supa), \
+         patch("api.PermissionService.require", return_value=_fake_permission_dependency), \
+         patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
+         patch("routers.smart_intake._encrypt", return_value=b"ENCRYPTED-BLOB"), \
+         patch("uploaded_doc.extractor.extract") as extract, \
+         patch("uploaded_doc.ingest.ingest_session") as ingest, \
+         patch("api.UsageService.consume", new=AsyncMock()) as consume:
+        async with AsyncClient(transport=ASGITransport(app=api.app), base_url="http://127.0.0.1") as client:
+            response = await client.post(
+                "/api/predmeti/pred-1/upload",
+                headers={"Authorization": "Bearer test-token"},
+                files={"file": ("synthetic.pdf", b"synthetic bytes", "application/pdf")},
+            )
+    assert response.status_code == 503, response.text
+    # Existing global 5xx handler intentionally hides internal error details.
+    assert response.json()["detail"] == "Interna greška servera. Pokušajte ponovo."
+    assert inserted_rows == []
+    extract.assert_not_called()
+    ingest.assert_not_called()
+    consume.assert_not_awaited()
