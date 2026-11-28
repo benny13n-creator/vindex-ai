@@ -108,6 +108,9 @@ async def test_unconfirmed_sdk_ack_stops_before_downstream(outcome):
 @pytest.mark.anyio
 @pytest.mark.parametrize('cleanup',['ok','error','error_return'])
 async def test_ambiguous_upload_timeout_preserves_failure_despite_cleanup(cleanup, caplog):
+    # UI fixture modules disable logging globally during full-suite collection.
+    # caplog.set_level restores capture for this assertion and undoes it afterward.
+    caplog.set_level('WARNING',logger='vindex.api')
     wire=Wire('timeout',cleanup)
     with application(wire) as state:r=await upload()
     assert r.status_code==503 and state.rows==[]
