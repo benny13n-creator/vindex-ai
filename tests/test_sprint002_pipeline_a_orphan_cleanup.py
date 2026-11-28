@@ -106,7 +106,10 @@ def _supa_upload_succeeds(predmet_id: str = "pred-1", insert_fails: bool = False
 
     supa = MagicMock()
     supa.table = MagicMock(side_effect=_table)
-    supa.storage.from_.return_value.upload.return_value = None
+    from storage3.types import UploadResponse
+    supa.storage.from_.return_value.upload.side_effect = lambda **kw: UploadResponse(
+        path=kw["path"], Key="intake-dokumenti/" + kw["path"]
+    )
     supa.storage.from_.return_value.remove = MagicMock(return_value=None)
     return supa
 

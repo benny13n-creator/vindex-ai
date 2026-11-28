@@ -277,7 +277,9 @@ class _Storage:
     def from_(self, *a, **k): return self
     # Ingest assertions require a successfully preserved original. Storage
     # failure itself is covered by test_intake_original_file_storage.
-    def upload(self, *a, **k): return {"path": k.get("path", "")}
+    def upload(self, *a, **k):
+        from storage3.types import UploadResponse
+        return UploadResponse(path=k["path"], Key="intake-dokumenti/" + k["path"])
     def remove(self, *a, **k): return None
 
 

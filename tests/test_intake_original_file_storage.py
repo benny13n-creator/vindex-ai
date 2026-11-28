@@ -90,7 +90,7 @@ def _fake_openai_client():
 def _supa_upload_succeeds(predmet_id: str = "pred-1", inserted_rows: list = None):
     """predmeti ownership check succeeds; predmet_dokumenti SELECT (redni_broj
     lookup) succeeds empty; predmet_dokumenti INSERT captured for inspection;
-    storage.from_(...).upload(...) succeeds (default MagicMock, no exception)."""
+    storage.from_(...).upload(...) returns the pinned SDK acknowledgement."""
     if inserted_rows is None:
         inserted_rows = []
 
@@ -124,6 +124,10 @@ def _supa_upload_succeeds(predmet_id: str = "pred-1", inserted_rows: list = None
 
     supa = MagicMock()
     supa.table = MagicMock(side_effect=_table)
+    from storage3.types import UploadResponse
+    supa.storage.from_.return_value.upload.side_effect = lambda **kw: UploadResponse(
+        path=kw["path"], Key="intake-dokumenti/" + kw["path"]
+    )
     return supa
 
 
