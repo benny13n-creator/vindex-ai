@@ -9,6 +9,45 @@ from tests.test_osb002_solo_tok import solo  # noqa: F401
 
 
 @zahteva_pg
+def test_shared_service_role_fixture_normalizes_existing_nonbypass_role():
+    """A pre-existing role must exercise backend authorization, not deny every row."""
+    import psycopg
+    from tests import ns007_pg as pg
+
+    role_state = "SELECT rolbypassrls FROM pg_roles WHERE rolname='service_role'"
+    with psycopg.connect(pg.DSN, autocommit=True) as admin:
+        old = admin.execute(role_state).fetchone()
+        if old is None:
+            admin.execute("CREATE ROLE service_role NOLOGIN")
+        original = old[0] if old else False
+        try:
+            admin.execute("ALTER ROLE service_role NOBYPASSRLS")
+            assert admin.execute(role_state).fetchone() == (False,)
+            # The original create-if-missing branch leaves an existing role unchanged.
+            admin.execute("""DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN
+                    CREATE ROLE service_role NOLOGIN BYPASSRLS;
+                END IF;
+            END $$;""")
+            assert admin.execute(role_state).fetchone() == (False,)
+            with sveza_baza() as dsn:
+                with psycopg.connect(dsn, autocommit=True) as db:
+                    assert db.execute(role_state).fetchone() == (True,)
+                    db.execute("""
+                        CREATE TABLE fixture_role_probe (id int);
+                        ALTER TABLE fixture_role_probe ENABLE ROW LEVEL SECURITY;
+                        INSERT INTO fixture_role_probe VALUES (1),(2);
+                        GRANT SELECT ON fixture_role_probe TO service_role;
+                    """)
+                with psycopg.connect(dsn, options='-c role=service_role') as worker:
+                    assert worker.execute(
+                        "SELECT current_user, count(*) FROM fixture_role_probe"
+                    ).fetchone() == ('service_role', 2)
+        finally:
+            admin.execute("ALTER ROLE service_role " + ('BYPASSRLS' if original else 'NOBYPASSRLS'))
+
+
+@zahteva_pg
 def test_service_role_prompt_reads_require_child_ownership(lit, monkeypatch):
     import psycopg
     from psycopg import sql

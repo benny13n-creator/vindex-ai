@@ -391,6 +391,10 @@ async def test_api_otpremanje_fotografije_u_predmet_prolazi_chunk_do_vektorskog_
     import api
     from tests.test_ns3b_format_slike import _api_zahtev
     supa = MagicMock()
+    from storage3.types import UploadResponse
+    supa.storage.from_.return_value.upload.side_effect = lambda **kw: UploadResponse(
+        path=kw["path"], Key="intake-dokumenti/" + kw["path"]
+    )
     supa.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = {
         "id": "pred-1", "naziv": "Test", "tip": "opsti"}
     stiglo = []

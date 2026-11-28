@@ -62,6 +62,10 @@ async def _fake_permission_dependency(user=None):
 
 def _mock_supa_owns_predmet(predmet_id: str = "pred-1", uid: str = "user-0000-0000-0000-000000000001"):
     supa = MagicMock()
+    from storage3.types import UploadResponse
+    supa.storage.from_.return_value.upload.side_effect = lambda **kw: UploadResponse(
+        path=kw["path"], Key="intake-dokumenti/" + kw["path"]
+    )
     supa.table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = {
         "id": predmet_id, "naziv": "Test predmet", "tip": "opsti",
     }
